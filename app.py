@@ -81,6 +81,12 @@ def allowed_file(filename):
 #  only to routes that save files)
 #==============================================
 
+# Helper function
+@app.context_processor
+def inject_cloudinary_url():
+    """Make cloudinary.utils.url available in all templates."""
+    return dict(cloudinary_url=cloudinary.utils.url)
+
 @app.route("/")
 def index1():
     return redirect(url_for("login"))
@@ -591,8 +597,8 @@ def products():
     return render_template('products.html', products=products)
 
 
-@app.route("/add_product_form")
-def add_product_form():
+@app.route("/add_product")
+def add_product():
     return render_template("add_product.html")
 
 
@@ -2087,4 +2093,5 @@ def delete_transaction(transaction_id):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
