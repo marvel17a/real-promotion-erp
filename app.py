@@ -83,9 +83,13 @@ def allowed_file(filename):
 
 # Helper function
 @app.context_processor
+# NEW FUNCTION: This is the fix.
+# This "context processor" injects the cloudinary_url function into all templates
+@app.context_processor
 def inject_cloudinary_url():
-    """Make cloudinary.utils.url available in all templates."""
-    return dict(cloudinary_url=cloudinary.utils.url)
+    """Make cloudinary.url available in all templates."""
+    # This line is now fixed
+    return dict(cloudinary_url=cloudinary.url)
 
 @app.route("/")
 def index1():
@@ -2093,5 +2097,6 @@ def delete_transaction(transaction_id):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
