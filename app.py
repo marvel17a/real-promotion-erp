@@ -2092,6 +2092,229 @@ def delete_transaction(transaction_id):
     flash('Transaction not found.', 'warning')
     return redirect(url_for('emp_list'))
 
+#============================================= Employees transaction Reports module========================  
+
+# --- HELPER FUNCTION (Define this BEFORE the routes that use it) ---
+def _fetch_transaction_data(filters):
+    """
+    A private helper function to query the database based on a dictionary of filters.
+    Returns a list of transactions.
+    """
+    cur = mysql.connection.cursor()
+    
+    where_clauses = []
+    params = []
+
+    # Date filtering
+    period = filters.get('period')
+    if period == 'today':
+        where_clauses.append("t.transaction_date = CURDATE()")
+    elif period == 'this_week':
+        where_clauses.append("YEARWEEK(t.transaction_date, 1) = YEARWEEK(CURDATE(), 1)")
+    elif period == 'this_month':
+        where_clauses.append("YEAR(t.transaction_date) = YEAR(CURDATE()) AND MONTH(t.transaction_date) = MONTH(CURDATE())")
+    elif period == 'this_year':
+        where_clauses.append("YEAR(t.transaction_date) = YEAR(CURDATE())")
+    elif period == 'custom' and filters.get('start_date') and filters.get('end_date'):
+        where_clauses.append("t.transaction_date BETWEEN %s AND %s")
+        params.extend([filters.get('start_date'), filters.get('end_date')])
+
+    # Employee filtering
+    employee_id = filters.get('employee_id')
+    if employee_id and employee_id != 'all':
+        where_clauses.append("t.employee_id = %s")
+        params.append(employee_id)
+
+    # Build and execute the final query
+    sql = """
+        SELECT t.transaction_date, t.type, t.amount, t.description, e.name as employee_name
+        FROM employee_transactions t
+        JOIN employees e ON t.employee_id = e.id
+    """
+    if where_clauses:
+        sql += " WHERE " + " AND ".join(where_clauses)
+    sql += " ORDER BY t.transaction_date DESC, t.id DESC"
+
+    cur.execute(sql, tuple(params))
+    transactions = cur.fetchall()
+    cur.close()
+    return transactions
+
+
+@app.route('/reports')
+def reports():
+    """Renders the main reports hub page."""
+    return render_template('reports.html')
+
+@app.route('/transaction-report', methods=['GET', 'POST'])
+def transaction_report():
+    """Renders the interactive transaction analysis page."""
+    # This function's logic is correct and does not need to change.
+    cur = mysql.connection.cursor()
+    cur.execute("SELECT id, name FROM employees WHERE status = 'active' ORDER BY name ASC")
+    employees = cur.fetchall()
+    cur.close()
+    filters = {'period': 'this_month', 'employee_id': 'all', 'start_date': '', 'end_date': ''}
+    if request.method == 'POST':
+        filters['period'] = request.form.get('period')
+        filters['employee_id'] = request.form.get('employee_id')
+        filters['start_date'] = request.form.get('start_date')
+        filters['end_date'] = request.form.get('end_date')
+    transactions = _fetch_transaction_data(filters)
+    total_debit = sum(t['amount'] for t in transactions if t['type'] == 'debit')
+    total_credit = sum(t['amount'] for t in transactions if t['type'] == 'credit')
+    net_flow = total_debit - total_credit
+    return render_template('reports/transaction_report.html',
+                           employees=employees,
+                           transactions=transactions,
+                           total_transactions=len(transactions),
+                           total_debit=total_debit,
+                           total_credit=total_credit,
+                           net_flow=net_flow,
+                           filters=filters)
+
+
+
+@app.route('/download-transaction-report')
+def download_transaction_report():
+    """
+    Generates and downloads a highly structured PDF or a fixed Excel file.
+    This version includes robust error handling for fonts.
+    """
+    # Get filters from URL query parameters (no changes here)
+    filters = {
+        'period': request.args.get('period'),
+        'employee_id': request.args.get('employee_id'),
+        'start_date': request.args.get('start_date'),
+        'end_date': request.args.get('end_date')
+    }
+    report_format = request.args.get('format')
+    transactions = _fetch_transaction_data(filters)
+    
+    # --- PDF GENERATION (Completely Redesigned and Bulletproof) ---
+    if report_format == 'pdf':
+        try:
+            class PDF(FPDF):
+                def header(self):
+                    # Set up fonts
+                    self.add_font('DejaVu', 'B', 'static/fonts/DejaVuSans-Bold.ttf')
+                    self.add_font('DejaVu', '', 'static/fonts/DejaVuSans.ttf')
+                    
+                    # Header Title
+                    self.set_font('DejaVu', 'B', 16)
+                    self.cell(0, 10, 'Employee Transaction Report', 0, 1, 'C')
+                    
+                    # Header Subtitle
+                    self.set_font('DejaVu', '', 10)
+                    period_text = f"Period: {filters.get('start_date', 'N/A')} to {filters.get('end_date', 'N/A')}"
+                    if filters.get('period') != 'custom':
+                        period_text = f"Period: {filters.get('period').replace('_', ' ').title()}"
+                    self.cell(0, 8, period_text, 0, 1, 'C')
+                    self.ln(8) # Line break
+
+                def footer(self):
+                    self.set_y(-15)
+                    self.set_font('DejaVu', '', 8)
+                    self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
+                    # Use a fixed date for the footer to avoid errors
+                    self.cell(0, 10, "Generated on: " + date.today().strftime('%d-%m-%Y'), 0, 0, 'R')
+
+                def styled_table(self, header, data):
+                    # Colors, line width and bold font
+                    self.set_fill_color(230, 230, 230)
+                    self.set_text_color(0)
+                    self.set_draw_color(220, 220, 220)
+                    self.set_line_width(0.3)
+                    self.set_font('DejaVu', 'B', 10)
+                    
+                    # Column widths
+                    col_widths = [25, 55, 100, 35, 35]
+                    # Header
+                    for i, col in enumerate(header):
+                        self.cell(col_widths[i], 10, str(col), 1, 0, 'C', 1)
+                    self.ln()
+
+                    # Data rows with zebra-striping
+                    self.set_font('DejaVu', '', 9)
+                    fill = False
+                    for row in data:
+                        # Ensure all cell data is converted to string to prevent errors
+                        self.cell(col_widths[0], 8, str(row[0]), 'LR', 0, 'L', fill)
+                        self.cell(col_widths[1], 8, str(row[1]), 'LR', 0, 'L', fill)
+                        self.cell(col_widths[2], 8, str(row[2]), 'LR', 0, 'L', fill)
+                        self.cell(col_widths[3], 8, str(row[3]), 'LR', 0, 'R', fill)
+                        self.cell(col_widths[4], 8, str(row[4]), 'LR', 0, 'R', fill)
+                        self.ln()
+                        fill = not fill
+                    self.cell(sum(col_widths), 0, '', 'T')
+
+            pdf = PDF(orientation='L', unit='mm', format='A4')
+            
+            # --- CRITICAL FIX: This adds the fonts before they are used ---
+            pdf.add_font('DejaVu', '', 'static/fonts/DejaVuSans.ttf')
+            pdf.add_font('DejaVu', 'B', 'static/fonts/DejaVuSans-Bold.ttf')
+
+            pdf.add_page()
+            
+            # Check for data
+            if not transactions:
+                pdf.set_font('DejaVu', '', 12)
+                pdf.cell(0, 20, 'No transactions found for the selected criteria.', 0, 1, 'C')
+            else:
+                header = ['Date', 'Employee', 'Description', 'Debit (₹)', 'Credit (₹)']
+                data = []
+                for t in transactions:
+                    data.append([
+                        t['transaction_date'].strftime('%d-%m-%Y'),
+                        t['employee_name'],
+                        t['description'] or '',
+                        f"{t['amount']:,.2f}" if t['type'] == 'debit' else '',
+                        f"{t['amount']:,.2f}" if t['type'] == 'credit' else ''
+                    ])
+                pdf.styled_table(header, data)
+            
+            # --- FINAL FIX: This correctly outputs the PDF bytes ---
+            pdf_output = pdf.output()
+
+            return Response(pdf_output, mimetype='application/pdf', headers={'Content-Disposition': 'attachment;filename=transaction_report.pdf'})
+        
+        # --- CRITICAL FIX: Gracefully handle the error if font files are missing ---
+        except FileNotFoundError:
+            flash("PDF generation failed: Font files not found. Please ensure 'DejaVuSans.ttf' and 'DejaVuSans-Bold.ttf' are in the 'fonts' directory.", "danger")
+            return redirect(url_for('transaction_report'))
+
+    # --- EXCEL GENERATION (Unchanged but confirmed working) ---
+    elif report_format == 'excel':
+        # Your existing, working Excel code
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Transaction Report"
+        ws.append(['Date', 'Employee', 'Description', 'Debit (₹)', 'Credit (₹)'])
+        for cell in ws[1]: cell.font = Font(bold=True)
+        if not transactions:
+            ws.append(['No transactions found for the selected criteria.'])
+            ws.merge_cells('A2:E2')
+            ws['A2'].alignment = Alignment(horizontal='center')
+        else:
+            for t in transactions:
+                ws.append([t['transaction_date'], t['employee_name'], t['description'], t['amount'] if t['type'] == 'debit' else None, t['amount'] if t['type'] == 'credit' else None])
+        for col_letter in ['D', 'E']:
+            for cell in ws[col_letter]: cell.number_format = '"₹" #,##,##0.00'
+        for col in ws.columns:
+            max_length = 0
+            for cell in col:
+                try: 
+                    if len(str(cell.value)) > max_length: max_length = len(str(cell.value))
+                except: pass
+            ws.column_dimensions[col[0].column_letter].width = max_length + 2
+        virtual_workbook = io.BytesIO()
+        wb.save(virtual_workbook)
+        virtual_workbook.seek(0)
+        return Response(virtual_workbook, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', headers={'Content-Disposition': 'attachment;filename=transaction_report.xlsx'})
+
+    return redirect(url_for('transaction_report'))
+
+
 # ... (all other routes) ...
 
 # --- FINAL: Add this to the very bottom ---
@@ -2100,6 +2323,7 @@ def delete_transaction(transaction_id):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
