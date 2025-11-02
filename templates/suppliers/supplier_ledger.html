@@ -1,0 +1,113 @@
+{% extends "admin_master.html" %}
+
+{% block page_content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="mb-0"><i class="fa-solid fa-book-open me-2"></i> Supplier Ledger</h2>
+        <p class="text-muted mb-0">Financial history for: <strong>{{ supplier.name }}</strong></p>
+    </div>
+    <a href="{{ url_for('suppliers') }}" class="btn btn-sm btn-outline-secondary">
+        <i class="fa-solid fa-arrow-left me-1"></i> Back to All Suppliers
+    </a>
+</div>
+
+<!-- Supplier Financial Summary Card -->
+<div class="card shadow-sm mb-4">
+    <div class="card-body p-4">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h4 class="mb-1">{{ supplier.name }}</h4>
+                <p class="mb-1 text-muted"><i class="fa-solid fa-phone me-2"></i> {{ supplier.phone or 'N/A' }}</p>
+                <p class="mb-0 text-muted"><i class="fa-solid fa-location-dot me-2"></i> {{ supplier.address or 'N/A' }}</p>
+            </div>
+            <div class="col-md-4 text-md-end mt-3 mt-md-0">
+                <div class="due-amount-card p-3 rounded">
+                    <h6 class="text-uppercase text-muted small mb-1">Current Amount Due</h6>
+                    <h2 class="fw-bold mb-0">₹{{ "%.2f"|format(supplier.current_due) }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<a href="{{ url_for('record_payment', supplier_id=supplier.id) }}" class="btn btn-success mb-4 w-100 fs-5 py-2">
+    <i class="fa-solid fa-plus-circle me-1"></i> Record a New Payment to this Supplier
+</a>
+
+<!-- Purchases and Payments Tables -->
+<div class="row">
+    <!-- Purchases (Debits) -->
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-header bg-light">
+                <h5 class="mb-0 text-danger">Purchases (Debits)</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-striped mb-0">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Bill #</th>
+                                <th class="text-end">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for purchase in purchases %}
+                            <tr>
+                                <td>{{ purchase.purchase_date.strftime('%d-%b-%Y') }}</td>
+                                <td><a href="purchases/view_purchase">{{ purchase.bill_number or 'View' }}</a></td>
+                                <td class="text-end fw-bold text-danger">+ ₹{{ "%.2f"|format(purchase.total_amount) }}</td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="3" class="text-center p-3">No purchases recorded.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payments (Credits) -->
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-header bg-light">
+                <h5 class="mb-0 text-success">Payments (Credits)</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-striped mb-0">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Mode</th>
+                                <th class="text-end">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                             {% for payment in payments %}
+                            <tr>
+                                <td>{{ payment.payment_date.strftime('%d-%b-%Y') }}</td>
+                                <td>{{ payment.payment_mode }}</td>
+                                <td class="text-end fw-bold text-success">- ₹{{ "%.2f"|format(payment.amount_paid) }}</td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="3" class="text-center p-3">No payments recorded.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .due-amount-card {
+        background-color: #fff3cd;
+        border-left: 5px solid #ffc107;
+    }
+</style>
+{% endblock %}
+

@@ -1,0 +1,139 @@
+{% extends 'admin_master.html' %}
+
+{% block title %}Expense Dashboard{% endblock %}
+
+{% block page_content %}
+<style>
+    .kpi-card {
+        border-left: 5px solid;
+        border-radius: 0.5rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    .kpi-card .card-body { padding: 1.5rem; }
+    .kpi-card .kpi-value { font-size: 2rem; font-weight: 700; }
+    .kpi-card .kpi-icon { font-size: 2.5rem; opacity: 0.3; }
+    .border-primary { border-color: #4f46e5 !important; }
+    .border-success { border-color: #10b981 !important; }
+    .border-info { border-color: #0ea5e9 !important; }
+</style>
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0 text-gray-800">Expense Dashboard</h1>
+         <a href="{{ url_for('expenses_list') }}" class="btn btn-sm btn-outline-primary shadow-sm">
+            <i class="fas fa-wallet fa-sm"></i> Manage Expenses
+        </a>
+    </div>
+
+    <div class="row">
+        <div class="col-xl-4 col-md-6 mb-4">
+            <div class="card kpi-card border-primary h-100">
+                <div class="card-body d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Spend (This Month)</div>
+                        <div class="kpi-value text-gray-800">₹{{ (kpi_data.this_month | default(0)) | round(0) | int }}</div>
+                    </div>
+                    <i class="fas fa-calendar-day kpi-icon text-gray-300"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-4 col-md-6 mb-4">
+            <div class="card kpi-card border-success h-100">
+                <div class="card-body d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Spend (Last Month)</div>
+                        <div class="kpi-value text-gray-800">₹{{ (kpi_data.last_month | default(0)) | round(0) | int }}</div>
+                    </div>
+                    <i class="fas fa-calendar-week kpi-icon text-gray-300"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-4 col-md-6 mb-4">
+            <div class="card kpi-card border-info h-100">
+                 <div class="card-body d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Year-to-Date Spend</div>
+                        <div class="kpi-value text-gray-800">₹{{ (kpi_data.ytd_spend | default(0)) | round(0) | int }}</div>
+                    </div>
+                    <i class="fas fa-chart-line kpi-icon text-gray-300"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-lg-5 mb-4">
+            <div class="card shadow h-100">
+                 <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-success">Top Category (This Month)</h6>
+                </div>
+                <div class="card-body text-center my-4">
+                     <i class="fas fa-trophy fa-3x text-warning mb-3"></i>
+                     <h4 class="mb-1 font-weight-bold text-gray-800">{{ kpi_data.top_category_name }}</h4>
+                     <p class="h5 text-gray-600">₹{{ (kpi_data.top_category_amount | default(0)) | round(0) | int }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-7 mb-4">
+             <div class="card shadow h-100">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-danger">Highest Single Expenses (This Month)</h6>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group list-group-flush">
+                        {% for expense in top_3_expenses %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <span>{{ expense.subcategory_name }}</span>
+                            <span class="font-weight-bold">₹{{ (expense.amount | default(0)) | round(0) | int }}</span>
+                        </li>
+                        {% else %}
+                        <li class="list-group-item">No expenses recorded this month.</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-7 mb-4">
+            <div class="card shadow">
+                <div class="card-header bg-light py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Monthly Expense Trend</h6>
+                </div>
+                <div class="card-body">
+                    <canvas id="monthlyTrendChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-5 mb-4">
+            <div class="card shadow">
+                <div class="card-header bg-light py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Expenses by Category</h6>
+                </div>
+                <div class="card-body">
+                    <canvas id="categoryChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block page_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const categoryData = {{ category_data | tojson }};
+    const monthlyData = {{ monthly_data | tojson }};
+
+    const ctxCategory = document.getElementById('categoryChart');
+    if (ctxCategory && categoryData.data.length > 0) {
+        new Chart(ctxCategory, { type: 'doughnut', data: { labels: categoryData.labels, datasets: [{ data: categoryData.data, backgroundColor: ['#4f46e5', '#10b981', '#0ea5e9', '#f59e0b', '#ef4444', '#6b7280'],}]}, options: { responsive: true, maintainAspectRatio: false, legend: { position: 'bottom' }, cutoutPercentage: 65,},});
+    }
+    const ctxMonthly = document.getElementById('monthlyTrendChart');
+    if (ctxMonthly && monthlyData.data.length > 0) {
+        new Chart(ctxMonthly, { type: 'bar', data: { labels: monthlyData.labels, datasets: [{ label: "Total Expenses (₹)", data: monthlyData.data, backgroundColor: 'rgba(79, 70, 229, 0.8)', borderColor: 'rgba(79, 70, 229, 1)', borderWidth: 1, borderRadius: 5 }]}, options: { responsive: true, maintainAspectRatio: false, scales: { yAxes: [{ ticks: { beginAtZero: true, callback: value => '₹' + value.toLocaleString() }}], xAxes: [{ gridLines: { display: false }}]}, legend: { display: false },}});
+    }
+});
+</script>
+{% endblock %}

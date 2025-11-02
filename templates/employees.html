@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/employee.css') }}">
+<script defer src="{{ url_for('static', filename='js/employee_add.js') }}"></script>
+<section class="page-section">
+  <div class="page-header">
+    <h2>👥 Employee Management</h2>
+    <a href="{{ url_for('add_employee') }}" class="btn-primary">➕ Add Employee</a>
+  </div>
+
+  <div class="table-wrapper">
+    <table class="styled-table wide">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Photo</th>
+          <th>Name</th>
+          <th>Position</th>
+          <th>Email</th>
+          <th>Phone</th>
+          <th>City</th>
+          <th>Status</th>
+          <th>Document</th>
+          <th class="actions-col">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for emp in employees %}
+        <tr>
+          <td>{{ loop.index }}</td>
+          <td class="avatar-cell">
+            {% if emp.image %}
+              <img class="avatar" src="{{ url_for('static', filename='uploads/employees/' ~ emp.image) }}" alt="{{ emp.name }}">
+            {% else %}
+              <div class="avatar placeholder">No photo</div>
+            {% endif %}
+          </td>
+          <td>{{ emp.name }}</td>
+          <td>{{ emp.position }}</td>
+          <td>{{ emp.email }}</td>
+          <td>{{ emp.phone }}</td>
+          <td>{{ emp.city }}</td>
+          <td>
+            <span class="badge {{ 'success' if emp.status=='active' else 'warning' }}">{{ emp.status|capitalize }}</span>
+          </td>
+          <td>
+            {% if emp.document %}
+              <a class="doc-link" href="{{ url_for('static', filename='uploads/documents/' ~ emp.document) }}" target="_blank">View</a>
+            {% else %}
+              —
+            {% endif %}
+          </td>
+          <td class="actions">
+            <a href="{{ url_for('edit_employee', id=emp.id) }}" class="btn-small btn-warning">✏ Edit</a>
+            <form action="{{ url_for('delete_employee', id=emp.id) }}" method="POST" onsubmit="return confirm('Delete this employee?')" style="display:inline;">
+              <button type="submit" class="btn-small btn-danger">🗑 Delete</button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="10" class="empty-state">No employees found.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+
+{% endblock %}

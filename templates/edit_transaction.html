@@ -1,0 +1,43 @@
+{% extends 'admin_master.html' %}
+
+{% block title %}Edit Transaction{% endblock %}
+
+{% block page_content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white">
+                <h4 class="mb-0">Edit Transaction for {{ transaction.name }}</h4>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('edit_transaction', transaction_id=transaction.id) }}">
+                    <div class="mb-3">
+                        <label for="transaction_date" class="form-label">Transaction Date</label>
+                        <input type="date" class="form-control" id="transaction_date" name="transaction_date" value="{{ transaction.transaction_date.strftime('%Y-%m-%d') }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="type" class="form-label">Transaction Type</label>
+                        <select class="form-select" id="type" name="type" required>
+                            <option value="credit" {% if transaction.type == 'credit' %}selected{% endif %}>Credit (Give loan/advance to Employee)</option>
+                            <option value="debit" {% if transaction.type == 'debit' %}selected{% endif %}>Debit (Receive payment from Employee)</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="amount" class="form-label">Amount ($)</label>
+                        <input type="number" class="form-control" id="amount" name="amount" step="0.01" min="0.01" value="{{ transaction.amount }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="3">{{ transaction.description }}</textarea>
+                    </div>
+                    <hr>
+                    <div class="d-flex justify-content-end">
+                        <a href="{{ url_for('emp_ledger', employee_id=transaction.employee_id) }}" class="btn btn-secondary me-2">Cancel</a>
+                        <button type="submit" class="btn btn-primary">Update Transaction</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

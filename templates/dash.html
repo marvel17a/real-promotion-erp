@@ -1,0 +1,128 @@
+{% extends "admin_master.html" %}
+
+{% block title %}Admin Dashboard{% endblock %}
+
+{% block page_content %}
+<!-- Link the specific stylesheet for this page -->
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dash.css') }}">
+
+<div class="dash-container">
+    <!-- Page Header -->
+    <div class="dash-header">
+        <h1 class="dash-title">Admin Dashboard</h1>
+        <p class="dash-subtitle">Welcome back! Here's your business overview.</p>
+    </div>
+
+    <!-- KPI Cards Row -->
+    <!-- These cards use the 'kpis' variable from your Python 'inject_kpis' function -->
+    <div class="row kpi-row">
+        <div class="col-lg-4 col-md-6">
+            <div class="kpi-card kpi-sales">
+                <div class="kpi-icon">
+                    <i class="fa-solid fa-dollar-sign"></i>
+                </div>
+                <div class="kpi-content">
+                    <span class="kpi-title">Today's Sales</span>
+                    <!-- Format the number as currency -->
+                    <span class="kpi-value">₹{{ "%.2f"|format(kpis.sales_today) }}</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4 col-md-6">
+            <div class="kpi-card kpi-dues">
+                <div class="kpi-icon">
+                    <i class="fa-solid fa-file-invoice-dollar"></i>
+                </div>
+                <div class="kpi-content">
+                    <span class="kpi-title">Total Supplier Dues</span>
+                    <span class="kpi-value">₹{{ "%.2f"|format(kpis.supplier_dues) }}</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4 col-md-6">
+            <div class="kpi-card kpi-expenses">
+                <div class="kpi-icon">
+                    <i class="fa-solid fa-wallet"></i>
+                </div>
+                <div class="kpi-content">
+                    <span class="kpi-title">Month-to-Date Expenses</span>
+                    <span class="kpi-value">₹{{ "%.2f"|format(kpis.mtd_expenses) }}</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4 col-md-6">
+            <div class="kpi-card kpi-stock">
+                <div class="kpi-icon">
+                    <i class="fa-solid fa-boxes-stacked"></i>
+                </div>
+                <div class="kpi-content">
+                    <span class="kpi-title">Total Stock Value</span>
+                    <span class="kpi-value">₹{{ "%.2f"|format(kpis.stock_value) }}</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4 col-md-6">
+            <div class="kpi-card kpi-employees">
+                <div class="kpi-icon">
+                    <i class="fa-solid fa-users"></i>
+                </div>
+                <div class="kpi-content">
+                    <span class="kpi-title">Total Employees</span>
+                    <span class="kpi-value">{{ kpis.total_employees }}</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4 col-md-6">
+            <div class="kpi-card kpi-products">
+                <div class="kpi-icon">
+                    <i class="fa-solid fa-box"></i>
+                </div>
+                <div class="kpi-content">
+                    <span class="kpi-title">Total Products</span>
+                    <span class="kpi-value">{{ kpis.total_products }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="row charts-row">
+        <!-- Weekly Sales Chart -->
+        <div class="col-lg-7">
+            <div class="chart-card">
+                <h5 class="chart-title">Weekly Sales Overview (Last 7 Days)</h5>
+                <div class="chart-container">
+                    <canvas id="weeklySalesChart"></canvas>
+                </div>
+                 <!-- Loading Spinner -->
+                <div id="salesChartLoader" class="chart-loader">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Top Products Chart -->
+        <div class="col-lg-5">
+            <div class="chart-card">
+                <h5 class="chart-title">Top 5 Products (This Month)</h5>
+                <div class="chart-container">
+                    <canvas id="topProductsChart"></canvas>
+                </div>
+                 <!-- Loading Spinner -->
+                <div id="productsChartLoader" class="chart-loader">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block page_scripts %}
+<!-- Load Chart.js (already in master) and our new dash.js -->
+<script src="{{ url_for('static', filename='js/dash.js') }}"></script>
+{% endblock %}

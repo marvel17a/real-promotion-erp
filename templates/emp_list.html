@@ -1,0 +1,64 @@
+{% extends 'admin_master.html' %}
+
+{% block title %}Employee Finance{% endblock %}
+
+{% block page_content %}
+<style>
+    .card-header-gradient {
+        background: linear-gradient(90deg, #4f46e5, #a855f7);
+        color: white;
+    }
+</style>
+<div class="card shadow-lg border-0">
+  <div class="card-header card-header-gradient d-flex justify-content-between align-items-center p-4">
+    <h3 class="mb-0"><i class="fa-solid fa-users me-2"></i>Employee Finance Dashboard</h3>
+    <input type="text" id="searchInput" class="form-control w-25" placeholder="Search employees...">
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr class="text-uppercase small">
+            <th class="py-3 ps-4">Name</th>
+            <th>Position</th>
+            <th>Email</th>
+            <th class="text-end pe-4">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="employeeTable">
+          {% for employee in employees %}
+          <tr>
+            <td class="ps-4">{{ employee.name }}</td>
+            <td>{{ employee.position }}</td>
+            <td>{{ employee.email }}</td>
+            <td class="text-end pe-4">
+              <a href="{{ url_for('emp_ledger', employee_id=employee.id) }}" class="btn btn-primary btn-sm">
+                <i class="fa-solid fa-book-open me-1"></i> View Ledger
+              </a>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4" class="text-center p-5">No active employees found.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block page_scripts %}
+<script>
+// Live search script remains the same
+document.getElementById('searchInput').addEventListener('keyup', function() {
+    let filter = this.value.toUpperCase();
+    let rows = document.querySelectorAll('#employeeTable tr');
+    rows.forEach(row => {
+        let nameCol = row.cells[0];
+        if (nameCol) {
+            row.style.display = nameCol.textContent.toUpperCase().includes(filter) ? "" : "none";
+        }
+    });
+});
+</script>
+{% endblock %}

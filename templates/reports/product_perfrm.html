@@ -1,0 +1,86 @@
+{% extends "admin_master.html" %}
+
+{% block page_content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/reports_common.css') }}">
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0"><i class="fa-solid fa-ranking-star me-2 text-primary"></i> Product Performance Report</h2>
+    <a href="{{ url_for('reports') }}" class="btn btn-sm btn-outline-secondary"><i class="fa-solid fa-arrow-left me-1"></i> Back to Reports</a>
+</div>
+
+<!-- Filter Card with New Sort Option -->
+<div class="card filter-card shadow-sm mb-4">
+    <div class="card-body">
+        <form method="POST" class="row g-3 align-items-end">
+            <div class="col-md-4">
+                <label for="start_date" class="form-label fw-bold">Start Date</label>
+                <input type="date" class="form-control" id="start_date" name="start_date" value="{{ start_date }}">
+            </div>
+            <div class="col-md-4">
+                <label for="end_date" class="form-label fw-bold">End Date</label>
+                <input type="date" class="form-control" id="end_date" name="end_date" value="{{ end_date }}">
+            </div>
+            <div class="col-md-2">
+                <label for="sort_by" class="form-label fw-bold">Sort By</label>
+                <select class="form-select" id="sort_by" name="sort_by">
+                    <option value="revenue" {% if sort_by == 'revenue' %}selected{% endif %}>Highest Revenue</option>
+                    <option value="quantity" {% if sort_by == 'quantity' %}selected{% endif %}>Highest Quantity Sold</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary w-100"><i class="fa-solid fa-search me-1"></i> Generate</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Results Section with New Export Buttons -->
+{% if request.method == 'POST' %}
+<div class="card shadow-sm">
+    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Report for <span class="text-primary">{{ start_date_str }}</span> to <span class="text-primary">{{ end_date_str }}</span></h5>
+        <div>
+            <!-- New Export to Excel Button -->
+            <a href="{{ url_for('report_product_perfrm_excel', start_date=start_date, end_date=end_date, sort_by=sort_by) }}" class="btn btn-sm btn-success">
+                <i class="fa-solid fa-file-excel me-1"></i> Export to Excel
+            </a>
+            <a href="{{ url_for('report_product_perfrm_pdf', start_date=start_date, end_date=end_date, sort_by=sort_by) }}" class="btn btn-sm btn-danger">
+                <i class="fa-solid fa-file-pdf me-1"></i> Download as PDF
+            </a>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th class="text-center">Rank</th>
+                        <th class="text-start">Product Name</th>
+                        <th class="text-center">Total Units Sold</th>
+                        <th class="text-end">Total Revenue Generated</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for product in product_data %}
+                    <tr>
+                        <td class="text-center fw-bold">{{ loop.index }}</td>
+                        <td class="text-start fw-bold">{{ product.product_name }}</td>
+                        <td class="text-center">{{ product.total_units_sold }}</td>
+                        <td class="text-end fw-bolder text-success">₹{{ "%.2f"|format(product.total_revenue) }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="4" class="text-center p-4">No product sales data found for the selected period.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% else %}
+    <div class="alert alert-info">Please select a date range and sorting option, then click "Generate" to view the report.</div>
+{% endif %}
+
+{% endblock %}
+

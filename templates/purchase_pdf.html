@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Purchase Order #{{ purchase.id }}</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            font-size: 12px;
+            color: #333;
+        }
+        .container {
+            width: 90%;
+            margin: 0 auto;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .header h1 {
+            margin: 0;
+            color: #1a1a1a;
+        }
+        .details {
+            display: table;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+        .details > div {
+            display: table-cell;
+            width: 50%;
+            padding: 10px;
+        }
+        .supplier-details {
+            border: 1px solid #eee;
+            border-radius: 5px;
+        }
+        .order-details {
+           text-align: right;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f8f9fa;
+        }
+        .text-end {
+            text-align: right;
+        }
+        .totals {
+            width: 40%;
+            margin-left: auto;
+        }
+        .totals td {
+            border: none;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            font-size: 10px;
+            color: #888;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Purchase Order</h1>
+            <p>Order ID: #{{ purchase.id }}</p>
+        </div>
+        
+        <div class="details">
+            <div class="supplier-details">
+                <strong>Supplier:</strong><br>
+                {{ purchase.supplier_name }}<br>
+                {{ purchase.supplier_address or 'N/A' }}<br>
+                {{ purchase.supplier_phone or 'N/A' }}
+            </div>
+            <div class="order-details">
+                <strong>Date:</strong> {{ purchase.purchase_date.strftime('%d-%b-%Y') if purchase.purchase_date else 'N/A' }}<br>
+                <strong>Invoice No:</strong> {{ purchase.invoice_number or 'N/A' }}<br>
+                <strong>Status:</strong> {{ purchase.status }}
+            </div>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th style="width:5%;">#</th>
+                    <th style="width:45%;">Product Name</th>
+                    <th class="text-end" style="width:15%;">Quantity</th>
+                    <th class="text-end" style="width:15%;">Unit Price</th>
+                    <th class="text-end" style="width:20%;">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in items %}
+                <tr>
+                    <td>{{ loop.index }}</td>
+                    <td>{{ item.product_name }}</td>
+                    <td class="text-end">{{ "%.2f"|format(item.quantity) }}</td>
+                    <td class="text-end">{{ "%.2f"|format(item.unit_price) }}</td>
+                    <td class="text-end">{{ "%.2f"|format(item.item_total) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <table class="totals">
+             <tr>
+                <td>Sub Total:</td>
+                <td class="text-end">{{ "%.2f"|format(purchase.sub_total) }}</td>
+            </tr>
+             <tr>
+                <td>Tax:</td>
+                <td class="text-end">{{ "%.2f"|format(purchase.tax_amount) }}</td>
+            </tr>
+             <tr>
+                <td><strong>Grand Total:</strong></td>
+                <td class="text-end"><strong>{{ "%.2f"|format(purchase.grand_total) }}</strong></td>
+            </tr>
+        </table>
+        
+        {% if purchase.notes %}
+        <div class="notes">
+            <strong>Notes:</strong>
+            <p>{{ purchase.notes }}</p>
+        </div>
+        {% endif %}
+
+        <div class="footer">
+            <p>Thank you for your business!</p>
+        </div>
+    </div>
+</body>
+</html>

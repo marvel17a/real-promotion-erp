@@ -1,0 +1,19 @@
+<div class="card report-card">
+    <div class="card-header"><h5 class="mb-0">Expenses by Subcategory (Item)</h5></div>
+    <div class="card-body">
+         <table class="table table-hover">
+            <thead><tr><th>Subcategory</th><th>Main Category</th><th>Total Amount</th></tr></thead>
+            <tbody>
+                {% for row in report_data.by_subcategory %}
+                <tr>
+                    <td class="font-weight-bold">{{ row.subcategory_name }}</td>
+                    <td class="text-muted">{{ row.category_name }}</td>
+                    <td class="text-end font-weight-bold">₹{{ row.total_amount | round(2) }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="3" class="text-center">No expenses found.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>

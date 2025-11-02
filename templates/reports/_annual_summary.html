@@ -1,0 +1,18 @@
+<div class="card report-card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Annual Summary: {{ report_data.year }}</h5>
+        <span class="badge bg-primary fs-6">Total: ₹{{ (report_data.grand_total | default(0)) | round(0) | int }}</span>
+    </div>
+    <div class="card-body">
+        <table class="table">
+            <tbody>
+                {% for item in report_data.annual %}
+                <tr>
+                    <td class="font-weight-bold">{{ item.month_name }}</td>
+                    <td class="text-end">₹{{ (item.total | default(0)) | round(0) | int }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>

@@ -1,0 +1,82 @@
+{% extends "admin_master.html" %}
+
+{% block page_content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/reports_common.css') }}">
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0"><i class="fa-solid fa-pills me-2 text-info"></i> Product Sales Detail Report</h2>
+    <a href="{{ url_for('reports') }}" class="btn btn-sm btn-outline-secondary"><i class="fa-solid fa-arrow-left me-1"></i> Back to Reports Hub</a>
+</div>
+
+<!-- Filter Card -->
+<div class="card filter-card shadow-sm mb-4">
+    <div class="card-body">
+        <form method="POST" class="row g-3 align-items-end">
+            <div class="col-md-4">
+                <label for="product_id" class="form-label fw-bold">Select Product</label>
+                <select class="form-select" id="product_id" name="product_id" required>
+                    <option value="">-- Choose a Product --</option>
+                    {% for product in all_products %}
+                        <option value="{{ product.id }}" {% if product.id == selected_product_id %}selected{% endif %}>{{ product.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="start_date" class="form-label fw-bold">Start Date</label>
+                <input type="date" class="form-control" id="start_date" name="start_date" value="{{ start_date }}">
+            </div>
+            <div class="col-md-3">
+                <label for="end_date" class="form-label fw-bold">End Date</label>
+                <input type="date" class="form-control" id="end_date" name="end_date" value="{{ end_date }}">
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary w-100"><i class="fa-solid fa-search me-1"></i> Generate</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Results Section -->
+{% if request.method == 'POST' %}
+<div class="card shadow-sm">
+    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+        <div>
+            <h5 class="mb-0">Sales of: <span class="text-primary">{{ selected_product_name }}</span></h5>
+            <small class="text-muted">From {{ start_date_str }} to {{ end_date_str }}</small>
+        </div>
+        {% if sales_data %}
+        <a href="{{ url_for('report_product_detail_pdf', product_id=selected_product_id, start_date=start_date, end_date=end_date) }}" class="btn btn-sm btn-danger">
+            <i class="fa-solid fa-file-pdf me-1"></i> Download as PDF
+        </a>
+        {% endif %}
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th>Rank</th>
+                        <th class="text-start">Employee Name</th>
+                        <th class="text-center">Total Units Sold</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in sales_data %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td class="text-start fw-bold">{{ item.employee_name }}</td>
+                        <td class="text-center fs-5">{{ item.total_units_sold }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="3" class="text-center p-4">No sales recorded for this product in the selected period.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

@@ -1,0 +1,25 @@
+<div class="row">
+    <div class="col-lg-7">
+        <div class="card report-card">
+            <div class="card-header"><h5 class="mb-0">Expenses by Main Category</h5></div>
+            <div class="card-body">
+                {% for row in report_data.by_category %}
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between">
+                        <span>{{ row.category_name }}</span>
+                        <strong>₹{{ (row.total_amount | default(0)) | round(0) | int }}</strong>
+                    </div>
+                    <div class="progress mt-1" style="height: 10px;">
+                        <div class="progress-bar" role="progressbar" style="width: {{ (row.total_amount / report_data.total_expense * 100) if report_data.total_expense else 0 }}%;"></div>
+                    </div>
+                </div>
+                {% else %}
+                <p class="text-center">No expenses found.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-5">
+        <div class="card report-card"><div class="card-body"><canvas id="categoryChart"></canvas></div></div>
+    </div>
+</div>

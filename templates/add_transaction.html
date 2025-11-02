@@ -1,0 +1,56 @@
+{% extends 'admin_master.html' %}
+
+{% block title %}Add Transaction{% endblock %}
+
+{% block page_content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-light p-3">
+                <h4 class="mb-0">Add New Transaction for {{ employee.name }}</h4>
+            </div>
+            <div class="card-body p-4">
+                <form method="POST" action="{{ url_for('add_transaction', employee_id=employee.id) }}">
+                    <div class="mb-4">
+                        <label class="form-label fs-5">Transaction Type</label>
+                        <div class="d-flex gap-3">
+                            <input type="radio" class="btn-check" name="type" id="debit-option" value="debit" autocomplete="off" required>
+                            <label class="btn btn-outline-danger w-100 p-3" for="debit-option">
+                                <i class="fa-solid fa-arrow-up-from-bracket fa-2x mb-2"></i><br>
+                                <strong>Debit</strong><br><small>(Give)</small>
+                            </label>
+
+                            <input type="radio" class="btn-check" name="type" id="credit-option" value="credit" autocomplete="off" required>
+                            <label class="btn btn-outline-success w-100 p-3" for="credit-option">
+                                <i class="fa-solid fa-hand-holding-dollar fa-2x mb-2"></i><br>
+                                <strong>Credit</strong><br><small>(Receive)</small>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="transaction_date" class="form-label">Transaction Date</label>
+                            <input type="date" class="form-control" id="transaction_date" name="transaction_date" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="amount" class="form-label">Amount (₹)</label>
+                            <input type="number" class="form-control" id="amount" name="amount" step="0.01" min="0.01" required placeholder="e.g., 5000.00">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description / Reason</label>
+                        <textarea class="form-control" id="description" name="description" rows="3" placeholder="e.g., Advance for office supplies"></textarea>
+                    </div>
+
+                    <hr class="my-4">
+                    <div class="d-flex justify-content-end gap-2">
+                        <a href="{{ url_for('emp_ledger', employee_id=employee.id) }}" class="btn btn-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-primary">Save Transaction</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

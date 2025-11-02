@@ -1,0 +1,126 @@
+{% extends 'admin_master.html' %}
+
+{% block title %}Edit Expense{% endblock %}
+
+{% block page_content %}
+<style>
+    .card {
+        border: none;
+        border-radius: 0.75rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08);
+    }
+    .card-header {
+        background: linear-gradient(90deg, #10b981, #14b8a6);
+        color: white;
+        border-top-left-radius: 0.75rem;
+        border-top-right-radius: 0.75rem;
+    }
+</style>
+
+<div class="container-fluid">
+    <h1 class="h3 mb-4 text-gray-800">Edit Expense</h1>
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="m-0 font-weight-bold"><i class="fas fa-edit me-2"></i>Update Expense Details</h6>
+                </div>
+                <div class="card-body p-4">
+                    <form action="{{ url_for('edit_expense', expense_id=expense.expense_id) }}" method="POST">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="expense_date" class="form-label">Date</label>
+                                <input type="date" id="expense_date" name="expense_date" class="form-control" value="{{ expense.expense_date.strftime('%Y-%m-%d') }}" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="amount" class="form-label">Amount (₹)</label>
+                                <input type="number" id="amount" name="amount" step="0.01" class="form-control" value="{{ expense.amount }}" required>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="category" class="form-label">Main Category</label>
+                                <select id="category" name="category" class="form-select" required>
+                                    <option disabled>-- Select --</option>
+                                    <!-- This loop now correctly pre-selects the saved category -->
+                                    {% for cat in categories %}
+                                        <option value="{{ cat.category_id }}" {% if cat.category_id == expense.category_id %}selected{% endif %}>
+                                            {{ cat.category_name }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="subcategory_id" class="form-label">Subcategory / Item</label>
+                                <select id="subcategory_id" name="subcategory_id" class="form-select" required>
+                                    <!-- This will be populated by JavaScript -->
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Description (Optional)</label>
+                            <textarea id="description" name="description" rows="3" class="form-control">{{ expense.description or '' }}</textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="payment_method" class="form-label">Payment Method</label>
+                            <select id="payment_method" name="payment_method" class="form-select">
+                                <option {% if expense.payment_method == 'UPI' %}selected{% endif %}>UPI</option>
+                                <option {% if expense.payment_method == 'Cash' %}selected{% endif %}>Cash</option>
+                                <option {% if expense.payment_method == 'Bank Transfer' %}selected{% endif %}>Bank Transfer</option>
+                            </select>
+                        </div>
+                        <div class="mt-4">
+                            <button type="submit" class="btn btn-success px-4">Save Changes</button>
+                            <a href="{{ url_for('expenses_list') }}" class="btn btn-light ms-2">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block page_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 1. Get all necessary data from Flask
+    const allSubcategories = {{ subcategories_for_js | tojson }};
+    const initialCategoryId = {{ expense.category_id }};
+    const initialSubcategoryId = {{ expense.subcategory_id }};
+
+    // 2. Get references to the dropdowns
+    const categorySelect = document.getElementById('category');
+    const subcategorySelect = document.getElementById('subcategory_id');
+
+    // 3. Create a reusable function to populate the subcategory dropdown
+    function populateSubcategories(selectedCategoryId) {
+        subcategorySelect.innerHTML = ''; // Clear previous options
+        
+        const relevantSubcategories = allSubcategories.filter(sc => sc.category_id == selectedCategoryId);
+        
+        relevantSubcategories.forEach(sc => {
+            const option = document.createElement('option');
+            option.value = sc.subcategory_id;
+            option.textContent = sc.subcategory_name;
+
+            // This is the key: check if this option should be pre-selected
+            if (sc.subcategory_id == initialSubcategoryId) {
+                option.selected = true;
+            }
+            subcategorySelect.appendChild(option);
+        });
+    }
+
+    // 4. IMMEDIATE ACTION: Populate the subcategories on page load
+    populateSubcategories(initialCategoryId);
+
+    // 5. DYNAMIC ACTION: Add an event listener to handle changes
+    categorySelect.addEventListener('change', function() {
+        // When the user changes the main category, we just need to repopulate.
+        // The `initialSubcategoryId` won't match, so nothing will be pre-selected, which is correct.
+        populateSubcategories(this.value);
+    });
+});
+</script>
+{% endblock %}

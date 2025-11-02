@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block content %}
+
+<link rel="stylesheet" href="{{ url_for('static', filename='css/s.css') }}">
+
+<div class="container my-4">
+
+  <!-- Header -->
+  <div class="text-center mb-4">
+    <h3 class="fw-bold text-primary"><i class="bi bi-bar-chart-line-fill"></i> Sales & Analysis Reports</h3>
+    <p class="text-muted small">Filter and analyze sales data across employees and products</p>
+  </div>
+
+  <!-- Filter Controls Card -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-header bg-light">
+      <h5 class="mb-0"><i class="bi bi-funnel"></i> Generate Report</h5>
+    </div>
+    <div class="card-body">
+      <form action="{{ url_for('sales') }}" method="POST">
+        <div class="row g-3 align-items-end">
+          <div class="col-md-3">
+            <label for="start_date" class="form-label">Start Date</label>
+            <input type="date" class="form-control" id="start_date" name="start_date" value="{{ filters.start_date or today }}" required>
+          </div>
+          <div class="col-md-3">
+            <label for="end_date" class="form-label">End Date</label>
+            <input type="date" class="form-control" id="end_date" name="end_date" value="{{ filters.end_date or today }}" required>
+          </div>
+          <div class="col-md-3">
+            <label for="employee_id" class="form-label">Employee</label>
+            <select class="form-select" id="employee_id" name="employee_id">
+              <option value="all">All Employees</option>
+              {% for emp in employees %}
+                <option value="{{ emp.id }}" {% if filters.employee_id == emp.id|string %}selected{% endif %}>{{ emp.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label for="product_id" class="form-label">Product</label>
+            <select class="form-select" id="product_id" name="product_id">
+              <option value="all">All Products</option>
+              {% for prod in products %}
+                <option value="{{ prod.id }}" {% if filters.product_id == prod.id|string %}selected{% endif %}>{{ prod.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="text-end mt-3">
+          <button type="submit" class="btn btn-primary"><i class="bi bi-search"></i> Generate Report</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Report Results Card -->
+  {% if report_data is defined %}
+  <div class="card shadow-sm">
+    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+      <h5 class="mb-0"><i class="bi bi-table"></i> Report Results</h5>
+      <!-- Export Form -->
+      <form action="{{ url_for('sales') }}" method="POST">
+        <input type="hidden" name="start_date" value="{{ filters.start_date }}">
+        <input type="hidden" name="end_date" value="{{ filters.end_date }}">
+        <input type="hidden" name="employee_id" value="{{ filters.employee_id }}">
+        <input type="hidden" name="product_id" value="{{ filters.product_id }}">
+        <button type="submit" class="btn btn-sm btn-outline-success">
+          <i class="bi bi-file-earmark-excel"></i> Export to CSV
+        </button>
+      </form>
+    </div>
+    <div class="card-body">
+      {% if report_data %}
+      <div class="table-responsive">
+        <table class="table table-striped table-hover">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Employee</th>
+              <th>Product</th>
+              <th class="text-end">Units Sold</th>
+              <th class="text-end">Unit Price</th>
+              <th class="text-end">Total Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in report_data %}
+            <tr>
+              <td>{{ row.date.strftime('%d-%m-%Y') }}</td>
+              <td>{{ row.employee_name }}</td>
+              <td>{{ row.product_name }}</td>
+              <td class="text-end">{{ row.units_sold }}</td>
+              <td class="text-end">₹{{ "%.2f"|format(row.unit_price) }}</td>
+              <td class="text-end">₹{{ "%.2f"|format(row.total_amount) }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot class="table-dark">
+            <tr>
+              <td colspan="3" class="text-end fw-bold">Grand Totals:</td>
+              <td class="text-end fw-bold">{{ totals.total_units }}</td>
+              <td></td>
+              <td class="text-end fw-bold">₹{{ "%.2f"|format(totals.total_sales) }}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      {% else %}
+      <div class="alert alert-warning text-center">
+        No sales data found for the selected filters.
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

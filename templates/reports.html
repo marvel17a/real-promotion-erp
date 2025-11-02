@@ -1,0 +1,99 @@
+{% extends "admin_master.html" %}
+
+{% block page_content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/rpo.css') }}">
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0"><i class="fa-solid fa-chart-line me-2 text-primary"></i> Reports & Analysis Hub</h2>
+</div>
+
+<div class="row g-4">
+    <div class="col-12">
+        <h4 class="report-category">Financial Reports</h4>
+    </div>
+    <div class="col-md-6 col-lg-4">
+        <a href="{{ url_for('daily_summary') }}" class="card report-card lift">
+            <div class="card-body text-center">
+                <div class="icon-circle bg-primary-soft text-primary mb-3"><i class="fa-solid fa-sun"></i></div>
+                <h5>Daily Summary</h5>
+                <p class="text-muted">Quick snapshot of daily sales & expenses.</p>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-6 col-lg-4">
+        <a href="{{ url_for('daily_sales') }}" class="card report-card lift">
+            <div class="card-body text-center">
+                <div class="icon-circle bg-success-soft text-success mb-3"><i class="fa-solid fa-receipt"></i></div>
+                <h5>Detailed Daily Sales</h5>
+                <p class="text-muted">View every sales transaction for a given day.</p>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-6 col-lg-4">
+        <a href="{{ url_for('exp_report') }}" class="card report-card lift">
+            <div class="card-body text-center">
+                <div class="icon-circle bg-danger-soft text-danger mb-3"><i class="fa-solid fa-wallet"></i></div>
+                <h5> Expense Report</h5>
+                <p class="text-muted">Analyze all expenses.</p>
+            </div>
+        </a>
+    </div>
+
+<div class="col-md-6 col-lg-4">
+        <a href="{{ url_for('transaction_report') }}" class="card report-card lift">
+            <div class="card-body text-center">
+                <div class="icon-circle bg-primary-soft text-primary mb-3"><i class="fa-solid fa-file-invoice-dollar"></i></div>
+                <h5>Employee Transactions</h5>
+                <p class="text-muted">Analyze all debits & credits for employees.</p>
+            </div>
+        </a>
+    </div>
+
+    <div class="col-12 mt-4">
+        <h4 class="report-category">Performance Analysis</h4>
+    </div>
+    <div class="col-md-6 col-lg-4">
+        <a href="{{ url_for('employee_performance') }}" class="card report-card lift">
+            <div class="card-body text-center">
+                <div class="icon-circle bg-info-soft text-info mb-3"><i class="fa-solid fa-user-tie"></i></div>
+                <h5>Employee Performance</h5>
+                <p class="text-muted">Rank employees by sales over a period.</p>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-6 col-lg-4">
+        <a href="{{ url_for('product_perfrm') }}" class="card report-card lift">
+            <div class="card-body text-center">
+                <div class="icon-circle bg-warning-soft text-warning mb-3"><i class="fa-solid fa-ranking-star"></i></div>
+                <h5>Product Performance</h5>
+                <p class="text-muted">See your top-selling products.</p>
+            </div>
+        </a>
+    </div>
+     <div class="col-md-6 col-lg-4">
+        <a href="{{ url_for('product_sales') }}" class="card report-card lift">
+            <div class="card-body text-center">
+                <div class="icon-circle bg-secondary-soft text-secondary mb-3"><i class="fa-solid fa-pills"></i></div>
+                <h5>Product Sales Detail</h5>
+                <p class="text-muted">See who sold a specific product.</p>
+            </div>
+        </a>
+    </div>
+
+    <div class="col-12 mt-4">
+        <h4 class="report-category">Business Overview</h4>
+    </div>
+    <div class="col-md-6 col-lg-4">
+        <a href="{{ url_for('profitability_report') }}" class="card report-card lift">
+            <div class="card-body text-center">
+                <div class="icon-circle bg-success-soft text-success mb-3"><i class="fa-solid fa-sack-dollar"></i></div>
+                <h5>Profitability Report</h5>
+                <p class="text-muted">Calculate your net profit over any period.</p>
+            </div>
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+---
+

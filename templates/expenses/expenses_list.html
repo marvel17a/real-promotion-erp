@@ -1,0 +1,208 @@
+{% extends 'admin_master.html' %}
+
+{% block title %}Expense Management{% endblock %}
+
+{% block page_content %}
+<style>
+    /* Custom styles for a modern look */
+    .card {
+        border: none;
+        border-radius: 0.75rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08);
+        transition: all 0.3s ease;
+    }
+    .card-header {
+        background: linear-gradient(90deg, #4f46e5, #7c3aed);
+        color: white;
+        border-top-left-radius: 0.75rem;
+        border-top-right-radius: 0.75rem;
+        padding: 1rem 1.5rem;
+    }
+    .form-control:focus, .form-select:focus {
+        border-color: #a855f7;
+        box-shadow: 0 0 0 0.25rem rgba(168, 85, 247, 0.25);
+    }
+    .table-hover tbody tr:hover {
+        background-color: #f8f9fa;
+        transform: scale(1.01);
+        transition: transform 0.2s ease;
+    }
+    .action-icons a, .action-icons button {
+        color: #6c757d;
+        background: none;
+        border: none;
+        padding: 0.3rem 0.5rem;
+        transition: color 0.2s ease;
+    }
+    .action-icons a:hover {
+        color: #4f46e5;
+    }
+    .action-icons button:hover {
+        color: #dc3545;
+    }
+</style>
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0 text-gray-800">Expense Management</h1>
+        <a href="{{ url_for('expense_dash') }}" class="btn btn-primary shadow-sm">
+            <i class="fas fa-chart-pie fa-sm"></i> View Dashboard
+        </a>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-5 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="m-0 font-weight-bold"><i class="fas fa-plus-circle me-2"></i>Add New Expense</h6>
+                </div>
+                <div class="card-body p-4">
+                    <form action="{{ url_for('expenses_list') }}" method="POST">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="expense_date" class="form-label">Date</label>
+                                <input type="date" id="expense_date" name="expense_date" class="form-control" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="amount" class="form-label">Amount (₹)</label>
+                                <input type="number" id="amount" name="amount" step="0.01" class="form-control" required>
+                            </div>
+                        </div>
+                        <!-- In templates/expenses/expenses_list.html -->
+
+<div class="mb-3">
+    <label for="category" class="form-label">Main Category</label>
+    <select id="category" name="category" class="form-select" required>
+        <option value="" disabled selected>-- Select --</option>
+        <!-- This loop is populated by Flask -->
+        {% for cat in categories %}
+            <option value="{{ cat.category_id }}">{{ cat.category_name }}</option>
+        {% endfor %}
+    </select>
+</div>
+
+<div class="mb-3">
+    <label for="subcategory_id" class="form-label">Subcategory / Item</label>
+    <select id="subcategory_id" name="subcategory_id" class="form-select" required>
+        <!-- This dropdown starts disabled and empty -->
+        <option value="">-- Select Main Category First --</option>
+    </select>
+</div>
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Description (Optional)</label>
+                            <textarea id="description" name="description" rows="2" class="form-control"></textarea>
+                        </div>
+                        <div class="mb-3">
+                             <label for="payment_method" class="form-label">Payment Method</label>
+                             <select id="payment_method" name="payment_method" class="form-select">
+                                <option>UPI</option>
+                                <option>Cash</option>
+                                <option>Bank Transfer</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100 mt-2 py-2">Save Expense</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-7">
+            <div class="card">
+                 <div class="card-header">
+                    <h6 class="m-0 font-weight-bold"><i class="fas fa-history me-2"></i>Expense History</h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Category</th>
+                                    <th>Amount</th>
+                                    <th class="text-end">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for expense in expenses %}
+                                <tr>
+                                    <td>{{ expense.expense_date.strftime('%d-%b-%Y') }}</td>
+                                    <td>
+                                        <div class="fw-bold">{{ expense.subcategory_name }}</div>
+                                        <small class="text-muted">{{ expense.category_name }}</small>
+                                    </td>
+                                    <td class="fw-bold">₹{{ "%.2f"|format(expense.amount) }}</td>
+                                    <td class="text-end action-icons">
+                                        <a href="{{ url_for('edit_expense', expense_id=expense.expense_id) }}" title="Edit">
+                                            <i class="fas fa-pen-to-square"></i>
+                                        </a>
+                                        <form action="{{ url_for('delete_expense', expense_id=expense.expense_id) }}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure?');">
+                                            <button type="submit" title="Delete"><i class="fas fa-trash-alt"></i></button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr><td colspan="4" class="text-center py-4">No expenses found.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+        <!-- Add this new button -->
+        <a href="{{ url_for('category_man') }}" class="btn btn-outline-secondary shadow-sm me-2">
+            <i class="fas fa-tags fa-sm"></i> Manage Categories
+        </a>
+        <a href="{{ url_for('expense_dash') }}" class="btn btn-primary shadow-sm">
+            <i class="fas fa-chart-pie fa-sm"></i> View Dashboard
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block page_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // THE FIX IS HERE: We use the raw list from Flask and apply the 'tojson' filter.
+    // This correctly formats the data for JavaScript.
+    const subcategories = {{ subcategories_for_js | tojson }};
+
+    const categorySelect = document.getElementById('category');
+    const subcategorySelect = document.getElementById('subcategory_id');
+
+    categorySelect.addEventListener('change', function() {
+        const selectedCategoryId = this.value;
+
+        // Clear previous options
+        subcategorySelect.innerHTML = '<option value="" disabled selected>-- Select Item --</option>';
+
+        if (selectedCategoryId) {
+            // Filter subcategories based on the selected main category ID
+            // The '==' operator correctly compares the string from the dropdown with the number from our data
+            const relevantSubcategories = subcategories.filter(sc => sc.category_id == selectedCategoryId);
+
+            if (relevantSubcategories.length > 0) {
+                 relevantSubcategories.forEach(sc => {
+                    const option = document.createElement('option');
+                    option.value = sc.subcategory_id;
+                    option.textContent = sc.subcategory_name;
+                    subcategorySelect.appendChild(option);
+                });
+                subcategorySelect.disabled = false;
+            } else {
+                subcategorySelect.innerHTML = '<option value="">-- No items found --</option>';
+                subcategorySelect.disabled = true;
+            }
+
+        } else {
+            subcategorySelect.disabled = true;
+            subcategorySelect.innerHTML = '<option value="">-- Select Main Category First --</option>';
+        }
+    });
+});
+</script>
+{% endblock %}

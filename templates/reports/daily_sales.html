@@ -1,0 +1,80 @@
+{% extends "admin_master.html" %}
+
+{% block page_content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/report.css') }}">
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0"><i class="fa-solid fa-receipt me-2 text-info"></i> Detailed Daily Sales</h2>
+    <a href="{{ url_for('reports') }}" class="btn btn-sm btn-outline-secondary"><i class="fa-solid fa-arrow-left me-1"></i> Back to Reports </a>
+</div>
+
+<!-- Filter Card -->
+<div class="card filter-card shadow-sm mb-4">
+    <div class="card-body">
+        <form method="POST" class="row g-3 align-items-end">
+            <div class="col-md-4">
+                <label for="report_date" class="form-label fw-bold">Select Date</label>
+                <input type="date" class="form-control" id="report_date" name="report_date" value="{{ report_date }}">
+            </div>
+            <div class="col-md-4">
+                <button type="submit" class="btn btn-primary"><i class="fa-solid fa-search me-1"></i> Generate Report</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Results Section -->
+{% if sales_data is defined %}
+<div class="card shadow-sm">
+    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Sales for: <span class="text-primary">{{ report_date_str }}</span></h5>
+        <a href="{{ url_for('report_daily_sales_pdf', report_date=report_date) }}" class="btn btn-sm btn-danger">
+            <i class="fa-solid fa-file-pdf me-1"></i> Download as PDF
+        </a>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th class="text-start">Product</th>
+                        <th class="text-start">Sold By (Employee)</th>
+                        <th class="text-center">Quantity Sold</th>
+                        <th class="text-end">Unit Price</th>
+                        <th class="text-end">Total Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in sales_data %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td class="text-start">{{ item.product_name }}</td>
+                        <td class="text-start">{{ item.employee_name }}</td>
+                        <td class="text-center">{{ item.sold_qty }}</td>
+                        <td class="text-end">₹{{ "%.2f"|format(item.unit_price) }}</td>
+                        <td class="text-end fw-bold">₹{{ "%.2f"|format(item.total_amount) }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center p-4">No sales data found for the selected date.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                {% if sales_data %}
+                <tfoot class="table-light">
+                    <tr>
+                        <td colspan="5" class="text-end fw-bold">Grand Total Sales</td>
+                        <td class="text-end fw-bolder fs-5">₹{{ "%.2f"|format(grand_total) }}</td>
+                    </tr>
+                </tfoot>
+                {% endif %}
+            </table>
+        </div>
+    </div>
+</div>
+{% else %}
+    <div class="alert alert-info">Please select a date and click "Generate Report" to view detailed sales.</div>
+{% endif %}
+
+{% endblock %}

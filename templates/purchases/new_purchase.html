@@ -1,0 +1,82 @@
+{% extends "admin_master.html" %}
+
+{% block page_content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0"><i class="fa-solid fa-cart-plus me-2"></i> New Purchase Entry</h2>
+    <a href="{{ url_for('purchases') }}" class="btn btn-sm btn-outline-secondary">
+        <i class="fa-solid fa-list-ul me-1"></i> View All Purchases
+    </a>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body p-4">
+        <form id="purchaseForm" method="POST" action="{{ url_for('new_purchase') }}" class="needs-validation" novalidate>
+            <!-- Master Details -->
+            <div class="row g-3 mb-4 border-bottom pb-4">
+                <div class="col-md-4">
+                    <label for="supplier_id" class="form-label">Supplier <span class="text-danger">*</span></label>
+                    <select class="form-select" id="supplier_id" name="supplier_id" required>
+                        <option value="" disabled selected>-- Select a Supplier --</option>
+                        {% for supplier in suppliers %}
+                        <option value="{{ supplier.id }}">{{ supplier.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <div class="invalid-feedback">Please select a supplier.</div>
+                </div>
+                <div class="col-md-4">
+                    <label for="purchase_date" class="form-label">Purchase Date <span class="text-danger">*</span></label>
+                    <input type="date" class="form-control" id="purchase_date" name="purchase_date" value="{{ today_date }}" required>
+                </div>
+                <div class="col-md-4">
+                    <label for="bill_number" class="form-label">Supplier Bill Number</label>
+                    <input type="text" class="form-control" id="bill_number" name="bill_number" placeholder="e.g., INV-12345">
+                </div>
+            </div>
+
+            <!-- Dynamic Product Items Table -->
+            <h5 class="mb-3">Products Purchased</h5>
+            <div class="table-responsive">
+                <table class="table table-bordered align-middle" id="productTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 40%;">Product <span class="text-danger">*</span></th>
+                            <th style="width: 15%;">Quantity <span class="text-danger">*</span></th>
+                            <th style="width: 20%;">Purchase Price (per unit) <span class="text-danger">*</span></th>
+                            <th style="width: 20%;" class="text-end">Amount</th>
+                            <th style="width: 5%;" class="text-center">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Rows are added dynamically by JavaScript -->
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="3" class="text-end border-0"><strong>Grand Total</strong></td>
+                            <td id="grandTotal" class="fw-bold fs-5 text-end border-0">₹0.00</td>
+                            <td class="border-0"></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+            
+            <button type="button" id="addRowBtn" class="btn btn-sm btn-success mt-2"><i class="fa-solid fa-plus me-1"></i> Add Product Row</button>
+
+            <hr class="my-4">
+            
+            <div class="d-flex justify-content-end mt-4">
+                <a href="{{ url_for('purchases') }}" class="btn btn-secondary me-2">Cancel</a>
+                <button type="submit" class="btn btn-primary px-4">Save Purchase & Update Stock</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- This script tag safely passes data from your backend to the frontend JavaScript -->
+<script id="products-data" type="application/json">
+    {{ products|tojson }}
+</script>
+
+<script src="{{ url_for('static', filename='js/purchase.js') }}"></script>
+
+{% endblock %}
+

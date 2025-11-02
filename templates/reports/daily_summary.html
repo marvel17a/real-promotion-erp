@@ -1,0 +1,71 @@
+{% extends "admin_master.html" %}
+
+{% block page_content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/report.css') }}">
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0"><i class="fa-solid fa-sun me-2"></i> Daily Financial Summary</h2>
+    <a href="{{ url_for('reports') }}" class="btn btn-sm btn-outline-secondary"><i class="fa-solid fa-arrow-left me-1"></i> Back to Reports</a>
+</div>
+
+<!-- Filter Card -->
+<div class="card filter-card shadow-sm mb-4">
+    <div class="card-body">
+        <form method="POST" class="row g-3 align-items-end">
+            <div class="col-md-4">
+                <label for="report_date" class="form-label">Select Date</label>
+                <input type="date" class="form-control" id="report_date" name="report_date" value="{{ report_date }}">
+            </div>
+            <div class="col-md-4">
+                <button type="submit" class="btn btn-primary"><i class="fa-solid fa-search me-1"></i> Generate Summary</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Results Section -->
+{% if summary_data %}
+<div class="card shadow-sm">
+    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Summary for: {{ report_date_str }}</h5>
+        <a href="{{ url_for('report_daily_summary_pdf', report_date=report_date) }}" class="btn btn-sm btn-danger">
+            <i class="fa-solid fa-file-pdf me-1"></i> Download as PDF
+        </a>
+    </div>
+    <div class="card-body">
+        <div class="row g-4">
+            <!-- Total Sales Card -->
+            <div class="col-md-4">
+                <div class="card report-summary-card h-100" style="border-left-color: #0d6efd;">
+                    <div class="card-body text-center">
+                        <div class="text-muted mb-2">Total Sales</div>
+                        <div class="kpi-value text-primary">₹{{ "%.2f"|format(summary_data.total_sales) }}</div>
+                    </div>
+                </div>
+            </div>
+            <!-- Total Expenses Card -->
+            <div class="col-md-4">
+                <div class="card report-summary-card h-100" style="border-left-color: #dc3545;">
+                    <div class="card-body text-center">
+                        <div class="text-muted mb-2">Total Expenses</div>
+                        <div class="kpi-value text-danger">₹{{ "%.2f"|format(summary_data.total_expenses) }}</div>
+                    </div>
+                </div>
+            </div>
+            <!-- Net Cash Flow Card -->
+            <div class="col-md-4">
+                <div class="card report-summary-card h-100" style="border-left-color: #198754;">
+                    <div class="card-body text-center">
+                        <div class="text-muted mb-2">Net Cash Flow</div>
+                        <div class="kpi-value text-success">₹{{ "%.2f"|format(summary_data.net_cash_flow) }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="alert alert-info">Please select a date and click "Generate Summary" to view the report.</div>
+{% endif %}
+
+{% endblock %}

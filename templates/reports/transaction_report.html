@@ -1,0 +1,138 @@
+{% extends "admin_master.html" %}
+
+{% block title %}Transaction Analysis Report{% endblock %}
+
+{% block page_content %}
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=DejaVu+Sans:wght@400;700&display=swap');
+
+    :root {
+        --primary-color: #4f46e5;
+        --border-color: #e5e7eb;
+        --bg-light: #f9fafb;
+        --text-dark: #111827;
+        --text-muted: #6b7280;
+    }
+
+    .report-container {
+        font-family: 'DejaVu Sans', sans-serif;
+        color: var(--text-dark);
+    }
+
+    /* Filter Bar */
+    .filter-bar {
+        background-color: #fff;
+        border: 1px solid var(--border-color);
+        border-radius: 0.75rem;
+        padding: 1rem;
+    }
+    .filter-bar .form-label {
+        font-size: 0.8rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        color: var(--text-muted);
+        margin-bottom: 0.5rem;
+    }
+    .filter-bar .form-select, .filter-bar .form-control {
+        border-radius: 0.5rem;
+        border: 1px solid var(--border-color);
+    }
+    .filter-bar .btn-primary {
+        background-color: var(--primary-color);
+        border: none;
+        font-weight: 700;
+        height: 100%;
+    }
+
+    /* KPI Cards */
+    .kpi-card {
+        background-color: #fff;
+        border: 1px solid var(--border-color);
+        border-radius: 0.75rem;
+        padding: 1.5rem;
+    }
+    .kpi-icon {
+        font-size: 1.75rem;
+        padding: 1rem;
+        border-radius: 50%;
+        background-color: var(--bg-light);
+    }
+    .kpi-value {
+        font-size: 2rem;
+        font-weight: 700;
+    }
+
+    /* Transaction Table */
+    .table-container {
+        background-color: #fff;
+        border: 1px solid var(--border-color);
+        border-radius: 0.75rem;
+        overflow: hidden;
+    }
+    .table thead th {
+        background-color: var(--bg-light);
+        border-bottom: 2px solid var(--border-color);
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        letter-spacing: 0.5px;
+    }
+    .table tbody tr:last-child td { border-bottom: none; }
+</style>
+
+<div class="report-container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">Transaction Analysis</h2>
+        <div class="btn-group">
+            <a href="{{ url_for('download_transaction_report', format='excel', **filters) }}" class="btn btn-sm btn-outline-success">
+                <i class="fa-solid fa-file-excel me-1"></i> Export Excel
+            </a>
+            <a href="{{ url_for('download_transaction_report', format='pdf', **filters) }}" class="btn btn-sm btn-outline-danger">
+                <i class="fa-solid fa-file-pdf me-1"></i> Export PDF
+            </a>
+        </div>
+    </div>
+
+    <div class="filter-bar mb-4">
+        <form action="{{ url_for('transaction_report') }}" method="POST">
+            <div class="row g-3 align-items-end">
+                <div class="col-md-3"><label for="period" class="form-label">Period</label><select name="period" id="periodSelector" class="form-select"><option value="today" {% if filters.period == 'today' %}selected{% endif %}>Today</option><option value="this_week" {% if filters.period == 'this_week' %}selected{% endif %}>This Week</option><option value="this_month" {% if filters.period == 'this_month' %}selected{% endif %}>This Month</option><option value="this_year" {% if filters.period == 'this_year' %}selected{% endif %}>This Year</option><option value="custom" {% if filters.period == 'custom' %}selected{% endif %}>Custom Range</option></select></div>
+                <div class="col-md-4"><div class="row g-2" id="customDateRange" style="display: {% if filters.period == 'custom' %}'flex'{% else %}'none'{% endif %};"><div class="col"><label for="start_date" class="form-label">From</label><input type="date" name="start_date" class="form-control" value="{{ filters.start_date }}"></div><div class="col"><label for="end_date" class="form-label">To</label><input type="date" name="end_date" class="form-control" value="{{ filters.end_date }}"></div></div></div>
+                <div class="col-md-3"><label for="employee_id" class="form-label">Employee</label><select name="employee_id" class="form-select"><option value="all" {% if filters.employee_id == 'all' %}selected{% endif %}>All Employees</option>{% for employee in employees %}<option value="{{ employee.id }}" {% if filters.employee_id|string == employee.id|string %}selected{% endif %}>{{ employee.name }}</option>{% endfor %}</select></div>
+                <div class="col-md-2"><button type="submit" class="btn btn-primary w-100"><i class="fa-solid fa-filter me-1"></i> Apply Filters</button></div>
+            </div>
+        </form>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col"><div class="kpi-card"><div class="d-flex align-items-center"><div class="flex-grow-1"><div class="text-muted"> Debit (Given)</div><div class="kpi-value text-danger">{{ total_debit|inr }}</div></div><div class="kpi-icon text-danger"><i class="fa-solid fa-arrow-up-from-bracket"></i></div></div></div></div>
+        <div class="col"><div class="kpi-card"><div class="d-flex align-items-center"><div class="flex-grow-1"><div class="text-muted"> Credit (Received)</div><div class="kpi-value text-success">{{ total_credit|inr }}</div></div><div class="kpi-icon text-success"><i class="fa-solid fa-hand-holding-dollar"></i></div></div></div></div>
+        <div class="col"><div class="kpi-card"><div class="d-flex align-items-center"><div class="flex-grow-1"><div class="text-muted">Net Flow</div><div class="kpi-value {% if net_flow > 0 %}text-danger{% else %}text-success{% endif %}">{{ net_flow|inr }}</div></div><div class="kpi-icon {% if net_flow > 0 %}text-danger{% else %}text-success{% endif %}"><i class="fa-solid fa-scale-balanced"></i></div></div></div></div>
+        <div class="col"><div class="kpi-card"><div class="d-flex align-items-center"><div class="flex-grow-1"><div class="text-muted">Transactions</div><div class="kpi-value">{{ total_transactions }}</div></div><div class="kpi-icon text-primary"><i class="fa-solid fa-receipt"></i></div></div></div></div>
+    </div>
+
+    <div class="table-container">
+        <table class="table mb-0">
+            <thead><tr><th>Date</th><th>Employee</th><th>Description</th><th class="text-end">Debit</th><th class="text-end">Credit</th></tr></thead>
+            <tbody>
+                {% for t in transactions %}
+                <tr>
+                    <td>{{ t.transaction_date.strftime('%d-%m-%Y') }}</td>
+                    <td>{{ t.employee_name }}</td>
+                    <td class="text-muted">{{ t.description or 'N/A' }}</td>
+                    <td class="text-end text-danger fw-bold">{% if t.type == 'debit' %}{{ t.amount|inr }}{% endif %}</td>
+                    <td class="text-end text-success fw-bold">{% if t.type == 'credit' %}{{ t.amount|inr }}{% endif %}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="5" class="text-center p-5">No transactions found for the selected criteria.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    document.getElementById('periodSelector').addEventListener('change', function() {
+        document.getElementById('customDateRange').style.display = (this.value === 'custom') ? 'flex' : 'none';
+    });
+</script>
+{% endblock %}
