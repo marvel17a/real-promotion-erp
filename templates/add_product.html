@@ -7,7 +7,7 @@
 
     <h2>➕ Add New Product</h2>
 
-    <form id="addProductForm" method="POST" enctype="multipart/form-data">
+    <form id="addProductForm" method="POST" action="{{ url_for('add_product_action') }}" enctype="multipart/form-data">
         
         <label>Product Name</label>
         <input type="text" name="name" placeholder="Enter product name" required>
@@ -41,3 +41,4 @@ function previewImage(event) {
 }
 </script>
 {% endblock %}
+
