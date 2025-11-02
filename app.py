@@ -13,6 +13,7 @@ from dotenv import load_dotenv # For loading environment variables
 import cloudinary
 import cloudinary.uploader
 import cloudinary.api
+import cloudinary.utils
 # --- END NEW IMPORTS ---
 
 from fpdf import FPDF
@@ -86,10 +87,12 @@ def allowed_file(filename):
 # NEW FUNCTION: This is the fix.
 # This "context processor" injects the cloudinary_url function into all templates
 @app.context_processor
+# This "context processor" injects the cloudinary_url function into all templates
+@app.context_processor
 def inject_cloudinary_url():
-    """Make cloudinary.url available in all templates."""
-    # This line is now fixed
-    return dict(cloudinary_url=cloudinary.url)
+    """Make cloudinary.utils.url available in all templates."""
+    # This line is now correct because we imported cloudinary.utils
+    return dict(cloudinary_url=cloudinary.utils.url)
 
 @app.route("/")
 def index1():
@@ -2097,6 +2100,7 @@ def delete_transaction(transaction_id):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
