@@ -2141,10 +2141,7 @@ def _fetch_transaction_data(filters):
     return transactions
 
 
-@app.route('/reports')
-def reports():
-    """Renders the main reports hub page."""
-    return render_template('reports.html')
+
 
 @app.route('/transaction-report', methods=['GET', 'POST'])
 def transaction_report():
@@ -2323,6 +2320,7 @@ def download_transaction_report():
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
