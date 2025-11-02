@@ -1605,6 +1605,10 @@ def summary():
 def reports():
     return render_template("/reports.html")
 
+@app.route('/exp_report')
+def exp_report():
+    return render_template("/exp_report.html")
+
 
 @app.route('/reports/daily_summary', methods=['GET', 'POST'])
 def daily_summary():
@@ -2096,6 +2100,7 @@ def delete_transaction(transaction_id):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
