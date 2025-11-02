@@ -903,21 +903,21 @@ def expenses_list():
         description = request.form.get('description')
         payment_method = request.form.get('payment_method')
         cur.execute("""
-            INSERT INTO Expenses (expense_date, amount, subcategory_id, description, payment_method)
+            INSERT INTO expenses (expense_date, amount, subcategory_id, description, payment_method)
             VALUES (%s, %s, %s, %s, %s)
         """, (expense_date, amount, subcategory_id, description, payment_method))
         mysql.connection.commit()
         flash('Expense Added Successfully!', 'success')
         return redirect(url_for('expenses_list'))
-    cur.execute("SELECT * FROM ExpenseCategories ORDER BY category_name")
+    cur.execute("SELECT * FROM expensecategories ORDER BY category_name")
     categories = cur.fetchall()
-    cur.execute("SELECT * FROM ExpenseSubcategories")
+    cur.execute("SELECT * FROM expensesubcategories")
     subcategories = cur.fetchall()
     cur.execute("""
         SELECT e.*, sc.subcategory_name, c.category_name
-        FROM Expenses e
-        JOIN ExpenseSubcategories sc ON e.subcategory_id = sc.subcategory_id
-        JOIN ExpenseCategories c ON sc.category_id = c.category_id
+        FROM expenses e
+        JOIN expensesubcategories sc ON e.subcategory_id = sc.subcategory_id
+        JOIN expensecategories c ON sc.category_id = c.category_id
         ORDER BY e.expense_date DESC, e.expense_id DESC
     """)
     expenses = cur.fetchall()
@@ -938,7 +938,7 @@ def edit_expense(expense_id):
         description = request.form.get('description')
         payment_method = request.form.get('payment_method')
         cur.execute("""
-            UPDATE Expenses
+            UPDATE expenses
             SET expense_date = %s, amount = %s, subcategory_id = %s, description = %s, payment_method = %s
             WHERE expense_id = %s
         """, (expense_date, amount, subcategory_id, description, payment_method, expense_id))
@@ -949,16 +949,16 @@ def edit_expense(expense_id):
     cur.execute("""
         SELECT e.*, sc.category_id
         FROM Expenses e
-        JOIN ExpenseSubcategories sc ON e.subcategory_id = sc.subcategory_id
+        JOIN expensesubcategories sc ON e.subcategory_id = sc.subcategory_id
         WHERE e.expense_id = %s
     """, (expense_id,))
     expense = cur.fetchone()
     if not expense:
         flash('Expense not found!', 'danger')
         return redirect(url_for('expenses_list'))
-    cur.execute("SELECT * FROM ExpenseCategories ORDER BY category_name")
+    cur.execute("SELECT * FROM expensecategories ORDER BY category_name")
     all_categories = cur.fetchall()
-    cur.execute("SELECT * FROM ExpenseSubcategories")
+    cur.execute("SELECT * FROM expensesubcategories")
     all_subcategories = cur.fetchall()
     cur.close()
     return render_template('expenses/edit_expense.html', 
@@ -970,7 +970,7 @@ def edit_expense(expense_id):
 @app.route('/delete_expense/<int:expense_id>', methods=['POST'])
 def delete_expense(expense_id):
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    cur.execute("DELETE FROM Expenses WHERE expense_id = %s", (expense_id,))
+    cur.execute("DELETE FROM expenses WHERE expense_id = %s", (expense_id,))
     mysql.connection.commit()
     flash('Expense Deleted Successfully!', 'danger')
     return redirect(url_for('expenses_list'))
@@ -978,20 +978,20 @@ def delete_expense(expense_id):
 @app.route('/expense_dash')
 def expense_dash():
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    cur.execute("SELECT SUM(amount) AS total FROM Expenses WHERE MONTH(expense_date) = MONTH(CURDATE()) AND YEAR(expense_date) = YEAR(CURDATE())")
+    cur.execute("SELECT SUM(amount) AS total FROM expenses WHERE MONTH(expense_date) = MONTH(CURDATE()) AND YEAR(expense_date) = YEAR(CURDATE())")
     this_month_result = cur.fetchone()
     this_month_spend = this_month_result['total'] if this_month_result and this_month_result['total'] else 0
-    cur.execute("SELECT SUM(amount) AS total FROM Expenses WHERE MONTH(expense_date) = MONTH(CURDATE() - INTERVAL 1 MONTH) AND YEAR(expense_date) = YEAR(CURDATE() - INTERVAL 1 MONTH)")
+    cur.execute("SELECT SUM(amount) AS total FROM expenses WHERE MONTH(expense_date) = MONTH(CURDATE() - INTERVAL 1 MONTH) AND YEAR(expense_date) = YEAR(CURDATE() - INTERVAL 1 MONTH)")
     last_month_result = cur.fetchone()
     last_month_spend = last_month_result['total'] if last_month_result and last_month_result['total'] else 0
-    cur.execute("SELECT SUM(amount) AS total FROM Expenses WHERE YEAR(expense_date) = YEAR(CURDATE())")
+    cur.execute("SELECT SUM(amount) AS total FROM expenses WHERE YEAR(expense_date) = YEAR(CURDATE())")
     ytd_result = cur.fetchone()
     ytd_spend = ytd_result['total'] if ytd_result and ytd_result['total'] else 0
     cur.execute("""
         SELECT c.category_name, SUM(e.amount) as total_amount
-        FROM Expenses e
-        JOIN ExpenseSubcategories sc ON e.subcategory_id = sc.subcategory_id
-        JOIN ExpenseCategories c ON sc.category_id = c.category_id
+        FROM expenses e
+        JOIN expensesubcategories sc ON e.subcategory_id = sc.subcategory_id
+        JOIN expensecategories c ON sc.category_id = c.category_id
         WHERE MONTH(e.expense_date) = MONTH(CURDATE()) AND YEAR(e.expense_date) = YEAR(CURDATE())
         GROUP BY c.category_name ORDER BY total_amount DESC LIMIT 1
     """)
@@ -1005,8 +1005,8 @@ def expense_dash():
     }
     cur.execute("""
         SELECT e.amount, sc.subcategory_name
-        FROM Expenses e
-        JOIN ExpenseSubcategories sc ON e.subcategory_id = sc.subcategory_id
+        FROM expenses e
+        JOIN expensesubcategories sc ON e.subcategory_id = sc.subcategory_id
         WHERE MONTH(e.expense_date) = MONTH(CURDATE()) AND YEAR(e.expense_date) = YEAR(CURDATE())
         ORDER BY e.amount DESC
         LIMIT 3
@@ -1014,7 +1014,7 @@ def expense_dash():
     top_3_expenses = cur.fetchall()
     cur.execute("""
         SELECT c.category_name, SUM(e.amount) as total_amount
-        FROM Expenses e JOIN ExpenseSubcategories sc ON e.subcategory_id = sc.subcategory_id JOIN ExpenseCategories c ON sc.category_id = c.category_id
+        FROM expenses e JOIN expensesubcategories sc ON e.subcategory_id = sc.subcategory_id JOIN ExpenseCategories c ON sc.category_id = c.category_id
         GROUP BY c.category_name ORDER BY total_amount DESC
     """)
     category_results = cur.fetchall()
@@ -1024,7 +1024,7 @@ def expense_dash():
     }
     cur.execute("""
         SELECT DATE_FORMAT(expense_date, '%%b %%Y') AS month, SUM(amount) AS total_amount
-        FROM Expenses WHERE expense_date >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
+        FROM expenses WHERE expense_date >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
         GROUP BY DATE_FORMAT(expense_date, '%%b %%Y') ORDER BY MIN(expense_date) ASC
     """)
     monthly_results = cur.fetchall()
@@ -1047,21 +1047,21 @@ def category_man():
         if form_type == 'main_category':
             category_name = request.form.get('category_name')
             if category_name:
-                cur.execute("INSERT INTO ExpenseCategories (category_name) VALUES (%s)", (category_name,))
+                cur.execute("INSERT INTO expensecategories (category_name) VALUES (%s)", (category_name,))
                 mysql.connection.commit()
                 flash('Main Category added successfully!', 'success')
         elif form_type == 'subcategory':
             parent_id = request.form.get('parent_category_id')
             subcategory_name = request.form.get('subcategory_name')
             if parent_id and subcategory_name:
-                cur.execute("INSERT INTO ExpenseSubcategories (category_id, subcategory_name) VALUES (%s, %s)", (parent_id, subcategory_name))
+                cur.execute("INSERT INTO expensesubcategories (category_id, subcategory_name) VALUES (%s, %s)", (parent_id, subcategory_name))
                 mysql.connection.commit()
                 flash('Subcategory added successfully!', 'success')
         return redirect(url_for('category_man'))
 
-    cur.execute("SELECT * FROM ExpenseCategories ORDER BY category_name")
+    cur.execute("SELECT * FROM expensecategories ORDER BY category_name")
     categories = cur.fetchall()
-    cur.execute("SELECT * FROM ExpenseSubcategories ORDER BY subcategory_name")
+    cur.execute("SELECT * FROM expensesubcategories ORDER BY subcategory_name")
     subcategories = cur.fetchall()
     cur.close()
     for category in categories:
@@ -1072,8 +1072,8 @@ def category_man():
 @app.route('/delete_category/<int:category_id>', methods=['POST'])
 def delete_category(category_id):
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    cur.execute("DELETE FROM ExpenseSubcategories WHERE category_id = %s", (category_id,))
-    cur.execute("DELETE FROM ExpenseCategories WHERE category_id = %s", (category_id,))
+    cur.execute("DELETE FROM expensesubcategories WHERE category_id = %s", (category_id,))
+    cur.execute("DELETE FROM expensecategories WHERE category_id = %s", (category_id,))
     mysql.connection.commit()
     flash('Main Category and its subcategories have been deleted.', 'danger')
     return redirect(url_for('category_man'))
@@ -1082,7 +1082,7 @@ def delete_category(category_id):
 @app.route('/delete_subcategory/<int:subcategory_id>', methods=['POST'])
 def delete_subcategory(subcategory_id):
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    cur.execute("DELETE FROM ExpenseSubcategories WHERE subcategory_id = %s", (subcategory_id,))
+    cur.execute("DELETE FROM expensesubcategories WHERE subcategory_id = %s", (subcategory_id,))
     mysql.connection.commit()
     flash('Subcategory has been deleted.', 'danger')
     return redirect(url_for('category_man'))                                 
@@ -2096,6 +2096,7 @@ def delete_transaction(transaction_id):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
