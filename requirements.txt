@@ -1,0 +1,8 @@
+Flask
+flask_mysqldb
+MySQLdb-cursors
+fpdf
+openpyxl
+gunicorn
+cloudinary
+python-dotenv
