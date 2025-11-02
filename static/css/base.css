@@ -1,0 +1,100 @@
+/* Base */
+body {
+  font-family: 'Poppins', sans-serif;
+  background: #f1f3f5;
+  margin: 0;
+}
+
+/* Gradient Navbar */
+.navbar-gradient {
+  background: linear-gradient(90deg, #ec2f4b, #4e54c8 );
+  height: 64px;
+}
+
+.navbar .nav-link {
+  position: relative;
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 500;
+  padding: 0.5rem 0.75rem;
+  transition: color 0.2s;
+}
+
+.navbar .nav-link:hover,
+.navbar .nav-link.active {
+  color: yellow ;
+}
+
+/* Underline-on-hover */
+.navbar .nav-link::after {
+  content: '';
+  position: absolute;
+  bottom: 6px;
+  left: 15%;
+  width: 70%;
+  height: 2px;
+  background: linear-gradient(90deg,#006d5b, #1f2937);
+  transform: scaleX(0);
+  transform-origin: center;
+  transition: transform 0.3s ease;
+}
+
+.navbar .nav-link:hover::after,
+.navbar .nav-link.active::after {
+  transform: scaleX(1);
+}
+
+/* Click feedback */
+.navbar .nav-link:active {
+  transform: scale(0.95);
+}
+
+/* Dropdown items hover */
+.navbar .dropdown-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Spacer for fixed nav */
+.navbar-spacer {
+  height: 64px;
+}
+
+/* Main content */
+main.container {
+  min-height: calc(100vh - 64px - 80px); /* navbar + footer */
+}
+
+/* Gradient Footer */
+.footer-gradient {
+  background: linear-gradient(90deg, #009fff, #001b44);
+}
+
+.footer-gradient h5 {
+  margin-bottom: 0.25rem;
+  font-weight: 600;
+}
+
+.footer-gradient small {
+  opacity: 0.85;
+}
+
+/* Social icons */
+.social-icons a {
+  color: rgba(255, 255, 255, 0.85);
+  margin: 0 0.5rem;
+  font-size: 1.2rem;
+  display: inline-block;
+  transition: color 0.2s, transform 0.2s;
+}
+
+.social-icons a:hover {
+  color: #ffffff;
+  transform: translateY(-3px);
+}
+.social-icons a { opacity: 0; animation: fadeIn 0.6s forwards; }
+@keyframes fadeIn {
+  to { opacity: 1; }
+}
+
+.footer-contact{
+  position: left;
+}

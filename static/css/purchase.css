@@ -1,0 +1,66 @@
+/*  Common ERP Styles – Reusable in all modules */
+
+/* General Layout */
+body {
+  background-color: #f9fafc;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  color: #333;
+}
+
+/* Cards and Containers */
+.container {
+  background: #fff;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+}
+
+/* Headings */
+h3, h4, h5 {
+  font-weight: 600;
+  color: #222;
+}
+
+/* Tables */
+.table {
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.table th {
+  background-color: #343a40;
+  color: white;
+}
+
+.table-hover tbody tr:hover {
+  background-color: #f1f5ff;
+  transition: 0.3s;
+}
+
+/* Buttons */
+.btn {
+  border-radius: 6px;
+  transition: all 0.2s ease-in-out;
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+}
+
+/* Form */
+.form-control {
+  border-radius: 6px;
+  box-shadow: none !important;
+}
+
+.form-control:focus {
+  border-color: #0d6efd;
+  box-shadow: 0 0 0 0.15rem rgba(13, 110, 253, 0.25);
+}
+
+/* Totals */
+#totalAmount {
+  font-size: 1.3rem;
+  font-weight: bold;
+  color: #0d6efd;
+}

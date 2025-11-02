@@ -1,0 +1,103 @@
+/* --- Google Font --- */
+@import url(&#39;https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&amp;display=swap&#39;);
+
+/\* --- General Body & Theme Styles --- */
+body {
+font-family: 'Poppins', sans-serif;
+background-color: \#f4f7f6; /* A soft, light gray background \*/
+}
+
+.card {
+border: none;
+border-radius: 0.75rem;
+transition: all 0.3s ease-in-out;
+}
+
+.card-header {
+border-bottom: 0;
+background-color: \#f8f9fa;
+border-top-left-radius: 0.75rem;
+border-top-right-radius: 0.75rem;
+}
+
+.form-control, .form-select {
+border-radius: 0.5rem;
+}
+
+.form-control:focus, .form-select:focus {
+border-color: \#4f46e5;
+box-shadow: 0 0 0 0.25rem rgba(79, 70, 229, 0.25);
+}
+
+/\* --- Table Styles --- */
+\#productTable thead {
+/* A vibrant gradient for the header \*/
+background: linear-gradient(45deg, \#4f46e5, \#7c3aed);
+color: white;
+vertical-align: middle;
+}
+
+\#productTable th {
+padding: 0.9rem 0.75rem;
+}
+
+\#productTable tbody tr:nth-child(even) {
+background-color: \#f8f9fa; /\* Zebra striping for readability \*/
+}
+
+\#productTable tbody tr:hover {
+background-color: \#e9ecef; /\* Hover effect for rows \*/
+cursor: pointer;
+}
+
+\#productTable td {
+padding: 0.75rem;
+vertical-align: middle;
+}
+
+\#productTable .form-control-sm {
+text-align: center;
+font-weight: 500;
+}
+
+\#productTable .sold-qty {
+font-weight: 600;
+color: \#1d4ed8; /\* Make the sold quantity stand out \*/
+}
+
+\#productTable .remaining-qty {
+color: \#166534; /\* Green for remaining stock \*/
+}
+
+\#productTable .row-amount {
+color: \#be123c; /\* A distinct color for the amount \*/
+}
+
+/\* --- Payment Settlement Section --- \*/
+.payment-input {
+font-size: 1.1rem;
+font-weight: 500;
+}
+
+\#due\_amount {
+font-size: 1.25rem;
+font-weight: 600;
+text-align: center;
+}
+
+/\* --- Buttons --- \*/
+.btn-primary {
+background-color: \#4f46e5;
+border-color: \#4f46e5;
+padding: 0.75rem 1.5rem;
+font-weight: 600;
+border-radius: 0.5rem;
+transition: all 0.2s ease-in-out;
+}
+
+.btn-primary:hover {
+background-color: \#4338ca;
+border-color: \#4338ca;
+transform: translateY(-2px);
+box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}

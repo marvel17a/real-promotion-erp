@@ -1,0 +1,35 @@
+/* static/css/morning.css */
+
+/* Card & Table Styling */
+.card {
+  border-radius: 15px;
+  border: none;
+}
+
+.colorful-table thead {
+  background: linear-gradient(45deg, #4caf50, #66bb6a);
+  color: #fff;
+}
+
+.colorful-table tbody tr:nth-child(even) {
+  background-color: #f9fff9;
+}
+
+.colorful-table tbody tr:hover {
+  background-color: #e6f4ea;
+  transition: 0.3s;
+}
+
+/* Buttons */
+.btn-outline-primary, .btn-outline-success {
+  border-radius: 20px;
+  font-weight: 500;
+}
+
+/* Validation */
+.is-invalid {
+  border: 2px solid red !important;
+}
+.is-valid {
+  border: 2px solid #28a745 !important;
+}

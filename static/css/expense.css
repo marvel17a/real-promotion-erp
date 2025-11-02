@@ -1,0 +1,26 @@
+/* Styling for the expense list table */
+.expense-row:hover {
+    background-color: #f8f9fa;
+}
+
+.category-badge {
+    font-size: 0.8rem;
+    padding: 0.4em 0.7em;
+    background-color: #6c757d; /* Default secondary color */
+    color: white;
+}
+
+/* Styling for the expense form card */
+.card {
+    border: none;
+    border-radius: 0.75rem;
+}
+
+.form-label {
+    font-weight: 500;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: #4f46e5;
+    box-shadow: 0 0 0 0.25rem rgba(79, 70, 229, 0.25);
+}

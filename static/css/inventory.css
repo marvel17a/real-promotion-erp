@@ -1,0 +1,114 @@
+.inventory-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.inventory-header h2 {
+    color: #0A192F;
+    font-size: 1.8rem;
+}
+
+.add-btn {
+    background: linear-gradient(135deg, #4CAF50, #2E7D32);
+    color: white;
+    padding: 10px 18px;
+    border-radius: 6px;
+    text-decoration: none;
+    font-weight: 600;
+    transition: 0.3s ease;
+}
+
+.add-btn:hover {
+    background: linear-gradient(135deg, #43A047, #1B5E20);
+    transform: scale(1.05);
+}
+
+/* Center Table */
+.table-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+}
+
+/* Colorful Table */
+.colorful-table {
+    border-collapse: collapse;
+    width: 80%;
+    text-align: center;
+    background: white;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.colorful-table thead {
+    background: linear-gradient(135deg, #2196F3, #1976D2);
+    color: white;
+}
+
+.colorful-table th, 
+.colorful-table td {
+    padding: 12px;
+    border-bottom: 1px solid #ddd;
+}
+
+.colorful-table tbody tr:nth-child(even) {
+    background: #f1f8ff;
+}
+
+.colorful-table tbody tr:nth-child(odd) {
+    background: #e8f5e9;
+}
+
+.colorful-table tbody tr:hover {
+    background: #ffe082;
+    transition: 0.3s ease;
+}
+
+/* Buttons */
+.edit-btn, .delete-btn {
+    padding: 6px 10px;
+    border-radius: 4px;
+    color: white;
+    text-decoration: none;
+    font-size: 0.85rem;
+}
+
+.edit-btn {
+    background: #1F4068;
+}
+
+.edit-btn:hover {
+    background: #172f4d;
+}
+
+.delete-btn {
+    background: #E94560;
+}
+
+.delete-btn:hover {
+    background: #d13d53;
+}
+
+.product-thumb {
+    width: 60px;
+    height: 60px;
+    object-fit: cover;
+    border-radius: 6px;
+    border: 2px solid #ddd;
+    transition: transform 0.3s ease;
+}
+
+.product-thumb:hover {
+    transform: scale(1.2);
+    border-color: #2196F3;
+}
+
+.no-image {
+    color: #888;
+    font-size: 0.85rem;
+    font-style: italic;
+}

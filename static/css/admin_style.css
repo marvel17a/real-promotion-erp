@@ -1,0 +1,123 @@
+:root {
+  --bg: #f0f4f8;
+  --text: #333;
+  --accent: #6c5ce7;
+  --glass: rgba(255, 255, 255, 0.2);
+  --blur: 20px;
+}
+
+body.dark {
+  --bg: #1e1e2f;
+  --text: #eee;
+  --glass: rgba(255, 255, 255, 0.05);
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Segoe UI', sans-serif;
+  transition: all 0.3s ease;
+}
+
+.admin-container {
+  display: flex;
+  min-height: 100vh;
+}
+
+/* Sidebar */
+.sidebar {
+  width: 240px;
+  background: var(--glass);
+  backdrop-filter: blur(var(--blur));
+  transition: width 0.3s ease;
+  overflow: hidden;
+  padding: 1rem;
+  border-right: 1px solid rgba(255,255,255,0.1);
+}
+.sidebar.collapsed {
+  width: 60px;
+}
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.2rem;
+  font-weight: bold;
+  margin-bottom: 1rem;
+}
+.sidebar.collapsed .brand {
+  display: none;
+}
+.sidebar-nav a {
+  display: block;
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+  border-radius: 8px;
+  color: var(--text);
+  text-decoration: none;
+  transition: all 0.2s ease;
+  position: relative;
+}
+.sidebar-nav a:hover {
+  background: rgba(255,255,25,0.15);
+  transform: scale(1.03);
+}
+.sidebar-nav a::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 0%;
+  height: 2px;
+  background: var(--accent);
+  transition: width 0.3s ease;
+}
+.sidebar-nav a:hover::after {
+  width: 100%;
+}
+.logout {
+  color: #e74c3c;
+}
+
+/* Main */
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background: var(--glass);
+  backdrop-filter: blur(var(--blur));
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+.search input {
+  border: none;
+  background: rgba(255,255,255,0.2);
+  padding: 0.5rem;
+  border-radius: 6px;
+  color: var(--text);
+}
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+.badge {
+  background: #e74c3c;
+  color: white;
+  border-radius: 50%;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.75rem;
+}
+.user-img {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+}
+.content {
+  padding: 2rem;
+}
