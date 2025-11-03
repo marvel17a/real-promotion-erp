@@ -873,7 +873,7 @@ def edit_employee(id):
     return render_template("edit_employee.html", employee=employee)
 
 
-@app.route("/delete_employee/<int:id>", methods=["GET"])
+@app.route("/delete_employee/<int:id>", methods=["POST"])
 def delete_employee(id):
     cursor = mysql.connection.cursor()
     cursor.execute("DELETE FROM employees WHERE id=%s", (id,))
@@ -2320,6 +2320,7 @@ def download_transaction_report():
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
