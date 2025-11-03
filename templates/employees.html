@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/employee.css') }}">
-<script defer src="{{ url_for('static', filename='js/employee_add.js') }}"></script>
+<script src="{{ url_for('static', filename='js/employee_add.js') }}"></script>
 <section class="page-section">
   <div class="page-header">
     <h2>👥 Employee Management</h2>
@@ -29,11 +29,23 @@
         <tr>
           <td>{{ loop.index }}</td>
           <td class="avatar-cell">
+            
+            <!--
+            =================================================
+            THIS IS THE FIX FOR THE IMAGES
+            =================================================
+            -->
             {% if emp.image %}
-              <img class="avatar" src="{{ url_for('static', filename='uploads/employees/' ~ emp.image) }}" alt="{{ emp.name }}">
+              <!-- 
+                We now use cloudinary_url() to get the image from the cloud.
+                'public_id=emp.image' uses the ID we saved to the database.
+                'height=40', 'width=40', 'crop="fill"' resizes the image on-the-fly.
+              -->
+              <img class="avatar" src="{{ cloudinary_url(emp.image, height=40, width=40, crop='fill') }}" alt="{{ emp.name }}">
             {% else %}
               <div class="avatar placeholder">No photo</div>
             {% endif %}
+            
           </td>
           <td>{{ emp.name }}</td>
           <td>{{ emp.position }}</td>
@@ -44,15 +56,28 @@
             <span class="badge {{ 'success' if emp.status=='active' else 'warning' }}">{{ emp.status|capitalize }}</span>
           </td>
           <td>
+            
+            <!--
+            =================================================
+            THIS IS THE FIX FOR THE DOCUMENTS
+            =================================================
+            -->
             {% if emp.document %}
-              <a class="doc-link" href="{{ url_for('static', filename='uploads/documents/' ~ emp.document) }}" target="_blank">View</a>
+              <!-- 
+                We use cloudinary_url() for all uploads.
+                'resource_type="raw"' tells Cloudinary this is a file (like a PDF), not an image.
+              -->
+              <a class="doc-link" href="{{ cloudinary_url(emp.document, resource_type='raw') }}" target="_blank">View</a>
             {% else %}
               —
             {% endif %}
+
           </td>
           <td class="actions">
             <a href="{{ url_for('edit_employee', id=emp.id) }}" class="btn-small btn-warning">✏ Edit</a>
-            <form action="{{ url_for('employees', id=emp.id) }}" method="POST" onsubmit="return confirm('Delete this employee?')" style="display:inline;">
+            
+            <!-- This form is correct, it sends a POST request -->
+            <form action="{{ url_for('delete_employee', id=emp.id) }}" method="POST" onsubmit="return confirm('Delete this employee?')" style="display:inline;">
               <button type="submit" class="btn-small btn-danger">🗑 Delete</button>
             </form>
           </td>
@@ -69,4 +94,3 @@
 
 
 {% endblock %}
-
