@@ -1,0 +1,97 @@
+/* =========================================
+    RESPONSIVE DESIGN FOR ERP
+=========================================
+*/
+
+/* Make the sidebar toggle on small screens
+*/
+@media (max-width: 992px) {
+    .sidebar {
+        /* Start collapsed on mobile/tablet */
+        width: 80px;
+    }
+    
+    .sidebar.collapsed {
+        /* When toggled on mobile, show it */
+        width: 260px;
+    }
+    
+    .main {
+        margin-left: 80px;
+    }
+    
+    .main.collapsed {
+        margin-left: 260px;
+    }
+    
+    /* Make dashboard cards stack */
+    .kpi-grid {
+        grid-template-columns: 1fr 1fr; /* 2 columns on tablet */
+    }
+
+    .charts-grid {
+        grid-template-columns: 1fr; /* 1 column on tablet */
+    }
+}
+
+@media (max-width: 768px) {
+    .kpi-grid {
+        grid-template-columns: 1fr; /* 1 column on mobile */
+    }
+
+    .main {
+        /* On mobile, the sidebar should hide completely
+         and the toggle should make it fly over the content
+        */
+        margin-left: 0;
+    }
+
+    .sidebar {
+        width: 0;
+        overflow: hidden;
+        z-index: 1001; /* Make sure it's on top */
+    }
+
+    .sidebar.collapsed {
+        /* This is now the "open" state on mobile */
+        width: 260px;
+        box-shadow: 0 0 20px rgba(0,0,0,0.2);
+    }
+    
+    .main.collapsed {
+        /* When sidebar is open, main content doesn't move */
+        margin-left: 0;
+    }
+
+    .topbar {
+        padding: 0.75rem 1rem;
+    }
+    
+    .content {
+        padding: 1rem; /* Less padding on mobile */
+    }
+
+    /* Fix tables on mobile */
+    .table-wrapper {
+        overflow-x: auto; /* Allow horizontal scrolling on tables */
+    }
+    
+    .styled-table.wide {
+        width: auto; /* Stop table from filling screen */
+        min-width: 800px; /* Force scroll if needed */
+    }
+
+    /* Fix forms on mobile */
+    .form-card {
+        padding: 1rem;
+    }
+
+    .page-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .page-header h2 {
+        margin-bottom: 1rem;
+    }
+}
