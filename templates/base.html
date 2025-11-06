@@ -36,8 +36,14 @@
 <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
 <script>AOS.init({ once: true });</script>
 
-  <!-- GRADIENT NAVBAR -->
-  <nav class="navbar navbar-expand-lg navbar-gradient shadow fixed-top">
+  <!-- 
+  =========================================
+      THIS IS THE FIX
+  =========================================
+  Added 'navbar-dark' to ensure the toggler
+  is styled correctly for a dark background.
+  -->
+  <nav class="navbar navbar-expand-lg navbar-dark navbar-gradient shadow fixed-top">
     <div class="container-fluid">
       <a class="navbar-brand d-flex align-items-center" href="/index">
         <img
@@ -58,12 +64,17 @@
         aria-expanded="false"
         aria-label="Toggle navigation"
       >
+        <!-- This <i> is fine, 'navbar-dark' will handle it -->
         <i class="fa-solid fa-bars text-white"></i>
       </button>
 
       <div class="collapse navbar-collapse" id="mainNav">
         <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                  
+          <li class="nav-item">
+            <a class="nav-link" href="/dashboard">
+              <i class="fa-solid fa-chart-line me-1"></i>Dashboard
+            </a>
+          </li>
           <li class="nav-item">
             <a class="nav-link" href="/inventory">
               <i class="fa-solid fa-boxes-stacked me-1"></i>Inventory
@@ -174,4 +185,3 @@
   <script src="{{ url_for('static', filename='js/base.js') }}"></script>
 </body>
 </html>
-
