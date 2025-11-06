@@ -3,6 +3,8 @@ body {
   font-family: 'Poppins', sans-serif;
   background: #f1f3f5;
   margin: 0;
+  /* Added to prevent horizontal scroll on mobile */
+  overflow-x: hidden; 
 }
 
 /* Gradient Navbar */
@@ -96,5 +98,70 @@ main.container {
 }
 
 .footer-contact{
-  position: left;
+  /* =========================================
+      THIS IS THE FIX for the footer
+  =========================================
+  'position: left;' was invalid CSS. 
+  Changed to text-align.
+  */
+  text-align: left;
+  padding-left: 20px; /* Added padding */
+}
+
+
+/* =========================================
+    NEW RESPONSIVE & MOBILE NAVBAR FIX
+=========================================
+This targets screens smaller than 992px (the 'lg' breakpoint)
+*/
+@media (max-width: 991.98px) {
+  
+  /* This is the white box you hated. We'll make it dark. */
+  .navbar-collapse {
+    /* Using a dark color from your admin theme for consistency */
+    background-color: #1f2937;
+    padding: 1rem;
+    margin-top: 0.5rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+  }
+
+  /* Make links full-width for easier tapping */
+  .navbar-nav .nav-link {
+    padding: 0.75rem 0.5rem;
+  }
+
+  /* This fixes the "Orders" dropdown menu.
+    It makes its background dark to match.
+  */
+  .navbar-nav .dropdown-menu {
+    background-color: #1f2937;
+    border: none;
+    padding: 0;
+  }
+
+  /* This fixes the links *inside* the "Orders" dropdown.
+    It makes the text light so you can see it.
+  */
+  .navbar-nav .dropdown-item {
+    color: rgba(255, 255, 255, 0.8);
+    padding: 0.75rem 1rem;
+  }
+  
+  .navbar-nav .dropdown-item:hover {
+    color: #ffffff;
+    background-color: #374151; /* A lighter dark for hover */
+  }
+
+  /* This fixes the divider in the dropdown */
+  .dropdown-divider {
+    border-color: #374151;
+  }
+
+  /* Center the footer contact info on mobile */
+  .footer-contact {
+    text-align: center;
+    padding-left: 0;
+    margin-top: 1rem;
+  }
 }
