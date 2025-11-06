@@ -124,6 +124,7 @@ def logout():
 def index():
     return render_template('index.html')
 
+# ADD THIS NEW, FIXED FUNCTION
 @app.route("/dashboard")
 def dashboard():
     if "loggedin" not in session:
@@ -137,7 +138,10 @@ def dashboard():
     }
 
     try:
+        # We must use the lowercase table names for Linux
         db_cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+        # Total Sales
         db_cursor.execute("""
             SELECT SUM(total_amount) AS total_sales 
             FROM evening_settle 
@@ -145,6 +149,8 @@ def dashboard():
         """, (report_date,))
         sales_result = db_cursor.fetchone()
         summary_data["total_sales"] = sales_result["total_sales"] or 0
+
+        # Total Expenses
         db_cursor.execute("""
             SELECT SUM(amount) AS total_expenses 
             FROM expenses 
@@ -152,21 +158,31 @@ def dashboard():
         """, (report_date,))
         expenses_result = db_cursor.fetchone()
         summary_data["total_expenses"] = expenses_result["total_expenses"] or 0
+
+        # Net Cash Flow
         summary_data["net_cash_flow"] = (
             summary_data["total_sales"] - summary_data["total_expenses"]
         )
+
         db_cursor.close()
+
     except Exception as e:
         flash(f"Error loading dashboard: {e}", "danger")
 
     report_date_obj = date.fromisoformat(report_date)
     report_date_str = report_date_obj.strftime('%d %B, %Y')
 
+    #
+    # THE FIX IS HERE:
+    # We use **summary_data to unpack the dictionary into separate variables
+    # for the template.
+    #
     return render_template("dashboard.html",
         report_date=report_date,
         report_date_str=report_date_str,
-        summary_data=summary_data
+        **summary_data
     )
+
 
 #==============================================ADMIN PAGE=======================================
 @app.context_processor
@@ -2320,6 +2336,7 @@ def download_transaction_report():
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
