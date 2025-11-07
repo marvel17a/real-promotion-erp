@@ -731,7 +731,7 @@ def edit_product(id):
     return render_template("edit_product.html", product=product)
 
 
-@app.route('/products/delete/<int:id>', methods=['GET'])
+@app.route('/products/delete/<int:id>', methods=['POST'])
 def delete_product(id):
     cursor = mysql.connection.cursor()
     cursor.execute("DELETE FROM products WHERE id = %s", (id,))
@@ -2336,6 +2336,7 @@ def download_transaction_report():
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
