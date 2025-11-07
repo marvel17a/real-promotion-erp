@@ -41,6 +41,7 @@ document.addEventListener("DOMContentLoaded", () => {
         ui.fetchMsg.className = "small text-info mb-2";
 
         try {
+            // We must use the lowercase table names for Linux
             const response = await fetch(`/api/fetch_stock?employee_id=${employeeId}&date=${dateStr}`);
             const data = await response.json();
             if (!response.ok) throw new Error(data.error || "Network error");
@@ -85,7 +86,13 @@ document.addEventListener("DOMContentLoaded", () => {
             <td><input type="number" name="total[]" class="form-control form-control-sm total" value="0" readonly></td>
             <td><input type="number" name="price[]" class="form-control form-control-sm price" step="0.01" min="0" value="${productData.price || 0.00}" readonly></td>
             <td><input type="number" name="amount[]" class="form-control form-control-sm amount" value="0" readonly></td>
-            <td><button type="button" class="btn btn-sm btn-danger btn-remove" title="Remove row"><i class="bi bi-trash"></i></button></td>
+            <!-- 
+              =========================================
+                  DELETE BUTTON FIX:
+                  Changed class for styling and made text clear
+              =========================================
+            -->
+            <td><button type="button" class="btn-remove-row" title="Remove row">Delete</button></td>
         `;
         const select = tr.querySelector(".product-dropdown");
         if (productData.id) {
@@ -232,7 +239,8 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     ui.tableBody.addEventListener("click", e => {
-        if (e.target.closest(".btn-remove")) {
+        // Updated selector to match the new button class
+        if (e.target.closest(".btn-remove-row")) {
             e.target.closest("tr").remove();
             updateRowIndexes();
             recalculateTotals();
@@ -241,5 +249,4 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Add a keydown listener to the table body to enable navigation.
     ui.tableBody.addEventListener("keydown", handleArrowKeyNavigation);
-});
-
+}); // <-- THIS IS THE FINAL CLOSING BRACE. There is no extra one.
