@@ -28,8 +28,8 @@
 <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h2 class="fw-bold">Submitted Allocations</h2>
-        <!-- Link to new form name -->
-        <a href="{{ url_for('allocation_form') }}" class="btn btn-primary">
+        <!-- Link to your original form name -->
+        <a href="{{ url_for('morning') }}" class="btn btn-primary">
             <i class="bi bi-plus-circle"></i> Create New
         </a>
     </div>
@@ -37,8 +37,8 @@
     <!-- Filter Form -->
     <div class="card shadow-sm">
         <div class="card-body">
-            <!-- Form action points to new function name -->
-            <form method="GET" action="{{ url_for('morning_list') }}" class="row g-3 mb-3">
+            <!-- Form action points to this page's function -->
+            <form method="GET" action="{{ url_for('allocation_list') }}" class="row g-3 mb-3">
                 <div class="col-md-5">
                     <label for="filter_date" class="form-label">Filter by Date</label>
                     <input type="date" name="filter_date" id="filter_date" class="form-control" value="{{ filter_date }}">
@@ -90,7 +90,7 @@
                         <td class="text-end">
                             {% if not alloc.evening_submitted %}
                                 <!-- Link to new edit function name -->
-                                <a href="{{ url_for('edit_morning_form', allocation_id=alloc.id) }}" class="btn btn-sm btn-warning">
+                                <a href="{{ url_for('edit_morning_allocation', allocation_id=alloc.id) }}" class="btn btn-sm btn-warning">
                                     <i class="bi bi-pencil-fill"></i> Edit
                                 </a>
                             {% else %}
