@@ -2330,12 +2330,226 @@ def download_transaction_report():
 
 # ... (all other routes) ...
 
+# Morning Edit and list 
+
+#
+# ADD THESE NEW ROUTES TO YOUR app.py FILE
+#
+# Make sure 'json' is imported at the top of your app.py
+#
+# This new route lists all submitted allocations
+@app.route('/morning_list')
+def morning_list():
+    if "loggedin" not in session:
+        return redirect(url_for("login"))
+
+    filter_date_str = request.args.get('filter_date', date.today().isoformat())
+    filter_employee = request.args.get('filter_employee', 'all')
+    
+    db_cursor = None
+    try:
+        db_cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        
+        # Get employees for the filter dropdown
+        db_cursor.execute("SELECT id, name FROM employees ORDER BY name")
+        employees = db_cursor.fetchall()
+        
+        # Base query
+        query = """
+            SELECT ma.id, ma.date, e.name as employee_name, 
+                   (SELECT COUNT(id) FROM evening_settle WHERE allocation_id = ma.id) as evening_submitted
+            FROM morning_allocations ma
+            JOIN employees e ON ma.employee_id = e.id
+            WHERE ma.date = %s
+        """
+        params = [filter_date_str]
+        
+        # Add employee filter if selected
+        if filter_employee != 'all':
+            query += " AND ma.employee_id = %s"
+            params.append(filter_employee)
+            
+        query += " ORDER BY e.name"
+        
+        db_cursor.execute(query, tuple(params))
+        allocations = db_cursor.fetchall()
+        
+        return render_template('morning_list.html',
+                               allocations=allocations,
+                               employees=employees,
+                               filter_date=filter_date_str,
+                               filter_employee=filter_employee)
+    except Exception as e:
+        flash(f"Error loading allocations: {e}", "danger")
+        return redirect(url_for('dashboard')) # Or another safe page
+    finally:
+        if db_cursor:
+            db_cursor.close()
+
+
+# This new route handles GET (showing the form) and POST (saving changes)
+@app.route('/morning/edit/<int:allocation_id>', methods=['GET', 'POST'])
+def morning_edit(allocation_id):
+    if "loggedin" not in session:
+        return redirect(url_for("login"))
+
+    db_cursor = None
+    try:
+        db_cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        
+        # Check if evening form is submitted, if so, block editing
+        db_cursor.execute("SELECT COUNT(id) as count FROM evening_settle WHERE allocation_id = %s", (allocation_id,))
+        if db_cursor.fetchone()['count'] > 0:
+            flash("Cannot edit this allocation as the evening settlement has already been submitted.", "warning")
+            return redirect(url_for('morning_list'))
+
+        # Handle POST request (saving the data)
+        if request.method == 'POST':
+            product_ids = request.form.getlist('product_id[]')
+            item_ids = request.form.getlist('item_id[]') # 0 for new, ID for existing
+            opening_list = request.form.getlist('opening[]')
+            given_list = request.form.getlist('given[]')
+            price_list = request.form.getlist('price[]')
+
+            # We need to get all *existing* item IDs for this allocation to find which ones were deleted
+            db_cursor.execute("SELECT id FROM morning_allocation_items WHERE allocation_id = %s", (allocation_id,))
+            existing_db_ids = {str(row['id']) for row in db_cursor.fetchall()}
+            
+            submitted_item_ids = set()
+
+            for i, product_id in enumerate(product_ids):
+                item_id = item_ids[i]
+                open_q = int(opening_list[i] or 0)
+                giv_q = int(given_list[i] or 0)
+                price = float(price_list[i] or 0.0)
+
+                if item_id == '0': # This is a new item, INSERT it
+                    db_cursor.execute("""
+                        INSERT INTO morning_allocation_items
+                        (allocation_id, product_id, opening_qty, given_qty, unit_price)
+                        VALUES (%s, %s, %s, %s, %s)
+                    """, (allocation_id, product_id, open_q, giv_q, price))
+                else: # This is an existing item, UPDATE it
+                    submitted_item_ids.add(item_id)
+                    db_cursor.execute("""
+                        UPDATE morning_allocation_items
+                        SET product_id = %s, opening_qty = %s, given_qty = %s, unit_price = %s
+                        WHERE id = %s AND allocation_id = %s
+                    """, (product_id, open_q, giv_q, price, item_id, allocation_id))
+            
+            # Find which items were deleted (in DB but not in submission)
+            ids_to_delete = existing_db_ids - submitted_item_ids
+            if ids_to_delete:
+                # Use a format string to safely create the list for the IN clause
+                delete_query = "DELETE FROM morning_allocation_items WHERE id IN ({})".format(
+                    ",".join(["%s"] * len(ids_to_delete))
+                )
+                db_cursor.execute(delete_query, tuple(ids_to_delete))
+
+            mysql.connection.commit()
+            flash("Allocation updated successfully!", "success")
+            return redirect(url_for('morning_list'))
+
+        # Handle GET request (showing the form)
+        
+        # 1. Get allocation details
+        db_cursor.execute("""
+            SELECT ma.*, e.name as employee_name 
+            FROM morning_allocations ma
+            JOIN employees e ON ma.employee_id = e.id
+            WHERE ma.id = %s
+        """, (allocation_id,))
+        allocation = db_cursor.fetchone()
+        if not allocation:
+            flash("Allocation not found.", "danger")
+            return redirect(url_for('morning_list'))
+
+        # 2. Get items for this allocation
+        db_cursor.execute("""
+            SELECT * FROM morning_allocation_items 
+            WHERE allocation_id = %s 
+            ORDER BY id ASC
+        """, (allocation_id,))
+        items = db_cursor.fetchall()
+
+        # 3. Get all products for dropdowns (same as 'morning' route)
+        db_cursor.execute("SELECT id, name, price FROM products ORDER BY name")
+        products = db_cursor.fetchall()
+        productOptions = ''.join(
+            f'<option value="{pr["id"]}">{pr["name"]}</option>'
+            for pr in products
+        )
+        
+        return render_template('morning_edit.html',
+                               allocation=allocation,
+                               items=items,
+                               products=products,
+                               productOptions=productOptions)
+
+    except Exception as e:
+        mysql.connection.rollback()
+        flash(f"An error occurred: {e}", "danger")
+        return redirect(url_for('morning_list'))
+    finally:
+        if db_cursor:
+            db_cursor.close()
+
+#
+# ALSO, ADD THIS MODIFICATION TO YOUR ORIGINAL 'morning' route
+#
+# This makes sure the API call uses the lowercase table name
+#
+@app.route('/api/fetch_stock')
+def api_fetch_stock():
+    employee_id = request.args.get('employee_id')
+    date_str    = request.args.get('date')
+
+    if not employee_id or not date_str:
+        return jsonify({"error": "Employee and date are required."}), 400
+
+    try:
+        current_date = date.fromisoformat(date_str)
+        previous_day = current_date - timedelta(days=1)
+
+        cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        #
+        # BUG FIX: Changed table names to lowercase
+        #
+        cur.execute("""
+            SELECT 
+              ei.product_id,
+              ei.remaining_qty  AS remaining,
+              ei.unit_price     AS price
+            FROM evening_item ei
+            JOIN evening_settle es ON ei.settle_id = es.id
+            WHERE es.employee_id = %s
+              AND es.date        = %s
+              AND ei.remaining_qty > 0
+        """, (employee_id, previous_day))
+        rows = cur.fetchall()
+        cur.close()
+
+        # Build a JS‐friendly map: { product_id: { remaining, price } }
+        out = {
+            str(r['product_id']): {
+                'remaining': int(r['remaining']),
+                'price'    : float(r['price'])
+            }
+            for r in rows
+        }
+        return jsonify(out)
+
+    except Exception as e:
+        app.logger.error("fetch_stock error: %s", e)
+        return jsonify({"error": "Internal server error."}), 500
+
 # --- FINAL: Add this to the very bottom ---
 # This block is for local development
 # Render will use gunicorn to run the 'app' object
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
