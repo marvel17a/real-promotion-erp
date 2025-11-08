@@ -1,4 +1,4 @@
-/* static/css/morning.css */
+/* static/css/allocation_form.css */
 
 /* Card & Table Styling */
 .card {
@@ -6,9 +6,8 @@
   border: none;
 }
 
-/* This class is now used in morning.html */
 .colorful-table thead {
-  background: linear-gradient(45deg, #0d6efd, #0a58ca); /* Bootstrap Primary Gradient */
+  background: linear-gradient(45deg, #0d6efd, #0a58ca);
   color: #fff;
 }
 
@@ -27,7 +26,10 @@
   min-width: 70px; /* Ensure inputs are usable */
 }
 
-/* Style the delete button */
+/* =========================================
+      DELETE BUTTON STYLE
+  =========================================
+*/
 .btn-remove-row {
   background-color: #dc3545;
   color: white;
@@ -36,6 +38,7 @@
   padding: 5px 10px;
   font-size: 0.9rem;
   line-height: 1;
+  font-weight: 500;
 }
 .btn-remove-row:hover {
   background-color: #c82333;
