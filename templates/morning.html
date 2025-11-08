@@ -12,7 +12,7 @@
   </div>
 
   <div class="text-center mb-3">
-    <a href="{{ url_for('allocation_list') }}" class="btn btn-outline-secondary">
+    <a href="{{ url_for('morning') }}" class="btn btn-outline-secondary">
       <i class="bi bi-pencil-square"></i> View & Edit Submitted Allocations
     </a>
   </div>
@@ -93,5 +93,6 @@
 </script>
 
 <!-- Correct filename -->
-<script src="{{ url_for('static', filename='js/morning_allocation.js') }}"></script>
+<script src="{{ url_for('static', filename='js/morning.js') }}"></script>
 {% endblock %}
+
