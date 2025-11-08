@@ -622,8 +622,8 @@ def add_product():
 
 
 # --- MODIFIED: `add_product_action` ---
-@app.route("/add_product_action", methods=["POST"])
-def add_product_action():
+@app.route("/add_product_form", methods=["POST"])
+def add_product_form():
     if request.method == "POST":
         name = request.form.get("name")
         category = request.form.get("category")
@@ -2336,6 +2336,7 @@ def download_transaction_report():
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
