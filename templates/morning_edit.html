@@ -14,10 +14,7 @@
 
   <div class="card shadow-sm">
     <div class="card-body">
-      <!-- Form now POSTs to the edit URL -->
       <form id="morningForm" method="POST" action="{{ url_for('edit_morning_allocation', allocation_id=allocation.id) }}">
-        
-        <!-- Read-only employee and date -->
         <div class="row mb-3 align-items-end">
           <div class="col-md-5">
             <label class="form-label fw-bold">Employee</label>
@@ -48,19 +45,19 @@
               <tr>
                 <td class="row-index">{{ loop.index }}</td>
                 <td class="text-start">
-                    <select name="product_id[]" class="form-select form-select-sm product-dropdown" required>
-                        <option value="">-- Select Product --</option>
-                        {{ productOptions|safe }}
-                    </select>
-                    <input type="hidden" name="item_id[]" value="{{ item.id }}">
-                    <script>
-                        (function() {
-                            let lastSelect = document.currentScript.previousElementSibling.previousElementSibling;
-                            if (lastSelect && lastSelect.tagName === 'SELECT') {
-                                lastSelect.value = "{{ item.product_id }}";
-                            }
-                        })();
-                    </script>
+                  <select name="product_id[]" class="form-select form-select-sm product-dropdown" required>
+                    <option value="">-- Select Product --</option>
+                    {{ productOptions|safe }}
+                  </select>
+                  <input type="hidden" name="item_id[]" value="{{ item.id }}">
+                  <script>
+                    (function() {
+                      let lastSelect = document.currentScript.previousElementSibling.previousElementSibling;
+                      if (lastSelect && lastSelect.tagName === 'SELECT') {
+                        lastSelect.value = "{{ item.product_id }}";
+                      }
+                    })();
+                  </script>
                 </td>
                 <td><input type="number" name="opening[]" class="form-control form-control-sm opening" value="{{ item.opening_qty }}" readonly></td>
                 <td><input type="number" name="given[]" class="form-control form-control-sm given" min="0" value="{{ item.given_qty }}" required></td>
@@ -98,15 +95,12 @@
   </div>
 </div>
 
-<!-- ================== SAFE DATA INJECTION ================== -->
-{% raw %}
+<!-- Safe data injection -->
 <script>
   window.productsData = {{ products | tojson | safe }};
-  window.productOptions = `{{ productOptions | safe }}`;
+  window.productOptions = {{ productOptions | tojson | safe }};
 </script>
-{% endraw %}
 
-<!-- ================== PAGE LOGIC ================== -->
-<script src="{{ url_for('static', filename='js/morning.js') }}"></script>
+<!-- Page logic -->
+<script src="{{ url_for('static', filename='js/morning_edit.js') }}"></script>
 {% endblock %}
-
