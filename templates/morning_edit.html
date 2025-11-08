@@ -14,7 +14,7 @@
 
   <div class="card shadow-sm">
     <div class="card-body">
-      <form id="morningForm" method="POST" action="{{ url_for('edit_morning_allocation', allocation_id=allocation.id) }}">
+      <form id="morningForm" method="POST" action="{{ url_for('morning_edit', allocation_id=allocation.id) }}">
         <div class="row mb-3 align-items-end">
           <div class="col-md-5">
             <label class="form-label fw-bold">Employee</label>
