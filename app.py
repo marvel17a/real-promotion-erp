@@ -2268,7 +2268,7 @@ def download_transaction_report():
 @app.route('/morning_list')
 def morning_list():
     if "loggedin" not in session:
-        return redirect(url_for("login"))
+        return redirect(url_for("morning"))
 
     filter_date_str = request.args.get('filter_date', date.today().isoformat())
     filter_employee = request.args.get('filter_employee', 'all')
@@ -2318,7 +2318,7 @@ def morning_list():
 @app.route('/morning/edit/<int:allocation_id>', methods=['GET', 'POST'])
 def morning_edit(allocation_id):
     if "loggedin" not in session:
-        return redirect(url_for("login"))
+        return redirect(url_for("morning"))
 
     db_cursor = None
     try:
@@ -2328,7 +2328,7 @@ def morning_edit(allocation_id):
         db_cursor.execute("SELECT COUNT(id) as count FROM evening_settle WHERE allocation_id = %s", (allocation_id,))
         if db_cursor.fetchone()['count'] > 0:
             flash("Cannot edit this allocation as the evening settlement has already been submitted.", "warning")
-            return redirect(url_for('morning_list'))
+            return redirect(url_for('morning_edit'))
 
         # Handle POST request (saving the data)
         if request.method == 'POST':
@@ -2375,7 +2375,7 @@ def morning_edit(allocation_id):
 
             mysql.connection.commit()
             flash("Allocation updated successfully!", "success")
-            return redirect(url_for('morning_list'))
+            return redirect(url_for('morning_edit'))
 
         # Handle GET request (showing the form)
         
@@ -2476,6 +2476,7 @@ def fetch_stock():
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
