@@ -14,8 +14,9 @@ document.addEventListener("DOMContentLoaded", () => {
             grand: document.getElementById("grandTotal")
         }
     };
+    
+    // Use the new safe injection method
     const productOptionsHtml = window.productOptions || "";
-
     const productsMap = new Map((window.productsData || []).map(p => [String(p.id), p]));
 
 
@@ -37,8 +38,8 @@ document.addEventListener("DOMContentLoaded", () => {
         ui.fetchMsg.className = "small text-info mb-2";
 
         try {
-            // Uses NEW API function name
-            const response = await fetch(`/api_get_previous_stock?employee_id=${employeeId}&date=${dateStr}`);
+            // Uses your ORIGINAL API function name
+            const response = await fetch(`/api/fetch_stock?employee_id=${employeeId}&date=${dateStr}`);
             const data = await response.json();
             if (!response.ok) throw new Error(data.error || "Network error");
 
@@ -214,7 +215,7 @@ document.addEventListener("DOMContentLoaded", () => {
     ui.tableBody.addEventListener("click", e => {
         if (e.target.closest(".btn-remove-row")) {
             // =========================================
-            //  DELETE POPUP ADDED
+            //  DELETE POPUP ADDED (FIXED)
             // =========================================
             if (confirm("Are you sure you want to delete this row?")) {
                 e.target.closest("tr").remove();
@@ -226,4 +227,4 @@ document.addEventListener("DOMContentLoaded", () => {
 
     ui.tableBody.addEventListener("keydown", handleArrowKeyNavigation);
 });
-// NO SYNTAX ERROR: No extra '}' at the end.
+// SYNTAX ERROR FIXED: No extra '}' at the end.
