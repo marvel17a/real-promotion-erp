@@ -2308,7 +2308,7 @@ def morning_list():
                                filter_employee=filter_employee)
     except Exception as e:
         flash(f"Error loading allocations: {e}", "danger")
-        return redirect(url_for('morning')) # Or another safe page
+        return redirect(url_for('morning_list')) # Or another safe page
     finally:
         if db_cursor:
             db_cursor.close()
@@ -2318,7 +2318,7 @@ def morning_list():
 @app.route('/morning/edit/<int:allocation_id>', methods=['GET', 'POST'])
 def morning_edit(allocation_id):
     if "loggedin" not in session:
-        return redirect(url_for("morning"))
+        return redirect(url_for("morning_edit"))
 
     db_cursor = None
     try:
@@ -2328,7 +2328,7 @@ def morning_edit(allocation_id):
         db_cursor.execute("SELECT COUNT(id) as count FROM evening_settle WHERE allocation_id = %s", (allocation_id,))
         if db_cursor.fetchone()['count'] > 0:
             flash("Cannot edit this allocation as the evening settlement has already been submitted.", "warning")
-            return redirect(url_for('morning_edit'))
+            return redirect(url_for('morning'))
 
         # Handle POST request (saving the data)
         if request.method == 'POST':
@@ -2476,6 +2476,7 @@ def fetch_stock():
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
