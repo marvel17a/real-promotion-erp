@@ -1343,70 +1343,7 @@ def evening():
     today_date = date.today().isoformat()
     return render_template('evening.html', employees=employees, today=today_date, last_settle_id=last_settle_id)
 
-@app.route('/evening/edit/<int:settle_id>', methods=['GET', 'POST'])
-def edit_evening(settle_id):
-    db_cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    if request.method == 'POST':
-        try:
-            new_items_data = {}
-            for key, value in request.form.items():
-                if key.startswith('sold_qty_'):
-                    item_id = int(key.split('_')[-1])
-                    if item_id not in new_items_data: new_items_data[item_id] = {}
-                    new_items_data[item_id]['sold'] = int(value)
-                elif key.startswith('return_qty_'):
-                    item_id = int(key.split('_')[-1])
-                    if item_id not in new_items_data: new_items_data[item_id] = {}
-                    new_items_data[item_id]['return'] = int(value)
-            db_cursor.execute("SELECT * FROM evening_item WHERE settle_id = %s", (settle_id,))
-            old_items = db_cursor.fetchall()
-            inventory_corrections = []
-            log_entries = [] # For logging, if you add it
-            for old_item in old_items:
-                item_id = old_item['id']
-                product_id = old_item['product_id']
-                new_sold = new_items_data.get(item_id, {}).get('sold', old_item['sold_qty'])
-                new_return = new_items_data.get(item_id, {}).get('return', old_item['return_qty'])
-                sold_diff = new_sold - old_item['sold_qty']
-                return_diff = new_return - old_item['return_qty']
-                if sold_diff != 0 or return_diff != 0:
-                    inventory_corrections.append({
-                        'product_id': product_id,
-                        'sold_diff': sold_diff,
-                        'return_diff': return_diff
-                    })
-                db_cursor.execute("""
-                    UPDATE evening_item 
-                    SET sold_qty = %s, return_qty = %s 
-                    WHERE id = %s
-                """, (new_sold, new_return, item_id))
-            stock_update_sql = "UPDATE products SET stock = stock - %s + %s WHERE id = %s"
-            for correction in inventory_corrections:
-                db_cursor.execute(stock_update_sql, (correction['sold_diff'], correction['return_diff'], correction['product_id']))
-            mysql.connection.commit()
-            flash("Evening settlement updated successfully!", "success")
-            return redirect(url_for('summary'))
-        except Exception as e:
-            mysql.connection.rollback()
-            flash(f"Error updating settlement: {e}", "danger")
-            return redirect(url_for('edit_evening', settle_id=settle_id))
-        finally:
-            db_cursor.close()
 
-    db_cursor.execute("""
-        SELECT es.*, e.name as employee_name
-        FROM evening_settle es JOIN employees e ON es.employee_id = e.id
-        WHERE es.id = %s
-    """, (settle_id,))
-    settlement = db_cursor.fetchone()
-    db_cursor.execute("""
-        SELECT ei.*, p.name as product_name
-        FROM evening_item ei JOIN products p ON ei.product_id = p.id
-        WHERE ei.settle_id = %s
-    """, (settle_id,))
-    items = db_cursor.fetchall()
-    db_cursor.close()
-    return render_template("evening_edit.html", settlement=settlement, items=items)
 
 
 @app.route('/evening/pdf/<int:settle_id>')
@@ -2327,16 +2264,6 @@ def download_transaction_report():
 
     return redirect(url_for('transaction_report'))
 
-
-# ... (all other routes) ...
-
-# Morning Edit and list 
-
-#
-# ADD THESE NEW ROUTES TO YOUR app.py FILE
-#
-# Make sure 'json' is imported at the top of your app.py
-#
 # This new route lists all submitted allocations
 @app.route('/morning_list')
 def morning_list():
@@ -2381,7 +2308,7 @@ def morning_list():
                                filter_employee=filter_employee)
     except Exception as e:
         flash(f"Error loading allocations: {e}", "danger")
-        return redirect(url_for('dashboard')) # Or another safe page
+        return redirect(url_for('morning')) # Or another safe page
     finally:
         if db_cursor:
             db_cursor.close()
@@ -2549,6 +2476,7 @@ def fetch_stock():
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
