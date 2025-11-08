@@ -1107,24 +1107,133 @@ def delete_subcategory(subcategory_id):
 # MORNING ALLOCATION ROUTES
 # =====================================================================
 
+# =====================================================================
+# MORNING ALLOCATION ROUTES - ROBUST UPDATE
+#
+# INSTRUCTIONS:
+# 1. Delete your OLD 'morning()', 'api_fetch_stock()',
+#    'api_fetch_morning_allocation()', 'get_template_data()',
+#    and 'save_allocation_data()' functions from your app.py
+#
+# 2. Add ALL of the following code into that same section of your app.py
+# =====================================================================
+
+# Make sure 'json' is imported at the top of your app.py file
+import json
+
 @app.route('/morning', methods=['GET', 'POST'])
 def morning():
-    if request.method == 'POST':
-        return save_allocation_data()
-    data = get_template_data()
-    return render_template('morning.html', **data)
+    # 1. ADDED SECURITY CHECK
+    if "loggedin" not in session:
+        return redirect(url_for("login"))
+        
+    db_cursor = None
+    try:
+        db_cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        
+        # 2. COMBINED 'save_allocation_data' LOGIC
+        if request.method == 'POST':
+            employee_id  = request.form.get('employee_id')
+            date_str     = request.form.get('date')
+            product_ids  = request.form.getlist('product_id[]')
+            opening_list = request.form.getlist('opening[]')
+            given_list   = request.form.getlist('given[]')
+            price_list   = request.form.getlist('price[]')
+
+            if not (employee_id and date_str and product_ids):
+                flash("All fields are required.", "danger")
+                return redirect(url_for('morning'))
+
+            # 3. ROBUST FIX: All table names are lowercase
+            db_cursor.execute(
+                "SELECT id FROM morning_allocations WHERE employee_id=%s AND date=%s",
+                (employee_id, date_str)
+            )
+            if db_cursor.fetchone():
+                db_cursor.close()
+                flash("Allocation already exists for this date. Please use the 'View & Edit' page.", "warning")
+                return redirect(url_for('morning'))
+
+            # 3. ROBUST FIX: All table names are lowercase
+            db_cursor.execute(
+                "INSERT INTO morning_allocations (employee_id, date) VALUES (%s, %s)",
+                (employee_id, date_str)
+            )
+            alloc_id = db_cursor.lastrowid
+            
+            # 3. ROBUST FIX: All table names are lowercase
+            insert_sql = """
+              INSERT INTO morning_allocation_items
+                (allocation_id, product_id, opening_qty, given_qty, unit_price)
+              VALUES (%s, %s, %s, %s, %s)
+            """
+            for idx, pid in enumerate(product_ids):
+                if not pid: continue
+                open_q = int(opening_list[idx] or 0)
+                giv_q  = int(given_list[idx]   or 0)
+                price  = float(price_list[idx] or 0.0)
+                db_cursor.execute(insert_sql, (alloc_id, pid, open_q, giv_q, price))
+
+            mysql.connection.commit()
+            flash("Morning allocation saved successfully.", "success")
+            return redirect(url_for('morning'))
+
+        # 4. COMBINED 'get_template_data' LOGIC
+        # 3. ROBUST FIX: All table names are lowercase
+        db_cursor.execute("SELECT id, name FROM employees ORDER BY name")
+        employees = db_cursor.fetchall()
+        
+        # 3. ROBUST FIX: All table names are lowercase
+        db_cursor.execute("SELECT id, name, price FROM products ORDER BY name")
+        products_raw = db_cursor.fetchall() or [] # Ensure it's a list
+        
+        products_for_js = [
+            {'id': p['id'], 'name': p['name'], 'price': float(p['price'])}
+            for p in products_raw
+        ]
+        
+        productOptions = ''.join(
+            f'<option value="{pr["id"]}">{pr["name"]}</option>'
+            for pr in products_for_js
+        )
+
+        return render_template('morning.html',
+                               employees=employees,
+                               products=products_for_js,      # Use this for the |tojson|safe
+                               productOptions=productOptions, # Use this for the |tojson|safe
+                               today_date=date.today().isoformat())
+
+    except Exception as e:
+        if db_cursor:
+            mysql.connection.rollback()
+        app.logger.error(f"Morning route error: {e}") # Log the error
+        flash(f"Error saving allocation: {e}", "danger")
+        return redirect(url_for('morning'))
+    finally:
+        if db_cursor:
+            db_cursor.close()
 
 
+# Kept your ORIGINAL function name
 @app.route('/api/fetch_stock')
 def api_fetch_stock():
+    # 1. ADDED SECURITY CHECK
+    if "loggedin" not in session:
+        return jsonify({"error": "Unauthorized"}), 401
+        
     employee_id = request.args.get('employee_id')
     date_str    = request.args.get('date')
+
     if not employee_id or not date_str:
         return jsonify({"error": "Employee and date are required."}), 400
+
     try:
         current_date = date.fromisoformat(date_str)
         previous_day = current_date - timedelta(days=1)
+
         cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        
+        # 3. ROBUST FIX: All table names are lowercase
         cur.execute("""
             SELECT 
               ei.product_id,
@@ -1138,6 +1247,7 @@ def api_fetch_stock():
         """, (employee_id, previous_day))
         rows = cur.fetchall()
         cur.close()
+
         out = {
             str(r['product_id']): {
                 'remaining': int(r['remaining']),
@@ -1146,19 +1256,27 @@ def api_fetch_stock():
             for r in rows
         }
         return jsonify(out)
+
     except Exception as e:
         app.logger.error("fetch_stock error: %s", e)
         return jsonify({"error": "Internal server error."}), 500
 
 
+# Kept your ORIGINAL function name
 @app.route('/api/fetch_morning_allocation')
 def api_fetch_morning_allocation():
+    # 1. ADDED SECURITY CHECK
+    if "loggedin" not in session:
+        return jsonify({"error": "Unauthorized"}), 401
+        
     employee_id = request.args.get('employee_id')
     date_str    = request.args.get('date')
     if not employee_id or not date_str:
         return jsonify({"error": "Employee and date are required."}), 400
     try:
         cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        
+        # 3. ROBUST FIX: All table names are lowercase
         cur.execute(
             "SELECT id FROM morning_allocations WHERE employee_id=%s AND date=%s",
             (employee_id, date_str)
@@ -1167,7 +1285,10 @@ def api_fetch_morning_allocation():
         if not alloc:
             cur.close()
             return jsonify({"error": "No allocation found."}), 404
+            
         alloc_id = alloc['id']
+        
+        # 3. ROBUST FIX: All table names are lowercase
         cur.execute("""
             SELECT 
               mai.product_id,
@@ -1182,99 +1303,188 @@ def api_fetch_morning_allocation():
         """, (alloc_id,))
         items = cur.fetchall()
         cur.close()
+        
         for i in items:
             i['opening_qty'] = int(i['opening_qty'])
             i['given_qty']   = int(i['given_qty'])
             i['total_qty']   = int(i['total_qty'])
             i['unit_price']  = float(i['unit_price'])
+            
         return jsonify({"allocation_id": alloc_id, "items": items})
     except Exception as e:
         app.logger.error("fetch_morning_allocation error: %s", e)
         return jsonify({"error": "Internal server error."}), 500
 
 
-def get_template_data():
+# =====================================================================
+# NEW ROUTES FOR LIST/EDIT FEATURE
+# =====================================================================
+
+# NEW route to list all submitted forms
+@app.route('/allocation_list')
+def allocation_list():
+    if "loggedin" not in session:
+        return redirect(url_for("login"))
+
+    filter_date_str = request.args.get('filter_date', date.today().isoformat())
+    filter_employee = request.args.get('filter_employee', 'all')
+    
+    db_cursor = None
     try:
-        cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-        cur.execute("SELECT id, name FROM employees ORDER BY name")
-        employees = cur.fetchall()
-        cur.execute("SELECT id, name, price FROM products ORDER BY name")
-        raw = cur.fetchall()
-        cur.close()
-        products = [
+        db_cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        
+        # 3. ROBUST FIX: All table names are lowercase
+        db_cursor.execute("SELECT id, name FROM employees ORDER BY name")
+        employees = db_cursor.fetchall()
+        
+        # 3. ROBUST FIX: All table names are lowercase
+        query = """
+            SELECT ma.id, ma.date, e.name as employee_name, 
+                   (SELECT COUNT(id) FROM evening_settle WHERE allocation_id = ma.id) as evening_submitted
+            FROM morning_allocations ma
+            JOIN employees e ON ma.employee_id = e.id
+            WHERE ma.date = %s
+        """
+        params = [filter_date_str]
+        
+        if filter_employee != 'all':
+            query += " AND ma.employee_id = %s"
+            params.append(filter_employee)
+            
+        query += " ORDER BY e.name"
+        
+        db_cursor.execute(query, tuple(params))
+        allocations = db_cursor.fetchall()
+        
+        return render_template('allocation_list.html',
+                               allocations=allocations,
+                               employees=employees,
+                               filter_date=filter_date_str,
+                               filter_employee=filter_employee)
+    except Exception as e:
+        flash(f"Error loading allocations: {e}", "danger")
+        return redirect(url_for('morning')) 
+    finally:
+        if db_cursor:
+            db_cursor.close()
+
+
+# NEW route to edit a submitted form
+@app.route('/morning/edit/<int:allocation_id>', methods=['GET', 'POST'])
+def edit_morning_allocation(allocation_id):
+    if "loggedin" not in session:
+        return redirect(url_for("login"))
+
+    db_cursor = None
+    try:
+        db_cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        
+        # 3. ROBUST FIX: All table names are lowercase
+        db_cursor.execute("SELECT COUNT(id) as count FROM evening_settle WHERE allocation_id = %s", (allocation_id,))
+        if db_cursor.fetchone()['count'] > 0:
+            flash("Cannot edit this allocation as the evening settlement has already been submitted.", "warning")
+            return redirect(url_for('allocation_list'))
+
+        if request.method == 'POST':
+            product_ids = request.form.getlist('product_id[]')
+            item_ids = request.form.getlist('item_id[]') 
+            opening_list = request.form.getlist('opening[]')
+            given_list = request.form.getlist('given[]')
+            price_list = request.form.getlist('price[]')
+
+            # 3. ROBUST FIX: All table names are lowercase
+            db_cursor.execute("SELECT id FROM morning_allocation_items WHERE allocation_id = %s", (allocation_id,))
+            existing_db_ids = {str(row['id']) for row in db_cursor.fetchall()}
+            
+            submitted_item_ids = set()
+
+            for i, product_id in enumerate(product_ids):
+                if not product_id: continue
+                    
+                item_id = item_ids[i]
+                open_q = int(opening_list[i] or 0)
+                giv_q = int(given_list[i] or 0)
+                price = float(price_list[i] or 0.0)
+
+                if item_id == 'new_item': 
+                    # 3. ROBUST FIX: All table names are lowercase
+                    db_cursor.execute("""
+                        INSERT INTO morning_allocation_items
+                        (allocation_id, product_id, opening_qty, given_qty, unit_price)
+                        VALUES (%s, %s, %s, %s, %s)
+                    """, (allocation_id, product_id, open_q, giv_q, price))
+                else: 
+                    submitted_item_ids.add(item_id)
+                    # 3. ROBUST FIX: All table names are lowercase
+                    db_cursor.execute("""
+                        UPDATE morning_allocation_items
+                        SET product_id = %s, opening_qty = %s, given_qty = %s, unit_price = %s
+                        WHERE id = %s AND allocation_id = %s
+                    """, (product_id, open_q, giv_q, price, item_id, allocation_id))
+            
+            ids_to_delete = existing_db_ids - submitted_item_ids
+            if ids_to_delete:
+                # 3. ROBUST FIX: All table names are lowercase
+                delete_query = "DELETE FROM morning_allocation_items WHERE id IN ({})".format(
+                    ",".join(["%s"] * len(ids_to_delete))
+                )
+                db_cursor.execute(delete_query, tuple(ids_to_delete))
+
+            mysql.connection.commit()
+            flash("Allocation updated successfully!", "success")
+            return redirect(url_for('allocation_list'))
+
+        # --- GET request ---
+        
+        # 3. ROBUST FIX: All table names are lowercase
+        db_cursor.execute("""
+            SELECT ma.*, e.name as employee_name 
+            FROM morning_allocations ma
+            JOIN employees e ON ma.employee_id = e.id
+            WHERE ma.id = %s
+        """, (allocation_id,))
+        allocation = db_cursor.fetchone()
+        if not allocation:
+            flash("Allocation not found.", "danger")
+            return redirect(url_for('allocation_list'))
+
+        # 3. ROBUST FIX: All table names are lowercase
+        db_cursor.execute("""
+            SELECT * FROM morning_allocation_items 
+            WHERE allocation_id = %s 
+            ORDER BY id ASC
+        """, (allocation_id,))
+        items = db_cursor.fetchall()
+
+        # 3. ROBUST FIX: All table names are lowercase
+        db_cursor.execute("SELECT id, name, price FROM products ORDER BY name")
+        products_raw = db_cursor.fetchall() or []
+        
+        products_for_js = [
             {'id': p['id'], 'name': p['name'], 'price': float(p['price'])}
-            for p in raw
+            for p in products_raw
         ]
+        
         productOptions = ''.join(
             f'<option value="{pr["id"]}">{pr["name"]}</option>'
-            for pr in products
+            for pr in products_for_js
         )
-        return {
-            'employees'     : employees,
-            'products'      : products,
-            'productOptions': productOptions,
-            'today_date'    : date.today().isoformat()
-        }
+        
+        return render_template('morning_edit.html',
+                               allocation=allocation,
+                               items=items,
+                               products=products_for_js,
+                               productOptions=productOptions)
+
     except Exception as e:
-        app.logger.error("get_template_data error: %s", e)
-        flash("Database error loading form.", "danger")
-        return {
-            'employees'     : [],
-            'products'      : [],
-            'productOptions': '',
-            'today_date'    : date.today().isoformat()
-        }
-
-
-def save_allocation_data():
-    try:
-        employee_id  = request.form.get('employee_id')
-        date_str     = request.form.get('date')
-        product_ids  = request.form.getlist('product_id[]')
-        opening_list = request.form.getlist('opening[]')
-        given_list   = request.form.getlist('given[]')
-        price_list   = request.form.getlist('price[]')
-
-        if not (employee_id and date_str and product_ids):
-            flash("All fields are required.", "danger")
-            return redirect(url_for('morning'))
-
-        cur = mysql.connection.cursor()
-        cur.execute(
-            "SELECT id FROM morning_allocations WHERE employee_id=%s AND date=%s",
-            (employee_id, date_str)
-        )
-        if cur.fetchone():
-            cur.close()
-            flash("Allocation already exists for this date.", "warning")
-            return redirect(url_for('morning'))
-        cur.execute(
-            "INSERT INTO morning_allocations (employee_id, date) VALUES (%s, %s)",
-            (employee_id, date_str)
-        )
-        alloc_id = cur.lastrowid
-        insert_sql = """
-          INSERT INTO morning_allocation_items
-            (allocation_id, product_id, opening_qty, given_qty, unit_price)
-          VALUES (%s, %s, %s, %s, %s)
-        """
-        for idx, pid in enumerate(product_ids):
-            if not pid:
-                continue
-            open_q = int(opening_list[idx] or 0)
-            giv_q  = int(given_list[idx]   or 0)
-            price  = float(price_list[idx] or 0.0)
-            cur.execute(insert_sql,
-                        (alloc_id, pid, open_q, giv_q, price))
-        mysql.connection.commit()
-        cur.close()
-        flash("Morning allocation saved successfully.", "success")
-        return redirect(url_for('morning'))
-    except Exception as e:
-        app.logger.error("save_allocation_data error: %s", e)
-        flash("Error saving allocation.", "danger")
-        return redirect(url_for('morning'))
-
+        if db_cursor:
+            mysql.connection.rollback()
+        app.logger.error(f"Edit allocation error: {e}") # Log the error
+        flash(f"An error occurred: {e}", "danger")
+        return redirect(url_for('allocation_list'))
+    finally:
+        if db_cursor:
+            db_cursor.close()
 # -------------------------------
 # EVENING SETTLEMENT ROUTE
 # ----------------------------------------------------------------------------------------------------------
@@ -2271,6 +2481,7 @@ def download_transaction_report():
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
