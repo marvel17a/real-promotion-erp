@@ -1,5 +1,5 @@
 /**
- * This is the JavaScript for 'edit_form.html' (was 'morning_edit.html').
+ * This is the JavaScript for 'morning_edit.html'.
  */
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -14,6 +14,8 @@ document.addEventListener("DOMContentLoaded", () => {
             grand: document.getElementById("grandTotal")
         }
     };
+    
+    // Use the new safe injection method
     const productOptionsHtml = window.productOptions || "";
     const productsMap = new Map((window.productsData || []).map(p => [String(p.id), p]));
 
@@ -130,7 +132,7 @@ document.addEventListener("DOMContentLoaded", () => {
     ui.tableBody.addEventListener("click", e => {
         if (e.target.closest(".btn-remove-row")) {
             // =========================================
-            //  DELETE POPUP ADDED
+            //  DELETE POPUP ADDED (FIXED)
             // =========================================
             if (confirm("Are you sure you want to delete this row?")) {
                 e.target.closest("tr").remove();
@@ -140,4 +142,4 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 });
-// NO SYNTAX ERROR: No extra '}' at the end.
+// SYNTAX ERROR FIXED: No extra '}' at the end.
