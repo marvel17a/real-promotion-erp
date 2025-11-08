@@ -1,4 +1,4 @@
-/* static/css/allocation_form.css */
+/* static/css/morning.css */
 
 /* Card & Table Styling */
 .card {
@@ -27,7 +27,7 @@
 }
 
 /* =========================================
-      DELETE BUTTON STYLE
+      DELETE BUTTON STYLE (FIXED)
   =========================================
 */
 .btn-remove-row {
@@ -68,22 +68,18 @@
     padding: 1rem;
   }
 
-  /* Make table headers less prominent on mobile */
   .colorful-table thead {
     font-size: 0.9rem;
   }
   
-  /* Force table text to be small to fit */
   .colorful-table {
     font-size: 0.85rem;
   }
 
-  /* Make totals row text smaller */
   .colorful-table tfoot {
     font-size: 0.9rem;
   }
 
-  /* Ensure inputs don't get too tiny */
   .colorful-table .form-control,
   .colorful-table .form-select {
     padding: 0.25rem 0.5rem;
