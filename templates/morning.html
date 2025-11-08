@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
-<!-- Links to CSS -->
-<link rel="stylesheet" href="{{ url_for('static', filename='css/allocation_form.css') }}">
+<!-- Links to your CSS file -->
+<link rel="stylesheet" href="{{ url_for('static', filename='css/morning.css') }}">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
 
 <div class="container mt-4">
@@ -13,28 +13,26 @@
   <div class="card shadow-sm">
     <div class="card-body">
 
-      <form id="morningForm" method="POST" action="{{ url_for('allocation_form') }}">
-        
+      <form id="morningForm" method="POST" action="{{ url_for('morning') }}">
+
         <!-- EMPLOYEE + DATE -->
         <div class="row g-3 mb-3 align-items-end">
+
           <div class="col-md-6 col-lg-5">
             <label class="form-label fw-bold">Employee</label>
             <select name="employee_id" id="employee_id" class="form-select" required>
               <option value="">-- Select Employee --</option>
               {% for emp in employees %}
-                <option value="{{ emp.id }}">{{ emp.name }}</option>
+              <option value="{{ emp.id }}">{{ emp.name }}</option>
               {% endfor %}
             </select>
           </div>
 
           <div class="col-md-6 col-lg-4">
             <label class="form-label fw-bold">Date</label>
-            <input type="date"
-                   name="date"
-                   id="date"
+            <input type="date" name="date" id="date"
                    class="form-control"
-                   value="{{ today_date }}"
-                   required>
+                   value="{{ today_date }}" required>
           </div>
         </div>
 
@@ -55,6 +53,7 @@
                 <th>Action</th>
               </tr>
             </thead>
+
             <tbody>
               <tr>
                 <td colspan="8" class="text-muted p-4">
@@ -70,7 +69,7 @@
                 <td id="totalGiven">0</td>
                 <td id="totalAll">0</td>
                 <td>-</td>
-                <td id="grandTotal">0.00</td>
+                <td id="grandTotal" class="text-nowrap">0.00</td>
                 <td>-</td>
               </tr>
             </tfoot>
@@ -87,26 +86,26 @@
             <i class="bi bi-save"></i> Submit Allocation
           </button>
         </div>
-      </form>
 
+      </form>
     </div>
   </div>
 
   <div class="text-center mt-4 mb-3">
-    <a href="{{ url_for('morning_list') }}" class="btn btn-outline-secondary">
+    <a href="{{ url_for('allocation_list') }}" class="btn btn-outline-secondary">
       <i class="bi bi-pencil-square"></i> View & Edit Submitted Allocations
     </a>
   </div>
 
 </div>
 
-<!-- ✅✅ FIXED DATA INJECTION (no syntax error possible) -->
+<!-- ✅ SAFE DATA INJECTION -->
 <script>
   window.productsData = {{ products | tojson | safe }};
   window.productOptions = {{ productOptions | tojson | safe }};
 </script>
 
-<!-- JS FILE -->
+<!-- ✅ CORRECT JS FILE -->
 <script src="{{ url_for('static', filename='js/allocation_js.js') }}"></script>
 
 {% endblock %}
