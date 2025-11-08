@@ -2500,7 +2500,7 @@ def morning_edit(allocation_id):
 # This makes sure the API call uses the lowercase table name
 #
 @app.route('/api/fetch_stock')
-def api_fetch_stock():
+def fetch_stock():
     employee_id = request.args.get('employee_id')
     date_str    = request.args.get('date')
 
@@ -2549,6 +2549,7 @@ def api_fetch_stock():
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
