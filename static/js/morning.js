@@ -250,3 +250,4 @@ document.addEventListener("DOMContentLoaded", () => {
     // Add a keydown listener to the table body to enable navigation.
     ui.tableBody.addEventListener("keydown", handleArrowKeyNavigation);
 }); // <-- THIS IS THE FINAL CLOSING BRACE. There is no extra one.
+
