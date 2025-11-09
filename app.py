@@ -733,15 +733,48 @@ def edit_product(id):
 
 @app.route('/products/delete/<int:id>', methods=['POST'])
 def delete_product(id):
-    cursor = mysql.connection.cursor()
-    cursor.execute("DELETE FROM products WHERE id = %s", (id,))
-    mysql.connection.commit()
-    cursor.close()
-
-    flash("Product deleted successfully!", "success")
+    if "loggedin" not in session:
+        return redirect(url_for("login"))
+        
+    cursor = None
+    try:
+        cursor = mysql.connection.cursor()
+        
+        # This is the "Cascade Delete"
+        # We must delete the product from all "child" tables FIRST
+        # to avoid the IntegrityError.
+        
+        # 1. Delete from purchase_items
+        cursor.execute("DELETE FROM purchase_items WHERE product_id = %s", (id,))
+        
+        # 2. Delete from evening_item
+        cursor.execute("DELETE FROM evening_item WHERE product_id = %s", (id,))
+        
+        # 3. Delete from morning_allocation_items
+        cursor.execute("DELETE FROM morning_allocation_items WHERE product_id = %s", (id,))
+        
+        # 4. Delete from product_returns
+        cursor.execute("DELETE FROM product_returns WHERE product_id = %s", (id,))
+        
+        # 5. Delete from sales
+        cursor.execute("DELETE FROM sales WHERE product_id = %s", (id,))
+        
+        # 6. NOW it is safe to delete the "parent" product
+        cursor.execute("DELETE FROM products WHERE id = %s", (id,))
+        
+        mysql.connection.commit()
+        flash("Product and all associated records deleted successfully!", "success")
+        
+    except Exception as e:
+        mysql.connection.rollback()
+        flash(f"Error deleting product: {e}", "danger")
+        app.logger.error(f"Error deleting product {id}: {e}") # Log the error
+        
+    finally:
+        if cursor:
+            cursor.close()
+            
     return redirect(url_for('inventory'))
-
-
 #=========================================================================================================
 # ------------------ EMPLOYEES ----------------------------------------------------------------------
 @app.route('/api/check-employee')
@@ -2481,6 +2514,7 @@ def download_transaction_report():
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
