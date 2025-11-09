@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/inventory.css') }}">
 <script src="{{ url_for('static', filename='js/eve.js') }}"></script>
 
 <div class="form-card">
@@ -13,8 +13,8 @@
           Added the 'action' to the form tag.
       =========================================
     -->
-    <form id="addProductForm" 
-          action="{{ url_for('add_product_action') }}" 
+    <form id="add_product" 
+          action="{{ url_for('add_product') }}" 
           method="POST" 
           enctype="multipart/form-data">
         
@@ -50,3 +50,4 @@ function previewImage(event) {
 }
 </script>
 {% endblock %}
+
