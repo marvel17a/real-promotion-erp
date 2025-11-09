@@ -616,14 +616,12 @@ def products():
     return render_template('products.html', products=products)
 
 
-@app.route("/add_product")
-def add_product():
-    return render_template("add_product.html")
+
 
 
 # --- MODIFIED: `add_product_action` ---
-@app.route("/add_product_form", methods=["POST"])
-def add_product_form():
+@app.route("/add_product", methods=["POST"])
+def add_product():
     if request.method == "POST":
         name = request.form.get("name")
         category = request.form.get("category")
@@ -678,7 +676,7 @@ def add_product_form():
         flash("✅ Product added/updated successfully!", "success")
         return redirect(url_for("inventory"))
 
-    return redirect(url_for("add_product_form"))
+    return redirect(url_for("add_product"))
 
 
 # --- MODIFIED: `edit_product` ---
@@ -2514,6 +2512,7 @@ def download_transaction_report():
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
