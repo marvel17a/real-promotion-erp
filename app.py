@@ -644,7 +644,7 @@ def add_product():
             except Exception as e:
                 app.logger.error(f"Cloudinary upload failed: {e}")
                 flash(f"Image upload failed: {e}", "danger")
-                return redirect(url_for("add_product"))
+                return redirect(url_for("add_product_form"))
 
         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
         
@@ -679,12 +679,12 @@ def add_product():
         flash("✅ Product added/updated successfully!", "success")
         return redirect(url_for("inventory"))
 
-    # This fixes the loop bug, it now points to the form page
-    return redirect(url_for("add_product"))
-
-
-
-
+    # =========================================
+    # THE ROBUST FIX 
+    # This was the bug in your Python code.
+    # It now points to the form page, not itself.
+    # =========================================
+    return redirect(url_for("add_product_form"))
 
 
 # --- MODIFIED: `edit_product` ---
@@ -2564,6 +2564,7 @@ def download_transaction_report():
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
