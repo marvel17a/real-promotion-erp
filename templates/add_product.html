@@ -10,11 +10,12 @@
     <!-- 
       =========================================
           THE ROBUST FIX 
-          I have added the 'action' to the form tag.
+          I have added the 'action' attribute.
+          It now points to your 'add_product' function.
       =========================================
     -->
     <form id="addProductForm" 
-          action="{{ url_for('add_product_action') }}" 
+          action="{{ url_for('add_product') }}" 
           method="POST" 
           enctype="multipart/form-data">
         
