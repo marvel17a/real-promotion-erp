@@ -617,8 +617,27 @@ def products():
 
 
 
+#
+# This file shows the modifications for your app.py
+# 1. Find and DELETE your old 'add_product_form' function.
+# 2. Find and DELETE your old 'add_product' function.
+# 3. Copy and PASTE these two new versions into your app.py
+#
+
+# ===================================================
+# THIS IS ROUTE 1: To SHOW the page
+# (Security removed, as requested)
+# ===================================================
+@app.route("/add_product_form") # This is the route that shows the page
+def add_product_form():
+    # Removed: if "loggedin" not in session: ...
+    return render_template("add_product.html")
 
 
+# ===================================================
+# THIS IS ROUTE 2: To SAVE the data
+# (Security removed + Redirect fixed + lowercase table)
+# ===================================================
 @app.route("/add_product", methods=["POST"])
 def add_product():
     # Removed: if "loggedin" not in session: ...
@@ -644,6 +663,7 @@ def add_product():
             except Exception as e:
                 app.logger.error(f"Cloudinary upload failed: {e}")
                 flash(f"Image upload failed: {e}", "danger")
+                # FIX: Redirect to the form, not the action
                 return redirect(url_for("add_product_form"))
 
         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
@@ -679,12 +699,12 @@ def add_product():
         flash("✅ Product added/updated successfully!", "success")
         return redirect(url_for("inventory"))
 
-    # =========================================
-    # THE ROBUST FIX 
-    # This was the bug in your Python code.
-    # It now points to the form page, not itself.
-    # =========================================
+    # This fixes the loop bug, it now points to the form page
     return redirect(url_for("add_product_form"))
+
+
+
+
 
 
 # --- MODIFIED: `edit_product` ---
@@ -2564,6 +2584,7 @@ def download_transaction_report():
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
