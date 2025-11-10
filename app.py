@@ -943,13 +943,57 @@ def edit_employee(id):
     return render_template("edit_employee.html", employee=employee)
 
 
+#
+# This file shows the modifications for your app.py
+# 1. Find and DELETE your old 'delete_employee' function.
+# 2. Copy and PASTE this new version into your app.py
+#
+
 @app.route("/delete_employee/<int:id>", methods=["POST"])
 def delete_employee(id):
-    cursor = mysql.connection.cursor()
-    cursor.execute("DELETE FROM employees WHERE id=%s", (id,))
-    mysql.connection.commit()
-    cursor.close()
-    flash(" Employee Deleted Successfully!", "danger")
+    # No login check, as requested.
+    
+    cursor = None
+    try:
+        cursor = mysql.connection.cursor()
+        
+        # ===================================================
+        # THE ROBUST FIX: CASCADE DELETE
+        # We must delete all "child" records from other tables *first*.
+        # (Using lowercase table names for your Linux server)
+        # ===================================================
+        
+        # 1. Delete from evening settlements
+        cursor.execute("DELETE FROM evening_settle WHERE employee_id = %s", (id,))
+        
+        # 2. Delete from morning allocations
+        cursor.execute("DELETE FROM morning_allocations WHERE employee_id = %s", (id,))
+        
+        # 3. Delete from financial transactions
+        cursor.execute("DELETE FROM employee_transactions WHERE employee_id = %s", (id,))
+        
+        # 4. Delete from product returns (just in case)
+        cursor.execute("DELETE FROM product_returns WHERE employee_id = %s", (id,))
+
+        # 5. NOW it is safe to delete the "parent" employee
+        cursor.execute("DELETE FROM employees WHERE id = %s", (id,))
+        
+        # 6. Commit all deletes as one single transaction
+        mysql.connection.commit()
+        
+        flash("Employee and all associated records deleted successfully!", "success")
+
+    except Exception as e:
+        # If any delete fails, roll back all of them to protect data
+        mysql.connection.rollback()
+        app.logger.error(f"Error deleting employee {id}: {e}")
+        # Send the real error message to the user
+        flash(f"An error occurred: {e}", "danger")
+        
+    finally:
+        if cursor:
+            cursor.close()
+            
     return redirect(url_for("employees"))
 
 #----------------------------------------INVENTORY-----------------------------------------------------------
@@ -2535,6 +2579,7 @@ def download_transaction_report():
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
