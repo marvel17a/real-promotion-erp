@@ -615,25 +615,10 @@ def products():
     cur.close()
     return render_template('products.html', products=products)
 
-#
-# This file shows the modifications for your app.py
-# 1. Find and DELETE your old 'add_product_form' function.
-# 2. Find and DELETE your old 'add_product' function.
-# 3. Copy and PASTE these two new versions into your app.py
-#
-
-# ===================================================
-# THIS IS THE FIX (Security removed, as requested)
-# ===================================================
-@app.route("/add_product_form") # This is the route that shows the page
-def add_product_form():
-    # Removed: if "loggedin" not in session: ...
-    return render_template("add_product.html")
 
 
-# ===================================================
-# THIS IS THE FIX (Security removed + Redirect fixed)
-# ===================================================
+
+
 @app.route("/add_product", methods=["POST"])
 def add_product():
     # Removed: if "loggedin" not in session: ...
@@ -659,7 +644,7 @@ def add_product():
             except Exception as e:
                 app.logger.error(f"Cloudinary upload failed: {e}")
                 flash(f"Image upload failed: {e}", "danger")
-                return redirect(url_for("add_product_form"))
+                return redirect(url_for("add_product"))
 
         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
         
@@ -695,7 +680,7 @@ def add_product():
         return redirect(url_for("inventory"))
 
     # This fixes the loop bug, it now points to the form page
-    return redirect(url_for("add_product_form"))
+    return redirect(url_for("add_product"))
 
 
 
@@ -2579,6 +2564,7 @@ def download_transaction_report():
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
