@@ -10,11 +10,11 @@
     <!-- 
       =========================================
           THE ROBUST FIX 
-          Added the 'action' to the form tag.
+          I have added the 'action' to the form tag.
       =========================================
     -->
-    <form id="add_product" 
-          action="{{ url_for('add_product') }}" 
+    <form id="addProductForm" 
+          action="{{ url_for('add_product_action') }}" 
           method="POST" 
           enctype="multipart/form-data">
         
@@ -50,4 +50,3 @@ function previewImage(event) {
 }
 </script>
 {% endblock %}
-
