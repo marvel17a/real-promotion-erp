@@ -152,3 +152,111 @@ body{background:var(--bg);color:var(--text);}
 }
 .toast.show{opacity:1;transform:translate(-50%,0)}
 .toast.danger{border-color:#a12b2b}
+
+
+/* ===== Slide Drawer Styling ===== */
+
+.drawer-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    display: none;
+    justify-content: flex-end;
+    z-index: 2000;
+}
+
+.drawer-overlay.active {
+    display: flex;
+}
+
+.drawer {
+    width: 360px;
+    background: #ffffff;
+    height: 100%;
+    padding: 20px;
+    box-shadow: -4px 0px 18px rgba(0,0,0,0.15);
+    animation: drawerSlide 0.35s ease forwards;
+    border-left: 1px solid #e6e6e6;
+}
+
+@keyframes drawerSlide {
+    from { transform: translateX(100%); }
+    to   { transform: translateX(0); }
+}
+
+/* Header */
+
+.drawer-close {
+    position: absolute;
+    right: 14px;
+    top: 10px;
+    border: none;
+    background: none;
+    font-size: 26px;
+    cursor: pointer;
+}
+
+.drawer-header {
+    display: flex;
+    gap: 14px;
+    align-items: center;
+    margin-bottom: 18px;
+}
+
+.drawer-avatar {
+    width: 70px;
+    height: 70px;
+    border-radius: 14px;
+    object-fit: cover;
+    background: #e5e7eb;
+}
+
+/* Content */
+.drawer-content .drawer-item {
+    margin-bottom: 12px;
+}
+
+.drawer-content label {
+    font-size: 13px;
+    color: #6b7280;
+    display: block;
+}
+
+.drawer-content span {
+    font-size: 15px;
+    font-weight: 500;
+    color: #111827;
+}
+
+/* Actions */
+.drawer-actions {
+    margin-top: 20px;
+    display: flex;
+    gap: 12px;
+}
+
+.drawer-btn {
+    flex: 1;
+    padding: 10px 12px;
+    text-align: center;
+    border-radius: 10px;
+    text-decoration: none;
+    color: white;
+    font-weight: 600;
+    transition: 0.2s;
+}
+
+.drawer-btn.edit {
+    background: #f59e0b;
+}
+
+.drawer-btn.doc {
+    background: #3b82f6;
+}
+
+/* Hover */
+.drawer-btn:hover {
+    opacity: 0.9;
+}
+
+
