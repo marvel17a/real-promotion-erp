@@ -123,3 +123,38 @@
     if (!ok){ e.preventDefault(); }
   });
 })();
+
+
+// ✅ Live Search & Filters (Employees Grid)
+document.addEventListener("DOMContentLoaded", () => {
+    const search = document.getElementById("searchInput");
+    const statusFilter = document.getElementById("statusFilter");
+    const cityFilter = document.getElementById("cityFilter");
+    const cards = document.querySelectorAll(".emp-card");
+
+    function applyFilters() {
+        const s = search.value.toLowerCase();
+        const st = statusFilter.value;
+        const ct = cityFilter.value;
+
+        cards.forEach(card => {
+            const name = card.dataset.name.toLowerCase();
+            const status = card.dataset.status;
+            const city = card.dataset.city;
+
+            let visible = true;
+
+            if (s && !name.includes(s)) visible = false;
+            if (st && status !== st) visible = false;
+            if (ct && city !== ct) visible = false;
+
+            card.style.display = visible ? "block" : "none";
+        });
+    }
+
+    if (search) search.addEventListener("input", applyFilters);
+    if (statusFilter) statusFilter.addEventListener("change", applyFilters);
+    if (cityFilter) cityFilter.addEventListener("change", applyFilters);
+});
+
+
