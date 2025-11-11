@@ -34,13 +34,15 @@
                           your live images from the cloud.
                       =========================================
                     -->
-                    {% if product.image %}
-                        <img src="{{ cloudinary_url(product.image, height=50, width=50, crop='fill', radius='5') }}" 
-                             alt="{{ product.name }}" 
-                             width="50" height="50" style="object-fit: cover;">
-                    {% else %}
-                        No Image
-                    {% endif %}
+                   {% if product.image %}
+    <img src="{{ product.image }}" 
+         alt="{{ product.name }}"
+         width="50" height="50"
+         style="object-fit: cover; border-radius: 5px;">
+{% else %}
+    No Image
+{% endif %}
+
                 </td>
 
                 <td>{{ product.name }}</td>
@@ -71,3 +73,4 @@
 </div>
 
 {% endblock %}
+
