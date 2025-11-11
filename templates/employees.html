@@ -118,7 +118,60 @@
   </div>
 </div>
 
+  <script>
+document.querySelectorAll('.btn-view').forEach(btn => {
+    btn.addEventListener('click', () => {
+        let id = btn.dataset.id;
+
+        fetch(`/api/employees/${id}`)
+        .then(res => res.json())
+        .then(data => {
+            if(!data.ok){ alert("Not found"); return; }
+
+            let emp = data.employee;
+
+            // Fill Drawer Data
+            document.getElementById("drawerAvatar").src = emp.image || "";
+            document.getElementById("drawerName").textContent = emp.name;
+            document.getElementById("drawerRole").textContent = emp.position;
+            document.getElementById("drawerEmail").textContent = emp.email;
+            document.getElementById("drawerPhone").textContent = emp.phone;
+            document.getElementById("drawerCity").textContent = emp.city;
+            document.getElementById("drawerStatus").textContent = emp.status;
+            document.getElementById("drawerJoin").textContent = emp.join_date || "—";
+
+            if(emp.document){
+                document.getElementById("drawerDoc").innerHTML = `<a href="${emp.document}" target="_blank">Open</a>`;
+                document.getElementById("drawerDocBtn").href = emp.document;
+            } else {
+                document.getElementById("drawerDoc").textContent = "—";
+                document.getElementById("drawerDocBtn").href = "#";
+            }
+
+            // Edit button link
+            document.getElementById("drawerEditBtn").href = "/edit_employee/" + emp.id;
+
+            // Open drawer
+            document.getElementById("employeeDrawer").classList.add("active");
+        });
+    });
+});
+
+// Close Drawer
+document.getElementById("drawerCloseBtn").addEventListener("click", () => {
+    document.getElementById("employeeDrawer").classList.remove("active");
+});
+
+document.getElementById("employeeDrawer").addEventListener("click", (e) => {
+    if(e.target.classList.contains("drawer-overlay")){
+        document.getElementById("employeeDrawer").classList.remove("active");
+    }
+});
+</script>
+
+
 </section>
 {% endblock %}
+
 
 
