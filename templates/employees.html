@@ -70,6 +70,55 @@
       </tbody>
     </table>
   </div>
+
+  <!-- Slide Drawer -->
+<div id="employeeDrawer" class="drawer-overlay">
+  <div class="drawer">
+    <button class="drawer-close" id="drawerCloseBtn">×</button>
+
+    <div class="drawer-header">
+      <img id="drawerAvatar" class="drawer-avatar" src="" alt="">
+      <div>
+        <h2 id="drawerName">Employee Name</h2>
+        <p id="drawerRole" class="drawer-role">Role</p>
+      </div>
+    </div>
+
+    <div class="drawer-content">
+      <div class="drawer-item">
+        <label>Email:</label>
+        <span id="drawerEmail"></span>
+      </div>
+      <div class="drawer-item">
+        <label>Phone:</label>
+        <span id="drawerPhone"></span>
+      </div>
+      <div class="drawer-item">
+        <label>City:</label>
+        <span id="drawerCity"></span>
+      </div>
+      <div class="drawer-item">
+        <label>Status:</label>
+        <span id="drawerStatus"></span>
+      </div>
+      <div class="drawer-item">
+        <label>Document:</label>
+        <span id="drawerDoc"></span>
+      </div>
+      <div class="drawer-item">
+        <label>Join Date:</label>
+        <span id="drawerJoin"></span>
+      </div>
+    </div>
+
+    <div class="drawer-actions">
+      <a href="#" id="drawerEditBtn" class="drawer-btn edit">Edit</a>
+      <a href="#" target="_blank" id="drawerDocBtn" class="drawer-btn doc">Document</a>
+    </div>
+  </div>
+</div>
+
 </section>
 {% endblock %}
+
 
