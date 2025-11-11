@@ -141,15 +141,17 @@ def dashboard():
         # We must use the lowercase table names for Linux
         db_cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
-        # Total Sales
+
+        # Total Sales (AFTER discount)
         db_cursor.execute("""
-            SELECT SUM(total_amount) AS total_sales 
+            SELECT SUM(total_amount - discount) AS total_sales 
             FROM evening_settle 
             WHERE date = %s
         """, (report_date,))
         sales_result = db_cursor.fetchone()
         summary_data["total_sales"] = sales_result["total_sales"] or 0
 
+        
         # Total Expenses
         db_cursor.execute("""
             SELECT SUM(amount) AS total_expenses 
@@ -2584,6 +2586,7 @@ def download_transaction_report():
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
