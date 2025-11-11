@@ -1,248 +1,121 @@
-/* =========================================================
-   ✅ EMPLOYEE MANAGEMENT — FULL MODERN ERP THEME CSS
-   Theme: Clean Light (Matches your current ERP UI)
-   ========================================================= */
+/* ==== Premium ERP – Employees (Option 2) ================================== */
+/* Container */
+.page-section { padding: 20px; }
+.page-header {
+  display:flex; align-items:center; justify-content:space-between;
+  margin-bottom: 16px;
+}
+.page-header h2 { margin:0; font-size:22px; color:#1f2937; }
 
-/* GLOBAL PAGE WRAPPER */
-.page-section {
-    padding: 24px;
-    background: #f5f7fa;
+/* Buttons */
+.btn, .btn-small {
+  display:inline-flex; align-items:center; gap:8px;
+  border:none; cursor:pointer; text-decoration:none;
+  padding:10px 14px; border-radius:10px; font-weight:600;
+  transition:transform .15s ease, box-shadow .15s ease;
+}
+.btn:hover, .btn-small:hover { transform: translateY(-1px); }
+.btn:active, .btn-small:active { transform: translateY(0); }
+
+.btn-primary { background:#0ea5e9; color:#fff; }
+.btn-secondary { background:#6b7280; color:#fff; }
+.btn-warning  { background:#f59e0b; color:#fff; }
+.btn-danger   { background:#ef4444; color:#fff; }
+.btn-outline  { background:transparent; border:1px solid #cbd5e1; color:#334155; }
+.btn-small    { padding:7px 10px; border-radius:8px; font-size:13px; }
+
+/* Toolbar */
+.toolbar {
+  display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-bottom:14px;
+}
+.input {
+  height:40px; padding:0 12px; border:1px solid #e5e7eb; border-radius:10px;
+  min-width:220px; outline:none;
+}
+.input:focus { border-color:#94a3b8; box-shadow:0 0 0 3px rgba(148,163,184,.2); }
+
+/* Table wrapper */
+.table-card {
+  background:#fff; border-radius:14px; box-shadow: 0 10px 30px rgba(0,0,0,.06);
+  overflow:hidden;
 }
 
-/* -----------------------------
-   ✅ STATS CARDS ROW
-   ----------------------------- */
-.stats-row {
-    display: grid;
-    grid-template-columns: repeat(auto-fit,minmax(160px,1fr));
-    gap: 18px;
-    margin-bottom: 20px;
+/* Table */
+.table {
+  width:100%; border-collapse: collapse;
+}
+.table thead th {
+  background:#0b5ed7; color:#fff; text-align:left; padding:14px 16px; font-size:13px;
+  letter-spacing:.02em; text-transform:uppercase;
+}
+.table tbody td {
+  padding:14px 16px; border-bottom:1px solid #f1f5f9; vertical-align:middle;
+  color:#0f172a;
+}
+.table tbody tr:hover { background:#f8fafc; }
+
+/* Avatar */
+.avatar {
+  width:44px; height:44px; border-radius:12px; object-fit:cover;
+  background:#e2e8f0;
+}
+.avatar.placeholder {
+  display:grid; place-items:center; color:#64748b; font-size:11px;
 }
 
-.stat-card {
-    background: #ffffff;
-    padding: 18px;
-    border-radius: 12px;
-    box-shadow: 0 3px 12px rgba(0,0,0,0.08);
-    text-align: center;
+/* Badges */
+.badge {
+  display:inline-block; padding:6px 10px; border-radius:999px;
+  font-weight:700; font-size:12px;
+}
+.badge.success { background:#e8f7f1; color:#1a7f5a; }
+.badge.warning { background:#fff3cd; color:#9a7d08; }
+
+/* Action cell */
+.actions { display:flex; gap:8px; flex-wrap:wrap; }
+
+/* Chips / links */
+.doc-chip {
+  font-size:12px; padding:6px 10px; border-radius:999px;
+  background:#f1f5f9; color:#0f172a; text-decoration:none;
+  display:inline-block;
+}
+.doc-chip:hover { background:#e2e8f0; }
+
+/* Drawer / Modal */
+.drawer {
+  position: fixed; right:0; top:0; bottom:0; width:420px; max-width:95vw;
+  background:#fff; box-shadow:-20px 0 40px rgba(0,0,0,.18);
+  transform: translateX(100%); transition: transform .25s ease;
+  z-index: 60; display:flex; flex-direction:column;
+}
+.drawer.open { transform: translateX(0); }
+
+.drawer-header {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:16px 16px; border-bottom:1px solid #f1f5f9;
+}
+.drawer-title { font-weight:800; color:#111827; }
+.drawer-body { padding:16px; overflow:auto; }
+.drawer-row { display:grid; grid-template-columns:120px 1fr; gap:12px; margin-bottom:10px; }
+.drawer-row .label { color:#64748b; font-weight:600; }
+.drawer-row .value { color:#0f172a; }
+
+.close-x {
+  width:36px; height:36px; border-radius:10px; border:none; background:#f1f5f9; cursor:pointer;
 }
 
-.stat-card h3 {
-    margin: 0;
-    font-size: 28px;
-    font-weight: 700;
-    color: #0b5ed7;
-}
+.divider { height:1px; background:#f1f5f9; margin:12px 0; }
 
-.stat-card p {
-    margin: 4px 0 0;
-    font-size: 14px;
-    color: #666;
-}
-
-/* -----------------------------
-   ✅ FILTER & SEARCH BAR
-   ----------------------------- */
-.filter-bar {
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
-    background: #fff;
-    padding: 16px;
-    border-radius: 12px;
-    box-shadow: 0 3px 12px rgba(0,0,0,0.06);
-    margin-bottom: 20px;
-}
-
-.filter-bar input,
-.filter-bar select {
-    padding: 10px 12px;
-    border-radius: 8px;
-    border: 1px solid #ccc;
-    font-size: 15px;
-}
-
-.add-btn {
-    margin-left: auto;
-    padding: 10px 18px;
-    background: #0d6efd;
-    color: #fff;
-    border-radius: 8px;
-    text-decoration: none;
-}
-.add-btn:hover {
-    background: #0b58ca;
-}
-
-/* -----------------------------
-   ✅ EMPLOYEE CARDS GRID
-   ----------------------------- */
-.employee-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: 18px;
-}
-
-.emp-card {
-    background: #fff;
-    padding: 18px;
-    border-radius: 12px;
-    box-shadow: 0 3px 14px rgba(0,0,0,0.06);
-    text-align: center;
-    transition: 0.22s;
-    position: relative;
-}
-
-.emp-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 6px 20px rgba(0,0,0,0.12);
-}
-
-/* Photo */
-.emp-image-box {
-    display: flex;
-    justify-content: center;
-    margin-bottom: 10px;
-}
-
-.emp-photo {
-    width: 80px;
-    height: 80px;
-    border-radius: 50%;
-    object-fit: cover;
-}
-
-.emp-photo.placeholder {
-    background: #eef1f5;
-    width: 80px;
-    height: 80px;
-    border-radius: 50%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    color: #999;
-}
-
-/* Name & role */
-.emp-card h4 {
-    margin: 8px 0 2px;
-    font-size: 18px;
-    font-weight: 600;
-}
-
-.emp-role {
-    font-size: 14px;
-    color: #777;
-    margin: 0;
-}
-
-.emp-city {
-    font-size: 13px;
-    color: #999;
-}
-
-/* Status Badge */
-.emp-badge {
-    padding: 6px 10px;
-    border-radius: 20px;
-    font-size: 12px;
-    display: inline-block;
-    margin-top: 6px;
-    font-weight: 600;
-}
-
-.emp-badge.active {
-    background: #e6f7ed;
-    color: #1a7f5a;
-}
-
-.emp-badge.inactive {
-    background: #fff3cd;
-    color: #8a6d1d;
-}
-
-/* Action Buttons */
-.emp-actions {
-    margin-top: 12px;
-    display: flex;
-    justify-content: center;
-    gap: 8px;
-}
-
-.btn-small {
-    padding: 6px 10px;
-    border-radius: 6px;
-    text-decoration: none;
-    color: #fff;
-    font-size: 13px;
-    cursor: pointer;
-    border: none;
-}
-
-.btn-warning {
-    background: #f39c12;
-}
-
-.btn-warning:hover {
-    background: #d88710;
-}
-
-.btn-danger {
-    background: #e74c3c;
-}
-
-.btn-danger:hover {
-    background: #c0392b;
-}
-
-/* -----------------------------
-   ✅ TABLE (Optional Bottom Table)
-   ----------------------------- */
-.styled-table {
-    width: 100%;
-    margin-top: 24px;
-    border-collapse: collapse;
-    background: #fff;
-    border-radius: 12px;
-    overflow: hidden;
-    box-shadow: 0 3px 12px rgba(0,0,0,0.05);
-}
-
-.styled-table thead {
-    background: #0b5ed7;
-    color: #fff;
-}
-
-.styled-table th,
-.styled-table td {
-    padding: 14px 16px;
-    text-align: center;
-    border-bottom: 1px solid #f0f0f0;
-}
-
-.styled-table tbody tr:hover {
-    background: #f9fbff;
-}
-
-/* -----------------------------
-   ✅ RESPONSIVE DESIGN
-   ----------------------------- */
-@media (max-width: 768px) {
-    .filter-bar {
-        flex-direction: column;
-    }
-
-    .employee-grid {
-        grid-template-columns: 1fr 1fr;
-    }
-}
-
-@media (max-width: 520px) {
-    .employee-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .stat-card h3 {
-        font-size: 22px;
-    }
+/* Responsive */
+@media (max-width: 860px){
+  .drawer-row { grid-template-columns: 1fr; }
+  .actions { gap:6px; }
+  .table thead { display:none; }
+  .table tbody tr { display:grid; gap:8px; padding:12px 0; }
+  .table tbody td { border:none; padding:6px 14px; }
+  .table tbody td[data-th]::before {
+    content: attr(data-th) " "; font-size:12px; color:#64748b; font-weight:600; display:block;
+    margin-bottom:4px;
+  }
 }
