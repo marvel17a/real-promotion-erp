@@ -1,289 +1,85 @@
 {% extends "base.html" %}
 {% block content %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/employee.css') }}">
-
-<section class="emp-page">
-  <!-- Top Bar -->
-  <div class="emp-toolbar">
-    <div class="left">
-      <h2>👥 Employees</h2>
-      <div class="sub"><span id="empCount">{{ employees|length }}</span> total</div>
-    </div>
-
-    <div class="controls">
-      <div class="search">
-        <input id="empSearch" type="text" placeholder="Search name, email, phone..." />
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 21l-4.35-4.35M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15z"/></svg>
-      </div>
-
-      <select id="statusFilter" class="select">
-        <option value="">All Status</option>
-        <option value="active">Active</option>
-        <option value="inactive">Inactive</option>
-      </select>
-
-      <select id="cityFilter" class="select">
-        <option value="">All Cities</option>
-        {% for emp in employees|unique(attribute='city') %}
-          {% if emp.city %}<option value="{{ emp.city|e }}">{{ emp.city }}</option>{% endif %}
-        {% endfor %}
-      </select>
-
-      <!-- Keep your existing route name if you have add_employee_form; otherwise change to add_employee -->
-      <a href="{{ url_for('add_employee') if 'add_employee' in globals() else url_for('add_employee') }}"
-         class="btn primary">➕ Add Employee</a>
-    </div>
+<script src="{{ url_for('static', filename='js/employee_add.js') }}"></script>
+<section class="page-section">
+  <div class="page-header">
+    <h2>👥 Employee Management</h2>
+    <!-- This link is now correct -->
+    <a href="{{ url_for('add_employee') }}" class="btn-primary">➕ Add Employee</a>
   </div>
 
-  <!-- Card Grid -->
-  <div id="empGrid" class="emp-grid">
-    {% for emp in employees %}
-    <article class="emp-card"
-             data-name="{{ emp.name|lower }}"
-             data-email="{{ emp.email|lower }}"
-             data-phone="{{ emp.phone|lower }}"
-             data-status="{{ emp.status|lower }}"
-             data-city="{{ (emp.city or '')|lower }}">
-      <div class="emp-card__head">
-        {% if emp.image %}
-          <img class="emp-avatar" src="{{ emp.image }}" alt="{{ emp.name }}">
+  <div class="table-wrapper">
+    <table class="styled-table wide">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Photo</th>
+          <th>Name</th>
+          <th>Position</th>
+          <th>Email</th>
+          <th>Phone</th>
+          <th>City</th>
+          <th>Status</th>
+          <th>Document</th>
+          <th class="actions-col">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for emp in employees %}
+        <tr>
+          <td>{{ loop.index }}</td>
+          <td class="avatar-cell">
+            <!-- 
+              =========================================
+                  THE ROBUST FIX
+                  This now uses cloudinary_url() to load
+                  your live images from the cloud.
+              =========================================
+            -->
+            {% if emp.image %}
+              <img class="avatar" src="{{ cloudinary_url(emp.image, height=40, width=40, crop='fill', radius='max') }}" alt="{{ emp.name }}">
+            {% else %}
+              <div class="avatar placeholder">No photo</div>
+            {% endif %}
+          </td>
+          <td>{{ emp.name }}</td>
+          <td>{{ emp.position }}</td>
+          <td>{{ emp.email }}</td>
+          <td>{{ emp.phone }}</td>
+          <td>{{ emp.city }}</td>
+          <td>
+            <span class="badge {{ 'success' if emp.status=='active' else 'warning' }}">{{ emp.status|capitalize }}</span>
+          </td>
+          <td>
+            <!-- 
+              =========================================
+                  THE ROBUST FIX
+                  This now uses cloudinary_url() to load
+                  your live documents from the cloud.
+              =========================================
+            -->
+            {% if emp.document %}
+              <!-- Cloudinary link for non-image files -->
+              <a class="doc-link" href="{{ cloudinary_url(emp.document)[0] }}" target="_blank">View</a>
+            {% else %}
+              —
+            {% endif %}
+          </td>
+          <td class="actions">
+            <a href="{{ url_for('edit_employee', id=emp.id) }}" class="btn-small btn-warning">✏ Edit</a>
+            <form action="{{ url_for('delete_employee', id=emp.id) }}" method="POST" onsubmit="return confirm('Delete this employee?')" style="display:inline;">
+              <button type="submit" class="btn-small btn-danger">🗑 Delete</button>
+            </form>
+          </td>
+        </tr>
         {% else %}
-          <div class="emp-avatar placeholder">{{ emp.name[:1]|upper }}</div>
-        {% endif %}
-        <div class="emp-meta">
-          <h3 class="emp-name">{{ emp.name }}</h3>
-          <div class="emp-role">{{ emp.position or '—' }}</div>
-          <div class="emp-city">{{ emp.city or '—' }}</div>
-        </div>
-        <span class="badge {{ 'success' if emp.status=='active' else 'warning' }}">
-          {{ emp.status|capitalize }}
-        </span>
-      </div>
-
-      <div class="emp-card__body">
-        <div class="emp-mini">
-          <div><label>Email</label><span>{{ emp.email or '—' }}</span></div>
-          <div><label>Phone</label><span>{{ emp.phone or '—' }}</span></div>
-          <div><label>Joined</label><span>{{ emp.join_date or '—' }}</span></div>
-        </div>
-      </div>
-
-      <div class="emp-card__actions">
-        <button class="btn ghost view-btn"
-          data-emp='{{ {
-            "id": emp.id, "name": emp.name, "position": emp.position,
-            "email": emp.email, "phone": emp.phone, "city": emp.city,
-            "status": emp.status, "image": emp.image, "document": emp.document,
-            "join_date": emp.join_date|string
-          } | tojson }}'>👁 View</button>
-
-        {% if emp.document %}
-          <a class="btn ghost" href="{{ emp.document }}" target="_blank">📄 Document</a>
-        {% else %}
-          <button class="btn ghost disabled" disabled>📄 Document</button>
-        {% endif %}
-
-        <button class="btn ghost attendance-btn" data-id="{{ emp.id }}" data-name="{{ emp.name }}">🗓 Mark</button>
-
-        <a class="btn warn" href="{{ url_for('edit_employee', id=emp.id) }}">✏ Edit</a>
-
-        <form action="{{ url_for('delete_employee', id=emp.id) }}" method="POST"
-              onsubmit="return confirm('Delete {{ emp.name }}?')" class="inline">
-          <button type="submit" class="btn danger">🗑 Delete</button>
-        </form>
-      </div>
-    </article>
-    {% else %}
-      <div class="empty">No employees found.</div>
-    {% endfor %}
+        <tr>
+          <td colspan="10" class="empty-state">No employees found.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
   </div>
 </section>
-
-<!-- View Drawer -->
-<aside id="viewDrawer" class="drawer">
-  <div class="drawer__panel">
-    <button class="drawer__close" aria-label="Close">&times;</button>
-    <div class="drawer__content">
-      <div class="drawer__header">
-        <div id="vAvatar" class="emp-avatar lg placeholder">E</div>
-        <div>
-          <h3 id="vName">Employee</h3>
-          <div id="vRole" class="muted">Role</div>
-        </div>
-      </div>
-
-      <div class="detail-grid">
-        <div><label>Status</label><span id="vStatus">—</span></div>
-        <div><label>City</label><span id="vCity">—</span></div>
-        <div><label>Email</label><span id="vEmail">—</span></div>
-        <div><label>Phone</label><span id="vPhone">—</span></div>
-        <div><label>Join Date</label><span id="vJoin">—</span></div>
-        <div><label>Document</label><span id="vDoc">—</span></div>
-      </div>
-
-      <div class="drawer__footer">
-        <a id="vEdit" class="btn warn" href="#">✏ Edit</a>
-        <a id="vDocBtn" class="btn" href="#" target="_blank">📄 View Document</a>
-      </div>
-    </div>
-  </div>
-</aside>
-
-<!-- Attendance Dialog -->
-<div id="attDialog" class="dialog">
-  <div class="dialog__panel">
-    <div class="dialog__header">
-      <h3>Mark Attendance</h3>
-      <button class="dialog__close" aria-label="Close">&times;</button>
-    </div>
-    <form id="attForm" class="dialog__body">
-      <input type="hidden" name="employee_id" id="attEmpId">
-      <div class="form-row">
-        <label>Date</label>
-        <input type="date" name="date" id="attDate" required>
-      </div>
-      <div class="form-row">
-        <label>Status</label>
-        <select name="status" id="attStatus" required>
-          <option value="present">Present</option>
-          <option value="absent">Absent</option>
-          <option value="half">Half Day</option>
-        </select>
-      </div>
-      <div class="form-row">
-        <label>Notes</label>
-        <input type="text" name="notes" id="attNotes" placeholder="Optional">
-      </div>
-      <div class="dialog__actions">
-        <button type="button" class="btn ghost dialog__close">Cancel</button>
-        <button type="submit" class="btn primary">Save</button>
-      </div>
-    </form>
-  </div>
-</div>
-
-<script>
-(() => {
-  const $ = s => document.querySelector(s);
-  const $$ = s => Array.from(document.querySelectorAll(s));
-
-  // Filters
-  const search = $('#empSearch');
-  const status = $('#statusFilter');
-  const city = $('#cityFilter');
-  const grid = $('#empGrid');
-  const count = $('#empCount');
-
-  function applyFilters(){
-    const q = (search.value||'').trim().toLowerCase();
-    const st = (status.value||'').toLowerCase();
-    const ct = (city.value||'').toLowerCase();
-    let visible = 0;
-
-    $$('.emp-card').forEach(card => {
-      const okQ = !q || card.dataset.name.includes(q) || card.dataset.email.includes(q) || card.dataset.phone.includes(q);
-      const okS = !st || card.dataset.status === st;
-      const okC = !ct || card.dataset.city === ct;
-      const show = okQ && okS && okC;
-      card.style.display = show ? '' : 'none';
-      if (show) visible++;
-    });
-    count.textContent = visible;
-  }
-  [search, status, city].forEach(el => el && el.addEventListener('input', applyFilters));
-
-  // Drawer (View)
-  const drawer = $('#viewDrawer');
-  const closeDrawer = () => drawer.classList.remove('open');
-  drawer.querySelector('.drawer__close').addEventListener('click', closeDrawer);
-
-  $$('.view-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const emp = JSON.parse(btn.dataset.emp);
-      drawer.classList.add('open');
-
-      const avatar = $('#vAvatar');
-      if (emp.image){
-        avatar.classList.remove('placeholder');
-        avatar.style.backgroundImage = `url('${emp.image}')`;
-        avatar.textContent = '';
-      } else {
-        avatar.classList.add('placeholder');
-        avatar.style.backgroundImage = '';
-        avatar.textContent = (emp.name||'E').slice(0,1).toUpperCase();
-      }
-
-      $('#vName').textContent = emp.name || '—';
-      $('#vRole').textContent = emp.position || '—';
-      $('#vStatus').textContent = (emp.status||'—').toUpperCase();
-      $('#vCity').textContent = emp.city || '—';
-      $('#vEmail').textContent = emp.email || '—';
-      $('#vPhone').textContent = emp.phone || '—';
-      $('#vJoin').textContent = emp.join_date || '—';
-
-      const docBtn = $('#vDocBtn');
-      const docSpan = $('#vDoc');
-      if (emp.document){
-        docSpan.innerHTML = `<a href="${emp.document}" target="_blank">Open</a>`;
-        docBtn.href = emp.document;
-        docBtn.classList.remove('disabled');
-      } else {
-        docSpan.textContent = '—';
-        docBtn.href = '#';
-        docBtn.classList.add('disabled');
-      }
-      $('#vEdit').href = "{{ url_for('edit_employee', id=0) }}".replace('0', emp.id);
-    });
-  });
-
-  // Attendance
-  const dialog = $('#attDialog');
-  const closeDialog = () => dialog.classList.remove('open');
-  $$('.dialog__close').forEach(b => b.addEventListener('click', closeDialog));
-
-  $$('.attendance-btn').forEach(b => {
-    b.addEventListener('click', () => {
-      $('#attEmpId').value = b.dataset.id;
-      $('#attDate').valueAsDate = new Date();
-      $('#attStatus').value = 'present';
-      $('#attNotes').value = '';
-      dialog.classList.add('open');
-    });
-  });
-
-  $('#attForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const payload = {
-      employee_id: $('#attEmpId').value,
-      date: $('#attDate').value,
-      status: $('#attStatus').value,
-      notes: $('#attNotes').value
-    };
-    try{
-      const res = await fetch('/api/attendance/mark', {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify(payload)
-      });
-      if(!res.ok) throw new Error(await res.text());
-      toast('Attendance saved');
-      closeDialog();
-    }catch(err){
-      console.error(err);
-      toast('Could not save attendance (backend not wired yet).', true);
-    }
-  });
-
-  // Tiny toast
-  function toast(msg, danger){
-    const t = document.createElement('div');
-    t.className = 'toast' + (danger?' danger':'');
-    t.textContent = msg;
-    document.body.appendChild(t);
-    setTimeout(()=> t.classList.add('show'), 10);
-    setTimeout(()=> { t.classList.remove('show'); setTimeout(()=> t.remove(), 300); }, 2500);
-  }
-
-})();
-</script>
 {% endblock %}
