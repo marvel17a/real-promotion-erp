@@ -1,92 +1,166 @@
 {% extends "base.html" %}
 {% block content %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/employee.css') }}">
-<script src="{{ url_for('static', filename='js/employee_add.js') }}"></script>
+
 <section class="page-section">
-  <div class="employee-dashboard">
+  <div class="page-header">
+    <h2>👥 Employees</h2>
+    <a href="{{ url_for('add_employee') if url_for('add_employee', _external=False) else url_for('add_employee_form') }}" class="btn btn-primary">➕ Add Employee</a>
+  </div>
 
-    <!-- ✅ Top Stats Bar -->
-    <div class="stats-row">
-        <div class="stat-card">
-            <h3>{{ employees|length }}</h3>
-            <p>Total Employees</p>
-        </div>
+  <div class="toolbar">
+    <input class="input" id="empSearch" type="text" placeholder="Search name, email, phone…">
+    <button class="btn btn-outline" id="clearSearch">Clear</button>
+  </div>
 
-        <div class="stat-card">
-            <h3>{{ employees|selectattr('status','equalto','active')|list|length }}</h3>
-            <p>Active</p>
-        </div>
-
-        <div class="stat-card">
-            <h3>{{ employees|selectattr('status','equalto','inactive')|list|length }}</h3>
-            <p>Inactive</p>
-        </div>
-
-        <div class="stat-card">
-            <h3>{{ employees|map(attribute='city')|unique|list|length }}</h3>
-            <p>Cities</p>
-        </div>
-
-        <div class="stat-card">
-            <h3>{{ employees|map(attribute='position')|unique|list|length }}</h3>
-            <p>Roles</p>
-        </div>
-    </div>
-
-    <!-- ✅ Search + Filter Bar -->
-    <div class="filter-bar">
-        <input type="text" id="searchInput" placeholder="Search employees…">
-
-        <select id="statusFilter">
-            <option value="">All Status</option>
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-        </select>
-
-        <select id="cityFilter">
-            <option value="">All Cities</option>
-            {% for c in employees|map(attribute='city')|unique %}
-            <option value="{{ c }}">{{ c }}</option>
-            {% endfor %}
-        </select>
-
-        <a href="{{ url_for('add_employee') }}" class="btn-primary add-btn">➕ Add Employee</a>
-    </div>
-
-    <!-- ✅ Employee Grid Cards -->
-    <div class="employee-grid" id="employeeGrid">
-        {% for emp in employees %}
-        <div class="emp-card" data-name="{{ emp.name }}" data-city="{{ emp.city }}" data-status="{{ emp.status }}">
-            
-            <div class="emp-image-box">
-                {% if emp.image %}
-                <img src="{{ emp.image }}" class="emp-photo">
-                {% else %}
-                <div class="emp-photo placeholder">No Photo</div>
-                {% endif %}
+  <div class="table-card">
+    <table class="table" id="empTable">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Photo</th>
+          <th>Name</th>
+          <th>Position</th>
+          <th>Email</th>
+          <th>Phone</th>
+          <th>City</th>
+          <th>Status</th>
+          <th>Document</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for emp in employees %}
+        <tr data-id="{{ emp.id }}">
+          <td data-th="#"> {{ loop.index }} </td>
+          <td data-th="Photo">
+            {% if emp.image %}
+              <img class="avatar" src="{{ emp.image }}" alt="{{ emp.name }}">
+            {% else %}
+              <div class="avatar placeholder">No photo</div>
+            {% endif %}
+          </td>
+          <td data-th="Name">{{ emp.name }}</td>
+          <td data-th="Position">{{ emp.position }}</td>
+          <td data-th="Email">{{ emp.email }}</td>
+          <td data-th="Phone">{{ emp.phone }}</td>
+          <td data-th="City">{{ emp.city }}</td>
+          <td data-th="Status">
+            <span class="badge {{ 'success' if emp.status=='active' else 'warning' }}">{{ emp.status|capitalize }}</span>
+          </td>
+          <td data-th="Document">
+            {% if emp.document %}
+              <a class="doc-chip" href="{{ emp.document }}" target="_blank">View PDF</a>
+            {% else %} — {% endif %}
+          </td>
+          <td data-th="Actions">
+            <div class="actions">
+              <button class="btn-small btn-outline js-view" data-id="{{ emp.id }}">View</button>
+              <a class="btn-small btn-warning" href="{{ url_for('edit_employee', id=emp.id) }}">Edit</a>
+              <form action="{{ url_for('delete_employee', id=emp.id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Delete this employee?')">
+                <button type="submit" class="btn-small btn-danger">Delete</button>
+              </form>
+              <button class="btn-small btn-primary js-attend" data-id="{{ emp.id }}">Mark Present</button>
             </div>
-
-            <h4>{{ emp.name }}</h4>
-            <p class="emp-role">{{ emp.position }}</p>
-            <p class="emp-city">{{ emp.city }}</p>
-
-            <span class="emp-badge {{ emp.status }}">
-                {{ emp.status|capitalize }}
-            </span>
-
-            <div class="emp-actions">
-                <a href="{{ url_for('edit_employee', id=emp.id) }}" class="btn-small btn-warning">Edit</a>
-                <form action="{{ url_for('delete_employee', id=emp.id) }}" method="POST" style="display:inline;">
-                    <button class="btn-small btn-danger" onclick="return confirm('Delete employee?')">Delete</button>
-                </form>
-            </div>
-        </div>
-        {% endfor %}
-    </div>
-</div>
-
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="10" style="text-align:center;padding:18px;color:#64748b;">No employees found.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
 </section>
+
+<!-- Drawer (View details) -->
+<aside class="drawer" id="empDrawer" aria-hidden="true">
+  <div class="drawer-header">
+    <div class="drawer-title">Employee Details</div>
+    <button class="close-x" id="drawerClose">✕</button>
+  </div>
+  <div class="drawer-body" id="drawerBody">
+    <!-- Filled by JS -->
+  </div>
+</aside>
+
+<script>
+(function(){
+  // Search filter
+  const q = document.getElementById('empSearch');
+  const clear = document.getElementById('clearSearch');
+  const rows = Array.from(document.querySelectorAll('#empTable tbody tr'));
+  function filter(){
+    const s = (q.value || '').toLowerCase();
+    rows.forEach(r=>{
+      const text = r.innerText.toLowerCase();
+      r.style.display = text.includes(s) ? '' : 'none';
+    });
+  }
+  q.addEventListener('input', filter);
+  clear.addEventListener('click', ()=>{ q.value=''; filter(); });
+
+  // Drawer
+  const drawer = document.getElementById('empDrawer');
+  const drawerBody = document.getElementById('drawerBody');
+  const closeBtn = document.getElementById('drawerClose');
+  closeBtn.addEventListener('click', ()=>drawer.classList.remove('open'));
+
+  // View details (calls /api/employees/<id>)
+  document.querySelectorAll('.js-view').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const id = btn.dataset.id;
+      try{
+        const res = await fetch(`/api/employees/${id}`);
+        const data = await res.json();
+        if(!data || !data.ok){ throw new Error('No data'); }
+        const e = data.employee;
+
+        drawerBody.innerHTML = `
+          <div style="display:flex; gap:12px; align-items:center;">
+            <img src="${e.image || ''}" class="avatar" style="width:56px;height:56px;border-radius:14px;">
+            <div>
+              <div style="font-size:18px;font-weight:800;">${e.name || '-'}</div>
+              <div style="color:#64748b;">${e.position || ''}</div>
+            </div>
+          </div>
+          <div class="divider"></div>
+          <div class="drawer-row"><div class="label">Email</div><div class="value">${e.email || '-'}</div></div>
+          <div class="drawer-row"><div class="label">Phone</div><div class="value">${e.phone || '-'}</div></div>
+          <div class="drawer-row"><div class="label">City</div><div class="value">${e.city || '-'}</div></div>
+          <div class="drawer-row"><div class="label">Status</div><div class="value">${(e.status||'-').toUpperCase()}</div></div>
+          <div class="drawer-row"><div class="label">Joined</div><div class="value">${e.join_date || '-'}</div></div>
+          <div class="drawer-row"><div class="label">Document</div>
+            <div class="value">
+              ${e.document ? `<a class="doc-chip" href="${e.document}" target="_blank">Open PDF</a>` : '—'}
+            </div>
+          </div>
+        `;
+        drawer.classList.add('open');
+      }catch(err){
+        alert('Could not load employee details.');
+      }
+    });
+  });
+
+  // Mark Attendance (POST /employees/<id>/attendance)
+  document.querySelectorAll('.js-attend').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const id = btn.dataset.id;
+      btn.disabled = true;
+      try{
+        const res = await fetch(`/employees/${id}/attendance`, { method:'POST' });
+        if(!res.ok){ throw new Error('Failed'); }
+        const data = await res.json();
+        alert(data.message || 'Marked present');
+      }catch(e){ alert('Failed to mark attendance'); }
+      finally{ btn.disabled = false; }
+    });
+  });
+})();
+</script>
 {% endblock %}
+
+
 
 
 
