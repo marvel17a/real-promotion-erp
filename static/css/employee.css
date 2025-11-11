@@ -1,219 +1,248 @@
-/* Content alignment */
-.content-wrapper {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 20px;
+/* =========================================================
+   ✅ EMPLOYEE MANAGEMENT — FULL MODERN ERP THEME CSS
+   Theme: Clean Light (Matches your current ERP UI)
+   ========================================================= */
+
+/* GLOBAL PAGE WRAPPER */
+.page-section {
+    padding: 24px;
+    background: #f5f7fa;
 }
 
-/* Styled table (like inventory) */
-.styled-table {
-    width: 100%;
-    border-collapse: collapse;
-    background: #fff;
-    border-radius: 10px;
-    overflow: hidden;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+/* -----------------------------
+   ✅ STATS CARDS ROW
+   ----------------------------- */
+.stats-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit,minmax(160px,1fr));
+    gap: 18px;
+    margin-bottom: 20px;
 }
 
-.styled-table th, 
-.styled-table td {
-    padding: 14px 18px;
+.stat-card {
+    background: #ffffff;
+    padding: 18px;
+    border-radius: 12px;
+    box-shadow: 0 3px 12px rgba(0,0,0,0.08);
     text-align: center;
-    border-bottom: 1px solid #eee;
 }
 
-.styled-table th {
-    background: #f4f6f8;
-    font-weight: bold;
-    color: #444;
-    text-transform: uppercase;
+.stat-card h3 {
+    margin: 0;
+    font-size: 28px;
+    font-weight: 700;
+    color: #0b5ed7;
+}
+
+.stat-card p {
+    margin: 4px 0 0;
     font-size: 14px;
+    color: #666;
 }
 
-.styled-table tr:hover {
-    background: #fafafa;
-    transition: 0.2s;
+/* -----------------------------
+   ✅ FILTER & SEARCH BAR
+   ----------------------------- */
+.filter-bar {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    background: #fff;
+    padding: 16px;
+    border-radius: 12px;
+    box-shadow: 0 3px 12px rgba(0,0,0,0.06);
+    margin-bottom: 20px;
 }
 
-/* Profile Image */
-.profile-img {
-    width: 50px;
-    height: 50px;
+.filter-bar input,
+.filter-bar select {
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    font-size: 15px;
+}
+
+.add-btn {
+    margin-left: auto;
+    padding: 10px 18px;
+    background: #0d6efd;
+    color: #fff;
+    border-radius: 8px;
+    text-decoration: none;
+}
+.add-btn:hover {
+    background: #0b58ca;
+}
+
+/* -----------------------------
+   ✅ EMPLOYEE CARDS GRID
+   ----------------------------- */
+.employee-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 18px;
+}
+
+.emp-card {
+    background: #fff;
+    padding: 18px;
+    border-radius: 12px;
+    box-shadow: 0 3px 14px rgba(0,0,0,0.06);
+    text-align: center;
+    transition: 0.22s;
+    position: relative;
+}
+
+.emp-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+}
+
+/* Photo */
+.emp-image-box {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 10px;
+}
+
+.emp-photo {
+    width: 80px;
+    height: 80px;
     border-radius: 50%;
     object-fit: cover;
 }
 
-/* Doc Links */
-.doc-link {
-    color: #3498db;
-    font-size: 18px;
-    text-decoration: none;
-}
-
-.no-doc, .no-photo {
-    color: #bbb;
-    font-style: italic;
-}
-
-/* Status */
-.status {
-    padding: 4px 8px;
-    border-radius: 6px;
-    font-size: 13px;
-    font-weight: bold;
-}
-.status.active {
-    background: #eafaf1;
-    color: #27ae60;
-}
-.status.inactive {
-    background: #fdecea;
-    color: #c0392b;
-}
-
-/* Action buttons */
-.actions {
+.emp-photo.placeholder {
+    background: #eef1f5;
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
     display: flex;
     justify-content: center;
-    gap: 6px;
+    align-items: center;
+    color: #999;
 }
 
-.btn-action {
+/* Name & role */
+.emp-card h4 {
+    margin: 8px 0 2px;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.emp-role {
+    font-size: 14px;
+    color: #777;
+    margin: 0;
+}
+
+.emp-city {
+    font-size: 13px;
+    color: #999;
+}
+
+/* Status Badge */
+.emp-badge {
+    padding: 6px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    display: inline-block;
+    margin-top: 6px;
+    font-weight: 600;
+}
+
+.emp-badge.active {
+    background: #e6f7ed;
+    color: #1a7f5a;
+}
+
+.emp-badge.inactive {
+    background: #fff3cd;
+    color: #8a6d1d;
+}
+
+/* Action Buttons */
+.emp-actions {
+    margin-top: 12px;
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+}
+
+.btn-small {
     padding: 6px 10px;
     border-radius: 6px;
-    color: #fff;
-    font-size: 14px;
-    display: inline-block;
-    transition: transform 0.2s;
-}
-
-.btn-edit { background: #f39c12; }
-.btn-delete { background: #e74c3c; }
-
-.btn-action:hover {
-    transform: scale(1.05);
-    opacity: 0.9;
-}
-
-/* Header */
-.page-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-}
-
-.page-header h2 {
-    font-size: 22px;
-    font-weight: bold;
-    color: #333;
-}
-
-.btn-add {
-    background: linear-gradient(90deg, #4CAF50, #45A049);
-    color: white;
-    padding: 10px 18px;
-    border-radius: 8px;
     text-decoration: none;
-    font-weight: bold;
+    color: #fff;
+    font-size: 13px;
+    cursor: pointer;
+    border: none;
 }
 
-.btn-add:hover {
-    background: linear-gradient(90deg, #45A049, #3e8e41);
+.btn-warning {
+    background: #f39c12;
 }
 
-/* Attach this after your employee_pages.css */
-.form-group { position: relative; }
-.input-error { border-color: #e74c3c !important; background: #fff7f7; }
-.error-text {
-  font-size: 13px; color: #e74c3c; margin-top: 6px;
-}
-.valid-text {
-  font-size: 12px; color: #1a7f5a; margin-top: 6px;
-}
-.field-info {
-  font-size: 12px; color: #666; margin-top: 4px;
+.btn-warning:hover {
+    background: #d88710;
 }
 
-/* Delete protection modal (optional) */
-.modal-backdrop {
-  position: fixed; inset: 0; background: rgba(0,0,0,.5);
-  display: none; align-items: center; justify-content: center; z-index: 9999;
+.btn-danger {
+    background: #e74c3c;
 }
-.modal {
-  background: #fff; border-radius: 12px; padding: 20px; width: 420px;
-  box-shadow: 0 10px 30px rgba(0,0,0,.15);
+
+.btn-danger:hover {
+    background: #c0392b;
 }
-.modal h3 { margin-top: 0; }
-.modal .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
-.btn-outline { background: transparent; border: 1px solid #6c757d; color: #444; }
 
-
-/* Container & header */
-.page-section { padding: 24px; }
-.page-header {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 16px;
-}
-.page-header h2 { margin: 0; color: #222; }
-
-/* Buttons */
-.btn-primary, .btn-secondary, .btn-warning, .btn-danger, .btn-small {
-  padding: 10px 16px; border-radius: 8px; border: none; cursor: pointer;
-  text-decoration: none; color: #fff; display: inline-block; transition: .2s;
-}
-.btn-primary { background: #2b7a78; }
-.btn-primary:hover { filter: brightness(1.05); transform: translateY(-1px); }
-.btn-secondary { background: #6c757d; }
-.btn-warning { background: #f39c12; }
-.btn-danger { background: #e74c3c; }
-.btn-small { padding: 6px 10px; }
-
-/* Table */
-.table-wrapper { overflow-x: auto; }
+/* -----------------------------
+   ✅ TABLE (Optional Bottom Table)
+   ----------------------------- */
 .styled-table {
-  width: 100%; border-collapse: collapse; background: #fff;
-  border-radius: 12px; overflow: hidden; box-shadow: 0 8px 20px rgba(0,0,0,.05);
-}
-.styled-table thead { background: #0b5ed7; color: #fff; }
-.styled-table th, .styled-table td { padding: 14px 16px; }
-.styled-table tbody tr { border-bottom: 1px solid #f0f0f0; }
-.styled-table tbody tr:hover { background: #f9fbff; }
-.actions-col { width: 180px; }
-.actions { display: flex; gap: 8px; }
-
-/* Avatar / image */
-.avatar { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; }
-.avatar.lg { width: 72px; height: 72px; border-radius: 12px; }
-.avatar.placeholder {
-  width: 44px; height: 44px; border-radius: 50%;
-  display: grid; place-items: center; background: #eef2f7; color: #999; font-size: 11px;
+    width: 100%;
+    margin-top: 24px;
+    border-collapse: collapse;
+    background: #fff;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 3px 12px rgba(0,0,0,0.05);
 }
 
-/* Form */
-.form-card {
-  background: #fff; padding: 20px; border-radius: 12px;
-  box-shadow: 0 8px 20px rgba(0,0,0,.05); margin-top: 8px;
+.styled-table thead {
+    background: #0b5ed7;
+    color: #fff;
 }
-.form-grid {
-  display: grid; grid-template-columns: repeat(2,1fr); gap: 16px;
-}
-.form-group label { font-weight: 600; margin-bottom: 6px; display:block; }
-.form-group label span { color: #e74c3c; }
-.form-group input, .form-group select {
-  width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px;
-}
-.form-actions { margin-top: 16px; display:flex; gap:10px; }
-.preview img { margin-top: 8px; width: 120px; height: 120px; object-fit: cover; border-radius: 12px; border:1px solid #eee; }
-.file-note { margin: 8px 0 0; color: #888; font-size: 14px; }
 
-/* Badges */
-.badge {
-  padding: 6px 10px; border-radius: 999px; font-weight: 600; font-size: 12px;
-  display: inline-block;
+.styled-table th,
+.styled-table td {
+    padding: 14px 16px;
+    text-align: center;
+    border-bottom: 1px solid #f0f0f0;
 }
-.badge.success { background: #e8f7f1; color: #1a7f5a; }
-.badge.warning { background: #fff3cd; color: #9a7d08; }
 
-/* Empty */
-.empty-state { text-align: center; color: #777; padding: 24px; }
+.styled-table tbody tr:hover {
+    background: #f9fbff;
+}
+
+/* -----------------------------
+   ✅ RESPONSIVE DESIGN
+   ----------------------------- */
+@media (max-width: 768px) {
+    .filter-bar {
+        flex-direction: column;
+    }
+
+    .employee-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+@media (max-width: 520px) {
+    .employee-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .stat-card h3 {
+        font-size: 22px;
+    }
+}
