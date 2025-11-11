@@ -3,74 +3,90 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/employee.css') }}">
 <script src="{{ url_for('static', filename='js/employee_add.js') }}"></script>
 <section class="page-section">
-  <div class="page-header">
-    <h2>👥 Employee Management</h2>
-    <!-- This link is now correct -->
-    <a href="{{ url_for('add_employee') }}" class="btn-primary">➕ Add Employee</a>
-  </div>
+  <div class="employee-dashboard">
 
-  <div class="table-wrapper">
-    <table class="styled-table wide">
-      <thead>
-        <tr>
-          <th>#</th>
-          <th>Photo</th>
-          <th>Name</th>
-          <th>Position</th>
-          <th>Email</th>
-          <th>Phone</th>
-          <th>City</th>
-          <th>Status</th>
-          <th>Document</th>
-          <th class="actions-col">Actions</th>
-        </tr>
-      </thead>
-      <tbody>
+    <!-- ✅ Top Stats Bar -->
+    <div class="stats-row">
+        <div class="stat-card">
+            <h3>{{ employees|length }}</h3>
+            <p>Total Employees</p>
+        </div>
+
+        <div class="stat-card">
+            <h3>{{ employees|selectattr('status','equalto','active')|list|length }}</h3>
+            <p>Active</p>
+        </div>
+
+        <div class="stat-card">
+            <h3>{{ employees|selectattr('status','equalto','inactive')|list|length }}</h3>
+            <p>Inactive</p>
+        </div>
+
+        <div class="stat-card">
+            <h3>{{ employees|map(attribute='city')|unique|list|length }}</h3>
+            <p>Cities</p>
+        </div>
+
+        <div class="stat-card">
+            <h3>{{ employees|map(attribute='position')|unique|list|length }}</h3>
+            <p>Roles</p>
+        </div>
+    </div>
+
+    <!-- ✅ Search + Filter Bar -->
+    <div class="filter-bar">
+        <input type="text" id="searchInput" placeholder="Search employees…">
+
+        <select id="statusFilter">
+            <option value="">All Status</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+        </select>
+
+        <select id="cityFilter">
+            <option value="">All Cities</option>
+            {% for c in employees|map(attribute='city')|unique %}
+            <option value="{{ c }}">{{ c }}</option>
+            {% endfor %}
+        </select>
+
+        <a href="{{ url_for('add_employee_form') }}" class="btn-primary add-btn">➕ Add Employee</a>
+    </div>
+
+    <!-- ✅ Employee Grid Cards -->
+    <div class="employee-grid" id="employeeGrid">
         {% for emp in employees %}
-        <tr>
-          <td>{{ loop.index }}</td>
-          <td class="avatar-cell">
-    {% if emp.image %}
-        <img class="avatar"
-             src="{{ emp.image }}"
-             alt="{{ emp.name }}"
-             width="40" height="40"
-             style="object-fit: cover; border-radius: 50%;">
-    {% else %}
-        <div class="avatar placeholder">No photo</div>
-    {% endif %}
-</td>
-          <td>{{ emp.name }}</td>
-          <td>{{ emp.position }}</td>
-          <td>{{ emp.email }}</td>
-          <td>{{ emp.phone }}</td>
-          <td>{{ emp.city }}</td>
-          <td>
-            <span class="badge {{ 'success' if emp.status=='active' else 'warning' }}">{{ emp.status|capitalize }}</span>
-          </td>
-          <td>
-    {% if emp.document %}
-        <a class="doc-link" href="{{ emp.document }}" target="_blank">View</a>
-    {% else %}
-        —
-    {% endif %}
-</td>
-          <td class="actions">
-            <a href="{{ url_for('edit_employee', id=emp.id) }}" class="btn-small btn-warning">✏ Edit</a>
-            <form action="{{ url_for('delete_employee', id=emp.id) }}" method="POST" onsubmit="return confirm('Delete this employee?')" style="display:inline;">
-              <button type="submit" class="btn-small btn-danger">🗑 Delete</button>
-            </form>
-          </td>
-        </tr>
-        {% else %}
-        <tr>
-          <td colspan="10" class="empty-state">No employees found.</td>
-        </tr>
+        <div class="emp-card" data-name="{{ emp.name }}" data-city="{{ emp.city }}" data-status="{{ emp.status }}">
+            
+            <div class="emp-image-box">
+                {% if emp.image %}
+                <img src="{{ emp.image }}" class="emp-photo">
+                {% else %}
+                <div class="emp-photo placeholder">No Photo</div>
+                {% endif %}
+            </div>
+
+            <h4>{{ emp.name }}</h4>
+            <p class="emp-role">{{ emp.position }}</p>
+            <p class="emp-city">{{ emp.city }}</p>
+
+            <span class="emp-badge {{ emp.status }}">
+                {{ emp.status|capitalize }}
+            </span>
+
+            <div class="emp-actions">
+                <a href="{{ url_for('edit_employee', id=emp.id) }}" class="btn-small btn-warning">Edit</a>
+                <form action="{{ url_for('delete_employee', id=emp.id) }}" method="POST" style="display:inline;">
+                    <button class="btn-small btn-danger" onclick="return confirm('Delete employee?')">Delete</button>
+                </form>
+            </div>
+        </div>
         {% endfor %}
-      </tbody>
-    </table>
-  </div>
+    </div>
+</div>
+
 </section>
 {% endblock %}
+
 
 
