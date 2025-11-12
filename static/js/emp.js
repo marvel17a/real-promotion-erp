@@ -1,12 +1,13 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // Note: This JS is for the card-based layout
     const searchInput = document.getElementById('searchName');
     const positionFilter = document.getElementById('filterPosition');
     const cityFilter = document.getElementById('filterCity');
     const statusFilter = document.getElementById('filterStatus');
 
-    const rows = document.querySelectorAll('.employee-row');
+    // Update selector to target cards
+    const cards = document.querySelectorAll('.employee-card');
     const noResultsMessage = document.getElementById('noResultsMessage');
-    const noResultsRow = document.getElementById('noResultsRow');
 
     function runFilters() {
         const searchTerm = searchInput.value.toLowerCase();
@@ -16,33 +17,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let resultsFound = 0;
 
-        rows.forEach(row => {
-            const nameMatch = row.dataset.name.includes(searchTerm);
-            const positionMatch = (position === 'all' || row.dataset.position === position);
-            const cityMatch = (city === 'all' || row.dataset.city === city);
-            const statusMatch = (status === 'all' || row.dataset.status === status);
+        cards.forEach(card => {
+            const nameMatch = card.dataset.name.includes(searchTerm);
+            const positionMatch = (position === 'all' || card.dataset.position === position);
+            const cityMatch = (city === 'all' || card.dataset.city === city);
+            const statusMatch = (status === 'all' || card.dataset.status === status);
 
             if (nameMatch && positionMatch && cityMatch && statusMatch) {
-                row.style.display = ''; // Show row
+                card.style.display = ''; // Show card
                 resultsFound++;
             } else {
-                row.style.display = 'none'; // Hide row
+                card.style.display = 'none'; // Hide card
             }
         });
 
         // Toggle 'no results' message
-        const showNoResults = resultsFound === 0;
-        
         if (noResultsMessage) {
-            noResultsMessage.style.display = showNoResults ? 'block' : 'none';
-        }
-        
-        // Hide the "No employees found." row if we are filtering
-        if (noResultsRow) {
-             // Show default "empty" row only if there are 0 results AND 0 total rows to begin with
-            if (rows.length > 0) {
-                noResultsRow.style.display = 'none';
-            }
+            noResultsMessage.style.display = (resultsFound === 0) ? 'block' : 'none';
         }
     }
 
