@@ -1,0 +1,129 @@
+/* === MODERN FORM STYLING === */
+.modern-form {
+  padding: 0;
+  box-shadow: none;
+  border: none;
+  background: none;
+}
+
+.form-section {
+  background-color: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  margin-bottom: 2rem;
+}
+
+.form-section h4 {
+  margin: 0;
+  padding: 1.5rem;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 1.2rem;
+  color: #333;
+}
+
+.form-grid-2-col {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+  padding: 1.5rem;
+}
+
+@media (min-width: 768px) {
+  .form-grid-2-col {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.modern-form .form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.modern-form label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #555;
+  margin-bottom: 0.5rem;
+}
+.modern-form label span {
+  color: var(--danger-color);
+}
+.modern-form .mt-8 {
+  margin-top: 0.5rem;
+}
+
+.modern-form input[type="text"],
+.modern-form input[type="email"],
+.modern-form input[type="tel"],
+.modern-form select {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 1rem;
+}
+.modern-form input.input-error,
+.modern-form select.input-error {
+  border-color: var(--danger-color);
+}
+
+.form-error {
+  font-size: 0.8rem;
+  color: var(--danger-color);
+  height: 1.2em; /* Reserve space */
+  margin-top: 0.25rem;
+}
+
+.form-file-input {
+  width: 100%;
+  font-size: 0.9rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+}
+.form-file-input::file-selector-button {
+  padding: 0.65rem 1rem;
+  margin-right: 1rem;
+  border: none;
+  background-color: #f0f0f0;
+  cursor: pointer;
+  font-weight: 500;
+  color: #333;
+}
+
+.preview {
+  margin-top: 1rem;
+}
+.preview.wide {
+  max-width: 100%;
+}
+.preview img {
+  max-width: 120px;
+  max-height: 120px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid #e0e0e0;
+}
+.avatar-placeholder-form {
+  width: 120px;
+  height: 120px;
+  border-radius: 6px;
+  background-color: #f0f0f0;
+  color: #888;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-style: italic;
+  font-size: 0.9rem;
+}
+
+.file-note {
+  font-size: 0.9rem;
+  color: #777;
+  margin-top: 0.5rem;
+}
+
+.doc-link {
+  font-weight: 600;
+  color: var(--primary-color);
+}
