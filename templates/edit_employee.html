@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/employee.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/employee_card_theme.css') }}">
+<!-- This JS file handles validation -->
 <script src="{{ url_for('static', filename='js/employee_edit.js') }}"></script>
 
 <div class="container-fluid py-4">
@@ -69,14 +70,13 @@
           <div class="card-header">
             <h5><i class="bi bi-image me-2"></i>Profile Photo</h5>
           </div>
-          <div class="card-body p-4">
-            <label class="form-label">Current Photo</label>
+          <div class="card-body p-4 text-center">
             <div class="preview-box mb-3">
               {% if employee.image %}
-                <img id="imagePreview" class="preview-img" src="{{ cloudinary_url(employee.image, height=200, width=200, crop='fill', gravity='face') }}" alt="{{ employee.name }}">
+                <img id="imagePreview" class="preview-img-circle" src="{{ cloudinary_url(employee.image, height=150, width=150, crop='fill', gravity='face') }}" alt="{{ employee.name }}">
                 <span id="imagePlaceholder" class="preview-placeholder" style="display:none;">Image preview</span>
               {% else %}
-                <img id="imagePreview" class="preview-img" alt="Image preview" style="display:none;">
+                <img id="imagePreview" class="preview-img-circle" alt="Image preview" style="display:none;">
                 <span id="imagePlaceholder" class="preview-placeholder">No photo on file</span>
               {% endif %}
             </div>
@@ -112,7 +112,7 @@
     </div>
 
     <!-- Sticky Footer Actions -->
-    <div class="form-actions mt-4 rounded">
+    <div class="form-actions mt-4">
       <a href="{{ url_for('employees') }}" class="btn btn-secondary">Cancel</a>
       <button type="submit" class="btn btn-primary px-4">
         <i class="bi bi-check-circle-fill me-2"></i> Update Employee
