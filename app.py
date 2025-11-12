@@ -879,6 +879,7 @@ def add_employee():
 
     return render_template("add_employee.html")
 
+
 @app.route("/employees")
 def employees():
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
@@ -2669,6 +2670,7 @@ def download_transaction_report():
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
