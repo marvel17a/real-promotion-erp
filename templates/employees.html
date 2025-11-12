@@ -1,83 +1,198 @@
 {% extends "base.html" %}
 {% block content %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/employee.css') }}">
+<!-- Link the new CSS file -->
+<link rel="stylesheet" href="{{ url_for('static', filename='css/employee_styles.css') }}">
 <script src="{{ url_for('static', filename='js/employee_add.js') }}"></script>
+
 <section class="page-section">
-  <div class="page-header">
-    <h2>👥 Employee Management</h2>
-    <!-- This link is now correct -->
-    <a href="{{ url_for('add_employee') }}" class="btn-primary">➕ Add Employee</a>
-  </div>
-
-  <div class="table-wrapper">
-    <table class="styled-table wide">
-      <thead>
-        <tr>
-          <th>#</th>
-          <th>Photo</th>
-          <th>Name</th>
-          <th>Position</th>
-          <th>Email</th>
-          <th>Phone</th>
-          <th>City</th>
-          <th>Status</th>
-          <th>Document</th>
-          <th class="actions-col">Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for emp in employees %}
-        <tr>
-          <td>{{ loop.index }}</td>
-          <td class="avatar-cell">
-    {% if emp.image %}
-        <img class="avatar"
-             src="{{ emp.image }}"
-             alt="{{ emp.name }}"
-             width="40" height="40"
-             style="object-fit: cover; border-radius: 50%;">
-    {% else %}
-        <div class="avatar placeholder">No photo</div>
-    {% endif %}
-</td>
-          <td>{{ emp.name }}</td>
-          <td>{{ emp.position }}</td>
-          <td>{{ emp.email }}</td>
-          <td>{{ emp.phone }}</td>
-          <td>{{ emp.city }}</td>
-          <td>
-            <span class="badge {{ 'success' if emp.status=='active' else 'warning' }}">{{ emp.status|capitalize }}</span>
-          </td>
-          <td>
-    {% if emp.document %}
-        <a class="doc-link" href="{{ emp.document }}" target="_blank">View</a>
-    {% else %}
-        —
-    {% endif %}
-</td>
-          <td class="actions">
-            <a href="{{ url_for('edit_employee', id=emp.id) }}" class="btn-small btn-warning">✏ Edit</a>
-            <form action="{{ url_for('delete_employee', id=emp.id) }}" method="POST" onsubmit="return confirm('Delete this employee?')" style="display:inline;">
-              <button type="submit" class="btn-small btn-danger">🗑 Delete</button>
-            </form>
-          </td>
-        </tr>
-        {% else %}
-        <tr>
-          <td colspan="10" class="empty-state">No employees found.</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-
   
- 
+  <!-- 1. QUICK STATS HEADER -->
+  <div class="stats-header">
+    <div class="stat-card">
+      <h3>Total Employees</h3>
+      <p>{{ stats.total_employees }}</p>
+    </div>
+    <div class="stat-card">
+      <h3>Active</h3>
+      <p>{{ stats.active_employees }}</p>
+    </div>
+    <div class="stat-card">
+      <h3>Inactive</h3>
+      <p>{{ stats.inactive_employees }}</p>
+    </div>
+  </div>
 
+  <!-- 2. CONTROL BAR (HEADER, FILTERS, TOGGLE) -->
+  <div class="page-header">
+    <h2>👥 Employee Directory</h2>
+    <div class="header-actions">
+      <a href="{{ url_for('add_employee') }}" class="btn-primary">➕ Add Employee</a>
+    </div>
+  </div>
 
+  <!-- 3. SEARCH & FILTER BAR -->
+  <div class="filter-bar">
+    <div class="filter-group search">
+      <label for="searchName">Search by Name</label>
+      <input type="text" id="searchName" placeholder="Start typing a name...">
+    </div>
+    <div class="filter-group">
+      <label for="filterPosition">Position</label>
+      <select id="filterPosition">
+        <option value="all">All Positions</option>
+        {% for pos in filters.positions %}
+        <option value="{{ pos.position }}">{{ pos.position }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="filter-group">
+      <label for="filterCity">City</label>
+      <select id="filterCity">
+        <option value="all">All Cities</option>
+        {% for city in filters.cities %}
+        <option value="{{ city.city }}">{{ city.city }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="filter-group">
+      <label for="filterStatus">Status</label>
+      <select id="filterStatus">
+        <option value="all">All Statuses</option>
+        <option value="active">Active</option>
+        <option value="inactive">Inactive</option>
+      </select>
+    </div>
+    <div class="filter-group view-toggle">
+      <label>View</label>
+      <div class="toggle-buttons">
+        <button id="viewGrid" class="active" title="Grid View">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M1 2.5A1.5 1.5 0 0 1 2.5 1h3A1.5 1.5 0 0 1 7 2.5v3A1.5 1.5 0 0 1 5.5 7h-3A1.5 1.5 0 0 1 1 5.5v-3zM2.5 2a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5h-3zM9 2.5A1.5 1.5 0 0 1 10.5 1h3A1.5 1.5 0 0 1 15 2.5v3A1.5 1.5 0 0 1 13.5 7h-3A1.5 1.5 0 0 1 9 5.5v-3zM10.5 2a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5h-3zM1 10.5A1.5 1.5 0 0 1 2.5 9h3A1.5 1.5 0 0 1 7 10.5v3A1.5 1.5 0 0 1 5.5 15h-3A1.5 1.5 0 0 1 1 13.5v-3zM2.5 10a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5h-3zm8 0A1.5 1.5 0 0 1 10.5 9h3A1.5 1.5 0 0 1 15 10.5v3A1.5 1.5 0 0 1 13.5 15h-3A1.5 1.5 0 0 1 9 13.5v-3zm1.5-.5a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5h-3z"/></svg>
+        </button>
+        <button id="viewList" title="List View">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M2.5 12a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5z"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. EMPLOYEE DISPLAY AREA -->
+  <div id="employeeDisplayArea" class="view-grid">
+    
+    <!-- A. GRID VIEW (DEFAULT) -->
+    <div class="employee-grid">
+      {% for emp in employees %}
+      <div class="employee-card" 
+           data-name="{{ emp.name.lower() }}" 
+           data-position="{{ emp.position }}" 
+           data-city="{{ emp.city }}" 
+           data-status="{{ emp.status }}">
+        <div class="card-header">
+          {% if emp.image %}
+            <img class="card-avatar" src="{{ cloudinary_url(emp.image, height=60, width=60, crop='fill', radius='max', gravity='face') }}" alt="{{ emp.name }}">
+          {% else %}
+            <div class="card-avatar placeholder">{{ emp.name[0]|upper }}</div>
+          {% endif %}
+          <div class="card-title">
+            <h4>{{ emp.name }}</h4>
+            <p>{{ emp.position }}</p>
+          </div>
+          <span class="badge {{ 'success' if emp.status=='active' else 'warning' }}">{{ emp.status|capitalize }}</span>
+        </div>
+        <div class="card-body">
+          <div class="card-info">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M.05 3.555A2 2 0 0 1 2 2h12a2 2 0 0 1 1.95 1.555L8 8.414.05 3.555zM0 4.697v7.104l5.803-3.558L0 4.697zM6.761 8.83l-6.57 4.027A2 2 0 0 0 2 14h12a2 2 0 0 0 1.808-1.144l-6.57-4.027L8 9.586l-1.239-.757zm3.436-.586L16 11.803V4.697l-5.803 3.546z"/></svg>
+            <span>{{ emp.email }}</span>
+          </div>
+          <div class="card-info">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M11 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h6zM5 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H5z"/><path d="M8 14a1 1 0 1 0 0-2 1 1 0 0 0 0 2z"/></svg>
+            <span>{{ emp.phone }}</span>
+          </div>
+          <div class="card-info">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8 16s6-5.686 6-10A6 6 0 0 0 2 6c0 4.314 6 10 6 10zm0-7a3 3 0 1 1 0-6 3 3 0 0 1 0 6z"/></svg>
+            <span>{{ emp.city }}</span>
+          </div>
+        </div>
+        <div class="card-footer">
+          <a href="{{ url_for('emp_ledger', employee_id=emp.id) }}" class="btn-small btn-secondary">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M4 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H4zm0 1h8a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1z"/><path d="M4.5 3.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5zM4.5 6.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5zM4.5 9.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5z"/></svg>
+            Ledger
+          </a>
+          <a href="{{ url_for('edit_employee', id=emp.id) }}" class="btn-small btn-warning">✏ Edit</a>
+          <form action="{{ url_for('delete_employee', id=emp.id) }}" method="POST" onsubmit="return confirm('Delete this employee?')" style="display:inline;">
+            <button type="submit" class="btn-small btn-danger">🗑 Delete</button>
+          </form>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- B. LIST VIEW (HIDDEN BY DEFAULT) -->
+    <div class="table-wrapper employee-list" style="display: none;">
+      <table class="styled-table wide">
+        <thead>
+          <tr>
+            <th>Photo</th>
+            <th>Name</th>
+            <th>Position</th>
+            <th>Contact</th>
+            <th>City</th>
+            <th>Status</th>
+            <th>Document</th>
+            <th class="actions-col">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for emp in employees %}
+          <tr class="employee-row"
+              data-name="{{ emp.name.lower() }}" 
+              data-position="{{ emp.position }}" 
+              data-city="{{ emp.city }}" 
+              data-status="{{ emp.status }}">
+            <td class="avatar-cell">
+              {% if emp.image %}
+                <img class="avatar" src="{{ cloudinary_url(emp.image, height=40, width=40, crop='fill', radius='max') }}" alt="{{ emp.name }}">
+              {% else %}
+                <div class="avatar placeholder">{{ emp.name[0]|upper }}</div>
+              {% endif %}
+            </td>
+            <td>{{ emp.name }}</td>
+            <td>{{ emp.position }}</td>
+            <td>{{ emp.email }}<br><small>{{ emp.phone }}</small></td>
+            <td>{{ emp.city }}</td>
+            <td>
+              <span class="badge {{ 'success' if emp.status=='active' else 'warning' }}">{{ emp.status|capitalize }}</span>
+            </td>
+            <td>
+              {% if emp.document %}
+                <a class="doc-link" href="{{ cloudinary_url(emp.document)[0] }}" target="_blank">View</a>
+              {% else %}
+                —
+              {% endif %}
+            </td>
+            <td class="actions">
+              <a href="{{ url_for('emp_ledger', employee_id=emp.id) }}" class="btn-small btn-secondary">Ledger</a>
+              <a href="{{ url_for('edit_employee', id=emp.id) }}" class="btn-small btn-warning">Edit</a>
+              <form action="{{ url_for('delete_employee', id=emp.id) }}" method="POST" onsubmit="return confirm('Delete this employee?')" style="display:inline;">
+                <button type="submit" class="btn-small btn-danger">Delete</button>
+              </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr id="noResultsRow">
+            <td colspan="8" class="empty-state">No employees found.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div id="noResultsMessage" class="empty-state" style="display: none; padding: 2rem;">
+      No employees match your search criteria.
+    </div>
+
+  </div>
 </section>
+
+<!-- Link the new JS file -->
+<script src="{{ url_for('static', filename='js/employees.js') }}"></script>
 {% endblock %}
-
-
-
-
