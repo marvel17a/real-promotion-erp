@@ -1,88 +1,125 @@
 {% extends "base.html" %}
 {% block content %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/employee.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/employee_forms.css') }}">
 <script src="{{ url_for('static', filename='js/employee_add.js') }}"></script>
 
-<section class="page-section">
+<div class="container-fluid py-4">
   <div class="page-header">
-    <h2>➕ Add New Employee</h2>
-    <a href="{{ url_for('employees') }}" class="btn-secondary">← Back to Directory</a>
+    <h2>Add New Employee</h2>
+    <a href="{{ url_for('employees') }}" class="btn btn-secondary">
+      <i class="bi bi-x-lg"></i> Cancel
+    </a>
   </div>
 
-  <form class="form-card modern-form" method="POST" enctype="multipart/form-data" id="employeeForm">
-    
-    <!-- Section 1: Job & Contact -->
-    <div class="form-section">
-      <h4>Job & Contact Information</h4>
-      <div class="form-grid-2-col">
-        <div class="form-group">
-          <label for="name">Name <span>*</span></label>
-          <input type="text" id="name" name="name" placeholder="Enter full name" data-unique="name" required>
-          <div class="form-error" data-error-for="name"></div>
-        </div>
-
-        <div class="form-group">
-          <label for="position">Position <span>*</span></label>
-          <input type="text" id="position" name="position" placeholder="e.g., Sales Executive" required>
-          <div class="form-error" data-error-for="position"></div>
-        </div>
-        
-        <div class="form-group">
-          <label for="email">Email <span>*</span></label>
-          <input type="email" id="email" name="email" placeholder="name@example.com" data-unique="email" required>
-          <div class="form-error" data-error-for="email"></div>
-        </div>
-
-        <div class="form-group">
-          <label for="phone">Phone <span>*</span></label>
-          <input type="tel" id="phone" name="phone" pattern="[0-9]{10}" placeholder="10-digit number" data-unique="phone" required>
-          <div class="form-error" data-error-for="phone"></div>
-        </div>
-
-        <div class="form-group">
-          <label for="city">City <span>*</span></label>
-          <input type="text" id="city" name="city" placeholder="e.g., Nadiad" required>
-          <div class="form-error" data-error-for="city"></div>
-        </div>
-        
-        <div class="form-group">
-          <label for="status">Status <span>*</span></label>
-          <select id="status" name="status" required>
-            <option value="active" selected>Active</option>
-            <option value="inactive">Inactive</option>
-          </select>
-          <div class="form-error" data-error-for="status"></div>
-        </div>
-      </div>
-    </div>
-    
-    <!-- Section 2: File Uploads -->
-    <div class="form-section">
-      <h4>File Uploads</h4>
-      <div class="form-grid-2-col">
-        <div class="form-group">
-          <label for="imageInput">Profile Photo (Max 2MB)</label>
-          <input type="file" class="form-file-input" name="image" accept="image/png, image/jpeg" id="imageInput">
-          <div class="form-error" data-error-for="image"></div>
-          <div class="preview wide">
-            <img id="imagePreview" alt="Image preview" style="display:none;">
+  <form method="POST" enctype="multipart/form-data" id="employeeForm">
+    <div class="row g-4">
+      <!-- Column 1: Core Info & Contact -->
+      <div class="col-lg-8">
+        <div class="card content-card">
+          <div class="card-header">
+            <h5><i class="bi bi-person-lines-fill me-2"></i>Employee Details</h5>
+          </div>
+          <div class="card-body p-4">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label for="name" class="form-label">Name <span>*</span></label>
+                <input type="text" class="form-control" id="name" name="name" placeholder="Enter full name" data-unique="name" required>
+                <div class="form-error" data-error-for="name"></div>
+              </div>
+              <div class="col-md-6">
+                <label for="position" class="form-label">Position <span>*</span></label>
+                <input type="text" class="form-control" id="position" name="position" placeholder="e.g., Sales Executive" required>
+                <div class="form-error" data-error-for="position"></div>
+              </div>
+              <div class="col-md-6">
+                <label for="email" class="form-label">Email <span>*</span></label>
+                <input type="email" class="form-control" id="email" name="email" placeholder="name@example.com" data-unique="email" required>
+                <div class="form-error" data-error-for="email"></div>
+              </div>
+              <div class="col-md-6">
+                <label for="phone" class="form-label">Phone <span>*</span></label>
+                <input type="tel" class="form-control" id="phone" name="phone" pattern="[0-9]{10}" placeholder="10-digit number" data-unique="phone" required>
+                <div class="form-error" data-error-for="phone"></div>
+              </div>
+              <div class="col-md-6">
+                <label for="city" class="form-label">City <span>*</span></label>
+                <input type="text" class="form-control" id="city" name="city" placeholder="e.g., Nadiad" required>
+                <div class="form-error" data-error-for="city"></div>
+              </div>
+              <div class="col-md-6">
+                <label for="status" class="form-label">Status <span>*</span></label>
+                <select id="status" name="status" class="form-select" required>
+                  <option value="active" selected>Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+                <div class="form-error" data-error-for="status"></div>
+              </div>
+            </div>
           </div>
         </div>
+      </div>
 
-        <div class="form-group">
-          <label for="docInput">Document (PDF Only, Max 5MB)</label>
-          <input type="file" class="form-file-input" name="document" accept="application/pdf" id="docInput">
-          <div class="form-error" data-error-for="document"></div>
-          <p class="file-note" id="docName">No file chosen</p>
+      <!-- Column 2: Uploads -->
+      <div class="col-lg-4">
+        <!-- Profile Photo -->
+        <div class="card content-card mb-4">
+          <div class="card-header">
+            <h5><i class="bi bi-image me-2"></i>Profile Photo</h5>
+          </div>
+          <div class="card-body p-4">
+            <label for="imageInput" class="form-label">Photo (Max 2MB)</label>
+            <input type="file" class="form-control" name="image" accept="image/png, image/jpeg" id="imageInput">
+            <div class="form-error" data-error-for="image"></div>
+            <div class="preview-box mt-3">
+              <img id="imagePreview" class="preview-img" alt="Image preview" style="display:none;">
+              <span id="imagePlaceholder" class="preview-placeholder">Image preview</span>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Document -->
+        <div class="card content-card">
+          <div class="card-header">
+            <h5><i class="bi bi-file-earmark-pdf-fill me-2"></i>Document</h5>
+          </div>
+          <div class="card-body p-4">
+            <label for="docInput" class="form-label">PDF Document (Max 5MB)</label>
+            <input type="file" class="form-control" name="document" accept="application/pdf" id="docInput">
+            <div class="form-error" data-error-for="document"></div>
+            <p class="file-note text-muted small mt-2" id="docName">No file chosen</p>
+          </div>
         </div>
       </div>
     </div>
 
-    <div class="form-actions">
-      <button type="submit" class="btn-primary">💾 Save Employee</button>
-      <a href="{{ url_for('employees') }}" class="btn-secondary">Cancel</a>
+    <!-- Sticky Footer Actions -->
+    <div class="form-actions mt-4 rounded">
+      <a href="{{ url_for('employees') }}" class="btn btn-secondary">Cancel</a>
+      <button type="submit" class="btn btn-primary px-4">
+        <i class="bi bi-check-circle-fill me-2"></i> Save Employee
+      </button>
     </div>
   </form>
-</section>
+</div>
+
+<!-- Custom JS to make image preview work -->
+<script>
+  document.getElementById('imageInput').addEventListener('change', function(e) {
+    const preview = document.getElementById('imagePreview');
+    const placeholder = document.getElementById('imagePlaceholder');
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        preview.src = event.target.result;
+        preview.style.display = 'block';
+        placeholder.style.display = 'none';
+      }
+      reader.readAsDataURL(file);
+    } else {
+      preview.style.display = 'none';
+      placeholder.style.display = 'block';
+    }
+  });
+</script>
 {% endblock %}
