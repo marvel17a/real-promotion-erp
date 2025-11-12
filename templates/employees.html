@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 <!-- Link the new CSS file -->
-<link rel="stylesheet" href="{{ url_for('static', filename='css/employee_styles.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/employee.css') }}">
 <script src="{{ url_for('static', filename='js/employee_add.js') }}"></script>
 
 <section class="page-section">
@@ -194,5 +194,6 @@
 </section>
 
 <!-- Link the new JS file -->
-<script src="{{ url_for('static', filename='js/employees.js') }}"></script>
+<script src="{{ url_for('static', filename='js/emp.js') }}"></script>
 {% endblock %}
+
