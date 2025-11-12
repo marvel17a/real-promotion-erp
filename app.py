@@ -186,6 +186,27 @@ def dashboard():
     )
 
 
+#
+# ADD THIS NEW ROUTE TO YOUR APP.PY
+# You can add it right after your edit_employee route
+#
+@app.route('/employee/view/<int:id>')
+def employee_details(id):
+    if "loggedin" not in session:
+        return redirect(url_for("login"))
+    
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    cursor.execute("SELECT * FROM employees WHERE id = %s", (id,))
+    employee = cursor.fetchone()
+    cursor.close()
+    
+    if not employee:
+        flash("Employee not found.", "danger")
+        return redirect(url_for('employees'))
+        
+    return render_template('employee_details.html', employee=employee)
+
+
 #==============================================ADMIN PAGE=======================================
 @app.context_processor
 def inject_kpis():
@@ -2670,6 +2691,7 @@ def download_transaction_report():
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
