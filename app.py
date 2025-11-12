@@ -879,14 +879,48 @@ def add_employee():
 
     return render_template("add_employee.html")
 
-
 @app.route("/employees")
 def employees():
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    cursor.execute("SELECT * FROM employees")
+    
+    # 1. Get all employees (your original query)
+    cursor.execute("SELECT * FROM employees ORDER BY name ASC")
     data = cursor.fetchall()
+    
+    # 2. (NEW) Get data for filters
+    cursor.execute("SELECT DISTINCT position FROM employees WHERE position IS NOT NULL AND position != '' ORDER BY position ASC")
+    positions = cursor.fetchall()
+    cursor.execute("SELECT DISTINCT city FROM employees WHERE city IS NOT NULL AND city != '' ORDER BY city ASC")
+    cities = cursor.fetchall()
+    
+    # 3. (NEW) Get data for stats
+    cursor.execute("SELECT COUNT(id) AS count, status FROM employees GROUP BY status")
+    status_counts_raw = cursor.fetchall()
+    
     cursor.close()
-    return render_template("employees.html", employees=data)
+    
+    # 4. (NEW) Process stats
+    stats = {
+        'total_employees': len(data),
+        'active_employees': 0,
+        'inactive_employees': 0
+    }
+    for row in status_counts_raw:
+        if row['status'] == 'active':
+            stats['active_employees'] = row['count']
+        elif row['status'] == 'inactive':
+            stats['inactive_employees'] = row['count']
+            
+    # 5. (NEW) Package filter data
+    filters = {
+        'positions': positions,
+        'cities': cities
+    }
+    
+    return render_template("employees.html", 
+                           employees=data, 
+                           stats=stats, 
+                           filters=filters)
 
 
 # --- MODIFIED: `edit_employee` ---
@@ -2635,6 +2669,7 @@ def download_transaction_report():
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
