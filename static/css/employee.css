@@ -1,56 +1,80 @@
-/* This file adds our "premium" overrides to the default Bootstrap theme.
-  Make sure Bootstrap 5 is linked in your base.html file!
-*/
+/* ---
+  PREMIUM CARD THEME
+  This theme uses a gradient background and modern, shadowed cards.
+--- */
 
 /* --- General Theme --- */
 :root {
-  --bs-body-bg: #f8f9fa; /* Light gray background */
-  --bs-border-radius: 0.375rem; /* 6px rounded corners */
-  --bs-card-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.05);
-  --bs-card-border-color: #dee2e6;
+  --premium-blue: #4263EB;
+  --premium-blue-light: #f0f2ff;
+  --premium-gray: #6c757d;
+  --premium-dark: #212529;
+  --premium-bg: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  --premium-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+  --premium-shadow-hover: 0 12px 30px rgba(0, 0, 0, 0.1);
+  --premium-radius: 12px; /* Softer, modern corners */
 }
 
 body {
-  background-color: var(--bs-body-bg);
+  background: var(--premium-bg);
+  min-height: 100vh;
 }
 
-/* --- Page Header --- */
+/* --- Page Header & Stats --- */
 .page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1.5rem;
+  margin-bottom: 2rem;
 }
 .page-header h2 {
   margin: 0;
+  font-weight: 700;
+  color: var(--premium-dark);
+}
+.btn-primary {
+  background-color: var(--premium-blue);
+  border-color: var(--premium-blue);
   font-weight: 600;
-  color: #343a40;
+  padding: 0.75rem 1.25rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 15px rgba(var(--bs-primary-rgb), 0.3);
+  transition: all 0.2s ease;
+}
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(var(--bs-primary-rgb), 0.4);
+}
+.btn-secondary {
+  font-weight: 600;
+  padding: 0.75rem 1.25rem;
+  border-radius: 8px;
 }
 
-/* --- Stats Cards --- */
 .stat-card {
+  background: #fff;
   border: none;
-  border-radius: var(--bs-border-radius);
-  box-shadow: var(--bs-card-shadow);
+  border-radius: var(--premium-radius);
+  box-shadow: var(--premium-shadow);
 }
 .stat-card .card-title {
   font-size: 0.9rem;
   font-weight: 600;
-  color: #6c757d; /* Muted text color */
+  color: var(--premium-gray);
   text-transform: uppercase;
 }
 .stat-card .card-text {
   font-size: 2rem;
   font-weight: 700;
-  color: #212529;
+  color: var(--premium-dark);
 }
 
 /* --- Filter Card --- */
 .filter-card {
+  background: #fff;
   border: none;
-  border-radius: var(--bs-border-radius);
-  box-shadow: var(--bs-card-shadow);
-  background-color: #fff;
+  border-radius: var(--premium-radius);
+  box-shadow: var(--premium-shadow);
 }
 .filter-card .form-label {
   font-weight: 600;
@@ -60,78 +84,124 @@ body {
 .filter-card .form-control,
 .filter-card .form-select {
   font-size: 0.9rem;
+  border-radius: 8px;
 }
 .filter-card .form-control:focus,
 .filter-card .form-select:focus {
-  border-color: var(--bs-primary);
-  box-shadow: 0 0 0 0.25rem rgba(var(--bs-primary-rgb), 0.25);
+  border-color: var(--premium-blue);
+  box-shadow: 0 0 0 0.25rem rgba(66, 99, 235, 0.25);
 }
 
-/* --- Main Content Card (Table/Forms) --- */
+/* --- Employee Card Grid --- */
+.employee-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+.employee-card {
+  background: #fff;
+  border-radius: var(--premium-radius);
+  box-shadow: var(--premium-shadow);
+  text-align: center;
+  padding: 2rem 1.5rem;
+  transition: all 0.3s ease;
+  border-top: 4px solid var(--premium-blue-light);
+}
+.employee-card:hover {
+  transform: translateY(-5px);
+  box-shadow: var(--premium-shadow-hover);
+  border-top-color: var(--premium-blue);
+}
+
+.card-avatar-wrapper {
+  margin-bottom: 1rem;
+}
+.card-avatar {
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 4px solid #fff;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+.card-avatar.placeholder {
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  background-color: #e9ecef;
+  color: #6c757d;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  font-weight: 600;
+  border: 4px solid #fff;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+
+.card-title {
+  font-weight: 700;
+  color: var(--premium-dark);
+  font-size: 1.15rem;
+  margin: 0;
+}
+.card-position {
+  font-size: 0.9rem;
+  color: var(--premium-blue);
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+}
+.card-status .badge {
+  font-size: 0.75rem;
+}
+.card-contact {
+  font-size: 0.9rem;
+  color: var(--premium-gray);
+  margin-top: 1rem;
+  word-break: break-all;
+}
+.card-actions {
+  margin-top: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.card-actions .btn-sm {
+  font-weight: 600;
+  padding: 0.5rem;
+  border-radius: 6px;
+}
+.card-actions .btn-primary {
+  background-color: var(--premium-blue);
+  border-color: var(--premium-blue);
+}
+.card-actions .btn-outline-secondary {
+  color: var(--premium-dark);
+  border-color: #d8dde3;
+}
+.card-actions .btn-outline-secondary:hover {
+  background-color: #f8f9fa;
+  color: var(--premium-dark);
+}
+
+/* --- Form Styling --- */
 .content-card {
   border: none;
-  border-radius: var(--bs-border-radius);
-  box-shadow: var(--bs-card-shadow);
+  border-radius: var(--premium-radius);
+  box-shadow: var(--premium-shadow);
   background-color: #fff;
 }
 .content-card .card-header {
   background-color: #fff;
-  border-bottom: 1px solid var(--bs-card-border-color);
-  padding: 1rem 1.5rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  border-bottom: 1px solid #dee2e6;
+  padding: 1.25rem 1.5rem;
 }
 .content-card .card-header h5 {
   margin: 0;
   font-weight: 600;
-  color: #343a40;
+  color: var(--premium-dark);
 }
-
-/* --- Table Styling --- */
-.table {
-  margin-bottom: 0; /* Remove default table margin */
-}
-.table th {
-  font-weight: 600;
-  font-size: 0.8rem;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: #6c757d;
-  background-color: #f8f9fa;
-  vertical-align: middle;
-}
-.table td {
-  font-size: 0.9rem;
-  vertical-align: middle;
-  color: #343a40;
-}
-.table-hover tbody tr:hover {
-  background-color: #f1f3f5;
-}
-
-.avatar-cell {
-  width: 60px;
-}
-.avatar-img {
-  width: 40px;
-  height: 40px;
-  object-fit: cover;
-}
-.avatar-placeholder {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background-color: #e9ecef;
-  color: #6c757d;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.8rem;
-  font-weight: 600;
-}
-
-/* --- Form Styling --- */
 .form-label {
   font-weight: 600;
   font-size: 0.9rem;
@@ -142,33 +212,35 @@ body {
 }
 .form-control,
 .form-select {
-  border-radius: var(--bs-border-radius);
+  border-radius: 8px;
 }
-.form-control.input-error {
+.form-control.input-error, .form-select.input-error {
   border-color: var(--bs-danger);
 }
 .form-control:focus,
 .form-select:focus {
-  border-color: var(--bs-primary);
-  box-shadow: 0 0 0 0.25rem rgba(var(--bs-primary-rgb), 0.25);
+  border-color: var(--premium-blue);
+  box-shadow: 0 0 0 0.25rem rgba(66, 99, 235, 0.25);
 }
 .form-error {
   font-size: 0.8rem;
   color: var(--bs-danger);
-  height: 1.2em; /* Reserve space */
+  height: 1.2em;
   margin-top: 0.25rem;
 }
 .form-actions {
   padding: 1.5rem;
   background-color: #f8f9fa;
-  border-top: 1px solid var(--bs-card-border-color);
+  border-top: 1px solid #dee2e6;
   text-align: right;
+  border-bottom-left-radius: var(--premium-radius);
+  border-bottom-right-radius: var(--premium-radius);
 }
 
-/* Image preview in forms */
+/* --- Image Preview Styling --- */
 .preview-box {
   border: 2px dashed #dee2e6;
-  border-radius: var(--bs-border-radius);
+  border-radius: 8px;
   padding: 1rem;
   min-height: 150px;
   display: flex;
@@ -176,13 +248,86 @@ body {
   justify-content: center;
   background-color: #fdfdfd;
 }
-.preview-img {
-  max-width: 100%;
-  max-height: 200px;
-  border-radius: var(--bs-border-radius);
+.preview-img-circle {
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid #fff;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
 }
 .preview-placeholder {
   font-size: 0.9rem;
   color: #6c757d;
   font-style: italic;
+}
+
+/* --- Employee Detail Page --- */
+.detail-card {
+  background: #fff;
+  border-radius: var(--premium-radius);
+  box-shadow: var(--premium-shadow);
+  border: none;
+}
+.detail-avatar {
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 4px solid #fff;
+  box-shadow: 0 10px 20px rgba(0,0,0,0.15);
+  margin-top: -75px; /* Pulls avatar up */
+}
+.detail-avatar.placeholder {
+  background-color: #e9ecef;
+  color: #6c757d;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3rem;
+  font-weight: 600;
+}
+.detail-header {
+  border-bottom: 1px solid #dee2e6;
+}
+.detail-title {
+  font-weight: 700;
+  color: var(--premium-dark);
+}
+.detail-position {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--premium-blue);
+}
+.detail-info-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+}
+@media (min-width: 768px) {
+  .detail-info-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.detail-info-item {
+  display: flex;
+  align-items: flex-start;
+  font-size: 0.95rem;
+}
+.detail-info-item i {
+  color: var(--premium-blue);
+  font-size: 1.2rem;
+  width: 30px;
+  text-align: center;
+  margin-top: 2px;
+}
+.detail-info-item .info-label {
+  font-weight: 600;
+  color: #6c757d;
+  margin-bottom: 0.25rem;
+}
+.detail-info-item .info-value {
+  color: var(--premium-dark);
+  font-weight: 500;
+  word-break: break-all;
 }
