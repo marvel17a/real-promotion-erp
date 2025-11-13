@@ -960,56 +960,7 @@ def employee_details(id):
 
 
 # --- MODIFIED: `edit_employee` ---
-@app.route('/products/edit/<int:id>', methods=['GET', 'POST'])
-def edit_product(id):
-    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    cur.execute("SELECT * FROM products WHERE id=%s", (id,))
-    product = cur.fetchone()
-    if not product:
-        flash("Product not found.", "danger")
-        return redirect(url_for('inventory'))
 
-    if request.method == 'POST':
-        name = request.form['name']
-        category = request.form['category']
-        price = request.form['price']
-        stock = request.form['stock']
-        image_file = request.files.get('image')
-
-        # Start with the existing image ID
-        image_id = product['image'] 
-
-        if image_file and allowed_file(image_file.filename):
-            try:
-                # Upload the NEW image to Cloudinary
-                upload_result = cloudinary.uploader.upload(
-                    image_file, 
-                    folder="erp_products"
-                )
-                #
-                # THE FIX: Get the new 'public_id'
-                #
-                image_id = upload_result.get('public_id') 
-                app.logger.info(f"Image updated in Cloudinary, public_id: {image_id}")
-            except Exception as e:
-                app.logger.error(f"Cloudinary upload failed: {e}")
-                flash(f"Image upload failed: {e}", "danger")
-                return render_template("edit_product.html", product=product)
-
-        # Update the database with the new (or old) image ID
-        cur.execute("""
-            UPDATE products 
-            SET name=%s, category=%s, price=%s, stock=%s, image=%s 
-            WHERE id=%s
-        """, (name, category, price, stock, image_id, id))
-        
-        mysql.connection.commit()
-        cur.close()
-        flash("Product updated successfully!", "success")
-        return redirect(url_for('inventory'))
-
-    cur.close()
-    return render_template("edit_product.html", product=product)
 
 
 @app.route("/add_employee", methods=["GET", "POST"])
@@ -2821,6 +2772,7 @@ def download_transaction_report():
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
