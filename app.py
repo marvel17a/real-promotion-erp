@@ -959,67 +959,7 @@ def employee_details(id):
     return render_template('employee_details.html', employee=employee)
 
 
-# --- MODIFIED: `edit_employee` ---
 
-
-
-@app.route("/add_employee", methods=["GET", "POST"])
-def add_employee():
-    if request.method == "POST":
-        name = request.form["name"]
-        position = request.form["position"]
-        email = request.form["email"]
-        phone = request.form["phone"]
-        status = request.form["status"]
-        city = request.form["city"]
-        
-        image_file = request.files.get("image")
-        document_file = request.files.get("document")
-
-        image_id = None
-        document_id = None
-
-        try:
-            # Upload image
-            if image_file and allowed_file(image_file.filename):
-                img_res = cloudinary.uploader.upload(image_file, folder="erp_employees")
-                #
-                # THE FIX: Save the 'public_id', not the 'secure_url'
-                #
-                image_id = img_res.get('public_id')
-                app.logger.info(f"Employee image uploaded, public_id: {image_id}")
-
-            # Upload document
-            if document_file and document_file.filename != '':
-                doc_res = cloudinary.uploader.upload(
-                    document_file, 
-                    folder="erp_documents",
-                    resource_type="auto" 
-                )
-                #
-                # THE FIX: Save the 'public_id', not the 'secure_url'
-                #
-                document_id = doc_res.get('public_id')
-                app.logger.info(f"Employee document uploaded, public_id: {document_id}")
-
-        except Exception as e:
-            app.logger.error(f"Cloudinary upload failed: {e}")
-            flash(f"File upload failed: {e}", "danger")
-            return render_template("add_employee.html")
-
-        # Insert into DB
-        cursor = mysql.connection.cursor()
-        cursor.execute("""
-            INSERT INTO employees (name, position, email, phone, status, city, image, document)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-        """, (name, position, email, phone, status, city, image_id, document_id))
-        mysql.connection.commit()
-        cursor.close()
-
-        flash(" Employee Added Successfully!", "success")
-        return redirect(url_for("employees"))
-
-    return render_template("add_employee.html")
 
 
 @app.route("/edit_employee/<int:id>", methods=["GET", "POST"])
@@ -2772,6 +2712,7 @@ def download_transaction_report():
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
