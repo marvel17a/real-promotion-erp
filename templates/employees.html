@@ -123,20 +123,21 @@
         </div>
 
         <!-- Card Avatar & Title -->
-        <div class="card-avatar-section">
-          <!-- THIS IS YOUR REQUESTED IMAGE LOGIC -->
-          {% if emp.image %}
-            <img class="avatar"
-                 src="{{ cloudinary_url(emp.image, height=100, width=100, crop='fill', gravity='face') }}"
-                 alt="{{ emp.name }}">
-          {% else %}
-            <div class="avatar placeholder">No photo</div>
-          {% endif %}
-          <!-- END OF YOUR LOGIC -->
+       <div class="card-avatar-section">
+  
+  <!-- THIS IS YOUR REQUESTED IMAGE LOGIC -->
+  {% if emp.image %}
+    <img class="avatar"
+         src="{{ cloudinary_url(emp.image, height=100, width=100, crop='fill', gravity='face') }}"
+         alt="{{ emp.name }}">
+  {% else %}
+    <div class="avatar placeholder">No photo</div>
+  {% endif %}
+  <!-- END OF YOUR LOGIC -->
 
-          <h5 class="card-title-dark">{{ emp.name }}</h5>
-          <p class="card-position-dark">{{ emp.position }}</p>
-        </div>
+  <h5 class="card-title-dark">{{ emp.name }}</h5>
+  <p class="card-position-dark">{{ emp.position }}</p>
+</div>
 
         <!-- Card Contact -->
         <div class="card-contact-info">
@@ -169,4 +170,5 @@
 
 </div>
 {% endblock %}
+
 
