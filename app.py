@@ -186,25 +186,7 @@ def dashboard():
     )
 
 
-#
-# ADD THIS NEW ROUTE TO YOUR APP.PY
-# You can add it right after your edit_employee route
-#
-@app.route('/employee/view/<int:id>')
-def employee_details(id):
-    if "loggedin" not in session:
-        return redirect(url_for("login"))
-    
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    cursor.execute("SELECT * FROM employees WHERE id = %s", (id,))
-    employee = cursor.fetchone()
-    cursor.close()
-    
-    if not employee:
-        flash("Employee not found.", "danger")
-        return redirect(url_for('employees'))
-        
-    return render_template('employee_details.html', employee=employee)
+
 
 
 #==============================================ADMIN PAGE=======================================
@@ -901,27 +883,31 @@ def add_employee():
     return render_template("add_employee.html")
 
 
+
+#
+# ROUTE 1: Make sure your /employees route looks like this
+#
 @app.route("/employees")
 def employees():
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
-    # 1. Get all employees (your original query)
+    # 1. Get all employees
     cursor.execute("SELECT * FROM employees ORDER BY name ASC")
     data = cursor.fetchall()
     
-    # 2. (NEW) Get data for filters
+    # 2. Get data for filters
     cursor.execute("SELECT DISTINCT position FROM employees WHERE position IS NOT NULL AND position != '' ORDER BY position ASC")
     positions = cursor.fetchall()
     cursor.execute("SELECT DISTINCT city FROM employees WHERE city IS NOT NULL AND city != '' ORDER BY city ASC")
     cities = cursor.fetchall()
     
-    # 3. (NEW) Get data for stats
+    # 3. Get data for stats
     cursor.execute("SELECT COUNT(id) AS count, status FROM employees GROUP BY status")
     status_counts_raw = cursor.fetchall()
     
     cursor.close()
     
-    # 4. (NEW) Process stats
+    # 4. Process stats
     stats = {
         'total_employees': len(data),
         'active_employees': 0,
@@ -933,7 +919,7 @@ def employees():
         elif row['status'] == 'inactive':
             stats['inactive_employees'] = row['count']
             
-    # 5. (NEW) Package filter data
+    # 5. Package filter data
     filters = {
         'positions': positions,
         'cities': cities
@@ -943,6 +929,25 @@ def employees():
                            employees=data, 
                            stats=stats, 
                            filters=filters)
+
+#
+# ROUTE 2: Add this new route for the "View Details" page
+#
+@app.route('/employee/view/<int:id>')
+def employee_details(id):
+    if "loggedin" not in session:
+        return redirect(url_for("login"))
+    
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    cursor.execute("SELECT * FROM employees WHERE id = %s", (id,))
+    employee = cursor.fetchone()
+    cursor.close()
+    
+    if not employee:
+        flash("Employee not found.", "danger")
+        return redirect(url_for('employees'))
+        
+    return render_template('employee_details.html', employee=employee)
 
 
 # --- MODIFIED: `edit_employee` ---
@@ -2691,6 +2696,7 @@ def download_transaction_report():
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
