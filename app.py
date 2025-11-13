@@ -643,9 +643,10 @@ def add_product_form():
 # THIS IS ROUTE 2: To SAVE the data
 # (Security removed + Redirect fixed + lowercase table)
 # ===================================================
+
 @app.route("/add_product", methods=["POST"])
 def add_product():
-    # Removed: if "loggedin" not in session: ...
+    # ... (all your existing code)
         
     if request.method == "POST":
         name = request.form.get("name")
@@ -654,26 +655,27 @@ def add_product():
         stock = int(request.form.get("stock") or 0)
         image_file = request.files.get("image")
         
-        image_url = None # Will hold the URL from Cloudinary
+        image_id = None # <-- RENAMED VARIABLE
 
         if image_file and allowed_file(image_file.filename):
             try:
                 # Upload to Cloudinary
                 upload_result = cloudinary.uploader.upload(
                     image_file, 
-                    folder="erp_products" # Creates a folder in Cloudinary
+                    folder="erp_products" 
                 )
-                image_url = upload_result.get('secure_url') # Get the HTTPS URL
-                app.logger.info(f"Image uploaded to Cloudinary: {image_url}")
+                #
+                # THE FIX: Save the 'public_id', not the 'secure_url'
+                #
+                image_id = upload_result.get('public_id') 
+                app.logger.info(f"Image uploaded to Cloudinary, public_id: {image_id}")
             except Exception as e:
                 app.logger.error(f"Cloudinary upload failed: {e}")
                 flash(f"Image upload failed: {e}", "danger")
-                # FIX: Redirect to the form, not the action
                 return redirect(url_for("add_product_form"))
 
         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
         
-        # Using lowercase table name 'products'
         cursor.execute(
             "SELECT id, stock FROM products WHERE name=%s AND category=%s",
             (name, category)
@@ -682,11 +684,11 @@ def add_product():
 
         if existing:
             # Update existing product
-            if image_url: # Only update image if a new one was uploaded
+            if image_id: # Only update image if a new one was uploaded
                 cursor.execute("""
                     UPDATE products SET stock=%s, price=%s, image=%s
                     WHERE id=%s
-                """, (existing['stock'] + stock, price, image_url, existing['id']))
+                """, (existing['stock'] + stock, price, image_id, existing['id']))
             else: # No new image, just update stock/price
                 cursor.execute("""
                     UPDATE products SET stock=%s, price=%s
@@ -697,22 +699,20 @@ def add_product():
             cursor.execute("""
                 INSERT INTO products (name, category, price, stock, image)
                 VALUES (%s, %s, %s, %s, %s)
-            """, (name, category, price, stock, image_url))
+            """, (name, category, price, stock, image_id)) # <-- Use image_id
 
         mysql.connection.commit()
         cursor.close()
         flash("✅ Product added/updated successfully!", "success")
         return redirect(url_for("inventory"))
 
-    # This fixes the loop bug, it now points to the form page
     return redirect(url_for("add_product_form"))
 
 
 
 
-
-
 # --- MODIFIED: `edit_product` ---
+
 @app.route('/products/edit/<int:id>', methods=['GET', 'POST'])
 def edit_product(id):
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
@@ -729,8 +729,8 @@ def edit_product(id):
         stock = request.form['stock']
         image_file = request.files.get('image')
 
-        # Start with the existing image URL
-        image_url = product['image'] 
+        # Start with the existing image ID
+        image_id = product['image'] 
 
         if image_file and allowed_file(image_file.filename):
             try:
@@ -739,19 +739,22 @@ def edit_product(id):
                     image_file, 
                     folder="erp_products"
                 )
-                image_url = upload_result.get('secure_url') # Get the new URL
-                app.logger.info(f"Image updated in Cloudinary: {image_url}")
+                #
+                # THE FIX: Get the new 'public_id'
+                #
+                image_id = upload_result.get('public_id') 
+                app.logger.info(f"Image updated in Cloudinary, public_id: {image_id}")
             except Exception as e:
                 app.logger.error(f"Cloudinary upload failed: {e}")
                 flash(f"Image upload failed: {e}", "danger")
                 return render_template("edit_product.html", product=product)
 
-        # Update the database with the new (or old) image URL
+        # Update the database with the new (or old) image ID
         cur.execute("""
             UPDATE products 
             SET name=%s, category=%s, price=%s, stock=%s, image=%s 
             WHERE id=%s
-        """, (name, category, price, stock, image_url, id))
+        """, (name, category, price, stock, image_id, id))
         
         mysql.connection.commit()
         cur.close()
@@ -843,25 +846,31 @@ def add_employee():
         image_file = request.files.get("image")
         document_file = request.files.get("document")
 
-        image_url = None
-        document_url = None
+        image_id = None
+        document_id = None
 
         try:
             # Upload image
             if image_file and allowed_file(image_file.filename):
                 img_res = cloudinary.uploader.upload(image_file, folder="erp_employees")
-                image_url = img_res.get('secure_url')
-                app.logger.info("Employee image uploaded.")
+                #
+                # THE FIX: Save the 'public_id', not the 'secure_url'
+                #
+                image_id = img_res.get('public_id')
+                app.logger.info(f"Employee image uploaded, public_id: {image_id}")
 
             # Upload document
             if document_file and document_file.filename != '':
                 doc_res = cloudinary.uploader.upload(
                     document_file, 
                     folder="erp_documents",
-                    resource_type="auto" # Tell Cloudinary to handle non-image files
+                    resource_type="auto" 
                 )
-                document_url = doc_res.get('secure_url')
-                app.logger.info("Employee document uploaded.")
+                #
+                # THE FIX: Save the 'public_id', not the 'secure_url'
+                #
+                document_id = doc_res.get('public_id')
+                app.logger.info(f"Employee document uploaded, public_id: {document_id}")
 
         except Exception as e:
             app.logger.error(f"Cloudinary upload failed: {e}")
@@ -873,7 +882,7 @@ def add_employee():
         cursor.execute("""
             INSERT INTO employees (name, position, email, phone, status, city, image, document)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-        """, (name, position, email, phone, status, city, image_url, document_url))
+        """, (name, position, email, phone, status, city, image_id, document_id))
         mysql.connection.commit()
         cursor.close()
 
@@ -951,6 +960,117 @@ def employee_details(id):
 
 
 # --- MODIFIED: `edit_employee` ---
+@app.route('/products/edit/<int:id>', methods=['GET', 'POST'])
+def edit_product(id):
+    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    cur.execute("SELECT * FROM products WHERE id=%s", (id,))
+    product = cur.fetchone()
+    if not product:
+        flash("Product not found.", "danger")
+        return redirect(url_for('inventory'))
+
+    if request.method == 'POST':
+        name = request.form['name']
+        category = request.form['category']
+        price = request.form['price']
+        stock = request.form['stock']
+        image_file = request.files.get('image')
+
+        # Start with the existing image ID
+        image_id = product['image'] 
+
+        if image_file and allowed_file(image_file.filename):
+            try:
+                # Upload the NEW image to Cloudinary
+                upload_result = cloudinary.uploader.upload(
+                    image_file, 
+                    folder="erp_products"
+                )
+                #
+                # THE FIX: Get the new 'public_id'
+                #
+                image_id = upload_result.get('public_id') 
+                app.logger.info(f"Image updated in Cloudinary, public_id: {image_id}")
+            except Exception as e:
+                app.logger.error(f"Cloudinary upload failed: {e}")
+                flash(f"Image upload failed: {e}", "danger")
+                return render_template("edit_product.html", product=product)
+
+        # Update the database with the new (or old) image ID
+        cur.execute("""
+            UPDATE products 
+            SET name=%s, category=%s, price=%s, stock=%s, image=%s 
+            WHERE id=%s
+        """, (name, category, price, stock, image_id, id))
+        
+        mysql.connection.commit()
+        cur.close()
+        flash("Product updated successfully!", "success")
+        return redirect(url_for('inventory'))
+
+    cur.close()
+    return render_template("edit_product.html", product=product)
+
+
+@app.route("/add_employee", methods=["GET", "POST"])
+def add_employee():
+    if request.method == "POST":
+        name = request.form["name"]
+        position = request.form["position"]
+        email = request.form["email"]
+        phone = request.form["phone"]
+        status = request.form["status"]
+        city = request.form["city"]
+        
+        image_file = request.files.get("image")
+        document_file = request.files.get("document")
+
+        image_id = None
+        document_id = None
+
+        try:
+            # Upload image
+            if image_file and allowed_file(image_file.filename):
+                img_res = cloudinary.uploader.upload(image_file, folder="erp_employees")
+                #
+                # THE FIX: Save the 'public_id', not the 'secure_url'
+                #
+                image_id = img_res.get('public_id')
+                app.logger.info(f"Employee image uploaded, public_id: {image_id}")
+
+            # Upload document
+            if document_file and document_file.filename != '':
+                doc_res = cloudinary.uploader.upload(
+                    document_file, 
+                    folder="erp_documents",
+                    resource_type="auto" 
+                )
+                #
+                # THE FIX: Save the 'public_id', not the 'secure_url'
+                #
+                document_id = doc_res.get('public_id')
+                app.logger.info(f"Employee document uploaded, public_id: {document_id}")
+
+        except Exception as e:
+            app.logger.error(f"Cloudinary upload failed: {e}")
+            flash(f"File upload failed: {e}", "danger")
+            return render_template("add_employee.html")
+
+        # Insert into DB
+        cursor = mysql.connection.cursor()
+        cursor.execute("""
+            INSERT INTO employees (name, position, email, phone, status, city, image, document)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        """, (name, position, email, phone, status, city, image_id, document_id))
+        mysql.connection.commit()
+        cursor.close()
+
+        flash(" Employee Added Successfully!", "success")
+        return redirect(url_for("employees"))
+
+    return render_template("add_employee.html")
+
+
 @app.route("/edit_employee/<int:id>", methods=["GET", "POST"])
 def edit_employee(id):
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
@@ -971,16 +1091,19 @@ def edit_employee(id):
         image_file = request.files.get("image")
         document_file = request.files.get("document")
 
-        # Start with existing URLs
-        image_url = employee["image"]
-        document_url = employee["document"]
+        # Start with existing IDs
+        image_id = employee["image"]
+        document_id = employee["document"]
 
         try:
             # Upload new image if provided
             if image_file and allowed_file(image_file.filename):
                 img_res = cloudinary.uploader.upload(image_file, folder="erp_employees")
-                image_url = img_res.get('secure_url')
-                app.logger.info("Employee image updated.")
+                #
+                # THE FIX: Get the new 'public_id'
+                #
+                image_id = img_res.get('public_id')
+                app.logger.info("Employee image updated, public_id: {image_id}")
             
             # Upload new document if provided
             if document_file and document_file.filename != '':
@@ -989,8 +1112,11 @@ def edit_employee(id):
                     folder="erp_documents",
                     resource_type="auto"
                 )
-                document_url = doc_res.get('secure_url')
-                app.logger.info("Employee document updated.")
+                #
+                # THE FIX: Get the new 'public_id'
+                #
+                document_id = doc_res.get('public_id')
+                app.logger.info("Employee document updated, public_id: {document_id}")
                 
         except Exception as e:
             app.logger.error(f"Cloudinary upload failed: {e}")
@@ -1000,7 +1126,7 @@ def edit_employee(id):
         cursor.execute("""
             UPDATE employees SET name=%s, position=%s, email=%s, phone=%s, 
             status=%s, city=%s, image=%s, document=%s WHERE id=%s
-        """, (name, position, email, phone, status, city, image_url, document_url, id))
+        """, (name, position, email, phone, status, city, image_id, document_id, id))
         mysql.connection.commit()
         cursor.close()
 
@@ -1009,7 +1135,6 @@ def edit_employee(id):
 
     cursor.close()
     return render_template("edit_employee.html", employee=employee)
-
 
 #
 # This file shows the modifications for your app.py
@@ -2696,6 +2821,7 @@ def download_transaction_report():
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
