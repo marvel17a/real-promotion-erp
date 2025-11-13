@@ -1,34 +1,42 @@
 /* ---
-  PREMIUM DARK ADMIN THEME
+  PREMIUM GRADIENT THEME (Light)
 --- */
 
 :root {
-  --primary-color: #818CF8; /* Indigo 400 */
-  --primary-color-dark: #6366F1; /* Indigo 500 */
+  /* Gradient Colors */
+  --grad-start: #4364F7;
+  --grad-end: #0052D4;
+  --grad-accent: linear-gradient(90deg, var(--grad-start) 0%, var(--grad-end) 100%);
   
-  --bg-main: #111827;       /* gray-900 */
-  --bg-content: #1F2937;    /* gray-800 */
-  --bg-card: #374151;       /* gray-700 */
-  --bg-card-hover: #4B5563; /* gray-600 */
+  /* Background & Card Colors */
+  --bg-main: linear-gradient(135deg, #f5f7fa 0%, #e8f1f9 100%);
+  --bg-card: #FFFFFF;
+  --bg-card-hover: #FFFFFF;
+  --bg-form: #fdfdfd;
+
+  /* Text Colors */
+  --text-dark: #212529;
+  --text-medium: #495057;
+  --text-light: #6c757d;
   
-  --text-light: #F9FAFB;     /* gray-50 */
-  --text-medium: #D1D5DB;   /* gray-300 */
-  --text-dark: #9CA3AF;     /* gray-400 */
-  
-  --border-color: #4B5563;  /* gray-600 */
+  /* Border & Shadow */
+  --border-color: #dee2e6;
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.07);
+  --shadow-hover: 0 12px 35px rgba(0, 0, 0, 0.1);
   
   --radius-md: 0.5rem;   /* 8px */
   --radius-lg: 0.75rem;  /* 12px */
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
 }
 
 /* --- Base --- */
 body {
-  background-color: var(--bg-main);
+  background: var(--bg-main);
   color: var(--text-medium);
+  min-height: 100vh;
 }
 
 /* --- Page Header & Stats --- */
+/* This styles the .page-header-dark class from your HTML */
 .page-header-dark {
   display: flex;
   justify-content: space-between;
@@ -36,47 +44,59 @@ body {
   margin-bottom: 2rem;
 }
 .page-header-dark h2 {
-  color: var(--text-light);
+  color: var(--text-dark);
   font-weight: 700;
 }
 
+/* This styles the .btn-primary class */
 .btn-primary {
-  background-color: var(--primary-color);
-  border-color: var(--primary-color);
+  background: var(--grad-accent);
+  border: none;
   font-weight: 600;
   padding: 0.6rem 1.25rem;
   border-radius: var(--radius-md);
-  transition: all 0.2s ease;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(67, 100, 247, 0.3);
+  color: #FFFFFF;
 }
 .btn-primary:hover {
-  background-color: var(--primary-color-dark);
-  border-color: var(--primary-color-dark);
+  background: var(--grad-accent);
+  color: #FFFFFF;
   transform: translateY(-2px);
-  box-shadow: 0 4px 10px rgba(129, 140, 248, 0.3);
+  box-shadow: 0 6px 20px rgba(67, 100, 247, 0.4);
+}
+.btn-secondary {
+  border-color: var(--border-color);
+  font-weight: 600;
+  border-radius: var(--radius-md);
 }
 
+/* This styles the .stat-card-dark class */
 .stat-card-dark {
-  background-color: var(--bg-content);
+  background-color: var(--bg-card);
   border-radius: var(--radius-lg);
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--bg-card);
+  box-shadow: var(--shadow);
 }
 .stat-card-dark .card-title {
-  color: var(--text-dark);
+  color: var(--text-light);
   font-weight: 600;
   font-size: 0.9rem;
   text-transform: uppercase;
 }
 .stat-card-dark .card-text {
-  color: var(--text-light);
+  color: var(--text-dark);
   font-size: 2rem;
   font-weight: 700;
 }
 
 /* --- Filter Card --- */
+/* This styles the .filter-card-dark class */
 .filter-card-dark {
-  background-color: var(--bg-content);
+  background-color: var(--bg-card);
   border-radius: var(--radius-lg);
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--bg-card);
+  box-shadow: var(--shadow);
 }
 .filter-card-dark .form-label {
   color: var(--text-medium);
@@ -84,22 +104,22 @@ body {
   font-size: 0.875rem;
 }
 
-/* --- Dark Form Elements --- */
+/* --- Light Form Elements --- */
 .form-control, .form-select {
-  background-color: var(--bg-card);
-  color: var(--text-light);
+  background-color: var(--bg-form);
+  color: var(--text-dark);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   font-size: 0.9rem;
 }
 .form-control::placeholder {
-  color: var(--text-dark);
+  color: var(--text-light);
 }
 .form-control:focus, .form-select:focus {
   background-color: var(--bg-card);
-  color: var(--text-light);
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 0.25rem rgba(129, 140, 248, 0.25);
+  color: var(--text-dark);
+  border-color: var(--grad-start);
+  box-shadow: 0 0 0 0.25rem rgba(67, 100, 247, 0.25);
 }
 .form-control.is-invalid, .form-select.is-invalid {
   border-color: var(--bs-danger);
@@ -115,11 +135,12 @@ body {
 }
 
 /* --- Employee Card Grid --- */
+/* This styles the .employee-card-dark class */
 .employee-card-dark {
   background: var(--bg-card);
-  border: 1px solid var(--border-color);
+  border: 1px solid #FFFFFF;
   border-radius: var(--radius-lg);
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  box-shadow: var(--shadow);
   transition: all 0.3s ease;
   position: relative;
   overflow: hidden; /* For the top border highlight */
@@ -131,17 +152,17 @@ body {
   left: 0;
   right: 0;
   height: 4px;
-  background-color: var(--bg-card-hover);
+  background-color: #f0f2f5;
   transition: all 0.3s ease;
 }
 .employee-card-dark:hover {
   transform: translateY(-5px);
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-hover);
   background: var(--bg-card-hover);
-  border-color: #555c68;
+  border-color: #FFFFFF;
 }
 .employee-card-dark:hover:before {
-  background-color: var(--primary-color);
+  background: var(--grad-accent);
 }
 
 .card-status-menu {
@@ -151,32 +172,32 @@ body {
   align-items: center;
 }
 .card-menu .dropdown-toggle {
-  color: var(--text-dark);
+  color: var(--text-light);
   text-decoration: none;
 }
 .card-menu .dropdown-toggle::after {
   display: none; /* Hide default caret */
 }
 .card-menu .dropdown-toggle:hover {
-  color: var(--text-light);
+  color: var(--text-dark);
 }
 .dropdown-menu {
-  background-color: var(--bg-card-hover);
+  background-color: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow);
 }
 .dropdown-item {
   color: var(--text-medium);
   font-size: 0.9rem;
 }
 .dropdown-item:hover {
-  background-color: var(--primary-color);
-  color: var(--text-light);
+  background: var(--grad-accent);
+  color: #FFFFFF;
 }
 .dropdown-item.text-danger:hover {
   background-color: var(--bs-danger);
-  color: var(--text-light);
+  color: #FFFFFF;
 }
 .dropdown-divider {
   border-top: 1px solid var(--border-color);
@@ -192,33 +213,36 @@ body {
   height: 100px;
   border-radius: 50%;
   object-fit: cover;
-  border: 4px solid var(--bg-content);
-  box-shadow: 0 5px 10px rgba(0,0,0,0.2);
+  border: 4px solid #FFFFFF;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.1);
 }
 /* This is your requested class */
 .placeholder {
   width: 100px;
   height: 100px;
   border-radius: 50%;
-  background-color: var(--bg-card-hover);
-  color: var(--text-dark);
+  background-color: #f0f2f5;
+  color: var(--text-light);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   font-size: 1rem;
   font-weight: 600;
-  border: 4px solid var(--bg-content);
-  box-shadow: 0 5px 10px rgba(0,0,0,0.2);
+  border: 4px solid #FFFFFF;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.1);
 }
+
+/* This styles the .card-title-dark class */
 .card-title-dark {
-  color: var(--text-light);
+  color: var(--text-dark);
   font-weight: 700;
   font-size: 1.2rem;
   margin-top: 1rem;
   margin-bottom: 0.25rem;
 }
+/* This styles the .card-position-dark class */
 .card-position-dark {
-  color: var(--primary-color);
+  color: var(--grad-start);
   font-weight: 600;
   font-size: 0.9rem;
   margin-bottom: 1rem;
@@ -227,7 +251,7 @@ body {
 .card-contact-info {
   font-size: 0.9rem;
   color: var(--text-medium);
-  border-top: 1px solid var(--border-color);
+  border-top: 1px solid #f0f0f0;
   padding: 1rem 1.5rem;
 }
 .card-contact-info p {
@@ -237,12 +261,12 @@ body {
   word-break: break-all;
 }
 .card-contact-info i {
-  color: var(--text-dark);
+  color: var(--text-light);
   width: 25px;
   font-size: 1.1rem;
 }
 .card-footer-actions {
-  border-top: 1px solid var(--border-color);
+  border-top: 1px solid #f0f0f0;
   padding: 1rem 1.5rem;
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -255,28 +279,30 @@ body {
   border-radius: var(--radius-md);
 }
 .btn-outline-secondary:hover {
-  background-color: var(--bg-card-hover);
+  background-color: #f8f9fa;
   border-color: var(--border-color);
-  color: var(--text-light);
+  color: var(--text-dark);
 }
 
 /* --- Details Page --- */
+/* This styles the .detail-card-left class */
 .detail-card-left {
-  background-color: var(--bg-content);
-  border: 1px solid var(--border-color);
+  background-color: var(--bg-card);
+  border: 1px solid #FFFFFF;
   border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
 }
 .detail-avatar {
   width: 150px;
   height: 150px;
   border-radius: 50%;
   object-fit: cover;
-  border: 4px solid var(--bg-main);
-  box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+  border: 4px solid #FFFFFF;
+  box-shadow: 0 10px 20px rgba(0,0,0,0.1);
 }
 .detail-avatar.placeholder {
-  background-color: var(--bg-card);
-  color: var(--text-dark);
+  background-color: #f0f2f5;
+  color: var(--text-light);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -284,31 +310,33 @@ body {
   font-weight: 600;
 }
 .detail-name {
-  color: var(--text-light);
+  color: var(--text-dark);
   font-weight: 700;
 }
 .detail-position {
-  color: var(--primary-color);
+  color: var(--grad-start);
   font-size: 1.2rem;
   font-weight: 600;
 }
+/* This styles the .detail-card-right class */
 .detail-card-right {
-  background-color: var(--bg-content);
-  border: 1px solid var(--border-color);
+  background-color: var(--bg-card);
+  border: 1px solid #FFFFFF;
   border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
 }
 .detail-info-item {
   display: flex;
   align-items: flex-start;
   font-size: 0.95rem;
   padding: 1.25rem 0;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid #f0f0f0;
 }
 .detail-info-item:last-child {
   border-bottom: none;
 }
 .detail-info-item i {
-  color: var(--primary-color);
+  color: var(--grad-start);
   font-size: 1.5rem;
   width: 40px;
   text-align: center;
@@ -316,35 +344,40 @@ body {
 }
 .info-label {
   font-weight: 600;
-  color: var(--text-dark);
+  color: var(--text-light);
   font-size: 0.8rem;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   margin-bottom: 0.25rem;
 }
 .info-value {
-  color: var(--text-light);
+  color: var(--text-dark);
   font-weight: 500;
   word-break: break-all;
 }
+.info-value.text-dark { /* Fix for "No document" text */
+  color: var(--text-light) !important;
+}
 
 /* --- Form Page --- */
+/* This styles the .form-card-dark class */
 .form-card-dark {
-  background-color: var(--bg-content);
-  border: 1px solid var(--border-color);
+  background-color: var(--bg-card);
+  border: 1px solid #FFFFFF;
   border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
 }
 .form-card-dark .card-header {
-  background-color: var(--bg-card);
-  border-bottom: 1px solid var(--border-color);
+  background-color: #fdfdfd;
+  border-bottom: 1px solid #f0f0f0;
 }
 .form-card-dark .card-header h5 {
-  color: var(--text-light);
+  color: var(--text-dark);
   font-weight: 600;
 }
 .form-actions {
-  background-color: var(--bg-content);
-  border-top: 1px solid var(--border-color);
+  background-color: #f8f9fa;
+  border-top: 1px solid #f0f0f0;
   border-radius: 0 0 var(--radius-lg) var(--radius-lg);
 }
 .preview-box {
@@ -355,18 +388,21 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: var(--bg-main);
+  background-color: #f8f9fa;
 }
 .preview-img-circle {
   width: 150px;
   height: 150px;
   border-radius: 50%;
   object-fit: cover;
-  border: 3px solid var(--bg-card);
-  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+  border: 3px solid #FFFFFF;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
 }
 .preview-placeholder {
   font-size: 0.9rem;
-  color: var(--text-dark);
+  color: var(--text-light);
   font-style: italic;
+}
+.text-dark { /* Fix for "No file chosen" text */
+  color: var(--text-medium) !important;
 }
