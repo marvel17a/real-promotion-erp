@@ -1,12 +1,11 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // Note: This JS is for the card-based layout
     const searchInput = document.getElementById('searchName');
     const positionFilter = document.getElementById('filterPosition');
     const cityFilter = document.getElementById('filterCity');
     const statusFilter = document.getElementById('filterStatus');
 
-    // Update selector to target cards
-    const cards = document.querySelectorAll('.employee-card');
+    // This selector targets the wrapping column for each card
+    const cards = document.querySelectorAll('.employee-card-filter');
     const noResultsMessage = document.getElementById('noResultsMessage');
 
     function runFilters() {
