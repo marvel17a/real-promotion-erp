@@ -1,15 +1,15 @@
 /* ---
-  PREMIUM GRADIENT THEME (Light)
+  PREMIUM VIVID (TEAL/BLUE) GRADIENT THEME
 --- */
 
 :root {
-  /* Gradient Colors */
-  --grad-start: #4364F7;
-  --grad-end: #0052D4;
+  /* Vivid Gradient Colors */
+  --grad-start: #10B981;  /* Teal */
+  --grad-end: #06B6D4;    /* Cyan */
   --grad-accent: linear-gradient(90deg, var(--grad-start) 0%, var(--grad-end) 100%);
   
   /* Background & Card Colors */
-  --bg-main: linear-gradient(135deg, #f5f7fa 0%, #e8f1f9 100%);
+  --bg-main: linear-gradient(135deg, #f8faff 0%, #f0f3fb 100%);
   --bg-card: #FFFFFF;
   --bg-card-hover: #FFFFFF;
   --bg-form: #fdfdfd;
@@ -21,8 +21,8 @@
   
   /* Border & Shadow */
   --border-color: #dee2e6;
-  --shadow: 0 10px 30px rgba(0, 0, 0, 0.07);
-  --shadow-hover: 0 12px 35px rgba(0, 0, 0, 0.1);
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+  --shadow-hover: 0 12px 35px rgba(0, 0, 0, 0.12);
   
   --radius-md: 0.5rem;   /* 8px */
   --radius-lg: 0.75rem;  /* 12px */
@@ -36,19 +36,18 @@ body {
 }
 
 /* --- Page Header & Stats --- */
-/* This styles the .page-header-dark class from your HTML */
-.page-header-dark {
+.page-header-vivid {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 2rem;
 }
-.page-header-dark h2 {
+.page-header-vivid h2 {
   color: var(--text-dark);
   font-weight: 700;
 }
 
-/* This styles the .btn-primary class */
+/* --- Gradient Buttons --- */
 .btn-primary {
   background: var(--grad-accent);
   border: none;
@@ -56,49 +55,55 @@ body {
   padding: 0.6rem 1.25rem;
   border-radius: var(--radius-md);
   transition: all 0.3s ease;
-  box-shadow: 0 4px 15px rgba(67, 100, 247, 0.3);
+  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
   color: #FFFFFF;
 }
 .btn-primary:hover {
   background: var(--grad-accent);
   color: #FFFFFF;
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(67, 100, 247, 0.4);
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
 }
 .btn-secondary {
   border-color: var(--border-color);
+  background-color: var(--bg-card);
   font-weight: 600;
   border-radius: var(--radius-md);
+  color: var(--text-medium);
+}
+.btn-secondary:hover {
+  background-color: #f8f9fa;
+  border-color: #c1c9d3;
+  color: var(--text-dark);
 }
 
-/* This styles the .stat-card-dark class */
-.stat-card-dark {
+/* --- Stat Cards --- */
+.stat-card-vivid {
   background-color: var(--bg-card);
   border-radius: var(--radius-lg);
   border: 1px solid var(--bg-card);
   box-shadow: var(--shadow);
 }
-.stat-card-dark .card-title {
+.stat-card-vivid .card-title {
   color: var(--text-light);
   font-weight: 600;
   font-size: 0.9rem;
   text-transform: uppercase;
 }
-.stat-card-dark .card-text {
+.stat-card-vivid .card-text {
   color: var(--text-dark);
   font-size: 2rem;
   font-weight: 700;
 }
 
 /* --- Filter Card --- */
-/* This styles the .filter-card-dark class */
-.filter-card-dark {
+.filter-card-vivid {
   background-color: var(--bg-card);
   border-radius: var(--radius-lg);
   border: 1px solid var(--bg-card);
   box-shadow: var(--shadow);
 }
-.filter-card-dark .form-label {
+.filter-card-vivid .form-label {
   color: var(--text-medium);
   font-weight: 600;
   font-size: 0.875rem;
@@ -119,7 +124,7 @@ body {
   background-color: var(--bg-card);
   color: var(--text-dark);
   border-color: var(--grad-start);
-  box-shadow: 0 0 0 0.25rem rgba(67, 100, 247, 0.25);
+  box-shadow: 0 0 0 0.25rem rgba(16, 185, 129, 0.25);
 }
 .form-control.is-invalid, .form-select.is-invalid {
   border-color: var(--bs-danger);
@@ -135,17 +140,16 @@ body {
 }
 
 /* --- Employee Card Grid --- */
-/* This styles the .employee-card-dark class */
-.employee-card-dark {
+.employee-card-vivid {
   background: var(--bg-card);
   border: 1px solid #FFFFFF;
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow);
   transition: all 0.3s ease;
   position: relative;
-  overflow: hidden; /* For the top border highlight */
+  overflow: hidden;
 }
-.employee-card-dark:before {
+.employee-card-vivid:before {
   content: '';
   position: absolute;
   top: 0;
@@ -155,13 +159,13 @@ body {
   background-color: #f0f2f5;
   transition: all 0.3s ease;
 }
-.employee-card-dark:hover {
+.employee-card-vivid:hover {
   transform: translateY(-5px);
   box-shadow: var(--shadow-hover);
   background: var(--bg-card-hover);
   border-color: #FFFFFF;
 }
-.employee-card-dark:hover:before {
+.employee-card-vivid:hover:before {
   background: var(--grad-accent);
 }
 
@@ -176,7 +180,7 @@ body {
   text-decoration: none;
 }
 .card-menu .dropdown-toggle::after {
-  display: none; /* Hide default caret */
+  display: none;
 }
 .card-menu .dropdown-toggle:hover {
   color: var(--text-dark);
@@ -207,8 +211,7 @@ body {
   padding: 1rem 1.5rem;
   text-align: center;
 }
-/* This is your requested class */
-.avatar {
+.avatar { /* Your class */
   width: 100px;
   height: 100px;
   border-radius: 50%;
@@ -216,8 +219,7 @@ body {
   border: 4px solid #FFFFFF;
   box-shadow: 0 5px 15px rgba(0,0,0,0.1);
 }
-/* This is your requested class */
-.placeholder {
+.placeholder { /* Your class */
   width: 100px;
   height: 100px;
   border-radius: 50%;
@@ -231,17 +233,14 @@ body {
   border: 4px solid #FFFFFF;
   box-shadow: 0 5px 15px rgba(0,0,0,0.1);
 }
-
-/* This styles the .card-title-dark class */
-.card-title-dark {
+.card-title-vivid {
   color: var(--text-dark);
   font-weight: 700;
   font-size: 1.2rem;
   margin-top: 1rem;
   margin-bottom: 0.25rem;
 }
-/* This styles the .card-position-dark class */
-.card-position-dark {
+.card-position-vivid {
   color: var(--grad-start);
   font-weight: 600;
   font-size: 0.9rem;
@@ -272,21 +271,9 @@ body {
   grid-template-columns: 1fr 1fr;
   gap: 0.75rem;
 }
-.btn-outline-secondary {
-  border-color: var(--border-color);
-  color: var(--text-medium);
-  font-weight: 600;
-  border-radius: var(--radius-md);
-}
-.btn-outline-secondary:hover {
-  background-color: #f8f9fa;
-  border-color: var(--border-color);
-  color: var(--text-dark);
-}
 
 /* --- Details Page --- */
-/* This styles the .detail-card-left class */
-.detail-card-left {
+.detail-card-left-vivid {
   background-color: var(--bg-card);
   border: 1px solid #FFFFFF;
   border-radius: var(--radius-lg);
@@ -318,8 +305,7 @@ body {
   font-size: 1.2rem;
   font-weight: 600;
 }
-/* This styles the .detail-card-right class */
-.detail-card-right {
+.detail-card-right-vivid {
   background-color: var(--bg-card);
   border: 1px solid #FFFFFF;
   border-radius: var(--radius-lg);
@@ -355,23 +341,19 @@ body {
   font-weight: 500;
   word-break: break-all;
 }
-.info-value.text-dark { /* Fix for "No document" text */
-  color: var(--text-light) !important;
-}
 
 /* --- Form Page --- */
-/* This styles the .form-card-dark class */
-.form-card-dark {
+.form-card-vivid {
   background-color: var(--bg-card);
   border: 1px solid #FFFFFF;
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow);
 }
-.form-card-dark .card-header {
+.form-card-vivid .card-header {
   background-color: #fdfdfd;
   border-bottom: 1px solid #f0f0f0;
 }
-.form-card-dark .card-header h5 {
+.form-card-vivid .card-header h5 {
   color: var(--text-dark);
   font-weight: 600;
 }
@@ -402,7 +384,4 @@ body {
   font-size: 0.9rem;
   color: var(--text-light);
   font-style: italic;
-}
-.text-dark { /* Fix for "No file chosen" text */
-  color: var(--text-medium) !important;
 }
