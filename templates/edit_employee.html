@@ -1,24 +1,24 @@
 {% extends "base.html" %}
 {% block content %}
- <link rel="stylesheet" href="{{ url_for('static', filename='css/employee.css') }}"> 
+<link rel="stylesheet" href="{{ url_for('static', filename='css/employee.css') }}"> 
 <script src="{{ url_for('static', filename='js/employee_edit.js') }}"></script>
 
 <div class="container-fluid py-4">
-  <div class="page-header-dark">
+  <div class="page-header-vivid">
     <h2>Edit Employee</h2>
     <a href="{{ url_for('employees') }}" class="btn btn-secondary">
       <i class="bi bi-x-lg"></i> Cancel
     </a>
   </div>
 
-  <form method="POST" enctype="multipart/form-data" id="employeeForm">
+  <form method="POST" enctype="multipart/form-data" id="employeeForm"> }}>
     <!-- Hidden ID for JS validation -->
     <input type="hidden" id="employeeId" value="{{ employee.id }}">
 
     <div class="row g-4">
       <!-- Column 1: Core Info & Contact -->
       <div class="col-lg-8">
-        <div class="card form-card-dark">
+        <div class="card form-card-vivid">
           <div class="card-header">
             <h5><i class="bi bi-person-lines-fill me-2"></i>Employee Details</h5>
           </div>
@@ -65,12 +65,13 @@
       <!-- Column 2: Uploads -->
       <div class="col-lg-4">
         <!-- Profile Photo -->
-        <div class="card form-card-dark mb-4">
+        <div class="card form-card-vivid mb-4">
           <div class="card-header">
             <h5><i class="bi bi-image me-2"></i>Profile Photo</h5>
           </div>
           <div class="card-body p-4 text-center">
             <div class="preview-box mb-3">
+              <!-- THE IMAGE FIX: Use cloudinary_url() -->
               {% if employee.image %}
                 <img id="imagePreview" class="preview-img-circle" src="{{ cloudinary_url(employee.image, height=150, width=150, crop='fill', gravity='face') }}" alt="{{ employee.name }}">
                 <span id="imagePlaceholder" class="preview-placeholder" style="display:none;">Image preview</span>
@@ -86,25 +87,26 @@
         </div>
         
         <!-- Document -->
-        <div class="card form-card-dark">
+        <div class="card form-card-vivid">
           <div class="card-header">
             <h5><i class="bi bi-file-earmark-pdf-fill me-2"></i>Document</h5>
           </div>
           <div class="card-body p-4">
             <label class="form-label">Current Document</label>
             <div class="mb-3">
+              <!-- THE IMAGE FIX: Use cloudinary_url() for documents -->
               {% if employee.document %}
                 <a href="{{ cloudinary_url(employee.document)[0] }}" target="_blank" class="btn btn-sm btn-outline-secondary">
                   <i class="bi bi-file-earmark-pdf"></i> View Current
                 </a>
               {% else %}
-                <p class="text-dark small">No document on file.</p>
+                <p class="text-muted small">No document on file.</p>
               {% endif %}
             </div>
             <label for="docInput" class="form-label">Replace Document (Max 5MB)</label>
             <input type="file" class="form-control" name="document" accept="application/pdf" id="docInput">
             <div class="form-error" data-error-for="document"></div>
-            <p class="text-dark small mt-2" id="docName">No file chosen</p>
+            <p class="text-muted small mt-2" id="docName">No file chosen</p>
           </div>
         </div>
       </div>
