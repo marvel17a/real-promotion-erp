@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 {% block content %}
-<!-- <link rel="stylesheet" href="{{ url_for('static', filename='css/employee_dark_theme.css') }}"> -->
+ <link rel="stylesheet" href="{{ url_for('static', filename='css/employee_vivid_theme.css') }}">
 
 <div class="container-fluid py-4">
 
   <!-- Page Header with Back Button -->
-  <div class="page-header-dark">
+  <div class="page-header-vivid">
     <h2>Employee Profile</h2>
     <a href="{{ url_for('employees') }}" class="btn btn-secondary">
       <i class="bi bi-arrow-left me-1"></i> Back to Directory
@@ -16,7 +16,8 @@
   <div class="row g-4">
     <!-- Left Card: Avatar & Actions -->
     <div class="col-lg-4">
-      <div class="card detail-card-left text-center p-4">
+      <div class="card detail-card-left-vivid text-center p-4">
+        <!-- THE IMAGE FIX: Use cloudinary_url() -->
         {% if employee.image %}
           <img class="detail-avatar"
                src="{{ cloudinary_url(employee.image, height=150, width=150, crop='fill', gravity='face') }}"
@@ -34,7 +35,7 @@
           <span class="badge text-bg-warning rounded-pill px-3 py-2 align-self-center">Inactive</span>
         {% endif %}
 
-        <hr class="text-secondary">
+        <hr class="text-secondary-subtle">
 
         <div class="d-grid gap-2">
           <a href="{{ url_for('edit_employee', id=employee.id) }}" class="btn btn-primary">
@@ -54,9 +55,9 @@
 
     <!-- Right Card: Details -->
     <div class="col-lg-8">
-      <div class="card detail-card-right">
+      <div class="card detail-card-right-vivid">
         <div class="card-body p-4 p-md-5">
-          <h5 class="mb-4 text-light fw-bold">Contact Information</h5>
+          <h5 class="mb-4 text-dark fw-bold">Contact Information</h5>
           
           <div class="detail-info-item">
             <i class="bi bi-envelope-fill"></i>
@@ -82,7 +83,7 @@
             </div>
           </div>
 
-          <h5 class="mb-4 mt-5 text-light fw-bold">Job Information</h5>
+          <h5 class="mb-4 mt-5 text-dark fw-bold">Job Information</h5>
 
           <div class="detail-info-item">
             <i class="bi bi-calendar-check-fill"></i>
@@ -96,12 +97,13 @@
             <i class="bi bi-file-earmark-text-fill"></i>
             <div>
               <div class="info-label">Document</div>
+              <!-- THE IMAGE FIX: Use cloudinary_url() for documents -->
               {% if employee.document %}
                 <a href="{{ cloudinary_url(employee.document)[0] }}" target="_blank" class="btn btn-sm btn-outline-secondary">
                   <i class="bi bi-download me-1"></i> View Document
                 </a>
               {% else %}
-                <div class="info-value text-dark">No document on file</div>
+                <div class="info-value text-muted">No document on file</div>
               {% endif %}
             </div>
           </div>
