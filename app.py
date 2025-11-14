@@ -896,27 +896,26 @@ def add_employee():
 #
 # ROUTE 1: Make sure your /employees route looks like this
 #
+#
+# ROUTE 1: For the main employees page (stats & filters)
+#
 @app.route("/employees")
 def employees():
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
-    # 1. Get all employees
     cursor.execute("SELECT * FROM employees ORDER BY name ASC")
     data = cursor.fetchall()
     
-    # 2. Get data for filters
     cursor.execute("SELECT DISTINCT position FROM employees WHERE position IS NOT NULL AND position != '' ORDER BY position ASC")
     positions = cursor.fetchall()
     cursor.execute("SELECT DISTINCT city FROM employees WHERE city IS NOT NULL AND city != '' ORDER BY city ASC")
     cities = cursor.fetchall()
     
-    # 3. Get data for stats
     cursor.execute("SELECT COUNT(id) AS count, status FROM employees GROUP BY status")
     status_counts_raw = cursor.fetchall()
     
     cursor.close()
     
-    # 4. Process stats
     stats = {
         'total_employees': len(data),
         'active_employees': 0,
@@ -928,7 +927,6 @@ def employees():
         elif row['status'] == 'inactive':
             stats['inactive_employees'] = row['count']
             
-    # 5. Package filter data
     filters = {
         'positions': positions,
         'cities': cities
@@ -940,7 +938,7 @@ def employees():
                            filters=filters)
 
 #
-# ROUTE 2: Add this new route for the "View Details" page
+# ROUTE 2: For the "View Details" page
 #
 @app.route('/employee/view/<int:id>')
 def employee_details(id):
@@ -2712,6 +2710,7 @@ def download_transaction_report():
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
