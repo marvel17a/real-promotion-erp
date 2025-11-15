@@ -125,11 +125,8 @@
         <!-- Card Avatar & Title -->
         <div class="card-avatar-section">
           <!-- THIS IS THE IMAGE FIX -->
-          {% if emp.image %}
-  <img class="avatar"
-       src="{{ emp.image }}"
-       alt="{{ emp.name }}"
-       style="object-fit: cover;">
+          <img class="avatar" src="{{ emp.image | fix_image }}" alt="{{ emp.name }}">
+
 {% else %}
   <div class="avatar placeholder">No photo</div>
 {% endif %}
@@ -169,5 +166,6 @@
 
 </div>
 {% endblock %}
+
 
 
