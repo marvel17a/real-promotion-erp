@@ -1,18 +1,33 @@
 /* ================= HERO BACKGROUND IMAGE ================= */
 .hero-banner {
   width: 100%;
-  height: 330px;
+  height: 420px;
+  background: url('../uploads/real.png') center no-repeat;
   background-size: cover;
-  display: flex;
-  justify-content: center;
-  align-items: center;
   position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
 }
 
-/* ================= HERO CONTENT ================= */
+/* Top Marquee */
+.hero-marquee {
+  width: 100%;
+  background: rgba(255,255,255,0.92);
+  border-bottom: 3px solid #c49300;
+  padding: 8px 0;
+  font-size: 18px;
+  color: #c49300;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* Hero content center */
 .hero-content {
+  margin-top: 35px;
   text-align: center;
-  padding-top: 10px;
 }
 
 /* Logo */
@@ -24,45 +39,83 @@
 
 /* Title */
 .hero-title {
-  font-size: 42px;
+  margin-top: 10px;
+  font-size: 46px;
   font-weight: 900;
   color: #153A6E;
-  letter-spacing: 1px;
-  text-shadow: 0px 2px 4px rgba(0,0,0,0.25);
-  margin-top: 8px;
-}
-
-/* Marquee */
-.hero-marquee {
-  background: rgba(255,255,255,0.85);
-  border-top: 3px solid #c49300;
-  border-bottom: 3px solid #c49300;
-  padding: 6px 0;
-  margin: 10px auto 15px;
-  font-size: 18px;
-  color: #c49300;
-  font-weight: 700;
-  width: 80%;
-  max-width: 900px;
-  border-radius: 5px;
+  text-shadow: 0px 2px 6px rgba(0,0,0,0.3);
 }
 
 /* Dashboard Button */
 .hero-btn {
   display: inline-block;
-  padding: 10px 26px;
+  margin-top: 15px;
+  padding: 12px 34px;
+  background: #153A6E;
+  color: #fff;
+  border-radius: 40px;
   font-size: 18px;
   font-weight: 600;
-  border-radius: 35px;
-  background: #153A6E;
-  color: white;
   text-decoration: none;
-  box-shadow: 0 3px 10px rgba(0,0,0,0.2);
-  transition: 0.2s ease;
+  transition: 0.3s ease;
+  box-shadow: 0 3px 12px rgba(0,0,0,0.25);
 }
 
 .hero-btn:hover {
   background: #0d2951;
-  transform: translateY(-2px);
+  transform: translateY(-3px);
 }
 
+
+
+/* ================= WORKFLOW SECTION ================= */
+.erp-workflow {
+  background: #f8f8f8;
+}
+
+.section-title {
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: #153A6E;
+}
+
+/* Card */
+.workflow-card {
+  background: white;
+  padding: 25px;
+  border-radius: 15px;
+  text-align: center;
+  transition: 0.3s ease;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.10);
+}
+
+.workflow-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.18);
+}
+
+/* Icons */
+.workflow-icon {
+  font-size: 40px;
+  color: #153A6E;
+  margin-bottom: 15px;
+}
+
+
+
+/* ================= CTA SECTION ================= */
+.erp-cta {
+  background: linear-gradient(135deg, #fd746c, #ff9068);
+}
+
+.erp-cta a {
+  padding: 12px 30px;
+  font-weight: 600;
+  border-radius: 50px;
+  transition: 0.3s ease;
+}
+
+.erp-cta a:hover {
+  transform: translateY(-4px);
+}
