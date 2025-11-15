@@ -94,9 +94,10 @@
           -->
           {% if product.image %}
             <img class="card-product-image"
-                 src="{{ cloudinary_url(product.image, height=250, width=300, crop='fill') }}"
-                 alt="{{ product.name }}"
-                 style="object-fit: cover;">
+     src="{{ product.image | fix_image }}"
+     alt="{{ product.name }}"
+     style="object-fit: cover;">
+
           {% else %}
             <div class="card-product-image placeholder">
               <i class="bi bi-camera"></i>
@@ -149,5 +150,6 @@
 
 </div>
 {% endblock %}
+
 
 
