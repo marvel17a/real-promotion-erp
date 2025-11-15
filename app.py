@@ -108,7 +108,7 @@ def login():
         if user:
             session["loggedin"] = True
             session["username"] = user["username"]
-            return redirect(url_for("inventory"))
+            return redirect(url_for("index"))
         else:
             flash("Invalid username or password", "error")
             return redirect(url_for("login"))
@@ -2857,6 +2857,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
