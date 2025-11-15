@@ -2,6 +2,7 @@
 .hero-banner {
   width: 100%;
   height: 420px;
+  background: url('../uploads/real.png') center no-repeat;
   background-size: cover;
   position: relative;
   display: flex;
@@ -118,4 +119,5 @@
 .erp-cta a:hover {
   transform: translateY(-4px);
 }
+
 
