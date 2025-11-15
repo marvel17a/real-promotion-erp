@@ -3,67 +3,69 @@
 
 {% block content %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/index.css') }}">
- <marquee class="hero-marquee" scrollamount="6">
-            Real Group — Building Trust, Delivering Performance, Growing Together
-        </marquee>
-<!-- ================= HERO SECTION ================= -->
+
+<!-- ==================== HERO SECTION ==================== -->
 <section class="hero-banner">
+
+    <!-- Top Marquee -->
+    <marquee class="hero-marquee" scrollamount="6">
+        REAL GROUP — Building Trust, Delivering Performance, Growing Together
+    </marquee>
+
     <div class="hero-content">
 
-         
         <!-- Logo -->
         <img src="{{ url_for('static', filename='uploads/real.png') }}"
-             class="hero-logo">
-             
+             class="hero-logo"
+             alt="Real Promotion Logo">
 
-    
-
-        <!-- Marquee -->
-      
+        <!-- Title -->
+        <h1 class="hero-title">REAL PROMOTION</h1>
 
         <!-- Dashboard btn -->
-        <a href="/dashboard" class="hero-btn">
-            Go to Dashboard
-        </a>
+        <a href="/dashboard" class="hero-btn">Go to Dashboard</a>
 
     </div>
+
 </section>
 
 
-<!-- ================= WORKFLOW SECTION ================= -->
-<section class="erp-workflow py-5" style="background: linear-gradient(135deg, #6c5ce7, #00b894);">
-  <div class="container text-white">
+
+<!-- ==================== WORKFLOW SECTION ==================== -->
+<section class="erp-workflow py-5">
+  <div class="container">
+    <h2 class="section-title text-center mb-5">Our Workflow</h2>
     <div class="row g-4">
 
       <div class="col-md-3">
-        <div class="card bg-transparent border-0 text-center">
-          <i class="fa-solid fa-users fa-2x mb-3"></i>
+        <div class="workflow-card">
+          <i class="fa-solid fa-users workflow-icon"></i>
           <h5>Field Agents</h5>
-          <p>Track 20+ agents with daily routes and performance analytics.</p>
+          <p>Track daily routes & performance of 20+ agents.</p>
         </div>
       </div>
 
       <div class="col-md-3">
-        <div class="card bg-transparent border-0 text-center">
-          <i class="fa-solid fa-boxes-stacked fa-2x mb-3"></i>
+        <div class="workflow-card">
+          <i class="fa-solid fa-boxes-stacked workflow-icon"></i>
           <h5>Inventory</h5>
-          <p>Manage 30+ SKUs with real-time stock visibility.</p>
+          <p>Manage 30+ SKUs with real-time stock updates.</p>
         </div>
       </div>
 
       <div class="col-md-3">
-        <div class="card bg-transparent border-0 text-center">
-          <i class="fa-solid fa-file-invoice-dollar fa-2x mb-3"></i>
+        <div class="workflow-card">
+          <i class="fa-solid fa-file-invoice-dollar workflow-icon"></i>
           <h5>Orders & Ledger</h5>
-          <p>Monitor purchases, supplier dues, and ledger entries.</p>
+          <p>Monitor purchases & supplier dues easily.</p>
         </div>
       </div>
 
       <div class="col-md-3">
-        <div class="card bg-transparent border-0 text-center">
-          <i class="fa-solid fa-chart-line fa-2x mb-3"></i>
+        <div class="workflow-card">
+          <i class="fa-solid fa-chart-line workflow-icon"></i>
           <h5>Reports</h5>
-          <p>Analyze sales, expenses, and profit summaries.</p>
+          <p>Analyze sales, expenses & profit instantly.</p>
         </div>
       </div>
 
@@ -72,10 +74,11 @@
 </section>
 
 
-<!-- ================= CTA SECTION ================= -->
-<section class="erp-cta py-5 text-center text-white" style="background: linear-gradient(135deg, #fd746c, #ff9068);">
+
+<!-- ==================== CTA SECTION ==================== -->
+<section class="erp-cta py-5 text-center text-white">
   <div class="container">
-    <h3 class="mb-4">Quick Access</h3>
+    <h3 class="mb-4 fw-bold">Quick Access</h3>
     <a href="/inventory" class="btn btn-outline-light btn-lg mx-2">Explore Inventory</a>
     <a href="/reports" class="btn btn-outline-light btn-lg mx-2">View Reports</a>
     <a href="/employees" class="btn btn-outline-light btn-lg mx-2">Meet the Team</a>
@@ -83,5 +86,3 @@
 </section>
 
 {% endblock %}
-
-
