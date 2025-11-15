@@ -609,57 +609,78 @@ def purchase_pdf(purchase_id):
     response.headers.set('Content-Disposition', 'attachment', filename=f'Purchase_{purchase_id}.pdf')
     return response
 
+# -------------------------------------------------------------- INVENTORY MODULE-------------------------------------------------------------------
 
-#-------Product--------------------------------------------------------------------------------
+#----------------------------------------INVENTORY-----------------------------------------------------------
+@app.route("/inventory")
+def inventory():
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    
+    # 1. Get all products
+    cursor.execute("SELECT * FROM products ORDER BY name ASC")
+    products = cursor.fetchall()
+    
+    # 2. (NEW) Get data for filters
+    cursor.execute("SELECT DISTINCT category FROM products WHERE category IS NOT NULL AND category != '' ORDER BY category ASC")
+    categories = cursor.fetchall()
+    
+    # 3. (NEW) Get data for stats
+    cursor.execute("SELECT COUNT(id) AS count FROM products")
+    total_products = cursor.fetchone()['count']
+    
+    cursor.execute("SELECT SUM(stock * price) AS total_value FROM products")
+    total_value = cursor.fetchone()['total_value']
+    
+    cursor.execute("SELECT COUNT(id) AS count FROM products WHERE stock <= 10")
+    low_stock_count = cursor.fetchone()['count']
 
-@app.route('/products')
-def products():
-    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    cur.execute("SELECT * FROM products")
-    products = cur.fetchall()
-    cur.close()
-    return render_template('products.html', products=products)
+    cursor.close()
+    
+    # 4. (NEW) Process stats
+    stats = {
+        'total_products': total_products or 0,
+        'total_value': total_value or 0,
+        'low_stock_count': low_stock_count or 0
+    }
+            
+    # 5. (NEW) Package filter data
+    filters = {
+        'categories': categories
+    }
+    
+    return render_template("inventory.html", 
+                           products=products, 
+                           stats=stats, 
+                           filters=filters)
 
 
 
-#
-# This file shows the modifications for your app.py
-# 1. Find and DELETE your old 'add_product_form' function.
-# 2. Find and DELETE your old 'add_product' function.
-# 3. Copy and PASTE these two new versions into your app.py
-#
 
-# ===================================================
-# THIS IS ROUTE 1: To SHOW the page
-# (Security removed, as requested)
-# ===================================================
-@app.route("/add_product_form") # This is the route that shows the page
+
+@app.route("/add_product_form")
 def add_product_form():
-    # Removed: if "loggedin" not in session: ...
+    # This route just shows the page
     return render_template("add_product.html")
 
 
-# ===================================================
-# THIS IS ROUTE 2: To SAVE the data
-# (Security removed + Redirect fixed + lowercase table)
-# ===================================================
-
-@app.route("/add_product", methods=["POST"])
+@app.route("/add_product", methods=["GET", "POST"])
 def add_product():
-    # ... (all your existing code)
-        
+    # This route handles the form submission
     if request.method == "POST":
         name = request.form.get("name")
         category = request.form.get("category")
         price = request.form.get("price")
         stock = int(request.form.get("stock") or 0)
+        
+        # (NEW) Get purchase_price from the form
+        purchase_price = request.form.get("purchase_price", 0.0)
+
         image_file = request.files.get("image")
         
-        image_id = None # <-- RENAMED VARIABLE
+        image_id = None # <-- This will store the public_id
 
         if image_file and allowed_file(image_file.filename):
             try:
-                # Upload to Cloudinary
                 upload_result = cloudinary.uploader.upload(
                     image_file, 
                     folder="erp_products" 
@@ -668,14 +689,13 @@ def add_product():
                 # THE FIX: Save the 'public_id', not the 'secure_url'
                 #
                 image_id = upload_result.get('public_id') 
-                app.logger.info(f"Image uploaded to Cloudinary, public_id: {image_id}")
+                app.logger.info(f"Image uploaded, public_id: {image_id}")
             except Exception as e:
                 app.logger.error(f"Cloudinary upload failed: {e}")
                 flash(f"Image upload failed: {e}", "danger")
                 return redirect(url_for("add_product_form"))
 
         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-        
         cursor.execute(
             "SELECT id, stock FROM products WHERE name=%s AND category=%s",
             (name, category)
@@ -683,35 +703,32 @@ def add_product():
         existing = cursor.fetchone()
 
         if existing:
-            # Update existing product
+            # (UPDATED) Update existing product
             if image_id: # Only update image if a new one was uploaded
                 cursor.execute("""
-                    UPDATE products SET stock=%s, price=%s, image=%s
+                    UPDATE products SET stock=%s, price=%s, purchase_price=%s, image=%s
                     WHERE id=%s
-                """, (existing['stock'] + stock, price, image_id, existing['id']))
+                """, (existing['stock'] + stock, price, purchase_price, image_id, existing['id']))
             else: # No new image, just update stock/price
                 cursor.execute("""
-                    UPDATE products SET stock=%s, price=%s
+                    UPDATE products SET stock=%s, price=%s, purchase_price=%s
                     WHERE id=%s
-                """, (existing['stock'] + stock, price, existing['id']))
+                """, (existing['stock'] + stock, price, purchase_price, existing['id']))
         else:
-            # Insert new product
+            # (UPDATED) Insert new product
             cursor.execute("""
-                INSERT INTO products (name, category, price, stock, image)
-                VALUES (%s, %s, %s, %s, %s)
-            """, (name, category, price, stock, image_id)) # <-- Use image_id
+                INSERT INTO products (name, category, price, stock, purchase_price, image)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """, (name, category, price, stock, purchase_price, image_id))
 
         mysql.connection.commit()
         cursor.close()
         flash("✅ Product added/updated successfully!", "success")
         return redirect(url_for("inventory"))
 
+    # If GET request, show the form
     return redirect(url_for("add_product_form"))
 
-
-
-
-# --- MODIFIED: `edit_product` ---
 
 @app.route('/products/edit/<int:id>', methods=['GET', 'POST'])
 def edit_product(id):
@@ -727,14 +744,16 @@ def edit_product(id):
         category = request.form['category']
         price = request.form['price']
         stock = request.form['stock']
+        
+        # (NEW) Get purchase_price from the form
+        purchase_price = request.form.get("purchase_price", 0.0)
+        
         image_file = request.files.get('image')
 
-        # Start with the existing image ID
-        image_id = product['image'] 
+        image_id = product['image'] # Start with existing ID
 
         if image_file and allowed_file(image_file.filename):
             try:
-                # Upload the NEW image to Cloudinary
                 upload_result = cloudinary.uploader.upload(
                     image_file, 
                     folder="erp_products"
@@ -743,18 +762,17 @@ def edit_product(id):
                 # THE FIX: Get the new 'public_id'
                 #
                 image_id = upload_result.get('public_id') 
-                app.logger.info(f"Image updated in Cloudinary, public_id: {image_id}")
+                app.logger.info(f"Image updated, public_id: {image_id}")
             except Exception as e:
-                app.logger.error(f"Cloudinary upload failed: {e}")
                 flash(f"Image upload failed: {e}", "danger")
                 return render_template("edit_product.html", product=product)
 
-        # Update the database with the new (or old) image ID
+        # (UPDATED) Update the database
         cur.execute("""
             UPDATE products 
-            SET name=%s, category=%s, price=%s, stock=%s, image=%s 
+            SET name=%s, category=%s, price=%s, stock=%s, purchase_price=%s, image=%s 
             WHERE id=%s
-        """, (name, category, price, stock, image_id, id))
+        """, (name, category, price, stock, purchase_price, image_id, id))
         
         mysql.connection.commit()
         cur.close()
@@ -1127,14 +1145,7 @@ def mark_attendance(id):
         return jsonify({"ok": False, "error": str(e)}), 500
 
 
-#----------------------------------------INVENTORY-----------------------------------------------------------
-@app.route("/inventory")
-def inventory():
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    cursor.execute("SELECT * FROM products")
-    products = cursor.fetchall()
-    cursor.close()
-    return render_template("inventory.html", products=products)
+
 
 
 #=============================================EXPENSES================================================
@@ -2710,6 +2721,7 @@ def download_transaction_report():
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
