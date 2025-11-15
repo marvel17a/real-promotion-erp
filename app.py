@@ -2400,6 +2400,72 @@ def profitability_report():
                            **report_data
                            )
 
+
+
+# --- Product Sales Detail Report Route ---
+@app.route('/reports/product_sales', methods=['GET', 'POST'])
+def product_sales():
+    db_cursor = None
+    try:
+        db_cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        db_cursor.execute("SELECT id, name FROM products ORDER BY name")
+        all_products = db_cursor.fetchall()
+
+        # Default to the last 30 days
+        end_date = date.today()
+        start_date = end_date - timedelta(days=29)
+        
+        sales_data = []
+        selected_product_id = None
+        selected_product_name = ""
+
+        if request.method == 'POST':
+            start_date_str = request.form.get('start_date')
+            end_date_str = request.form.get('end_date')
+            selected_product_id = request.form.get('product_id')
+            
+            start_date = date.fromisoformat(start_date_str)
+            end_date = date.fromisoformat(end_date_str)
+            
+            if not selected_product_id:
+                flash("Please select a product to generate the report.", "warning")
+            else:
+                sql = """
+                    SELECT
+                        e.name AS employee_name,
+                        SUM(ei.sold_qty) AS total_units_sold
+                    FROM evening_item ei
+                    JOIN evening_settle es ON ei.settle_id = es.id
+                    JOIN employees e ON es.employee_id = e.id
+                    WHERE es.date BETWEEN %s AND %s AND ei.product_id = %s AND ei.sold_qty > 0
+                    GROUP BY e.id, e.name
+                    ORDER BY total_units_sold DESC
+                """
+                db_cursor.execute(sql, (start_date, end_date, selected_product_id))
+                sales_data = db_cursor.fetchall()
+
+                # Get product name for the report title
+                product = next((p for p in all_products if p['id'] == int(selected_product_id)), None)
+                if product:
+                    selected_product_name = product['name']
+
+        return render_template('reports/product_sales.html', 
+                               all_products=all_products,
+                               start_date=start_date.isoformat(), 
+                               end_date=end_date.isoformat(),
+                               start_date_str=start_date.strftime('%d %b, %Y'),
+                               end_date_str=end_date.strftime('%d %b, %Y'),
+                               sales_data=sales_data,
+                               selected_product_id=int(selected_product_id) if selected_product_id else None,
+                               selected_product_name=selected_product_name)
+    except Exception as e:
+        flash(f"An error occurred: {e}", "danger")
+        return redirect(url_for('reports'))
+    finally:
+        if db_cursor:
+            db_cursor.close()
+
+
 # ================================================  Employee Ledger Routes =======================================================
 @app.route('/emp_list')
 def emp_list():
@@ -2734,6 +2800,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
