@@ -427,6 +427,35 @@ def record_payment(supplier_id):
     return render_template('suppliers/new_payment.html', supplier=supplier, today_date=date.today().isoformat())
 
 
+@app.route('/suppliers/delete/<int:supplier_id>', methods=['POST'])
+def delete_supplier(supplier_id):
+    cursor = None
+    try:
+        cursor = mysql.connection.cursor()
+
+        # FIRST delete dependent tables (important for FK constraints)
+        cursor.execute("DELETE FROM supplier_payments WHERE supplier_id = %s", (supplier_id,))
+        cursor.execute("DELETE FROM purchase_items WHERE purchase_id IN (SELECT id FROM purchases WHERE supplier_id = %s)", (supplier_id,))
+        cursor.execute("DELETE FROM purchases WHERE supplier_id = %s", (supplier_id,))
+
+        # NOW delete the supplier
+        cursor.execute("DELETE FROM suppliers WHERE id = %s", (supplier_id,))
+
+        mysql.connection.commit()
+        flash("Supplier deleted successfully!", "success")
+
+    except Exception as e:
+        mysql.connection.rollback()
+        flash(f"Error deleting supplier: {e}", "danger")
+
+    finally:
+        if cursor:
+            cursor.close()
+
+    return redirect(url_for('suppliers'))
+
+
+
 # =====================================================================
 # PURCHASE MANAGEMENT ROUTES
 # =====================================================================
@@ -2828,6 +2857,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
