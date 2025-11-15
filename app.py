@@ -28,6 +28,8 @@ from werkzeug.utils import secure_filename
 import MySQLdb 
 from flask_mysqldb import MySQL
 from flask import Flask,jsonify,request
+from cloudinary.utils import cloudinary_url
+
 
 from flask import Response
 
@@ -90,23 +92,30 @@ def inject_cloudinary_url():
     # This is the correct function from the cloudinary library
     return dict(cloudinary_url=cloudinary.utils.cloudinary_url)
 
-# ----------------- IMAGE FIX FILTER (FINAL WORKING VERSION) -----------------
+
+# ----------------- FINAL FIX FOR CLOUDINARY + LOCAL IMAGES -----------------
 @app.template_filter("fix_image")
 def fix_image(image):
-    if not image:
-        return url_for("static", filename="img/default-user.png")  # fallback image
+    if not image or image.strip() == "":
+        # fallback avatar
+        return url_for('static', filename='img/default-user.png')
 
-    # 1. If Cloudinary PUBLIC ID -> convert to full secure URL
-    if not image.startswith("http") and "/" not in image and "." not in image:
-        url, _ = cloudinary.utils.cloudinary_url(image, secure=True)
-        return url
-
-    # 2. If full Cloudinary URL
+    # CASE 1: already full Cloudinary URL
     if image.startswith("http"):
         return image
 
-    # 3. Else treat as old local image
-    return url_for("static", filename="uploads/" + image)
+    # CASE 2: Cloudinary public_id (example: erp_employees/abcd123)
+    if "/" in image and "." not in image:
+        # generate full Cloudinary URL
+        url, _ = cloudinary_url(image, secure=True)
+        return url
+
+    # CASE 3: stored old filename like "1.jpeg"
+    if "." in image:
+        return url_for('static', filename='uploads/' + image)
+
+    # fallback
+    return url_for('static', filename='img/default-user.png')
 
 
 
@@ -2877,6 +2886,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
