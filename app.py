@@ -2715,12 +2715,26 @@ def download_transaction_report():
     return redirect(url_for('transaction_report'))
 
 
+
+# ---------- CUSTOM JINJA FILTER: INR FORMAT ----------
+@app.template_filter("inr")
+def inr_format(value):
+    """Format number as Indian Rupees."""
+    try:
+        value = float(value)
+        return f"₹ {value:,.2f}"
+    except:
+        return value
+
+
+
 # --- FINAL: Add this to the very bottom ---
 # This block is for local development
 # Render will use gunicorn to run the 'app' object
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
