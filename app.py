@@ -609,6 +609,34 @@ def purchase_pdf(purchase_id):
     response.headers.set('Content-Disposition', 'attachment', filename=f'Purchase_{purchase_id}.pdf')
     return response
 
+
+@app.route('/purchases/delete/<int:purchase_id>', methods=['POST'])
+def delete_purchase(purchase_id):
+    cursor = None
+    try:
+        cursor = mysql.connection.cursor()
+
+        # Delete dependent child rows first (important for foreign key)
+        cursor.execute("DELETE FROM purchase_items WHERE purchase_id = %s", (purchase_id,))
+
+        # Delete the parent purchase record
+        cursor.execute("DELETE FROM purchases WHERE id = %s", (purchase_id,))
+
+        mysql.connection.commit()
+        flash("Purchase deleted successfully!", "success")
+
+    except Exception as e:
+        mysql.connection.rollback()
+        flash(f"Error deleting purchase: {e}", "danger")
+
+    finally:
+        if cursor:
+            cursor.close()
+
+    return redirect(url_for('purchases'))
+
+
+
 # -------------------------------------------------------------- INVENTORY MODULE-------------------------------------------------------------------
 
 #----------------------------------------INVENTORY-----------------------------------------------------------
@@ -2800,6 +2828,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
