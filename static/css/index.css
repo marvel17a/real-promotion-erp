@@ -6,10 +6,10 @@
 .hero-bg {
   position: absolute;
   top: 0; left: 0;
-  width: 100%; height: 100%;
+  width: 80%; height: 60%;
   background-size: cover;
   background-position: center;
-  filter: blur(4px) brightness(0.6);
+  filter: blur(px) brightness(1);
   z-index: 1;
 }
 .hero-overlay {
@@ -29,3 +29,4 @@
   transform: scale(1.05);
   transition: 0.3s ease;
 }
+
