@@ -56,7 +56,10 @@
                             {% for purchase in purchases %}
                             <tr>
                                 <td>{{ purchase.purchase_date.strftime('%d-%b-%Y') }}</td>
-                                <td><a href="purchases/view_purchase">{{ purchase.bill_number or 'View' }}</a></td>
+                                <td><a href="{{ url_for('view_purchase', purchase_id=purchase.id) }}" class="btn btn-sm btn-primary">
+    View
+</a>
+</td>
                                 <td class="text-end fw-bold text-danger">+ ₹{{ "%.2f"|format(purchase.total_amount) }}</td>
                             </tr>
                             {% else %}
@@ -110,4 +113,5 @@
     }
 </style>
 {% endblock %}
+
 
