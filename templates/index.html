@@ -5,28 +5,27 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/index.css') }}">
 
 <!-- HERO SECTION -->
-<section class="new-hero-section text-center">
+<section class="hero-banner">
+    <div class="hero-overlay">
 
-    <!-- Logo -->
-    <img src="{{ url_for('static', filename='uploads/real_newlogo.png') }}" 
-         class="hero-logo"
-         alt="Real Promotion Logo">
+        <!-- LOGO -->
+        <img src="{{ url_for('static', filename='uploads/real_newlogo.png') }}"
+             class="hero-logo"
+             alt="Real Promotion Logo">
 
-    <!-- Main Title -->
-    <h1 class="hero-title">REAL PROMOTION</h1>
+        <!-- Title -->
+        <h1 class="hero-title">REAL PROMOTION</h1>
 
-    <!-- Marquee Slogan -->
-    <marquee class="hero-marquee" behavior="scroll" direction="left" scrollamount="7">
-        Real Group — Building Trust, Delivering Performance, Growing Together
-    </marquee>
+        <!-- Marquee -->
+        <marquee class="hero-marquee" scrollamount="6">
+            Real Group — Building Trust, Delivering Performance, Growing Together
+        </marquee>
 
-    <!-- CTA Button -->
-    <a href="/dashboard" class="btn btn-light btn-lg mt-3 hero-btn">Enter Dashboard</a>
+    </div>
 </section>
 
-<!-- Rest of your existing sections stay EXACTLY as they are -->
 
-<!-- Workflow Section -->
+<!-- WORKFLOW SECTION -->
 <section class="erp-workflow py-5" style="background: linear-gradient(135deg, #6c5ce7, #00b894);">
   <div class="container text-white">
     <div class="row g-4">
@@ -35,7 +34,7 @@
         <div class="card bg-transparent border-0 text-center">
           <i class="fa-solid fa-users fa-2x mb-3"></i>
           <h5>Field Agents</h5>
-          <p>Track 20+ agents with route logs and performance metrics.</p>
+          <p>Track 20+ agents with daily routes and performance analytics.</p>
         </div>
       </div>
 
@@ -43,7 +42,7 @@
         <div class="card bg-transparent border-0 text-center">
           <i class="fa-solid fa-boxes-stacked fa-2x mb-3"></i>
           <h5>Inventory</h5>
-          <p>Manage 30+ SKUs with real-time stock updates and supplier tracking.</p>
+          <p>Manage 30+ SKUs with real-time stock visibility.</p>
         </div>
       </div>
 
@@ -51,7 +50,7 @@
         <div class="card bg-transparent border-0 text-center">
           <i class="fa-solid fa-file-invoice-dollar fa-2x mb-3"></i>
           <h5>Orders & Ledger</h5>
-          <p>View purchase orders, supplier dues, and ledger summaries.</p>
+          <p>Monitor purchases, supplier dues, and ledger entries.</p>
         </div>
       </div>
 
@@ -59,7 +58,7 @@
         <div class="card bg-transparent border-0 text-center">
           <i class="fa-solid fa-chart-line fa-2x mb-3"></i>
           <h5>Reports</h5>
-          <p>Access daily sales, expenses, and net cash flow summaries.</p>
+          <p>Analyze sales, expenses, and profit summaries.</p>
         </div>
       </div>
 
@@ -67,7 +66,8 @@
   </div>
 </section>
 
-<!-- CTA Section -->
+
+<!-- CTA SECTION -->
 <section class="erp-cta py-5 text-center text-white" style="background: linear-gradient(135deg, #fd746c, #ff9068);">
   <div class="container">
     <h3 class="mb-4">Quick Access</h3>
