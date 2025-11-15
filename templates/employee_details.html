@@ -94,21 +94,24 @@
             </div>
           </div>
 
-          <div class="detail-info-item">
-            <i class="bi bi-file-earmark-text-fill"></i>
-            <div>
-              <div class="info-label">Document</div>
-              <!-- THE IMAGE FIX: Use cloudinary_url() for documents -->
-              {% if employee.document %}
-                <a href="{{ cloudinary_url(employee.document)[0] }}" target="_blank" class="btn btn-sm btn-outline-secondary">
-                  <i class="bi bi-download me-1"></i> View Document
-                </a>
-              {% else %}
-                <div class="info-value text-muted">No document on file</div>
-              {% endif %}
-            </div>
-          </div>
+         <div class="detail-info-item">
+    <i class="bi bi-file-earmark-text-fill"></i>
+    <div>
+        <div class="info-label">Document</div>
 
+        {% if employee.document %}
+            <a href="{{ employee.document }}" 
+               target="_blank" 
+               class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-download me-1"></i> View Document
+            </a>
+        {% else %}
+            <div class="info-value text-muted">No document on file</div>
+        {% endif %}
+    </div>
+</div>
+
+          
         </div>
       </div>
     </div>
