@@ -24,9 +24,21 @@
                     <td>{{ purchase.supplier_name }}</td>
                     <td>{{ purchase.bill_number or 'N/A' }}</td>
                     <td class="text-end fw-bold">₹{{ "%.2f"|format(purchase.total_amount) }}</td>
-                    <td class="text-center">
-                        <a href="{{ url_for('view_purchase', purchase_id=purchase.id) }}" class="btn btn-sm btn-outline-primary">View & Print</a>
-                    </td>
+                   <td class="text-center">
+    <a href="{{ url_for('view_purchase', purchase_id=purchase.id) }}" 
+       class="btn btn-sm btn-outline-primary me-2">
+        View
+    </a>
+
+    <form action="{{ url_for('delete_purchase', purchase_id=purchase.id) }}"
+          method="POST"
+          style="display:inline;"
+          onsubmit="return confirm('Are you sure you want to delete this purchase? This action cannot be undone.')">
+        <button type="submit" class="btn btn-sm btn-outline-danger">
+            Delete
+        </button>
+    </form>
+</td>
                 </tr>
                 {% else %}
                 <tr><td colspan="5" class="text-center p-4">No purchases recorded yet. <a href="{{ url_for('add_purchase') }}">Add your first one!</a></td></tr>
@@ -36,4 +48,5 @@
     </div>
 </div>
 {% endblock %}
+
 
