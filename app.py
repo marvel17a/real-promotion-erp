@@ -1327,7 +1327,7 @@ def expense_dash():
     top_3_expenses = cur.fetchall()
     cur.execute("""
         SELECT c.category_name, SUM(e.amount) as total_amount
-        FROM expenses e JOIN expensesubcategories sc ON e.subcategory_id = sc.subcategory_id JOIN ExpenseCategories c ON sc.category_id = c.category_id
+        FROM expenses e JOIN expensesubcategories sc ON e.subcategory_id = sc.subcategory_id JOIN expensecategories c ON sc.category_id = c.category_id
         GROUP BY c.category_name ORDER BY total_amount DESC
     """)
     category_results = cur.fetchall()
@@ -2857,6 +2857,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
