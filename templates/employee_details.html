@@ -19,12 +19,13 @@
       <div class="card detail-card-left-vivid text-center p-4">
         <!-- THE IMAGE FIX: Use cloudinary_url() -->
         {% if employee.image %}
-          <img class="detail-avatar"
-               src="{{ cloudinary_url(employee.image, height=150, width=150, crop='fill', gravity='face') }}"
-               alt="{{ employee.name }}">
-        {% else %}
-          <div class="detail-avatar placeholder">{{ employee.name[0]|upper }}</div>
-        {% endif %}
+  <img class="detail-avatar"
+       src="{{ employee.image }}"
+       alt="{{ employee.name }}"
+       style="object-fit: cover;">
+{% else %}
+  <div class="detail-avatar placeholder">{{ employee.name[0]|upper }}</div>
+{% endif %}
 
         <h3 class="mt-3 mb-1 detail-name">{{ employee.name }}</h3>
         <p class="detail-position">{{ employee.position }}</p>
