@@ -2400,7 +2400,7 @@ def profitability_report():
                            **report_data
                            )
 
-# ... (all other routes) ...
+# ================================================  Employee Ledger Routes =======================================================
 @app.route('/emp_list')
 def emp_list():
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
@@ -2721,6 +2721,7 @@ def download_transaction_report():
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
