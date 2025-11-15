@@ -20,10 +20,8 @@
       <div class="card detail-card-left-vivid p-4 text-center">
 
         {% if employee.image %}
-          <img class="detail-avatar"
-               src="{{ employee.image | fix_image }}"
-               alt="{{ employee.name }}">
-        {% else %}
+          <img src="{{ employee.image | fix_image }}" class="detail-avatar">
+       {% else %}
           <div class="detail-avatar placeholder">{{ employee.name[0] }}</div>
         {% endif %}
 
