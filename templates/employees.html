@@ -126,14 +126,14 @@
         <div class="card-avatar-section">
           <!-- THIS IS THE IMAGE FIX -->
           {% if emp.image %}
-            <img class="avatar"
-                 src="{{ cloudinary_url(emp.image, height=100, width=100, crop='fill', gravity='face') }}"
-                 alt="{{ emp.name }}">
-          {% else %}
-            <!-- This is your requested placeholder -->
-            <div class="avatar placeholder">No photo</div>
-          {% endif %}
-          
+  <img class="avatar"
+       src="{{ emp.image }}"
+       alt="{{ emp.name }}"
+       style="object-fit: cover;">
+{% else %}
+  <div class="avatar placeholder">No photo</div>
+{% endif %}
+
           <h5 class="card-title-vivid">{{ emp.name }}</h5>
           <p class="card-position-vivid">{{ emp.position }}</p>
         </div>
@@ -169,4 +169,5 @@
 
 </div>
 {% endblock %}
+
 
