@@ -90,6 +90,21 @@ def inject_cloudinary_url():
     # This is the correct function from the cloudinary library
     return dict(cloudinary_url=cloudinary.utils.cloudinary_url)
 
+
+# ----------------- IMAGE FIX FILTER -----------------
+@app.template_filter("fix_image")
+def fix_image(image):
+    if not image:
+        return None
+
+    # If Cloudinary URL → return as is
+    if image.startswith("http"):
+        return image
+
+    # Else fallback to static/uploads/ folder
+    return url_for("static", filename="uploads/" + image)
+
+
 @app.route("/")
 def index1():
     return redirect(url_for("login"))
@@ -2857,6 +2872,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
