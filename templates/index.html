@@ -4,11 +4,11 @@
 {% block content %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/index.css') }}">
 
-<!-- HERO SECTION -->
+<!-- ================= HERO SECTION ================= -->
 <section class="hero-banner">
-    <div class="hero-overlay">
+    <div class="hero-content">
 
-        <!-- LOGO -->
+        <!-- Logo -->
         <img src="{{ url_for('static', filename='uploads/real.png') }}"
              class="hero-logo"
              alt="Real Promotion Logo">
@@ -21,11 +21,16 @@
             Real Group — Building Trust, Delivering Performance, Growing Together
         </marquee>
 
+        <!-- Dashboard btn -->
+        <a href="/dashboard" class="hero-btn">
+            Go to Dashboard
+        </a>
+
     </div>
 </section>
 
 
-<!-- WORKFLOW SECTION -->
+<!-- ================= WORKFLOW SECTION ================= -->
 <section class="erp-workflow py-5" style="background: linear-gradient(135deg, #6c5ce7, #00b894);">
   <div class="container text-white">
     <div class="row g-4">
@@ -67,7 +72,7 @@
 </section>
 
 
-<!-- CTA SECTION -->
+<!-- ================= CTA SECTION ================= -->
 <section class="erp-cta py-5 text-center text-white" style="background: linear-gradient(135deg, #fd746c, #ff9068);">
   <div class="container">
     <h3 class="mb-4">Quick Access</h3>
@@ -78,4 +83,3 @@
 </section>
 
 {% endblock %}
-
