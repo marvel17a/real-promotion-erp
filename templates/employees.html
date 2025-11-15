@@ -128,9 +128,7 @@
         <!-- Image -->
         <div class="card-avatar-section">
           {% if emp.image %}
-            <img class="avatar"
-                 src="{{ emp.image | fix_image }}"
-                 alt="{{ emp.name }}">
+            <img src="{{ emp.image | fix_image }}" class="avatar" alt="{{ emp.name }}">
           {% else %}
             <div class="avatar placeholder">No Photo</div>
           {% endif %}
@@ -171,3 +169,4 @@
 
 </div>
 {% endblock %}
+
