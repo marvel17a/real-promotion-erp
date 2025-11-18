@@ -1,0 +1,124 @@
+/* ======= CATEGORY HEADER ======= */
+.category-header {
+  background: linear-gradient(135deg, #153A6E, #1c4d9f, #2d74ff);
+  padding: 25px;
+  color: white;
+  border-radius: 15px;
+  margin-bottom: 25px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.category-header h2 {
+  font-size: 26px;
+  font-weight: 800;
+}
+
+.add-btn {
+  font-weight: 600;
+  padding: 10px 20px;
+  border-radius: 30px;
+}
+
+/* ======= CATEGORY CARD GRID ======= */
+.category-grid {
+  margin-top: 15px;
+}
+
+/* ======= CATEGORY CARD ======= */
+.category-card {
+  background: white;
+  border-radius: 14px;
+  padding: 25px 20px;
+  box-shadow: 0 5px 18px rgba(0, 0, 0, 0.08);
+  transition: 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  height: 230px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+/* Hover animation */
+.category-card:hover {
+  transform: translateY(-7px);
+  box-shadow: 0 12px 25px rgba(0, 0, 0, 0.15);
+}
+
+/* Gradient top bar */
+.category-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%;
+  height: 6px;
+  background: linear-gradient(135deg, #ff8a00, #ff3c3c);
+  border-top-left-radius: 14px;
+  border-top-right-radius: 14px;
+}
+
+/* Icons */
+.category-icon {
+  font-size: 40px;
+  color: #153A6E;
+  margin-bottom: 10px;
+}
+
+/* Title */
+.category-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #1b2a45;
+  margin-bottom: 6px;
+}
+
+/* Description */
+.category-desc {
+  color: #6f6f6f;
+  font-size: 14px;
+  min-height: 45px;
+}
+
+/* Actions */
+.category-actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 10px;
+}
+
+.category-actions .btn {
+  width: 48%;
+}
+
+/* ======= FORM CARD ======= */
+.category-form-card {
+  max-width: 700px;
+  margin: 0 auto;
+  border-radius: 15px;
+  box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+  padding: 5px;
+}
+
+.category-form-card .card-body {
+  padding: 30px;
+}
+
+.category-form-card .form-control {
+  padding: 12px;
+  border-radius: 10px;
+  font-size: 15px;
+}
+
+.category-form-card .btn-primary {
+  padding: 10px 25px;
+  border-radius: 30px;
+  font-weight: 600;
+}
+
+.category-form-card .btn-secondary {
+  padding: 10px 22px;
+  border-radius: 30px;
+  font-weight: 600;
+}
