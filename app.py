@@ -758,8 +758,8 @@ def edit_category(id):
 
     return render_template("edit_category.html", category=category)
 
-@app.route('/categories/delete/<int:id>', methods=['POST'])
-def delete_category(id):
+@app.route('/categories/delet/<int:id>', methods=['POST'])
+def delet_category(id):
     if "loggedin" not in session:
         return redirect(url_for("login"))
 
@@ -2961,6 +2961,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
