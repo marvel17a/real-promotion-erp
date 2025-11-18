@@ -1,0 +1,45 @@
+{% extends "admin_master.html" %}
+{% block page_content %}
+
+<link rel="stylesheet" href="{{ url_for('static', filename='css/categories.css') }}">
+
+<div class="category-header">
+    <h2><i class="fa-solid fa-plus me-2"></i> Add New Category</h2>
+</div>
+
+<div class="card category-form-card">
+    <div class="card-body">
+
+        <form action="{{ url_for('add_category') }}" method="POST">
+
+            <!-- Category Name -->
+            <div class="mb-3">
+                <label class="form-label fw-bold">Category Name</label>
+                <input type="text" name="category_name" class="form-control" required
+                    placeholder="Enter category name...">
+            </div>
+
+            <!-- Description -->
+            <div class="mb-3">
+                <label class="form-label fw-bold">Description (optional)</label>
+                <textarea name="description" class="form-control" rows="3"
+                    placeholder="Write something about this category..."></textarea>
+            </div>
+
+            <!-- Buttons -->
+            <div class="d-flex justify-content-between mt-4">
+                <a href="{{ url_for('categories') }}" class="btn btn-secondary">
+                    <i class="fa-solid fa-arrow-left me-1"></i> Back
+                </a>
+
+                <button type="submit" class="btn btn-primary px-4">
+                    <i class="fa-solid fa-plus me-1"></i> Add Category
+                </button>
+            </div>
+
+        </form>
+
+    </div>
+</div>
+
+{% endblock %}
