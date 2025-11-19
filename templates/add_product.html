@@ -88,6 +88,35 @@
   </form>
 </div>
 
+<!-- existing inputs above... -->
+
+<!-- Category select -->
+<div class="mb-3">
+  <label class="form-label">Category</label>
+  <select name="category_id" class="form-select">
+    <option value="">-- Select category --</option>
+    {% for cat in categories %}
+      <option value="{{ cat.id }}">{{ cat.category_name }}</option>
+    {% endfor %}
+  </select>
+</div>
+
+<!-- Initial Stock -->
+<div class="mb-3">
+  <label class="form-label">Initial Stock</label>
+  <input type="number" name="stock" class="form-control" min="0" value="0" required>
+</div>
+
+<!-- Low Stock Threshold -->
+<div class="mb-3">
+  <label class="form-label">Low Stock Threshold</label>
+  <input type="number" name="low_stock_threshold" class="form-control" min="0" value="10" required>
+  <div class="form-text">If stock ≤ this value the product is considered low-stock.</div>
+</div>
+
+<!-- existing submit button... -->
+
+
 <!-- Custom JS to make image preview work -->
 <script>
   document.getElementById('imageInput').addEventListener('change', function(e) {
@@ -109,3 +138,4 @@
   });
 </script>
 {% endblock %}
+
