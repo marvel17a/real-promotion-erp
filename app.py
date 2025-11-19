@@ -1270,40 +1270,6 @@ def api_employee_detail(id):
     return jsonify({"ok": True, "employee": emp})
 
 
-# === Attendance: mark present for TODAY ===
-@app.route("/employees/<int:id>/attendance", methods=["POST"])
-def mark_attendance(id):
-    # Simple table if you don't have one:
-    # CREATE TABLE IF NOT EXISTS employee_attendance (
-    #   id INT AUTO_INCREMENT PRIMARY KEY,
-    #   employee_id INT NOT NULL,
-    #   date DATE NOT NULL,
-    #   in_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    #   UNIQUE KEY uniq_emp_day (employee_id, date),
-    #   FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE
-    # );
-
-    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    try:
-        # ensure employee exists
-        cur.execute("SELECT id FROM employees WHERE id=%s", (id,))
-        if not cur.fetchone():
-            cur.close()
-            return jsonify({"ok": False, "error": "Employee not found"}), 404
-
-        # insert or ignore duplicate day
-        cur.execute("""
-            INSERT INTO employee_attendance (employee_id, date)
-            VALUES (%s, CURDATE())
-            ON DUPLICATE KEY UPDATE in_time = in_time
-        """, (id,))
-        mysql.connection.commit()
-        cur.close()
-        return jsonify({"ok": True, "message": "Attendance marked for today"}), 200
-    except Exception as e:
-        mysql.connection.rollback()
-        cur.close()
-        return jsonify({"ok": False, "error": str(e)}), 500
 
 
 
@@ -2961,6 +2927,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
