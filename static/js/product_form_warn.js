@@ -1,39 +1,39 @@
-// ---------------------------------------
-// Live warning when stock <= threshold
-// ---------------------------------------
+// ---------------------------------------------------
+// Live Warning: Show alert if stock <= threshold
+// ---------------------------------------------------
 
-document.addEventListener('DOMContentLoaded', function () {
+document.addEventListener("DOMContentLoaded", function () {
 
-    const stockInput = document.querySelector('input[name="stock"]');
-    const thresholdInput = document.querySelector('input[name="low_stock_threshold"]');
+    const stock = document.querySelector('input[name="stock"]');
+    const threshold = document.querySelector('input[name="low_stock_threshold"]');
 
-    if (!stockInput || !thresholdInput) return;
+    if (!stock || !threshold) return;
 
-    function checkWarning() {
-        const stock = Number(stockInput.value || 0);
-        const threshold = Number(thresholdInput.value || 0);
+    function updateWarning() {
+        const s = Number(stock.value || 0);
+        const t = Number(threshold.value || 0);
 
-        let warn = document.getElementById('lowStockWarn');
+        let warn = document.getElementById("lowStockWarn");
+
         if (!warn) {
-            warn = document.createElement('div');
-            warn.id = 'lowStockWarn';
+            warn = document.createElement("div");
+            warn.id = "lowStockWarn";
             warn.style.marginTop = "6px";
             warn.style.fontWeight = "700";
-            thresholdInput.parentNode.appendChild(warn);
+            warn.style.fontSize = "14px";
+            threshold.parentNode.appendChild(warn);
         }
 
-        if (stock <= threshold) {
+        if (s <= t) {
             warn.style.color = "#c70039";
-            warn.textContent = `⚠ Warning: Stock (${stock}) is at or below threshold (${threshold}).`;
+            warn.textContent = `⚠ Warning: Stock (${s}) is at or below threshold (${t}).`;
         } else {
             warn.textContent = "";
         }
     }
 
-    stockInput.addEventListener('input', checkWarning);
-    thresholdInput.addEventListener('input', checkWarning);
+    stock.addEventListener("input", updateWarning);
+    threshold.addEventListener("input", updateWarning);
 
-    // Run once on page load
-    checkWarning();
-
+    updateWarning(); // run on load
 });
