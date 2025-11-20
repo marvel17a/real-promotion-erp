@@ -773,46 +773,50 @@ def delet_category(id):
 
 
 #----------------------------------------INVENTORY-----------------------------------------------------------
-@app.route("/inventory")
+@app.route('/inventory')
 def inventory():
+    if "loggedin" not in session:
+        return redirect(url_for("login"))
+
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    
-    # 1. Get all products
-    cursor.execute("SELECT * FROM products ORDER BY name ASC")
+
+    # Fetch all products
+    cursor.execute("SELECT * FROM products ORDER BY id DESC")
     products = cursor.fetchall()
-    
-    # 2. (NEW) Get data for filters
-    cursor.execute("SELECT DISTINCT category FROM products WHERE category IS NOT NULL AND category != '' ORDER BY category ASC")
+
+    # Fetch categories map
+    cursor.execute("SELECT id, category_name FROM product_categories")
     categories = cursor.fetchall()
-    
-    # 3. (NEW) Get data for stats
-    cursor.execute("SELECT COUNT(id) AS count FROM products")
-    total_products = cursor.fetchone()['count']
-    
-    cursor.execute("SELECT SUM(stock * price) AS total_value FROM products")
-    total_value = cursor.fetchone()['total_value']
-    
-    cursor.execute("SELECT COUNT(id) AS count FROM products WHERE stock <= 10")
-    low_stock_count = cursor.fetchone()['count']
+    categories_map = {c['id']: c['category_name'] for c in categories}
+
+    # Stats
+    total_value = sum([p['price'] * p['stock'] for p in products])
+    total_products = len(products)
+    low_stock_count = sum([
+        1 for p in products
+        if int(p.get('stock', 0)) <= int(p.get('low_stock_threshold', 10))
+    ])
+
+    stats = {
+        "total_value": total_value,
+        "total_products": total_products,
+        "low_stock_count": low_stock_count
+    }
+
+    # Filters (for dropdown)
+    cursor.execute("SELECT DISTINCT category_name FROM product_categories ORDER BY category_name ASC")
+    filter_categories = cursor.fetchall()
 
     cursor.close()
-    
-    # 4. (NEW) Process stats
-    stats = {
-        'total_products': total_products or 0,
-        'total_value': total_value or 0,
-        'low_stock_count': low_stock_count or 0
-    }
-            
-    # 5. (NEW) Package filter data
-    filters = {
-        'categories': categories
-    }
-    
-    return render_template("inventory.html", 
-                           products=products, 
-                           stats=stats, 
-                           filters=filters)
+
+    return render_template(
+        "inventory.html",
+        products=products,
+        stats=stats,
+        categories_map=categories_map,
+        filters={"categories": filter_categories}
+    )
+
 
 
 
@@ -824,124 +828,111 @@ def add_product_form():
     return render_template("add_product.html")
 
 
-@app.route("/add_product", methods=["GET", "POST"])
+@app.route('/add_product', methods=['GET', 'POST'])
 def add_product():
-    # This route handles the form submission
-    if request.method == "POST":
-        name = request.form.get("name")
-        category = request.form.get("category")
-        price = request.form.get("price")
-        stock = int(request.form.get("stock") or 0)
-        
-        # (NEW) Get purchase_price from the form
-        purchase_price = request.form.get("purchase_price", 0.0)
+    if 'loggedin' not in session:
+        return redirect(url_for('login'))
 
-        image_file = request.files.get("image")
-        
-        image_id = None # <-- This will store the public_id
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
-        if image_file and allowed_file(image_file.filename):
-            try:
-                upload_result = cloudinary.uploader.upload(
-                    image_file, 
-                    folder="erp_products" 
-                )
-                #
-                # THE FIX: Save the 'public_id', not the 'secure_url'
-                #
-                image_id = upload_result.get('public_id') 
-                app.logger.info(f"Image uploaded, public_id: {image_id}")
-            except Exception as e:
-                app.logger.error(f"Cloudinary upload failed: {e}")
-                flash(f"Image upload failed: {e}", "danger")
-                return redirect(url_for("add_product_form"))
+    if request.method == 'POST':
+        name = request.form.get('name')
+        sku = request.form.get('sku')
+        description = request.form.get('description') or ''
+        price = float(request.form.get('price') or 0)
+        stock = int(request.form.get('stock') or 0)
+        category_id = request.form.get('category_id') or None
+        if category_id == "":
+            category_id = None
+        low_stock_threshold = int(request.form.get('low_stock_threshold') or 10)
 
-        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-        cursor.execute(
-            "SELECT id, stock FROM products WHERE name=%s AND category=%s",
-            (name, category)
-        )
-        existing = cursor.fetchone()
+        # Cloudinary upload
+        image_url = None
+        if 'image' in request.files and request.files['image'].filename:
+            image_file = request.files['image']
+            upload_res = cloudinary.uploader.upload(image_file, folder="erp_products")
+            image_url = upload_res.get("secure_url") or upload_res.get("url")
 
-        if existing:
-            # (UPDATED) Update existing product
-            if image_id: # Only update image if a new one was uploaded
-                cursor.execute("""
-                    UPDATE products SET stock=%s, price=%s, purchase_price=%s, image=%s
-                    WHERE id=%s
-                """, (existing['stock'] + stock, price, purchase_price, image_id, existing['id']))
-            else: # No new image, just update stock/price
-                cursor.execute("""
-                    UPDATE products SET stock=%s, price=%s, purchase_price=%s
-                    WHERE id=%s
-                """, (existing['stock'] + stock, price, purchase_price, existing['id']))
-        else:
-            # (UPDATED) Insert new product
-            cursor.execute("""
-                INSERT INTO products (name, category, price, stock, purchase_price, image)
-                VALUES (%s, %s, %s, %s, %s, %s)
-            """, (name, category, price, stock, purchase_price, image_id))
+        cursor.execute("""
+            INSERT INTO products
+            (name, sku, description, price, stock, category_id, low_stock_threshold, image)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
+        """, (name, sku, description, price, stock, category_id, low_stock_threshold, image_url))
 
         mysql.connection.commit()
         cursor.close()
-        flash("✅ Product added/updated successfully!", "success")
+
+        flash("Product added successfully!", "success")
         return redirect(url_for("inventory"))
 
-    # If GET request, show the form
-    return redirect(url_for("add_product_form"))
+    # GET (fetch categories)
+    cursor.execute("SELECT id, category_name FROM product_categories ORDER BY category_name ASC")
+    categories = cursor.fetchall()
+    cursor.close()
+
+    return render_template("add_product.html", categories=categories)
 
 
-@app.route('/products/edit/<int:id>', methods=['GET', 'POST'])
-def edit_product(id):
-    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    cur.execute("SELECT * FROM products WHERE id=%s", (id,))
-    product = cur.fetchone()
-    if not product:
-        flash("Product not found.", "danger")
-        return redirect(url_for('inventory'))
+
+@app.route('/edit_product/<int:product_id>', methods=['GET', 'POST'])
+def edit_product(product_id):
+    if 'loggedin' not in session:
+        return redirect(url_for('login'))
+
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
     if request.method == 'POST':
-        name = request.form['name']
-        category = request.form['category']
-        price = request.form['price']
-        stock = request.form['stock']
-        
-        # (NEW) Get purchase_price from the form
-        purchase_price = request.form.get("purchase_price", 0.0)
-        
-        image_file = request.files.get('image')
+        name = request.form.get('name')
+        sku = request.form.get('sku')
+        description = request.form.get('description') or ''
+        price = float(request.form.get('price') or 0)
+        stock = int(request.form.get('stock') or 0)
+        category_id = request.form.get('category_id') or None
+        if category_id == "":
+            category_id = None
+        low_stock_threshold = int(request.form.get('low_stock_threshold') or 10)
 
-        image_id = product['image'] # Start with existing ID
+        # Replace image only if uploaded
+        if 'image' in request.files and request.files['image'].filename:
+            image_file = request.files['image']
+            upload_res = cloudinary.uploader.upload(image_file, folder="erp_products")
+            image_url = upload_res.get("secure_url") or upload_res.get("url")
 
-        if image_file and allowed_file(image_file.filename):
-            try:
-                upload_result = cloudinary.uploader.upload(
-                    image_file, 
-                    folder="erp_products"
-                )
-                #
-                # THE FIX: Get the new 'public_id'
-                #
-                image_id = upload_result.get('public_id') 
-                app.logger.info(f"Image updated, public_id: {image_id}")
-            except Exception as e:
-                flash(f"Image upload failed: {e}", "danger")
-                return render_template("edit_product.html", product=product)
+            cursor.execute("""
+                UPDATE products
+                SET name=%s, sku=%s, description=%s, price=%s, stock=%s,
+                    category_id=%s, low_stock_threshold=%s, image=%s
+                WHERE id=%s
+            """, (name, sku, description, price, stock, category_id, low_stock_threshold, image_url, product_id))
 
-        # (UPDATED) Update the database
-        cur.execute("""
-            UPDATE products 
-            SET name=%s, category=%s, price=%s, stock=%s, purchase_price=%s, image=%s 
-            WHERE id=%s
-        """, (name, category, price, stock, purchase_price, image_id, id))
-        
+        else:
+            cursor.execute("""
+                UPDATE products
+                SET name=%s, sku=%s, description=%s, price=%s, stock=%s,
+                    category_id=%s, low_stock_threshold=%s
+                WHERE id=%s
+            """, (name, sku, description, price, stock, category_id, low_stock_threshold, product_id))
+
         mysql.connection.commit()
-        cur.close()
-        flash("Product updated successfully!", "success")
-        return redirect(url_for('inventory'))
+        cursor.close()
 
-    cur.close()
-    return render_template("edit_product.html", product=product)
+        flash("Product updated successfully!", "success")
+        return redirect(url_for("inventory"))
+
+    # GET (fetch product + categories)
+    cursor.execute("SELECT * FROM products WHERE id=%s", (product_id,))
+    product = cursor.fetchone()
+
+    cursor.execute("SELECT id, category_name FROM product_categories ORDER BY category_name ASC")
+    categories = cursor.fetchall()
+    cursor.close()
+
+    if not product:
+        flash("Product not found!", "danger")
+        return redirect(url_for("inventory"))
+
+    return render_template("edit_product.html", product=product, categories=categories)
+
 
 
 @app.route('/products/delete/<int:id>', methods=['POST'])
@@ -2927,6 +2918,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
