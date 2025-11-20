@@ -4,7 +4,7 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/product_forms.css') }}">
 
 <div class="page-header d-flex justify-content-between align-items-center mb-4">
-    <h2 class="mb-0"><i class="bi bi-plus-lg me-2"></i> Add Product</h2>
+    <h2 class="mb-0"><i class="bi bi-plus-circle me-2"></i> Add Product</h2>
     <a href="{{ url_for('inventory') }}" class="btn btn-secondary">
         <i class="bi bi-arrow-left me-1"></i> Back
     </a>
@@ -23,14 +23,8 @@
                     <input type="text" name="name" class="form-control" required>
                 </div>
 
-                <!-- SKU -->
-                <div class="col-md-3">
-                    <label class="form-label fw-bold">SKU</label>
-                    <input type="text" name="sku" class="form-control">
-                </div>
-
                 <!-- CATEGORY -->
-                <div class="col-md-3">
+                <div class="col-md-6">
                     <label class="form-label fw-bold">Category</label>
                     <select name="category_id" class="form-select">
                         <option value="">-- Select Category --</option>
@@ -43,27 +37,27 @@
                 <!-- PRICE -->
                 <div class="col-md-4">
                     <label class="form-label fw-bold">Sell Price (₹)</label>
-                    <input type="number" name="price" class="form-control" min="0" step="0.01" value="0">
+                    <input type="number" name="price" class="form-control" min="0" step="0.01" value="0" required>
                 </div>
 
                 <!-- STOCK -->
                 <div class="col-md-4">
                     <label class="form-label fw-bold">Initial Stock</label>
-                    <input type="number" name="stock" class="form-control" min="0" value="0">
+                    <input type="number" name="stock" class="form-control" min="0" value="0" required>
                 </div>
 
                 <!-- LOW STOCK THRESHOLD -->
                 <div class="col-md-4">
                     <label class="form-label fw-bold">Low Stock Threshold</label>
-                    <input type="number" name="low_stock_threshold" class="form-control" min="0" value="10">
-                    <small class="text-muted">Product becomes low-stock when stock ≤ threshold</small>
+                    <input type="number" name="low_stock_threshold" class="form-control" min="0" value="10" required>
+                    <small class="text-muted">Low stock warning will show when stock ≤ threshold</small>
                 </div>
 
                 <!-- IMAGE -->
                 <div class="col-md-6">
                     <label class="form-label fw-bold">Upload Image</label>
                     <input type="file" name="image" accept="image/*" class="form-control">
-                    <small class="text-muted">Optional • Supports JPG, PNG, WEBP</small>
+                    <small class="text-muted">Optional • JPG, PNG, WEBP supported</small>
                 </div>
 
                 <!-- DESCRIPTION -->
@@ -74,20 +68,18 @@
 
             </div>
 
-            <div class="d-flex justify-content-between mt-4">
-                <a href="{{ url_for('inventory') }}" class="btn btn-outline-secondary">
-                    Cancel
-                </a>
+            <div class="mt-4 d-flex justify-content-between">
+                <a href="{{ url_for('inventory') }}" class="btn btn-outline-secondary">Cancel</a>
                 <button type="submit" class="btn btn-primary">
-                    <i class="bi bi-plus-lg me-1"></i> Add Product
+                    <i class="bi bi-plus-circle me-1"></i> Add Product
                 </button>
             </div>
 
         </form>
+
     </div>
 </div>
 
-<!-- Live low-stock warning -->
 <script src="{{ url_for('static', filename='js/product_form_warn.js') }}"></script>
 
 {% endblock %}
