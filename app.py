@@ -1437,8 +1437,8 @@ def category_man():
     return render_template('expenses/category_man.html', categories=categories)
 
 
-@app.route('/delete_category/<int:category_id>', methods=['POST'])
-def delete_category(category_id):
+@app.route('/dalete_category/<int:category_id>', methods=['POST'])
+def dalete_category(category_id):
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     cur.execute("DELETE FROM expensesubcategories WHERE category_id = %s", (category_id,))
     cur.execute("DELETE FROM expensecategories WHERE category_id = %s", (category_id,))
@@ -2912,6 +2912,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
