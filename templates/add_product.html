@@ -3,7 +3,7 @@
 
 <link rel="stylesheet" href="{{ url_for('static', filename='css/product_forms.css') }}">
 
-<div class="page-header d-flex justify-content-between align-items-center mb-4">
+<div class="d-flex justify-content-between align-items-center mb-4">
     <h2 class="mb-0"><i class="bi bi-plus-circle me-2"></i> Add Product</h2>
     <a href="{{ url_for('inventory') }}" class="btn btn-secondary">
         <i class="bi bi-arrow-left me-1"></i> Back
@@ -37,33 +37,35 @@
                 <!-- PRICE -->
                 <div class="col-md-4">
                     <label class="form-label fw-bold">Sell Price (₹)</label>
-                    <input type="number" name="price" class="form-control" min="0" step="0.01" value="0" required>
+                    <input type="number" name="price" class="form-control"
+                           min="0" step="0.01" value="0" required>
                 </div>
 
                 <!-- STOCK -->
                 <div class="col-md-4">
                     <label class="form-label fw-bold">Initial Stock</label>
-                    <input type="number" name="stock" class="form-control" min="0" value="0" required>
+                    <input type="number" name="stock" class="form-control"
+                           min="0" value="0" required>
                 </div>
 
                 <!-- LOW STOCK THRESHOLD -->
                 <div class="col-md-4">
                     <label class="form-label fw-bold">Low Stock Threshold</label>
-                    <input type="number" name="low_stock_threshold" class="form-control" min="0" value="10" required>
-                    <small class="text-muted">Low stock warning will show when stock ≤ threshold</small>
+                    <input type="number" name="low_stock_threshold"
+                           class="form-control" min="0" value="10" required>
+                    <small class="text-muted">Product shows low stock alert when stock ≤ threshold</small>
                 </div>
 
                 <!-- IMAGE -->
                 <div class="col-md-6">
                     <label class="form-label fw-bold">Upload Image</label>
-                    <input type="file" name="image" accept="image/*" class="form-control">
+                    <input type="file" id="imageInput" name="image" accept="image/*"
+                           class="form-control">
                     <small class="text-muted">Optional • JPG, PNG, WEBP supported</small>
-                </div>
 
-                <!-- DESCRIPTION -->
-                <div class="col-md-6">
-                    <label class="form-label fw-bold">Description</label>
-                    <textarea name="description" rows="3" class="form-control"></textarea>
+                    <!-- LIVE PREVIEW -->
+                    <img id="previewImage" class="img-fluid rounded mt-3 d-none"
+                         style="max-height: 150px; border: 1px solid #ddd;">
                 </div>
 
             </div>
@@ -80,6 +82,23 @@
     </div>
 </div>
 
+<!-- Stock Threshold Warning Script -->
 <script src="{{ url_for('static', filename='js/product_form_warn.js') }}"></script>
+
+<!-- Image Preview Script -->
+<script>
+document.getElementById("imageInput").addEventListener("change", function (evt) {
+    const file = evt.target.files[0];
+    const preview = document.getElementById("previewImage");
+
+    if (file) {
+        preview.src = URL.createObjectURL(file);
+        preview.classList.remove("d-none");
+    } else {
+        preview.classList.add("d-none");
+        preview.src = "";
+    }
+});
+</script>
 
 {% endblock %}
