@@ -780,16 +780,16 @@ def inventory():
 
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
-    # Fetch all products
+    # Fetch products
     cursor.execute("SELECT * FROM products ORDER BY id DESC")
     products = cursor.fetchall()
 
-    # Fetch categories map
+    # Fetch category reference
     cursor.execute("SELECT id, category_name FROM product_categories")
     categories = cursor.fetchall()
     categories_map = {c['id']: c['category_name'] for c in categories}
 
-    # Stats
+    # Stats calculation
     total_value = sum([p['price'] * p['stock'] for p in products])
     total_products = len(products)
     low_stock_count = sum([
@@ -803,8 +803,8 @@ def inventory():
         "low_stock_count": low_stock_count
     }
 
-    # Filters (for dropdown)
-    cursor.execute("SELECT DISTINCT category_name FROM product_categories ORDER BY category_name ASC")
+    # Filter categories
+    cursor.execute("SELECT category_name FROM product_categories ORDER BY category_name ASC")
     filter_categories = cursor.fetchall()
 
     cursor.close()
@@ -816,6 +816,7 @@ def inventory():
         categories_map=categories_map,
         filters={"categories": filter_categories}
     )
+
 
 
 
@@ -837,7 +838,6 @@ def add_product():
 
     if request.method == 'POST':
         name = request.form.get('name')
-        sku = request.form.get('sku')
         description = request.form.get('description') or ''
         price = float(request.form.get('price') or 0)
         stock = int(request.form.get('stock') or 0)
@@ -849,15 +849,16 @@ def add_product():
         # Cloudinary upload
         image_url = None
         if 'image' in request.files and request.files['image'].filename:
-            image_file = request.files['image']
-            upload_res = cloudinary.uploader.upload(image_file, folder="erp_products")
+            image = request.files['image']
+            upload_res = cloudinary.uploader.upload(image, folder="erp_products")
             image_url = upload_res.get("secure_url") or upload_res.get("url")
 
+        # Insert Product
         cursor.execute("""
             INSERT INTO products
-            (name, sku, description, price, stock, category_id, low_stock_threshold, image)
-            VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
-        """, (name, sku, description, price, stock, category_id, low_stock_threshold, image_url))
+            (name, description, price, stock, category_id, low_stock_threshold, image)
+            VALUES (%s,%s,%s,%s,%s,%s,%s)
+        """, (name, description, price, stock, category_id, low_stock_threshold, image_url))
 
         mysql.connection.commit()
         cursor.close()
@@ -865,14 +866,12 @@ def add_product():
         flash("Product added successfully!", "success")
         return redirect(url_for("inventory"))
 
-    # GET (fetch categories)
+    # GET: Categories
     cursor.execute("SELECT id, category_name FROM product_categories ORDER BY category_name ASC")
     categories = cursor.fetchall()
     cursor.close()
 
     return render_template("add_product.html", categories=categories)
-
-
 
 @app.route('/edit_product/<int:product_id>', methods=['GET', 'POST'])
 def edit_product(product_id):
@@ -883,7 +882,6 @@ def edit_product(product_id):
 
     if request.method == 'POST':
         name = request.form.get('name')
-        sku = request.form.get('sku')
         description = request.form.get('description') or ''
         price = float(request.form.get('price') or 0)
         stock = int(request.form.get('stock') or 0)
@@ -892,26 +890,25 @@ def edit_product(product_id):
             category_id = None
         low_stock_threshold = int(request.form.get('low_stock_threshold') or 10)
 
-        # Replace image only if uploaded
+        # Optional image replacement
         if 'image' in request.files and request.files['image'].filename:
-            image_file = request.files['image']
-            upload_res = cloudinary.uploader.upload(image_file, folder="erp_products")
+            image = request.files['image']
+            upload_res = cloudinary.uploader.upload(image, folder="erp_products")
             image_url = upload_res.get("secure_url") or upload_res.get("url")
 
             cursor.execute("""
                 UPDATE products
-                SET name=%s, sku=%s, description=%s, price=%s, stock=%s,
+                SET name=%s, description=%s, price=%s, stock=%s,
                     category_id=%s, low_stock_threshold=%s, image=%s
                 WHERE id=%s
-            """, (name, sku, description, price, stock, category_id, low_stock_threshold, image_url, product_id))
-
+            """, (name, description, price, stock, category_id, low_stock_threshold, image_url, product_id))
         else:
             cursor.execute("""
                 UPDATE products
-                SET name=%s, sku=%s, description=%s, price=%s, stock=%s,
+                SET name=%s, description=%s, price=%s, stock=%s,
                     category_id=%s, low_stock_threshold=%s
                 WHERE id=%s
-            """, (name, sku, description, price, stock, category_id, low_stock_threshold, product_id))
+            """, (name, description, price, stock, category_id, low_stock_threshold, product_id))
 
         mysql.connection.commit()
         cursor.close()
@@ -919,12 +916,13 @@ def edit_product(product_id):
         flash("Product updated successfully!", "success")
         return redirect(url_for("inventory"))
 
-    # GET (fetch product + categories)
+    # GET: Product + categories
     cursor.execute("SELECT * FROM products WHERE id=%s", (product_id,))
     product = cursor.fetchone()
 
     cursor.execute("SELECT id, category_name FROM product_categories ORDER BY category_name ASC")
     categories = cursor.fetchall()
+
     cursor.close()
 
     if not product:
@@ -932,6 +930,7 @@ def edit_product(product_id):
         return redirect(url_for("inventory"))
 
     return render_template("edit_product.html", product=product, categories=categories)
+
 
 
 
@@ -2918,6 +2917,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
