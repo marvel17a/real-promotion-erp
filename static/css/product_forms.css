@@ -1,0 +1,56 @@
+/* ------------------------------------------
+   Product Form Styles (Add / Edit Product)
+   ------------------------------------------ */
+
+.page-header {
+    background: linear-gradient(135deg, #133b5c, #1e5a88);
+    padding: 18px 25px;
+    border-radius: 12px;
+    color: #fff;
+}
+
+.page-header h2 {
+    font-weight: 700;
+}
+
+.card {
+    border-radius: 12px;
+}
+
+.card-body {
+    padding: 25px;
+}
+
+.form-label {
+    font-weight: 700;
+    color: #333;
+}
+
+.form-control, .form-select {
+    padding: 10px;
+    border-radius: 8px;
+}
+
+.btn-primary {
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+}
+
+.btn-outline-secondary {
+    padding: 10px 20px;
+    border-radius: 8px;
+}
+
+img.img-fluid {
+    max-height: 140px;
+    border-radius: 10px;
+}
+
+@media (max-width: 576px) {
+    .page-header {
+        flex-direction: column;
+        text-align: center;
+        gap: 12px;
+    }
+}
