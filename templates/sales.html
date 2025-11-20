@@ -7,14 +7,14 @@
 
   <!-- Header -->
   <div class="text-center mb-4">
-    <h3 class="fw-bold text-primary"><i class="bi bi-bar-chart-line-fill"></i> Sales & Analysis Reports</h3>
-    <p class="text-muted small">Filter and analyze sales data across employees and products</p>
+    <h3 class="fw-bold text-primary"><i class="bi bi-bar-chart-line-fill"></i> Sales Details</h3>
+    <p class="text-muted small">Filter sales data across employees and products</p>
   </div>
 
   <!-- Filter Controls Card -->
   <div class="card shadow-sm mb-4">
     <div class="card-header bg-light">
-      <h5 class="mb-0"><i class="bi bi-funnel"></i> Generate Report</h5>
+      <h5 class="mb-0"><i class="bi bi-funnel"></i> Generate</h5>
     </div>
     <div class="card-body">
       <form action="{{ url_for('sales') }}" method="POST">
@@ -47,7 +47,7 @@
           </div>
         </div>
         <div class="text-end mt-3">
-          <button type="submit" class="btn btn-primary"><i class="bi bi-search"></i> Generate Report</button>
+          <button type="submit" class="btn btn-primary"><i class="bi bi-search"></i> Generate </button>
         </div>
       </form>
     </div>
@@ -115,3 +115,4 @@
   {% endif %}
 </div>
 {% endblock %}
+
