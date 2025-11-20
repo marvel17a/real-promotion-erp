@@ -1,5 +1,5 @@
-{% extends "admin_master.html" %}
-{% block page_content %}
+{% extends "base.html" %}
+{% block content %}
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2 class="mb-0"><i class="bi bi-pencil-square me-2"></i> Edit Category</h2>
@@ -19,12 +19,7 @@
                        value="{{ category.category_name }}" required>
             </div>
 
-            <div class="mb-3">
-                <label class="form-label fw-bold">Description</label>
-                <textarea name="description" rows="3" class="form-control">{{ category.description }}</textarea>
-            </div>
-
-            <div class="d-flex justify-content-between mt-4">
+            <div class="mt-4 d-flex justify-content-between">
                 <a href="{{ url_for('categories') }}" class="btn btn-outline-secondary">Cancel</a>
                 <button type="submit" class="btn btn-primary">
                     <i class="bi bi-save me-1"></i> Save Changes
