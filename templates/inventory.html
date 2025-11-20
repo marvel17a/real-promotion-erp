@@ -13,7 +13,7 @@
         </a>
     </div>
 
-    <!-- STATS -->
+    <!-- STATS ROW -->
     <div class="row g-4 mb-4">
         <div class="col-lg-4 col-md-6">
             <div class="card stat-card-vivid shadow-sm">
@@ -43,16 +43,16 @@
         </div>
     </div>
 
-    <!-- SEARCH + FILTER -->
+    <!-- FILTER BAR -->
     <div class="card shadow-sm mb-4 filter-card-vivid">
         <div class="card-body">
 
-            <div class="row g-4 align-items-end">
+            <div class="row g-4">
 
                 <div class="col-md-8">
                     <label class="form-label">Search Product</label>
                     <input type="text" id="searchProduct" class="form-control"
-                           placeholder="Search by product name...">
+                           placeholder="Start typing...">
                 </div>
 
                 <div class="col-md-4">
@@ -81,7 +81,7 @@
 
             <div class="product-card-vivid shadow-sm">
 
-                <!-- IMAGE AREA -->
+                <!-- IMAGE -->
                 <div class="card-image-wrapper">
 
                     {% set threshold = (product.low_stock_threshold | default(10) | int) %}
@@ -102,16 +102,15 @@
                     {% endif %}
                 </div>
 
-                <!-- PRODUCT BODY -->
+                <!-- DETAILS -->
                 <div class="product-card-body">
-
                     <p class="card-category">
                         {{ categories_map.get(product.category_id, product.category or 'Uncategorized') }}
                     </p>
 
                     <h5 class="card-title-vivid">{{ product.name }}</h5>
 
-                    <div class="d-flex justify-content-between">
+                    <div class="d-flex justify-content-between mt-2">
 
                         <div>
                             <small class="text-muted">Stock</small>
@@ -124,25 +123,24 @@
                         </div>
 
                     </div>
-
                 </div>
 
-                <!-- ACTIONS -->
+                <!-- ACTION BUTTONS -->
                 <div class="card-footer-actions d-flex justify-content-between">
-                    <form action="{{ url_for('delete_product', id=product.id) }}"
-                          method="POST"
-                          onsubmit="return confirm('Delete this product?')">
 
+                    <form method="POST"
+                          action="{{ url_for('delete_product', id=product.id) }}"
+                          onsubmit="return confirm('Delete this product?');">
                         <button class="btn btn-outline-danger btn-sm">
                             <i class="bi bi-trash"></i>
                         </button>
-
                     </form>
 
                     <a href="{{ url_for('edit_product', product_id=product.id) }}"
                        class="btn btn-primary btn-sm">
-                        <i class="bi bi-pencil-square me-1"></i>Edit
+                        <i class="bi bi-pencil me-1"></i>Edit
                     </a>
+
                 </div>
 
             </div>
@@ -150,8 +148,8 @@
         </div>
 
         {% else %}
-        <div class="col-12 text-center text-muted p-5 fs-4">
-            No products found. Add one!
+        <div class="col-12 text-center text-muted p-5">
+            <h5>No products found. Add one!</h5>
         </div>
         {% endfor %}
 
