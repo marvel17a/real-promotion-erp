@@ -3,7 +3,7 @@
    ------------------------------------------ */
 
 .page-header {
-    background: linear-gradient(135deg, #133b5c, #1e5a88);
+    background: linear-gradient(135deg, #0d3b66, #1282a2);
     padding: 18px 25px;
     border-radius: 12px;
     color: #fff;
@@ -26,9 +26,15 @@
     color: #333;
 }
 
-.form-control, .form-select {
+.form-control,
+.form-select {
     padding: 10px;
     border-radius: 8px;
+    font-size: 15px;
+}
+
+textarea.form-control {
+    resize: vertical;
 }
 
 .btn-primary {
@@ -40,13 +46,16 @@
 .btn-outline-secondary {
     padding: 10px 20px;
     border-radius: 8px;
+    font-weight: 600;
 }
 
 img.img-fluid {
     max-height: 140px;
     border-radius: 10px;
+    object-fit: cover;
 }
 
+/* Mobile Responsive */
 @media (max-width: 576px) {
     .page-header {
         flex-direction: column;
