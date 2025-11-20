@@ -707,16 +707,15 @@ def categories():
     categories = cursor.fetchall()
     cursor.close()
 
-    return render_template("categories.html", categories=categories)
+    return render_template("Products/categories.html", categories=categories)
 
-@app.route('/categories/add', methods=['GET', 'POST'])
+
+# Add category
+@app.route("/add_category", methods=["GET", "POST"])
 def add_category():
-    if "loggedin" not in session:
-        return redirect(url_for("login"))
-
-    if request.method == 'POST':
+    if request.method == "POST":
         name = request.form['category_name']
-        description = request.form.get('description', '')
+        description = request.form['description']
 
         cursor = mysql.connection.cursor()
         cursor.execute("""
@@ -725,53 +724,49 @@ def add_category():
         """, (name, description))
         mysql.connection.commit()
         cursor.close()
-
         flash("Category added successfully!", "success")
-        return redirect(url_for('categories'))
+        return redirect(url_for("categories"))
 
-    return render_template("add_category.html")
+    return render_template("Products/add_category.html")
 
-@app.route('/categories/edit/<int:id>', methods=['GET', 'POST'])
-def edit_category(id):
-    if "loggedin" not in session:
-        return redirect(url_for("login"))
 
+# Edit category
+@app.route("/edit_category/<int:category_id>", methods=["GET", "POST"])
+def edit_category(category_id):
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    cursor.execute("SELECT * FROM product_categories WHERE id=%s", (id,))
-    category = cursor.fetchone()
 
-    if request.method == 'POST':
+    if request.method == "POST":
         name = request.form['category_name']
-        description = request.form.get('description', '')
+        description = request.form['description']
 
-        cursor2 = mysql.connection.cursor()
-        cursor2.execute("""
+        cursor.execute("""
             UPDATE product_categories
             SET category_name=%s, description=%s
             WHERE id=%s
-        """, (name, description, id))
+        """, (name, description, category_id))
+
         mysql.connection.commit()
-        cursor2.close()
+        cursor.close()
+        flash("Category updated!", "success")
+        return redirect(url_for("categories"))
 
-        flash("Category updated successfully!", "success")
-        return redirect(url_for('categories'))
+    cursor.execute("SELECT * FROM product_categories WHERE id=%s", (category_id,))
+    category = cursor.fetchone()
+    cursor.close()
 
-    return render_template("edit_category.html", category=category)
+    return render_template("Products/edit_category.html", category=category)
 
-@app.route('/categories/delet/<int:id>', methods=['POST'])
-def delet_category(id):
-    if "loggedin" not in session:
-        return redirect(url_for("login"))
 
+# Delete category
+@app.route("/delete_category/<int:category_id>", methods=["POST"])
+def delete_category(category_id):
     cursor = mysql.connection.cursor()
-    cursor.execute("DELETE FROM product_categories WHERE id=%s", (id,))
+    cursor.execute("DELETE FROM product_categories WHERE id=%s", (category_id,))
     mysql.connection.commit()
     cursor.close()
 
-    flash("Category deleted successfully!", "success")
-    return redirect(url_for('categories'))
-
-
+    flash("Category deleted!", "danger")
+    return redirect(url_for("categories"))
 #----------------------------------------INVENTORY-----------------------------------------------------------
 @app.route('/inventory')
 def inventory():
