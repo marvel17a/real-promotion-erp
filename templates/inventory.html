@@ -6,45 +6,52 @@
 <div class="container-fluid py-4">
 
     <!-- HEADER -->
-    <div class="page-header-vivid d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
         <h2 class="mb-0"><i class="bi bi-box-seam me-2"></i> Inventory</h2>
-        <a href="{{ url_for('add_product') }}" class="btn btn-primary">
-            <i class="bi bi-plus-lg me-1"></i> Add Product
-        </a>
+
+        <div>
+            <a href="{{ url_for('categories') }}" class="btn btn-outline-primary me-2">
+                <i class="bi bi-folder me-1"></i> Categories
+            </a>
+
+            <a href="{{ url_for('add_product') }}" class="btn btn-primary">
+                <i class="bi bi-plus-lg me-1"></i> Add Product
+            </a>
+        </div>
     </div>
 
-    <!-- STATS ROW -->
+    <!-- STATS -->
     <div class="row g-4 mb-4">
         <div class="col-lg-4 col-md-6">
-            <div class="card stat-card-vivid shadow-sm">
+            <div class="card shadow-sm">
                 <div class="card-body">
-                    <h6 class="text-uppercase small text-muted">Total Stock Value</h6>
+                    <h6 class="text-muted small">Total Stock Value</h6>
                     <h4 class="fw-bold mb-0">₹{{ "%.0f"|format(stats.total_value) }}</h4>
                 </div>
             </div>
         </div>
 
         <div class="col-lg-4 col-md-6">
-            <div class="card stat-card-vivid shadow-sm">
+            <div class="card shadow-sm">
                 <div class="card-body">
-                    <h6 class="text-uppercase small text-muted">Total Products</h6>
+                    <h6 class="text-muted small">Total Products</h6>
                     <h4 class="fw-bold mb-0">{{ stats.total_products }}</h4>
                 </div>
             </div>
         </div>
 
         <div class="col-lg-4 col-md-12">
-            <div class="card stat-card-vivid shadow-sm">
+            <div class="card shadow-sm">
                 <div class="card-body">
-                    <h6 class="text-uppercase small text-danger">Low Stock Items</h6>
+                    <h6 class="text-danger small">Low Stock Items</h6>
                     <h4 class="fw-bold text-danger mb-0">{{ stats.low_stock_count }}</h4>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- FILTER BAR -->
-    <div class="card shadow-sm mb-4 filter-card-vivid">
+    <!-- SEARCH + FILTER -->
+    <div class="card shadow-sm mb-4">
         <div class="card-body">
 
             <div class="row g-4">
@@ -52,7 +59,7 @@
                 <div class="col-md-8">
                     <label class="form-label">Search Product</label>
                     <input type="text" id="searchProduct" class="form-control"
-                           placeholder="Start typing...">
+                           placeholder="Search by product name...">
                 </div>
 
                 <div class="col-md-4">
@@ -77,41 +84,43 @@
 
         <div class="col-xl-3 col-lg-4 col-md-6 product-card-filter"
              data-name="{{ product.name.lower() }}"
-             data-category="{{ categories_map.get(product.category_id, product.category or 'Uncategorized') }}">
+             data-category="{{ categories_map.get(product.category_id, 'Uncategorized') }}">
 
-            <div class="product-card-vivid shadow-sm">
+            <div class="card shadow-sm product-card">
 
-                <!-- IMAGE -->
-                <div class="card-image-wrapper">
+                <!-- IMAGE SECTION -->
+                <div class="position-relative">
 
-                    {% set threshold = (product.low_stock_threshold | default(10) | int) %}
-                    {% if product.stock | int <= threshold %}
-                        <span class="badge text-bg-danger low-stock-badge">
-                            <i class="bi bi-exclamation-triangle-fill"></i>
-                            Low ({{ product.stock }} ≤ {{ threshold }})
+                    {% set threshold = product.low_stock_threshold or 10 %}
+
+                    {% if product.stock <= threshold %}
+                        <span class="badge bg-danger position-absolute top-0 start-0 m-2">
+                            Low ({{ product.stock }})
                         </span>
                     {% endif %}
 
                     {% if product.image %}
-                        <img src="{{ product.image | fix_image }}" class="card-product-image">
+                        <img src="{{ product.image | fix_image }}" class="card-img-top"
+                             style="height:180px; object-fit:cover;">
                     {% else %}
-                        <div class="card-product-image placeholder">
-                            <i class="bi bi-image"></i>
-                            <span>No Image</span>
+                        <div class="d-flex flex-column justify-content-center align-items-center"
+                             style="height:180px; background:#f5f5f5;">
+                            <i class="bi bi-image" style="font-size:48px; color:#999;"></i>
+                            <span class="text-muted">No Image</span>
                         </div>
                     {% endif %}
                 </div>
 
-                <!-- DETAILS -->
-                <div class="product-card-body">
-                    <p class="card-category">
-                        {{ categories_map.get(product.category_id, product.category or 'Uncategorized') }}
+                <!-- CARD BODY -->
+                <div class="card-body">
+
+                    <p class="text-muted small mb-1">
+                        {{ categories_map.get(product.category_id, 'Uncategorized') }}
                     </p>
 
-                    <h5 class="card-title-vivid">{{ product.name }}</h5>
+                    <h5 class="fw-bold">{{ product.name }}</h5>
 
-                    <div class="d-flex justify-content-between mt-2">
-
+                    <div class="d-flex justify-content-between mt-3">
                         <div>
                             <small class="text-muted">Stock</small>
                             <div class="fw-bold">{{ product.stock }}</div>
@@ -121,35 +130,34 @@
                             <small class="text-muted">Price</small>
                             <div class="fw-bold">₹{{ "%.0f"|format(product.price) }}</div>
                         </div>
-
                     </div>
+
                 </div>
 
-                <!-- ACTION BUTTONS -->
-                <div class="card-footer-actions d-flex justify-content-between">
+                <!-- ACTIONS -->
+                <div class="card-footer d-flex justify-content-between">
 
-                    <form method="POST"
-                          action="{{ url_for('delete_product', id=product.id) }}"
+                    <form action="{{ url_for('delete_product', id=product.id) }}"
+                          method="POST"
                           onsubmit="return confirm('Delete this product?');">
-                        <button class="btn btn-outline-danger btn-sm">
+                        <button class="btn btn-sm btn-outline-danger">
                             <i class="bi bi-trash"></i>
                         </button>
                     </form>
 
                     <a href="{{ url_for('edit_product', product_id=product.id) }}"
-                       class="btn btn-primary btn-sm">
-                        <i class="bi bi-pencil me-1"></i>Edit
+                       class="btn btn-sm btn-primary">
+                        <i class="bi bi-pencil"></i> Edit
                     </a>
 
                 </div>
-
             </div>
 
         </div>
 
         {% else %}
         <div class="col-12 text-center text-muted p-5">
-            <h5>No products found. Add one!</h5>
+            No products found.
         </div>
         {% endfor %}
 
