@@ -705,10 +705,23 @@ def delete_purchase(purchase_id):
 @app.route("/categories")
 def categories():
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    cursor.execute("SELECT * FROM product_categories ORDER BY category_name ASC")
+
+    cursor.execute("""
+        SELECT 
+            c.id,
+            c.category_name,
+            COUNT(p.id) AS total_products
+        FROM product_categories c
+        LEFT JOIN products p ON p.category_id = c.id
+        GROUP BY c.id, c.category_name
+        ORDER BY c.category_name ASC
+    """)
+    
     categories = cursor.fetchall()
     cursor.close()
+
     return render_template("Products/categories.html", categories=categories)
+
 
 
 # Add new category
@@ -2919,6 +2932,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
