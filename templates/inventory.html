@@ -20,48 +20,71 @@
         </div>
     </div>
 
-    <!-- STATS -->
+    <!-- STATS ROW -->
     <div class="row g-4 mb-4">
-        <div class="col-lg-4 col-md-6">
+        <!-- Total Stock Value -->
+        <div class="col-lg-3 col-md-6">
             <div class="card shadow-sm">
                 <div class="card-body">
                     <h6 class="text-muted small">Total Stock Value</h6>
-                    <h4 class="fw-bold mb-0">₹{{ "%.0f"|format(stats.total_value) }}</h4>
+                    <h4 class="fw-bold mb-0">
+                        ₹{{ "%.0f"|format(stats.total_value) }}
+                    </h4>
                 </div>
             </div>
         </div>
 
-        <div class="col-lg-4 col-md-6">
+        <!-- Total Products -->
+        <div class="col-lg-3 col-md-6">
             <div class="card shadow-sm">
                 <div class="card-body">
                     <h6 class="text-muted small">Total Products</h6>
-                    <h4 class="fw-bold mb-0">{{ stats.total_products }}</h4>
+                    <h4 class="fw-bold mb-0">
+                        {{ stats.total_products }}
+                    </h4>
                 </div>
             </div>
         </div>
 
-        <div class="col-lg-4 col-md-12">
+        <!-- Low Stock Products -->
+        <div class="col-lg-3 col-md-6">
             <div class="card shadow-sm">
                 <div class="card-body">
-                    <h6 class="text-danger small">Low Stock Items</h6>
-                    <h4 class="fw-bold text-danger mb-0">{{ stats.low_stock_count }}</h4>
+                    <h6 class="text-danger small">Low Stock Products</h6>
+                    <h4 class="fw-bold text-danger mb-0">
+                        {{ stats.low_stock_count }}
+                    </h4>
+                </div>
+            </div>
+        </div>
+
+        <!-- Out of Stock Products -->
+        <div class="col-lg-3 col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h6 class="text-danger small">Out of Stock</h6>
+                    <h4 class="fw-bold text-danger mb-0">
+                        {{ stats.out_stock_count }}
+                    </h4>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- SEARCH + FILTER -->
+    <!-- SEARCH + FILTER BAR -->
     <div class="card shadow-sm mb-4">
         <div class="card-body">
 
             <div class="row g-4">
 
+                <!-- Search -->
                 <div class="col-md-8">
                     <label class="form-label">Search Product</label>
                     <input type="text" id="searchProduct" class="form-control"
                            placeholder="Search by product name...">
                 </div>
 
+                <!-- Category Filter -->
                 <div class="col-md-4">
                     <label class="form-label">Filter by Category</label>
                     <select id="filterCategory" class="form-select">
@@ -100,7 +123,8 @@
                     {% endif %}
 
                     {% if product.image %}
-                        <img src="{{ product.image | fix_image }}" class="card-img-top"
+                        <img src="{{ product.image | fix_image }}"
+                             class="card-img-top"
                              style="height:180px; object-fit:cover;">
                     {% else %}
                         <div class="d-flex flex-column justify-content-center align-items-center"
@@ -128,7 +152,9 @@
 
                         <div class="text-end">
                             <small class="text-muted">Price</small>
-                            <div class="fw-bold">₹{{ "%.0f"|format(product.price) }}</div>
+                            <div class="fw-bold">
+                                ₹{{ "%.0f"|format(product.price) }}
+                            </div>
                         </div>
                     </div>
 
@@ -141,7 +167,7 @@
                           method="POST"
                           onsubmit="return confirm('Delete this product?');">
                         <button class="btn btn-sm btn-outline-danger">
-                            <i class="bi bi-trash"></i> Delete
+                            <i class="bi bi-trash"></i>
                         </button>
                     </form>
 
@@ -168,4 +194,3 @@
 <script src="{{ url_for('static', filename='js/inventory_add_edit.js') }}"></script>
 
 {% endblock %}
-
