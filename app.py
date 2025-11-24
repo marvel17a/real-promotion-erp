@@ -5,6 +5,7 @@ from datetime import date,timedelta,datetime
 import os
 from openpyxl.styles import Font, Alignment
 
+
 # --- NEW IMPORTS ---
 import json
 import locale
@@ -795,30 +796,48 @@ def inventory():
 
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
-    # Fetch products
+    # 1) Fetch all products
     cursor.execute("SELECT * FROM products ORDER BY id DESC")
     products = cursor.fetchall()
 
-    # Fetch category reference
+    # 2) Fetch categories to build map {id: name}
     cursor.execute("SELECT id, category_name FROM product_categories")
     categories = cursor.fetchall()
     categories_map = {c['id']: c['category_name'] for c in categories}
 
-    # Stats calculation
-    total_value = sum([p['price'] * p['stock'] for p in products])
+    # 3) Calculate total stock value
+    total_value = 0
+    for p in products:
+        price = p.get('price', 0) or 0
+        stock = p.get('stock', 0) or 0
+        total_value += price * stock
+
     total_products = len(products)
-    low_stock_count = sum([
-        1 for p in products
-        if int(p.get('stock', 0)) <= int(p.get('low_stock_threshold', 10))
-    ])
+
+    # 4) Low-stock products (using per-product threshold, default 10)
+    cursor.execute("""
+        SELECT COUNT(*) AS low_stock_count
+        FROM products
+        WHERE stock <= COALESCE(low_stock_threshold, 10)
+    """)
+    low_stock = cursor.fetchone()['low_stock_count']
+
+    # 5) Out-of-stock products
+    cursor.execute("""
+        SELECT COUNT(*) AS out_stock_count
+        FROM products
+        WHERE stock = 0
+    """)
+    out_stock = cursor.fetchone()['out_stock_count']
 
     stats = {
         "total_value": total_value,
         "total_products": total_products,
-        "low_stock_count": low_stock_count
+        "low_stock_count": low_stock,
+        "out_stock_count": out_stock
     }
 
-    # Filter categories
+    # 6) Categories for filter dropdown
     cursor.execute("SELECT category_name FROM product_categories ORDER BY category_name ASC")
     filter_categories = cursor.fetchall()
 
@@ -831,6 +850,7 @@ def inventory():
         categories_map=categories_map,
         filters={"categories": filter_categories}
     )
+
 
 
 
@@ -2932,6 +2952,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
