@@ -1099,6 +1099,93 @@ def product_sales_details(product_id):
     )
 
 
+@app.route("/export_sales_excel")
+def export_sales_excel():
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    cursor.execute("""
+        SELECT 
+            p.name AS product_name,
+            pc.category_name,
+            COALESCE(SUM(s.quantity), 0) AS total_sold_qty,
+            COALESCE(SUM(s.quantity * s.price), 0) AS total_revenue,
+            MAX(s.sale_date) AS last_sold_date
+        FROM products p
+        LEFT JOIN sales s ON s.product_id = p.id
+        LEFT JOIN product_categories pc ON pc.id = p.category_id
+        GROUP BY p.id
+        ORDER BY total_sold_qty DESC
+    """)
+    data = cursor.fetchall()
+    cursor.close()
+
+    from openpyxl import Workbook
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Sales Report"
+
+    # Header
+    ws.append(["Product", "Category", "Sold Qty", "Revenue", "Last Sold"])
+
+    # Rows
+    for row in data:
+        ws.append([
+            row["product_name"],
+            row["category_name"],
+            row["total_sold_qty"],
+            row["total_revenue"],
+            row["last_sold_date"]
+        ])
+
+    filepath = "product_sales_report.xlsx"
+    wb.save(filepath)
+
+    return send_file(filepath, as_attachment=True)
+
+
+@app.route("/export_sales_pdf")
+def export_sales_pdf():
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    cursor.execute("""
+        SELECT 
+            p.name AS product_name,
+            pc.category_name,
+            COALESCE(SUM(s.quantity), 0) AS total_sold_qty,
+            COALESCE(SUM(s.quantity * s.price), 0) AS total_revenue,
+            MAX(s.sale_date) AS last_sold_date
+        FROM products p
+        LEFT JOIN sales s ON s.product_id = p.id
+        LEFT JOIN product_categories pc ON pc.id = p.category_id
+        GROUP BY p.id
+        ORDER BY total_sold_qty DESC
+    """)
+    data = cursor.fetchall()
+    cursor.close()
+
+    from reportlab.lib.pagesizes import letter
+    from reportlab.pdfgen import canvas
+
+    filename = "product_sales_report.pdf"
+    c = canvas.Canvas(filename, pagesize=letter)
+    width, height = letter
+
+    y = height - 50
+    c.setFont("Helvetica-Bold", 14)
+    c.drawString(50, y, "Product Sales Report")
+    y -= 40
+
+    c.setFont("Helvetica", 10)
+    for row in data:
+        line = f"{row['product_name']} | {row['category_name']} | Qty: {row['total_sold_qty']} | Revenue: ₹{row['total_revenue']}"
+        c.drawString(50, y, line)
+        y -= 20
+        if y < 50:
+            c.showPage()
+            y = height - 50
+
+    c.save()
+    return send_file(filename, as_attachment=True)
+
+
 
 # ------------------ EMPLOYEES ----------------------------------------------------------------------
 @app.route('/api/check-employee')
@@ -3038,6 +3125,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
