@@ -6,4 +6,7 @@ python-dotenv
 cloudinary
 fpdf
 openpyxl
+reportlab
+
+
 
