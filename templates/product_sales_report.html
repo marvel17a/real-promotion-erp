@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0">
+        <i class="bi bi-graph-up-arrow me-2"></i>
+        Product Sales Performance
+    </h2>
+
+    <a href="{{ url_for('inventory') }}" class="btn btn-secondary">
+        <i class="bi bi-arrow-left me-1"></i> Back to Inventory
+    </a>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+
+        <table class="table table-hover table-striped mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Product</th>
+                    <th>Category</th>
+                    <th class="text-center">Sold Qty</th>
+                    <th class="text-end">Total Revenue (₹)</th>
+                    <th class="text-center">Last Sold</th>
+                    <th class="text-center">Actions</th>
+                </tr>
+            </thead>
+
+            <tbody>
+
+                {% for row in sales_report %}
+                <tr>
+
+                    <!-- PRODUCT IMAGE + NAME -->
+                    <td>
+                        <div class="d-flex align-items-center">
+                            {% if row.product_image %}
+                                <img src="{{ row.product_image | fix_image }}"
+                                     style="height:50px; width:50px; object-fit:cover;"
+                                     class="rounded me-3 border">
+                            {% else %}
+                                <div class="rounded me-3 d-flex justify-content-center align-items-center"
+                                     style="height:50px; width:50px; background:#f5f5f5; border:1px solid #ddd;">
+                                    <i class="bi bi-image text-muted"></i>
+                                </div>
+                            {% endif %}
+
+                            <strong>{{ row.product_name }}</strong>
+                        </div>
+                    </td>
+
+                    <!-- CATEGORY -->
+                    <td>{{ row.category_name or 'Uncategorized' }}</td>
+
+                    <!-- SOLD QTY -->
+                    <td class="text-center fw-bold">
+                        {{ row.total_sold_qty }}
+                    </td>
+
+                    <!-- REVENUE -->
+                    <td class="text-end fw-bold">
+                        ₹{{ "%.2f"|format(row.total_revenue) }}
+                    </td>
+
+                    <!-- LAST SOLD DATE -->
+                    <td class="text-center">
+                        {% if row.last_sold_date %}
+                            {{ row.last_sold_date.strftime("%d-%b-%Y") }}
+                        {% else %}
+                            <span class="text-muted">Never Sold</span>
+                        {% endif %}
+                    </td>
+
+                    <!-- ACTION -->
+                    <td class="text-center">
+                        <a href="{{ url_for('product_sales_details', product_id=row.product_id) }}"
+                           class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-eye"></i> View Sales
+                        </a>
+                    </td>
+
+                </tr>
+
+                {% else %}
+                <tr>
+                    <td colspan="6" class="text-center text-muted p-4">
+                        No product sales found.
+                    </td>
+                </tr>
+                {% endfor %}
+
+            </tbody>
+        </table>
+
+    </div>
+</div>
+
+{% endblock %}
