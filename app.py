@@ -1052,6 +1052,54 @@ def product_sales_report():
     return render_template("product_sales_report.html", sales_report=sales_report)
 
 
+
+@app.route("/product_sales_details/<int:product_id>")
+def product_sales_details(product_id):
+    if "loggedin" not in session:
+        return redirect(url_for("login"))
+
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    # 1) Get product info
+    cursor.execute("""
+        SELECT p.*, pc.category_name
+        FROM products p
+        LEFT JOIN product_categories pc ON pc.id = p.category_id
+        WHERE p.id = %s
+    """, (product_id,))
+    product = cursor.fetchone()
+
+    if not product:
+        flash("Product not found!", "danger")
+        return redirect(url_for("product_sales_report"))
+
+    # 2) Fetch all sales for this product
+    cursor.execute("""
+        SELECT 
+            id,
+            quantity,
+            price,
+            discount,
+            payment_mode,
+            payment_remark,
+            sale_date,
+            (quantity * price) AS total_amount
+        FROM sales
+        WHERE product_id = %s
+        ORDER BY sale_date DESC
+    """, (product_id,))
+    
+    sales = cursor.fetchall()
+    cursor.close()
+
+    return render_template(
+        "product_sales_details.html",
+        product=product,
+        sales=sales
+    )
+
+
+
 # ------------------ EMPLOYEES ----------------------------------------------------------------------
 @app.route('/api/check-employee')
 def api_check_employee():
@@ -2990,6 +3038,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
