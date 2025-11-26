@@ -1013,7 +1013,43 @@ def delete_product(id):
             cursor.close()
             
     return redirect(url_for('inventory'))
-#=========================================================================================================
+
+
+#=========================================Product wise sales report===========================#
+
+
+@app.route("/product_sales_report")
+def product_sales_report():
+    if "loggedin" not in session:
+        return redirect(url_for("login"))
+
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    # FULL aggregated product-wise sales report
+    cursor.execute("""
+        SELECT 
+            p.id AS product_id,
+            p.name AS product_name,
+            p.price AS product_price,
+            p.image AS product_image,
+            c.category_name,
+            COALESCE(SUM(s.quantity), 0) AS total_sold_qty,
+            COALESCE(SUM(s.quantity * s.price), 0) AS total_revenue,
+            MAX(s.date) AS last_sold_date
+        FROM products p
+        LEFT JOIN sales s ON s.product_id = p.id
+        LEFT JOIN product_categories c ON c.id = p.category_id
+        GROUP BY p.id, p.name, p.price, p.image, c.category_name
+        ORDER BY total_sold_qty DESC
+    """)
+    
+    sales_report = cursor.fetchall()
+    cursor.close()
+
+    return render_template("product_sales_report.html", sales_report=sales_report)
+
+
+
 # ------------------ EMPLOYEES ----------------------------------------------------------------------
 @app.route('/api/check-employee')
 def api_check_employee():
@@ -2952,6 +2988,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
