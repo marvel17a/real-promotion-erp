@@ -1,0 +1,133 @@
+{% extends "admin_master.html" %}
+{% block page_content %}
+
+<h2 class="fw-bold mb-4">
+    <i class="fa-solid fa-calendar-days me-2"></i>
+    Monthly Sales Dashboard
+</h2>
+
+<form class="row g-3 mb-4" method="get">
+
+    <div class="col-md-3">
+        <label class="form-label fw-bold">Select Year</label>
+        <select name="year" class="form-select" onchange="this.form.submit()">
+            {% for y in year_list %}
+            <option value="{{ y }}" {% if selected_year == y %}selected{% endif %}>{{ y }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="col-md-3">
+        <label class="form-label fw-bold">Start Month</label>
+        <select name="start_month" class="form-select">
+            <option value="">--</option>
+            {% for m in range(1,13) %}
+            <option value="{{ m }}" {% if start_month|int == m %}selected{% endif %}>{{ m }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="col-md-3">
+        <label class="form-label fw-bold">End Month</label>
+        <select name="end_month" class="form-select">
+            <option value="">--</option>
+            {% for m in range(1,13) %}
+            <option value="{{ m }}" {% if end_month|int == m %}selected{% endif %}>{{ m }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="col-md-3 d-flex align-items-end">
+        <button class="btn btn-primary w-100"><i class="fa-solid fa-filter"></i> Apply</button>
+    </div>
+
+</form>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body p-0">
+        <table class="table table-bordered table-striped mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Month</th>
+                    <th class="text-center">Qty Sold</th>
+                    <th class="text-end">Revenue (₹)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in monthly_data %}
+                <tr>
+                    <td>{{ row.month }}</td>
+                    <td class="text-center">{{ row.total_qty }}</td>
+                    <td class="text-end fw-bold">₹{{ row.total_revenue }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6 mb-4">
+        <canvas id="monthlyQtyChart"></canvas>
+    </div>
+
+    <div class="col-md-6 mb-4">
+        <canvas id="monthlyRevenueChart"></canvas>
+    </div>
+
+    <div class="col-md-6 mb-4">
+        <canvas id="categoryMonthlyChart"></canvas>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    const monthlyData = {{ monthly_data | tojson }};
+    const categoryData = {{ category_data | tojson }};
+
+    const months = monthlyData.map(m => m.month);
+    const qtyData = monthlyData.map(m => m.total_qty);
+    const revenueData = monthlyData.map(m => m.total_revenue);
+
+    new Chart(document.getElementById("monthlyQtyChart"), {
+        type: "bar",
+        data: {
+            labels: months,
+            datasets: [{
+                label: "Quantity Sold",
+                data: qtyData,
+                backgroundColor: "rgba(0,123,255,0.6)"
+            }]
+        }
+    });
+
+    new Chart(document.getElementById("monthlyRevenueChart"), {
+        type: "line",
+        data: {
+            labels: months,
+            datasets: [{
+                label: "Revenue",
+                data: revenueData,
+                borderColor: "rgb(255,99,132)",
+                fill: false
+            }]
+        }
+    });
+
+    const catLabels = categoryData.map(c => c.category_name);
+    const catValues = categoryData.map(c => c.total_qty);
+
+    new Chart(document.getElementById("categoryMonthlyChart"), {
+        type: "pie",
+        data: {
+            labels: catLabels,
+            datasets: [{
+                data: catValues,
+                backgroundColor: ["#007bff","#28a745","#ffc107","#dc3545","#17a2b8"]
+            }]
+        }
+    });
+</script>
+
+{% endblock %}
