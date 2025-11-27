@@ -1,73 +1,49 @@
-// ===========================
-// Product Sales Charts Script
-// ===========================
+// Product Sales Charts
 
-// Ensure salesData exists
-if (typeof salesData !== "undefined" && Array.isArray(salesData)) {
+if (typeof salesData !== "undefined") {
 
-    // -----------------------------
-    // BAR CHART — Quantity Sold
-    // -----------------------------
-    const qtyLabels = salesData.map(item => item.product_name);
-    const qtyValues = salesData.map(item => item.total_sold_qty);
+    const qtyLabels = salesData.map(p => p.product_name);
+    const qtyVals = salesData.map(p => p.total_sold_qty);
+    const revenueVals = salesData.map(p => p.total_revenue);
 
-    new Chart(document.getElementById('qtyChart'), {
-        type: 'bar',
+    new Chart(document.getElementById("qtyChart"), {
+        type: "bar",
         data: {
             labels: qtyLabels,
             datasets: [{
-                label: 'Total Quantity Sold',
-                data: qtyValues,
-                backgroundColor: 'rgba(54, 162, 235, 0.7)',
-                borderColor: 'rgba(54, 162, 235, 1)',
-                borderWidth: 1
+                label: "Sold Quantity",
+                data: qtyVals,
+                backgroundColor: "rgba(54,162,235,0.6)"
             }]
         }
     });
 
-
-    // -----------------------------
-    // LINE CHART — Revenue Trend
-    // -----------------------------
-    const revenueValues = salesData.map(item => item.total_revenue);
-
-    new Chart(document.getElementById('revenueChart'), {
-        type: 'line',
+    new Chart(document.getElementById("revenueChart"), {
+        type: "line",
         data: {
             labels: qtyLabels,
             datasets: [{
-                label: 'Revenue (₹)',
-                data: revenueValues,
-                fill: false,
-                borderColor: 'rgb(255, 99, 132)',
-                tension: 0.1
+                label: "Revenue (₹)",
+                data: revenueVals,
+                borderColor: "rgb(255,99,132)",
+                fill: false
             }]
         }
     });
 
-
-    // -----------------------------
-    // PIE CHART — Category-wise Sold Qty
-    // -----------------------------
-    const categoryTotals = {};
-
+    const catTotals = {};
     salesData.forEach(item => {
         const cat = item.category_name || "Uncategorized";
-        if (!categoryTotals[cat]) categoryTotals[cat] = 0;
-        categoryTotals[cat] += item.total_sold_qty;
+        catTotals[cat] = (catTotals[cat] || 0) + item.total_sold_qty;
     });
 
-    new Chart(document.getElementById('categoryChart'), {
-        type: 'pie',
+    new Chart(document.getElementById("categoryChart"), {
+        type: "pie",
         data: {
-            labels: Object.keys(categoryTotals),
+            labels: Object.keys(catTotals),
             datasets: [{
-                data: Object.values(categoryTotals),
-                backgroundColor: [
-                    '#007bff', '#6610f2', '#6f42c1',
-                    '#e83e8c', '#fd7e14', '#ffc107',
-                    '#20c997', '#17a2b8', '#dc3545'
-                ]
+                data: Object.values(catTotals),
+                backgroundColor: ["#007bff","#6610f2","#ffc107","#dc3545","#28a745"]
             }]
         }
     });
