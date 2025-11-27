@@ -93,7 +93,48 @@
         </a>
     </div>
 </div>
+
+<!-- Product-wise Sales Report -->
+<div class="col-md-4 mb-3">
+    <a href="{{ url_for('product_sales_report') }}" class="text-decoration-none">
+        <div class="card shadow-sm report-card h-100">
+            <div class="card-body text-center">
+                <i class="fa-solid fa-chart-column fa-2x mb-2 text-primary"></i>
+                <h5 class="fw-bold">Product-wise Sales</h5>
+                <p class="text-muted small mb-0">View product performance & revenue</p>
+            </div>
+        </div>
+    </a>
+</div>
+
+<!-- Monthly Sales Dashboard -->
+<div class="col-md-4 mb-3">
+    <a href="{{ url_for('monthly_sales_dashboard') }}" class="text-decoration-none">
+        <div class="card shadow-sm report-card h-100">
+            <div class="card-body text-center">
+                <i class="fa-solid fa-calendar-days fa-2x mb-2 text-info"></i>
+                <h5 class="fw-bold">Monthly Sales Dashboard</h5>
+                <p class="text-muted small mb-0">Charts, filters & monthly analytics</p>
+            </div>
+        </div>
+    </a>
+</div>
+
+<!-- Sales Charts Only -->
+<div class="col-md-4 mb-3">
+    <a href="{{ url_for('product_sales_report') }}#charts" class="text-decoration-none">
+        <div class="card shadow-sm report-card h-100">
+            <div class="card-body text-center">
+                <i class="fa-solid fa-chart-pie fa-2x mb-2 text-warning"></i>
+                <h5 class="fw-bold">Sales Charts</h5>
+                <p class="text-muted small mb-0">Bar, Line & Pie charts</p>
+            </div>
+        </div>
+    </a>
+</div>
+
 {% endblock %}
 
 ---
+
 
