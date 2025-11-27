@@ -1186,6 +1186,152 @@ def export_sales_pdf():
     return send_file(filename, as_attachment=True)
 
 
+@app.route("/monthly_sales_dashboard")
+def monthly_sales_dashboard():
+    if "loggedin" not in session:
+        return redirect(url_for("login"))
+
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    selected_year = request.args.get("year")
+    start_month = request.args.get("start_month")
+    end_month = request.args.get("end_month")
+
+    cursor.execute("SELECT DISTINCT YEAR(sale_date) AS year FROM sales ORDER BY year DESC")
+    year_list = [row["year"] for row in cursor.fetchall()]
+
+    if not selected_year:
+        selected_year = year_list[0]
+
+    params = [selected_year]
+    month_filter = ""
+
+    if start_month and end_month:
+        month_filter = " AND MONTH(sale_date) BETWEEN %s AND %s "
+        params.extend([start_month, end_month])
+
+    cursor.execute(f"""
+        SELECT 
+            DATE_FORMAT(sale_date, '%Y-%m') AS month,
+            SUM(quantity) AS total_qty,
+            SUM(quantity * price) AS total_revenue
+        FROM sales
+        WHERE YEAR(sale_date) = %s
+        {month_filter}
+        GROUP BY DATE_FORMAT(sale_date, '%Y-%m')
+        ORDER BY month ASC
+    """, params)
+    monthly_data = cursor.fetchall()
+
+    cursor.execute(f"""
+        SELECT 
+            pc.category_name,
+            SUM(s.quantity) AS total_qty
+        FROM sales s
+        LEFT JOIN products p ON p.id = s.product_id
+        LEFT JOIN product_categories pc ON pc.id = p.category_id
+        WHERE YEAR(s.sale_date) = %s
+        {month_filter}
+        GROUP BY pc.category_name
+        ORDER BY total_qty DESC
+    """, params)
+    category_data = cursor.fetchall()
+
+    cursor.close()
+
+    return render_template(
+        "monthly_sales_dashboard.html",
+        monthly_data=monthly_data,
+        category_data=category_data,
+        year_list=year_list,
+        selected_year=int(selected_year),
+        start_month=start_month,
+        end_month=end_month
+    )
+
+@app.route("/export_sales_excel")
+def export_sales_excel():
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    cursor.execute("""
+        SELECT 
+            p.name AS product_name,
+            pc.category_name,
+            COALESCE(SUM(s.quantity), 0) AS total_sold_qty,
+            COALESCE(SUM(s.quantity * s.price), 0) AS total_revenue,
+            MAX(s.sale_date) AS last_sold_date
+        FROM products p
+        LEFT JOIN sales s ON s.product_id = p.id
+        LEFT JOIN product_categories pc ON pc.id = p.category_id
+        GROUP BY p.id
+        ORDER BY total_sold_qty DESC
+    """)
+    data = cursor.fetchall()
+    cursor.close()
+
+    from openpyxl import Workbook
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Sales Report"
+
+    ws.append(["Product", "Category", "Sold Qty", "Revenue", "Last Sold"])
+
+    for row in data:
+        ws.append([
+            row["product_name"],
+            row["category_name"],
+            row["total_sold_qty"],
+            row["total_revenue"],
+            row["last_sold_date"]
+        ])
+
+    filename = "product_sales_report.xlsx"
+    wb.save(filename)
+    return send_file(filename, as_attachment=True)
+
+@app.route("/export_sales_pdf")
+def export_sales_pdf():
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    cursor.execute("""
+        SELECT 
+            p.name AS product_name,
+            pc.category_name,
+            COALESCE(SUM(s.quantity), 0) AS total_sold_qty,
+            COALESCE(SUM(s.quantity * s.price), 0) AS total_revenue
+        FROM products p
+        LEFT JOIN sales s ON s.product_id = p.id
+        LEFT JOIN product_categories pc ON pc.id = p.category_id
+        GROUP BY p.id
+        ORDER BY total_sold_qty DESC
+    """)
+    data = cursor.fetchall()
+    cursor.close()
+
+    from reportlab.pdfgen import canvas
+    from reportlab.lib.pagesizes import letter
+
+    filename = "product_sales_report.pdf"
+    c = canvas.Canvas(filename, pagesize=letter)
+    y = 750
+
+    c.setFont("Helvetica-Bold", 14)
+    c.drawString(50, y, "Product Sales Report")
+    y -= 40
+
+    c.setFont("Helvetica", 10)
+    for row in data:
+        text = f"{row['product_name']} | {row['category_name']} | Qty: {row['total_sold_qty']} | Revenue: ₹{row['total_revenue']}"
+        c.drawString(50, y, text)
+        y -= 20
+        if y < 50:
+            c.showPage()
+            y = 750
+
+    c.save()
+    return send_file(filename, as_attachment=True)
+
+
+
+
 
 # ------------------ EMPLOYEES ----------------------------------------------------------------------
 @app.route('/api/check-employee')
@@ -3125,6 +3271,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
