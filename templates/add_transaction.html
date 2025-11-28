@@ -11,22 +11,24 @@
             </div>
             <div class="card-body p-4">
                 <form method="POST" action="{{ url_for('add_transaction', employee_id=employee.id) }}">
-                    <div class="mb-4">
-                        <label class="form-label fs-5">Transaction Type</label>
-                        <div class="d-flex gap-3">
-                            <input type="radio" class="btn-check" name="type" id="debit-option" value="debit" autocomplete="off" required>
-                            <label class="btn btn-outline-danger w-100 p-3" for="debit-option">
-                                <i class="fa-solid fa-arrow-up-from-bracket fa-2x mb-2"></i><br>
-                                <strong>Debit</strong><br><small>(Give)</small>
-                            </label>
+                   <div class="mb-4">
+    <label class="form-label fs-5">Transaction Type</label>
+    <div class="d-flex gap-3">
+        <!-- Credit first (left side) -->
+        <input type="radio" class="btn-check" name="type" id="credit-option" value="credit" autocomplete="off" required>
+        <label class="btn btn-outline-success w-100 p-3" for="credit-option">
+            <i class="fa-solid fa-hand-holding-dollar fa-2x mb-2"></i><br>
+            <strong>Credit</strong><br><small>(Receive)</small>
+        </label>
 
-                            <input type="radio" class="btn-check" name="type" id="credit-option" value="credit" autocomplete="off" required>
-                            <label class="btn btn-outline-success w-100 p-3" for="credit-option">
-                                <i class="fa-solid fa-hand-holding-dollar fa-2x mb-2"></i><br>
-                                <strong>Credit</strong><br><small>(Receive)</small>
-                            </label>
-                        </div>
-                    </div>
+        <!-- Debit second (right side) -->
+        <input type="radio" class="btn-check" name="type" id="debit-option" value="debit" autocomplete="off" required>
+        <label class="btn btn-outline-danger w-100 p-3" for="debit-option">
+            <i class="fa-solid fa-arrow-up-from-bracket fa-2x mb-2"></i><br>
+            <strong>Debit</strong><br><small>(Give)</small>
+        </label>
+    </div>
+</div>
 
                     <div class="row">
                         <div class="col-md-6 mb-3">
@@ -53,4 +55,5 @@
         </div>
     </div>
 </div>
+
 {% endblock %}
