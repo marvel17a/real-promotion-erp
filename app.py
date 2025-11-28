@@ -694,6 +694,200 @@ def delete_purchase(purchase_id):
 
     return redirect(url_for('purchases'))
 
+# ==============================
+#  PURCHASE REPORTS MODULE
+# ==============================
+
+@app.route("/purchase_report", methods=["GET", "POST"])
+def purchase_report():
+    if "loggedin" not in session:
+        return redirect(url_for("login"))
+
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    # ---- Filters ----
+    start_date = request.args.get("start_date")
+    end_date = request.args.get("end_date")
+    supplier_id = request.args.get("supplier_id")
+
+    # Fetch suppliers for dropdown
+    cursor.execute("SELECT id, name FROM suppliers ORDER BY name ASC")
+    suppliers = cursor.fetchall()
+
+    # Base query
+    sql = """
+        SELECT 
+            p.id,
+            p.purchase_date,
+            p.bill_number,
+            p.total_amount,
+            s.name AS supplier_name
+        FROM purchases p
+        LEFT JOIN suppliers s ON s.id = p.supplier_id
+        WHERE 1 = 1
+    """
+    params = []
+
+    # Apply filters
+    if start_date:
+        sql += " AND DATE(p.purchase_date) >= %s"
+        params.append(start_date)
+    if end_date:
+        sql += " AND DATE(p.purchase_date) <= %s"
+        params.append(end_date)
+    if supplier_id:
+        sql += " AND p.supplier_id = %s"
+        params.append(supplier_id)
+
+    sql += " ORDER BY p.purchase_date DESC"
+
+    cursor.execute(sql, params)
+    purchases = cursor.fetchall()
+
+    # Monthly summary for charts
+    monthly_sql = """
+        SELECT 
+            DATE_FORMAT(p.purchase_date, '%%Y-%%m') AS month,
+            SUM(p.total_amount) AS total_purchase
+        FROM purchases p
+        WHERE 1 = 1
+    """
+    monthly_params = []
+
+    if start_date:
+        monthly_sql += " AND DATE(p.purchase_date) >= %s"
+        monthly_params.append(start_date)
+    if end_date:
+        monthly_sql += " AND DATE(p.purchase_date) <= %s"
+        monthly_params.append(end_date)
+    if supplier_id:
+        monthly_sql += " AND p.supplier_id = %s"
+        monthly_params.append(supplier_id)
+
+    monthly_sql += " GROUP BY DATE_FORMAT(p.purchase_date, '%%Y-%%m') ORDER BY month ASC"
+
+    cursor.execute(monthly_sql, monthly_params)
+    monthly_data = cursor.fetchall()
+
+    # Supplier-wise totals for chart
+    supplier_sql = """
+        SELECT 
+            s.name AS supplier_name,
+            SUM(p.total_amount) AS total_purchase
+        FROM purchases p
+        LEFT JOIN suppliers s ON s.id = p.supplier_id
+        WHERE 1 = 1
+    """
+    supplier_params = []
+
+    if start_date:
+        supplier_sql += " AND DATE(p.purchase_date) >= %s"
+        supplier_params.append(start_date)
+    if end_date:
+        supplier_sql += " AND DATE(p.purchase_date) <= %s"
+        supplier_params.append(end_date)
+    if supplier_id:
+        supplier_sql += " AND p.supplier_id = %s"
+        supplier_params.append(supplier_id)
+
+    supplier_sql += " GROUP BY s.name ORDER BY total_purchase DESC"
+
+    cursor.execute(supplier_sql, supplier_params)
+    supplier_data = cursor.fetchall()
+
+    cursor.close()
+
+    return render_template(
+        "reports/purchase_report.html",
+        purchases=purchases,
+        suppliers=suppliers,
+        monthly_data=monthly_data,
+        supplier_data=supplier_data,
+        start_date=start_date,
+        end_date=end_date,
+        selected_supplier=supplier_id
+    )
+
+
+@app.route("/export_purchase_excel")
+def export_purchase_excel():
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    cursor.execute("""
+        SELECT 
+            p.purchase_date,
+            p.bill_number,
+            p.total_amount,
+            s.name AS supplier_name
+        FROM purchases p
+        LEFT JOIN suppliers s ON s.id = p.supplier_id
+        ORDER BY p.purchase_date DESC
+    """)
+    data = cursor.fetchall()
+    cursor.close()
+
+    from openpyxl import Workbook
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Purchase Report"
+
+    ws.append(["Date", "Supplier", "Bill #", "Total Amount"])
+
+    for row in data:
+        ws.append([
+            row["purchase_date"],
+            row["supplier_name"],
+            row["bill_number"],
+            row["total_amount"]
+        ])
+
+    filename = "purchase_report.xlsx"
+    wb.save(filename)
+    return send_file(filename, as_attachment=True)
+
+
+@app.route("/export_purchase_pdf")
+def export_purchase_pdf():
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    cursor.execute("""
+        SELECT 
+            p.purchase_date,
+            p.bill_number,
+            p.total_amount,
+            s.name AS supplier_name
+        FROM purchases p
+        LEFT JOIN suppliers s ON s.id = p.supplier_id
+        ORDER BY p.purchase_date DESC
+    """)
+    data = cursor.fetchall()
+    cursor.close()
+
+    from reportlab.pdfgen import canvas
+    from reportlab.lib.pagesizes import letter
+
+    filename = "purchase_report.pdf"
+    c = canvas.Canvas(filename, pagesize=letter)
+    width, height = letter
+    y = height - 50
+
+    c.setFont("Helvetica-Bold", 14)
+    c.drawString(50, y, "Purchase Report")
+    y -= 40
+
+    c.setFont("Helvetica", 10)
+    for row in data:
+        line = f"{row['purchase_date']} | {row['supplier_name']} | Bill: {row['bill_number']} | ₹{row['total_amount']}"
+        c.drawString(50, y, line)
+        y -= 18
+        if y < 50:
+            c.showPage()
+            y = height - 50
+
+    c.save()
+    return send_file(filename, as_attachment=True)
+
+
 
 
 # -------------------------------------------------------------- Category Module CRDUD Operation -------------------------------------------------------------------
@@ -3192,6 +3386,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
