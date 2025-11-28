@@ -25,6 +25,10 @@
                         ₹{{ "%.2f"|format(supplier.current_due) }}
                     </td>
                     <td class="text-center">
+                         <a href="{{ url_for('supplier_cashflow') }}?supplier_id={{ supplier.id }}"
+                           class="btn btn-sm btn-outline-success">
+                            <i class="fa-solid fa-money-bill-transfer"></i> Cashflow
+                        </a>
                         <a href="{{ url_for('supplier_ledger', supplier_id=supplier.id) }}" class="btn btn-sm btn-outline-primary">View Ledger</a>
                         <a href="{{ url_for('edit_supplier', supplier_id=supplier.id) }}" class="btn btn-sm btn-outline-secondary">Edit</a>
 
@@ -47,5 +51,6 @@
     </div>
 </div>
 {% endblock %}
+
 
 
