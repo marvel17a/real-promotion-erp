@@ -406,7 +406,10 @@ def supplier_ledger(supplier_id):
 
     cur.execute("SELECT * FROM supplier_payments WHERE supplier_id = %s ORDER BY payment_date DESC", (supplier_id,))
     payments = cur.fetchall()
-    
+
+    cursor.execute("""SELECT date,type,amount,mode,remark FROM supplier_cashflow WHERE supplier_id = %s ORDER BY date DESC""", (supplier_id,)) 
+    cashflow = cursor.fetchall()
+
     cur.close()
     return render_template('suppliers/supplier_ledger.html', supplier=supplier, purchases=purchases, payments=payments)
 
@@ -484,6 +487,115 @@ def delete_supplier(supplier_id):
 
     return redirect(url_for('suppliers'))
 
+
+#============================================================
+#SUPPLIER CASHFLOW MODULE
+#============================================================
+
+@app.route("/supplier_cashflow")
+def supplier_cashflow():
+    if "loggedin" not in session:
+        return redirect(url_for('login'))
+
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    # Filters
+    sup = request.args.get("supplier_id")
+    start = request.args.get("start_date")
+    end = request.args.get("end_date")
+
+    cursor.execute("SELECT id, name FROM suppliers ORDER BY name")
+    suppliers = cursor.fetchall()
+
+    sql = """
+        SELECT sc.*, s.name AS supplier_name 
+        FROM supplier_cashflow sc
+        LEFT JOIN suppliers s ON s.id = sc.supplier_id
+        WHERE 1=1
+    """
+
+    params = []
+
+    if sup:
+        sql += " AND sc.supplier_id = %s"
+        params.append(sup)
+
+    if start:
+        sql += " AND DATE(sc.date) >= %s"
+        params.append(start)
+
+    if end:
+        sql += " AND DATE(sc.date) <= %s"
+        params.append(end)
+
+    sql += " ORDER BY sc.date DESC"
+
+    cursor.execute(sql, params)
+    transactions = cursor.fetchall()
+
+    # Summary totals
+    cursor.execute("""
+        SELECT 
+            SUM(CASE WHEN type='payment' THEN amount ELSE 0 END) AS total_payment,
+            SUM(CASE WHEN type='receipt' THEN amount ELSE 0 END) AS total_receipt
+        FROM supplier_cashflow
+    """)
+    summary = cursor.fetchone()
+
+    cursor.close()
+
+    return render_template(
+        "suppliers/supplier_cashflow.html",
+        transactions=transactions,
+        suppliers=suppliers,
+        total_payment=summary["total_payment"] or 0,
+        total_receipt=summary["total_receipt"] or 0,
+        start_date=start,
+        end_date=end,
+        selected_supplier=sup
+    )
+
+
+@app.route("/supplier_cashflow/add", methods=["GET","POST"])
+def supplier_cashflow_add():
+    if "loggedin" not in session:
+        return redirect(url_for("login"))
+
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    if request.method == "POST":
+        supplier_id = request.form["supplier_id"]
+        trans_type = request.form["type"]
+        amount = request.form["amount"]
+        mode = request.form["mode"]
+        remark = request.form["remark"]
+
+        cursor.execute("""
+            INSERT INTO supplier_cashflow (supplier_id, type, amount, mode, remark)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (supplier_id, trans_type, amount, mode, remark))
+
+        mysql.connection.commit()
+        flash("Transaction added successfully!", "success")
+        return redirect(url_for("supplier_cashflow"))
+
+    cursor.execute("SELECT id, name FROM suppliers ORDER BY name")
+    suppliers = cursor.fetchall()
+
+    return render_template("suppliers/supplier_cashflow_add.html", suppliers=suppliers)
+
+@app.route("/supplier_cashflow/delete/<int:id>")
+def supplier_cashflow_delete(id):
+    if "loggedin" not in session:
+        return redirect(url_for('login'))
+
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    cursor.execute("DELETE FROM supplier_cashflow WHERE id = %s", (id,))
+    mysql.connection.commit()
+    cursor.close()
+
+    flash("Transaction deleted successfully!", "success")
+    return redirect(url_for("supplier_cashflow"))
 
 
 # =====================================================================
@@ -3386,6 +3498,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
