@@ -1,0 +1,110 @@
+{% extends "admin_master.html" %}
+{% block page_content %}
+
+<h2 class="fw-bold mb-4"><i class="fa-solid fa-money-bill-transfer me-2"></i> Supplier Cashflow</h2>
+
+<a href="{{ url_for('supplier_cashflow_add') }}" class="btn btn-primary mb-3">
+    <i class="fa-solid fa-plus"></i> Add Transaction
+</a>
+
+<!-- FILTERS -->
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+
+            <div class="col-md-3">
+                <label class="form-label fw-bold">Supplier</label>
+                <select name="supplier_id" class="form-select">
+                    <option value="">All Suppliers</option>
+                    {% for s in suppliers %}
+                    <option value="{{ s.id }}" {% if selected_supplier == s.id|string %}selected{% endif %}>
+                        {{ s.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label fw-bold">From Date</label>
+                <input type="date" name="start_date" value="{{ start_date or '' }}" class="form-control">
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label fw-bold">To Date</label>
+                <input type="date" name="end_date" value="{{ end_date or '' }}" class="form-control">
+            </div>
+
+            <div class="col-md-3 d-flex align-items-end">
+                <button class="btn btn-primary w-100"><i class="fa-solid fa-filter"></i> Apply</button>
+            </div>
+
+        </form>
+    </div>
+</div>
+
+<!-- SUMMARY CARDS -->
+<div class="row g-4 mb-4">
+
+    <div class="col-md-6">
+        <div class="card shadow-sm border-start border-danger border-3">
+            <div class="card-body">
+                <h6 class="text-muted mb-1">Total Payment To Suppliers</h6>
+                <h3 class="fw-bold text-danger">₹{{ "%.2f"|format(total_payment) }}</h3>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card shadow-sm border-start border-success border-3">
+            <div class="card-body">
+                <h6 class="text-muted mb-1">Total Received From Suppliers</h6>
+                <h3 class="fw-bold text-success">₹{{ "%.2f"|format(total_receipt) }}</h3>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- TABLE -->
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <table class="table table-striped table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Date</th>
+                    <th>Supplier</th>
+                    <th>Type</th>
+                    <th class="text-end">Amount</th>
+                    <th>Mode</th>
+                    <th>Remark</th>
+                    <th class="text-center">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in transactions %}
+                <tr>
+                    <td>{{ t.date.strftime("%d-%b-%Y %I:%M %p") }}</td>
+                    <td>{{ t.supplier_name }}</td>
+                    <td>
+                        {% if t.type == 'payment' %}
+                            <span class="badge bg-danger">Payment</span>
+                        {% else %}
+                            <span class="badge bg-success">Receipt</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end fw-bold">₹{{ "%.2f"|format(t.amount) }}</td>
+                    <td>{{ t.mode }}</td>
+                    <td>{{ t.remark }}</td>
+                    <td class="text-center">
+                        <a href="{{ url_for('supplier_cashflow_delete', id=t.id) }}" class="btn btn-sm btn-outline-danger">
+                            <i class="fa-solid fa-trash"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}
