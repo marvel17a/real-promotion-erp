@@ -1,0 +1,60 @@
+{% extends "admin_master.html" %}
+{% block page_content %}
+
+<h2 class="fw-bold mb-4"><i class="fa-solid fa-plus-circle me-2"></i> Add Supplier Cashflow</h2>
+
+<div class="card shadow-sm">
+    <div class="card-body">
+
+        <form method="post" class="row g-4">
+
+            <div class="col-md-6">
+                <label class="form-label fw-bold">Supplier</label>
+                <select name="supplier_id" class="form-select" required>
+                    <option value="">Select Supplier</option>
+                    {% for s in suppliers %}
+                    <option value="{{ s.id }}">{{ s.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label fw-bold">Transaction Type</label>
+                <select name="type" class="form-select" required>
+                    <option value="payment">Payment To Supplier</option>
+                    <option value="receipt">Amount Received From Supplier</option>
+                </select>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label fw-bold">Amount</label>
+                <input type="number" step="0.01" name="amount" class="form-control" required>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label fw-bold">Mode</label>
+                <select name="mode" class="form-select">
+                    <option>Cash</option>
+                    <option>UPI</option>
+                    <option>Bank Transfer</option>
+                    <option>Cheque</option>
+                </select>
+            </div>
+
+            <div class="col-md-12">
+                <label class="form-label fw-bold">Remark / Reason</label>
+                <textarea name="remark" class="form-control" placeholder="Reason for payment/receipt"></textarea>
+            </div>
+
+            <div class="col-md-12">
+                <button class="btn btn-primary px-4">
+                    <i class="fa-solid fa-save me-1"></i> Save Transaction
+                </button>
+            </div>
+
+        </form>
+
+    </div>
+</div>
+
+{% endblock %}
