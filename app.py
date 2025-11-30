@@ -1554,33 +1554,181 @@ def monthly_sales_dashboard():
     )
 
 
+# ============================
+#  EMPLOYEE MANAGEMENT MODULE
+# ============================
+
+# ---------- USER SIDE: EMPLOYEE DASHBOARD + DETAIL (base.html) ----------
+
+@app.route("/employees")
+def employees():
+    if "loggedin" not in session:
+        return redirect(url_for("login"))
+
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    cursor.execute("""
+        SELECT 
+            e.*,
+            p.position_name,
+            d.department_name
+        FROM employees e
+        LEFT JOIN employee_positions p ON p.id = e.position_id
+        LEFT JOIN employee_departments d ON d.id = e.department_id
+        ORDER BY e.name ASC
+    """)
+    employees = cursor.fetchall()
+    cursor.close()
+
+    return render_template("employees.html", employees=employees)
 
 
+@app.route("/employee/<int:id>")
+def employee_details(id):
+    if "loggedin" not in session:
+        return redirect(url_for("login"))
+
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    cursor.execute("""
+        SELECT 
+            e.*,
+            p.position_name,
+            d.department_name
+        FROM employees e
+        LEFT JOIN employee_positions p ON p.id = e.position_id
+        LEFT JOIN employee_departments d ON d.id = e.department_id
+        WHERE e.id = %s
+    """, (id,))
+    employee = cursor.fetchone()
+    cursor.close()
+
+    if not employee:
+        flash("Employee not found.", "danger")
+        return redirect(url_for("employees"))
+
+    return render_template("employees/employee_details.html", employee=employee)
 
 
-# ------------------ EMPLOYEES ----------------------------------------------------------------------
-@app.route('/api/check-employee')
-def api_check_employee():
-    field = request.args.get('field', '').strip().lower()
-    value = request.args.get('value', '').strip()
-    exclude_id = request.args.get('exclude_id')
+# ---------- ADMIN SIDE: EMPLOYEE MASTER (admin_master.html) ----------
 
-    allowed = {'name', 'email', 'phone'}
-    if field not in allowed or not value:
-        return {'ok': False, 'exists': False, 'error': 'Invalid request'}, 400
+@app.route("/employee_master")
+def employee_master():
+    if "loggedin" not in session:
+        return redirect(url_for("login"))
 
-    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    if exclude_id:
-        cur.execute(f"SELECT id FROM employees WHERE {field}=%s AND id<>%s LIMIT 1", (value, exclude_id))
-    else:
-        cur.execute(f"SELECT id FROM employees WHERE {field}=%s LIMIT 1", (value,))
-    row = cur.fetchone()
-    cur.close()
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
-    return {'ok': True, 'exists': bool(row)}
+    # Positions
+    cursor.execute("SELECT * FROM employee_positions ORDER BY position_name")
+    positions = cursor.fetchall()
+
+    # Departments
+    cursor.execute("SELECT * FROM employee_departments ORDER BY department_name")
+    departments = cursor.fetchall()
+
+    # Quick employee list (for admin view)
+    cursor.execute("""
+        SELECT 
+            e.id,
+            e.name,
+            e.phone,
+            e.salary,
+            p.position_name,
+            d.department_name
+        FROM employees e
+        LEFT JOIN employee_positions p ON p.id = e.position_id
+        LEFT JOIN employee_departments d ON d.id = e.department_id
+        ORDER BY e.name ASC
+    """)
+    employees = cursor.fetchall()
+
+    cursor.close()
+
+    return render_template(
+        "employees/employee_master.html",
+        positions=positions,
+        departments=departments,
+        employees=employees
+    )
 
 
-# --- MODIFIED: `add_employee` ---#
+# ---------- ADMIN SIDE: POSITION MASTER ----------
+
+@app.route("/employee_position_add", methods=["POST"])
+def employee_position_add():
+    if "loggedin" not in session:
+        return redirect(url_for("login"))
+
+    position_name = request.form.get("position_name", "").strip()
+    if not position_name:
+        flash("Position name is required.", "danger")
+        return redirect(url_for("employee_master"))
+
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    cursor.execute(
+        "INSERT INTO employee_positions (position_name) VALUES (%s)",
+        (position_name,)
+    )
+    mysql.connection.commit()
+    cursor.close()
+
+    flash("Position added successfully!", "success")
+    return redirect(url_for("employee_master"))
+
+
+@app.route("/employee_position_delete/<int:id>")
+def employee_position_delete(id):
+    if "loggedin" not in session:
+        return redirect(url_for("login"))
+
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    cursor.execute("DELETE FROM employee_positions WHERE id=%s", (id,))
+    mysql.connection.commit()
+    cursor.close()
+
+    flash("Position deleted.", "success")
+    return redirect(url_for("employee_master"))
+
+
+# ---------- ADMIN SIDE: DEPARTMENT MASTER ----------
+
+@app.route("/employee_department_add", methods=["POST"])
+def employee_department_add():
+    if "loggedin" not in session:
+        return redirect(url_for("login"))
+
+    department_name = request.form.get("department_name", "").strip()
+    if not department_name:
+        flash("Department name is required.", "danger")
+        return redirect(url_for("employee_master"))
+
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    cursor.execute(
+        "INSERT INTO employee_departments (department_name) VALUES (%s)",
+        (department_name,)
+    )
+    mysql.connection.commit()
+    cursor.close()
+
+    flash("Department added successfully!", "success")
+    return redirect(url_for("employee_master"))
+
+
+@app.route("/employee_department_delete/<int:id>")
+def employee_department_delete(id):
+    if "loggedin" not in session:
+        return redirect(url_for("login"))
+
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    cursor.execute("DELETE FROM employee_departments WHERE id=%s", (id,))
+    mysql.connection.commit()
+    cursor.close()
+
+    flash("Department deleted.", "success")
+    return redirect(url_for("employee_master"))
+
+
+# ---------- ADMIN SIDE: ADD EMPLOYEE (admin_master.html) ----------
+
 @app.route("/add_employee", methods=["GET", "POST"])
 def add_employee():
     if "loggedin" not in session:
@@ -1588,7 +1736,7 @@ def add_employee():
 
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
-    # Load Positions & Departments for dropdown
+    # Dropdown data
     cursor.execute("SELECT * FROM employee_positions ORDER BY position_name")
     positions = cursor.fetchall()
 
@@ -1596,35 +1744,40 @@ def add_employee():
     departments = cursor.fetchall()
 
     if request.method == "POST":
+        name = request.form.get("name", "").strip()
+        phone = request.form.get("phone", "").strip()
+        email = request.form.get("email", "").strip()
+        salary = request.form.get("salary") or 0
 
-        name = request.form["name"]
-        phone = request.form["phone"]
-        email = request.form["email"]
-        salary = request.form["salary"]
+        position_id = request.form.get("position_id")
+        department_id = request.form.get("department_id")
 
-        position_id = request.form["position_id"]
-        department_id = request.form["department_id"]
+        full_address = request.form.get("full_address", "").strip()
+        city = request.form.get("city", "").strip()
+        state = request.form.get("state", "").strip()
+        pincode = request.form.get("pincode", "").strip()
 
-        full_address = request.form["full_address"]
-        city = request.form["city"]
-        state = request.form["state"]
-        pincode = request.form["pincode"]
+        dob = request.form.get("dob") or None
+        joining_date = request.form.get("joining_date") or None
 
-        dob = request.form["dob"]
-        joining_date = request.form["joining_date"]
+        emergency_contact = request.form.get("emergency_contact", "").strip()
+        aadhar_no = request.form.get("aadhar_no", "").strip()
 
-        emergency_contact = request.form["emergency_contact"]
-        aadhar_no = request.form["aadhar_no"]
+        # Basic validation
+        if not name or not phone:
+            flash("Name and phone are required.", "danger")
+            return render_template(
+                "employees/add_employee.html",
+                positions=positions,
+                departments=departments
+            )
 
-        # ======================
-        # Cloudinary Image Upload
-        # ======================
+        # Cloudinary image upload
         image_url = None
-        if "image" in request.files:
-            file = request.files["image"]
-            if file and file.filename:
-                upload_result = cloudinary.uploader.upload(file, folder="erp_employees")
-                image_url = upload_result["public_id"]
+        file = request.files.get("image")
+        if file and file.filename:
+            upload_result = cloudinary.uploader.upload(file, folder="erp_employees")
+            image_url = upload_result["public_id"]
 
         cursor.execute("""
             INSERT INTO employees 
@@ -1645,72 +1798,15 @@ def add_employee():
         return redirect(url_for("employees"))
 
     cursor.close()
-    return render_template("employees/add_employee.html",
-                           positions=positions,
-                           departments=departments)
+    return render_template(
+        "employees/add_employee.html",
+        positions=positions,
+        departments=departments
+    )
 
 
+# ---------- ADMIN SIDE: EDIT EMPLOYEE (admin_master.html) ----------
 
-
-#
-# ROUTE 1: Make sure your /employees route looks like this
-#
-#
-# ROUTE 1: For the main employees page (stats & filters)
-@app.route("/employees")
-def employees():
-    if "loggedin" not in session:
-        return redirect(url_for("login"))
-
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-
-    # Join with positions and departments to show richer info
-    cursor.execute("""
-        SELECT 
-            e.*,
-            p.position_name,
-            d.department_name
-        FROM employees e
-        LEFT JOIN employee_positions p ON p.id = e.position_id
-        LEFT JOIN employee_departments d ON d.id = e.department_id
-        ORDER BY e.name ASC
-    """)
-    employees = cursor.fetchall()
-    cursor.close()
-
-    # NOTE: this is the *base.html* version of dashboard
-    return render_template("employees.html", employees=employees)
-
-
-
-# ROUTE 2: For the "View Details" page
-#
-@app.route("/employee/<int:id>")
-def employee_details(id):
-    if "loggedin" not in session:
-        return redirect(url_for("login"))
-
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-
-    cursor.execute("""
-        SELECT 
-            e.*,
-            p.position_name,
-            d.department_name
-        FROM employees e
-        LEFT JOIN employee_positions p ON p.id = e.position_id
-        LEFT JOIN employee_departments d ON d.id = e.department_id
-        WHERE e.id = %s
-    """, (id,))
-    employee = cursor.fetchone()
-    cursor.close()
-
-    return render_template("employee_details.html", employee=employee)
-
-
-
-
-#===========Employee Edit============================#
 @app.route("/edit_employee/<int:id>", methods=["GET", "POST"])
 def edit_employee(id):
     if "loggedin" not in session:
@@ -1718,11 +1814,14 @@ def edit_employee(id):
 
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
-    # Fetch employee
     cursor.execute("SELECT * FROM employees WHERE id=%s", (id,))
     employee = cursor.fetchone()
 
-    # Dropdowns
+    if not employee:
+        cursor.close()
+        flash("Employee not found.", "danger")
+        return redirect(url_for("employees"))
+
     cursor.execute("SELECT * FROM employee_positions ORDER BY position_name")
     positions = cursor.fetchall()
 
@@ -1730,32 +1829,30 @@ def edit_employee(id):
     departments = cursor.fetchall()
 
     if request.method == "POST":
+        name = request.form.get("name", "").strip()
+        phone = request.form.get("phone", "").strip()
+        email = request.form.get("email", "").strip()
+        salary = request.form.get("salary") or 0
 
-        name = request.form["name"]
-        phone = request.form["phone"]
-        email = request.form["email"]
-        salary = request.form["salary"]
+        position_id = request.form.get("position_id")
+        department_id = request.form.get("department_id")
 
-        position_id = request.form["position_id"]
-        department_id = request.form["department_id"]
+        full_address = request.form.get("full_address", "").strip()
+        city = request.form.get("city", "").strip()
+        state = request.form.get("state", "").strip()
+        pincode = request.form.get("pincode", "").strip()
 
-        full_address = request.form["full_address"]
-        city = request.form["city"]
-        state = request.form["state"]
-        pincode = request.form["pincode"]
+        dob = request.form.get("dob") or None
+        joining_date = request.form.get("joining_date") or None
 
-        dob = request.form["dob"]
-        joining_date = request.form["joining_date"]
+        emergency_contact = request.form.get("emergency_contact", "").strip()
+        aadhar_no = request.form.get("aadhar_no", "").strip()
 
-        emergency_contact = request.form["emergency_contact"]
-        aadhar_no = request.form["aadhar_no"]
-
-        # Image update
         image_url = employee["image"]
         file = request.files.get("image")
         if file and file.filename:
-            upload = cloudinary.uploader.upload(file, folder="erp_employees")
-            image_url = upload["public_id"]
+            upload_result = cloudinary.uploader.upload(file, folder="erp_employees")
+            image_url = upload_result["public_id"]
 
         cursor.execute("""
             UPDATE employees SET
@@ -1780,12 +1877,36 @@ def edit_employee(id):
         return redirect(url_for("employees"))
 
     cursor.close()
-    return render_template("employees/edit_employee.html",
-                           employee=employee,
-                           positions=positions,
-                           departments=departments)
+    return render_template(
+        "employees/edit_employee.html",
+        employee=employee,
+        positions=positions,
+        departments=departments
+    )
 
 
+# ---------- ADMIN SIDE: DELETE EMPLOYEE ----------
+
+# ------------------ EMPLOYEES ----------------------------------------------------------------------
+@app.route('/api/check-employee')
+def api_check_employee():
+    field = request.args.get('field', '').strip().lower()
+    value = request.args.get('value', '').strip()
+    exclude_id = request.args.get('exclude_id')
+
+    allowed = {'name', 'email', 'phone'}
+    if field not in allowed or not value:
+        return {'ok': False, 'exists': False, 'error': 'Invalid request'}, 400
+
+    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    if exclude_id:
+        cur.execute(f"SELECT id FROM employees WHERE {field}=%s AND id<>%s LIMIT 1", (value, exclude_id))
+    else:
+        cur.execute(f"SELECT id FROM employees WHERE {field}=%s LIMIT 1", (value,))
+    row = cur.fetchone()
+    cur.close()
+
+    return {'ok': True, 'exists': bool(row)}
 
 @app.route("/delete_employee/<int:id>", methods=["POST"])
 def delete_employee(id):
@@ -1845,95 +1966,6 @@ def api_employee_detail(id):
     if not emp:
         return jsonify({"ok": False, "error": "Not found"}), 404
     return jsonify({"ok": True, "employee": emp})
-
-
-#=======================================================================================================================
-#EMPLOYEE MASTER MODULE#
-#======================================================================================================================
-
-
-@app.route("/employee_master")
-def employee_master():
-    if "loggedin" not in session:
-        return redirect(url_for('login'))
-
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-
-    # Fetch positions
-    cursor.execute("SELECT * FROM employee_positions ORDER BY id DESC")
-    positions = cursor.fetchall()
-
-    # Fetch departments
-    cursor.execute("SELECT * FROM employee_departments ORDER BY id DESC")
-    departments = cursor.fetchall()
-
-    cursor.close()
-
-    return render_template(
-        "employees/employee_master.html",
-        positions=positions,
-        departments=departments
-    )
-
-@app.route("/employee_position_add", methods=["POST"])
-def employee_position_add():
-    if "loggedin" not in session:
-        return redirect(url_for('login'))
-
-    position_name = request.form["position_name"]
-
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    cursor.execute("INSERT INTO employee_positions (position_name) VALUES (%s)", (position_name,))
-    mysql.connection.commit()
-    cursor.close()
-
-    flash("Position added successfully!", "success")
-    return redirect(url_for("employee_master"))
-
-
-@app.route("/employee_position_delete/<int:id>")
-def employee_position_delete(id):
-    if "loggedin" not in session:
-        return redirect(url_for('login'))
-
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    cursor.execute("DELETE FROM employee_positions WHERE id = %s", (id,))
-    mysql.connection.commit()
-    cursor.close()
-
-    flash("Position deleted!", "success")
-    return redirect(url_for("employee_master"))
-
-@app.route("/employee_department_add", methods=["POST"])
-def employee_department_add():
-    if "loggedin" not in session:
-        return redirect(url_for('login'))
-
-    department_name = request.form["department_name"]
-
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    cursor.execute("INSERT INTO employee_departments (department_name) VALUES (%s)", (department_name,))
-    mysql.connection.commit()
-    cursor.close()
-
-    flash("Department added successfully!", "success")
-    return redirect(url_for("employee_master"))
-
-@app.route("/employee_department_delete/<int:id>")
-def employee_department_delete(id):
-    if "loggedin" not in session:
-        return redirect(url_for('login'))
-
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    cursor.execute("DELETE FROM employee_departments WHERE id = %s", (id,))
-    mysql.connection.commit()
-    cursor.close()
-
-    flash("Department deleted!", "success")
-    return redirect(url_for("employee_master"))
-
-
-
 
 
 #=============================================EXPENSES================================================
@@ -3588,6 +3620,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
