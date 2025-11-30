@@ -1699,21 +1699,29 @@ def employees():
 #
 # ROUTE 2: For the "View Details" page
 #
-@app.route('/employee/view/<int:id>')
+@app.route("/employee/<int:id>")
 def employee_details(id):
     if "loggedin" not in session:
         return redirect(url_for("login"))
-    
+
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    cursor.execute("SELECT * FROM employees WHERE id = %s", (id,))
+
+    cursor.execute("""
+        SELECT e.*, 
+               p.position_name,
+               d.department_name
+        FROM employees e
+        LEFT JOIN employee_positions p ON p.id = e.position_id
+        LEFT JOIN employee_departments d ON d.id = e.department_id
+        WHERE e.id = %s
+    """, (id,))
+
     employee = cursor.fetchone()
+
     cursor.close()
-    
-    if not employee:
-        flash("Employee not found.", "danger")
-        return redirect(url_for('employees'))
-        
-    return render_template('employee_details.html', employee=employee)
+
+    return render_template("employees/employee_details.html", employee=employee)
+
 
 
 #===========Employee Edit============================#
@@ -3594,6 +3602,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
