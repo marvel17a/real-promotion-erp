@@ -1179,7 +1179,6 @@ def add_product():
 
     if request.method == 'POST':
         name = request.form.get('name')
-        description = request.form.get('description') or ''
         price = float(request.form.get('price') or 0)
         stock = int(request.form.get('stock') or 0)
         category_id = request.form.get('category_id') or None
@@ -1197,9 +1196,9 @@ def add_product():
         # Insert Product
         cursor.execute("""
             INSERT INTO products
-            (name, description, price, stock, category_id, low_stock_threshold, image)
+            (name,price, stock, category_id, low_stock_threshold, image)
             VALUES (%s,%s,%s,%s,%s,%s,%s)
-        """, (name, description, price, stock, category_id, low_stock_threshold, image_url))
+        """, (name, price, stock, category_id, low_stock_threshold, image_url))
 
         mysql.connection.commit()
         cursor.close()
@@ -1223,7 +1222,6 @@ def edit_product(product_id):
 
     if request.method == 'POST':
         name = request.form.get('name')
-        description = request.form.get('description') or ''
         price = float(request.form.get('price') or 0)
         stock = int(request.form.get('stock') or 0)
         category_id = request.form.get('category_id') or None
@@ -1239,17 +1237,17 @@ def edit_product(product_id):
 
             cursor.execute("""
                 UPDATE products
-                SET name=%s, description=%s, price=%s, stock=%s,
+                SET name=%s, price=%s, stock=%s,
                     category_id=%s, low_stock_threshold=%s, image=%s
                 WHERE id=%s
-            """, (name, description, price, stock, category_id, low_stock_threshold, image_url, product_id))
+            """, (name,price, stock, category_id, low_stock_threshold, image_url, product_id))
         else:
             cursor.execute("""
                 UPDATE products
-                SET name=%s, description=%s, price=%s, stock=%s,
+                SET name=%s, price=%s, stock=%s,
                     category_id=%s, low_stock_threshold=%s
                 WHERE id=%s
-            """, (name, description, price, stock, category_id, low_stock_threshold, product_id))
+            """, (name, price, stock, category_id, low_stock_threshold, product_id))
 
         mysql.connection.commit()
         cursor.close()
@@ -3498,6 +3496,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
