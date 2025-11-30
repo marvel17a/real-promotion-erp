@@ -43,13 +43,14 @@
 </td>
                 </tr>
                 {% else %}
-                <tr><td colspan="5" class="text-center p-4">No purchases recorded yet. <a href="{{ url_for('add_purchase') }}">Add your first one!</a></td></tr>
+                <tr><td colspan="5" class="text-center p-4">No purchases recorded yet. <a href="{{ url_for('new_purchase') }}">Add your first one!</a></td></tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
 </div>
 {% endblock %}
+
 
 
 
