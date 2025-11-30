@@ -1197,7 +1197,7 @@ def add_product():
         cursor.execute("""
             INSERT INTO products
             (name,price, stock, category_id, low_stock_threshold, image)
-            VALUES (%s,%s,%s,%s,%s,%s,%s)
+            VALUES (%s,%s,%s,%s,%s,%s)
         """, (name, price, stock, category_id, low_stock_threshold, image_url))
 
         mysql.connection.commit()
@@ -3496,6 +3496,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
