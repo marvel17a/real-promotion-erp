@@ -1580,64 +1580,75 @@ def api_check_employee():
     return {'ok': True, 'exists': bool(row)}
 
 
-# --- MODIFIED: `add_employee` ---
+# --- MODIFIED: `add_employee` ---#
 @app.route("/add_employee", methods=["GET", "POST"])
 def add_employee():
+    if "loggedin" not in session:
+        return redirect(url_for("login"))
+
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    # Load Positions & Departments for dropdown
+    cursor.execute("SELECT * FROM employee_positions ORDER BY position_name")
+    positions = cursor.fetchall()
+
+    cursor.execute("SELECT * FROM employee_departments ORDER BY department_name")
+    departments = cursor.fetchall()
+
     if request.method == "POST":
+
         name = request.form["name"]
-        position = request.form["position"]
-        email = request.form["email"]
         phone = request.form["phone"]
-        status = request.form["status"]
+        email = request.form["email"]
+        salary = request.form["salary"]
+
+        position_id = request.form["position_id"]
+        department_id = request.form["department_id"]
+
+        full_address = request.form["full_address"]
         city = request.form["city"]
-        
-        image_file = request.files.get("image")
-        document_file = request.files.get("document")
+        state = request.form["state"]
+        pincode = request.form["pincode"]
 
-        image_id = None
-        document_id = None
+        dob = request.form["dob"]
+        joining_date = request.form["joining_date"]
 
-        try:
-            # Upload image
-            if image_file and allowed_file(image_file.filename):
-                img_res = cloudinary.uploader.upload(image_file, folder="erp_employees")
-                #
-                # THE FIX: Save the 'public_id', not the 'secure_url'
-                #
-                image_id = img_res.get('public_id')
-                app.logger.info(f"Employee image uploaded, public_id: {image_id}")
+        emergency_contact = request.form["emergency_contact"]
+        aadhar_no = request.form["aadhar_no"]
 
-            # Upload document
-            if document_file and document_file.filename != '':
-                doc_res = cloudinary.uploader.upload(
-                    document_file, 
-                    folder="erp_documents",
-                    resource_type="auto" 
-                )
-                #
-                # THE FIX: Save the 'public_id', not the 'secure_url'
-                #
-                document_id = doc_res.get('public_id')
-                app.logger.info(f"Employee document uploaded, public_id: {document_id}")
+        # ======================
+        # Cloudinary Image Upload
+        # ======================
+        image_url = None
+        if "image" in request.files:
+            file = request.files["image"]
+            if file and file.filename:
+                upload_result = cloudinary.uploader.upload(file, folder="erp_employees")
+                image_url = upload_result["public_id"]
 
-        except Exception as e:
-            app.logger.error(f"Cloudinary upload failed: {e}")
-            flash(f"File upload failed: {e}", "danger")
-            return render_template("add_employee.html")
-
-        # Insert into DB
-        cursor = mysql.connection.cursor()
         cursor.execute("""
-            INSERT INTO employees (name, position, email, phone, status, city, image, document)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-        """, (name, position, email, phone, status, city, image_id, document_id))
+            INSERT INTO employees 
+            (name, phone, email, salary, position_id, department_id,
+             full_address, city, state, pincode, dob, joining_date,
+             emergency_contact, aadhar_no, image)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """, (
+            name, phone, email, salary, position_id, department_id,
+            full_address, city, state, pincode, dob, joining_date,
+            emergency_contact, aadhar_no, image_url
+        ))
+
         mysql.connection.commit()
         cursor.close()
 
-        flash(" Employee Added Successfully!", "success")
+        flash("Employee added successfully!", "success")
         return redirect(url_for("employees"))
 
-    return render_template("add_employee.html")
+    cursor.close()
+    return render_template("employees/add_employee.html",
+                           positions=positions,
+                           departments=departments)
+
 
 
 
@@ -1705,79 +1716,82 @@ def employee_details(id):
     return render_template('employee_details.html', employee=employee)
 
 
-
-
-
+#===========Employee Edit============================#
 @app.route("/edit_employee/<int:id>", methods=["GET", "POST"])
 def edit_employee(id):
+    if "loggedin" not in session:
+        return redirect(url_for("login"))
+
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    # Fetch employee
     cursor.execute("SELECT * FROM employees WHERE id=%s", (id,))
     employee = cursor.fetchone()
-    if not employee:
-        flash("Employee not found.", "danger")
-        return redirect(url_for('employees'))
+
+    # Dropdowns
+    cursor.execute("SELECT * FROM employee_positions ORDER BY position_name")
+    positions = cursor.fetchall()
+
+    cursor.execute("SELECT * FROM employee_departments ORDER BY department_name")
+    departments = cursor.fetchall()
 
     if request.method == "POST":
+
         name = request.form["name"]
-        position = request.form["position"]
-        email = request.form["email"]
         phone = request.form["phone"]
-        status = request.form["status"]
+        email = request.form["email"]
+        salary = request.form["salary"]
+
+        position_id = request.form["position_id"]
+        department_id = request.form["department_id"]
+
+        full_address = request.form["full_address"]
         city = request.form["city"]
+        state = request.form["state"]
+        pincode = request.form["pincode"]
 
-        image_file = request.files.get("image")
-        document_file = request.files.get("document")
+        dob = request.form["dob"]
+        joining_date = request.form["joining_date"]
 
-        # Start with existing IDs
-        image_id = employee["image"]
-        document_id = employee["document"]
+        emergency_contact = request.form["emergency_contact"]
+        aadhar_no = request.form["aadhar_no"]
 
-        try:
-            # Upload new image if provided
-            if image_file and allowed_file(image_file.filename):
-                img_res = cloudinary.uploader.upload(image_file, folder="erp_employees")
-                #
-                # THE FIX: Get the new 'public_id'
-                #
-                image_id = img_res.get('public_id')
-                app.logger.info("Employee image updated, public_id: {image_id}")
-            
-            # Upload new document if provided
-            if document_file and document_file.filename != '':
-                doc_res = cloudinary.uploader.upload(
-                    document_file, 
-                    folder="erp_documents",
-                    resource_type="auto"
-                )
-                #
-                # THE FIX: Get the new 'public_id'
-                #
-                document_id = doc_res.get('public_id')
-                app.logger.info("Employee document updated, public_id: {document_id}")
-                
-        except Exception as e:
-            app.logger.error(f"Cloudinary upload failed: {e}")
-            flash(f"File upload failed: {e}", "danger")
-            return render_template("edit_employee.html", employee=employee)
+        # Image update
+        image_url = employee["image"]
+        file = request.files.get("image")
+        if file and file.filename:
+            upload = cloudinary.uploader.upload(file, folder="erp_employees")
+            image_url = upload["public_id"]
 
         cursor.execute("""
-            UPDATE employees SET name=%s, position=%s, email=%s, phone=%s, 
-            status=%s, city=%s, image=%s, document=%s WHERE id=%s
-        """, (name, position, email, phone, status, city, image_id, document_id, id))
+            UPDATE employees SET
+                name=%s, phone=%s, email=%s, salary=%s,
+                position_id=%s, department_id=%s,
+                full_address=%s, city=%s, state=%s, pincode=%s,
+                dob=%s, joining_date=%s, emergency_contact=%s, aadhar_no=%s,
+                image=%s
+            WHERE id=%s
+        """, (
+            name, phone, email, salary,
+            position_id, department_id,
+            full_address, city, state, pincode,
+            dob, joining_date, emergency_contact, aadhar_no,
+            image_url, id
+        ))
+
         mysql.connection.commit()
         cursor.close()
 
-        flash(" Employee Updated Successfully!", "info")
+        flash("Employee updated successfully!", "success")
         return redirect(url_for("employees"))
 
     cursor.close()
-    return render_template("edit_employee.html", employee=employee)
+    return render_template("employees/edit_employee.html",
+                           employee=employee,
+                           positions=positions,
+                           departments=departments)
 
-#
-# This file shows the modifications for your app.py
-# 1. Find and DELETE your old 'delete_employee' function.
-# 2. Copy and PASTE this new version into your app.py
-#
+
 
 @app.route("/delete_employee/<int:id>", methods=["POST"])
 def delete_employee(id):
@@ -1839,6 +1853,90 @@ def api_employee_detail(id):
     return jsonify({"ok": True, "employee": emp})
 
 
+#=======================================================================================================================
+#EMPLOYEE MASTER MODULE#
+#======================================================================================================================
+
+
+@app.route("/employee_master")
+def employee_master():
+    if "loggedin" not in session:
+        return redirect(url_for('login'))
+
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    # Fetch positions
+    cursor.execute("SELECT * FROM employee_positions ORDER BY id DESC")
+    positions = cursor.fetchall()
+
+    # Fetch departments
+    cursor.execute("SELECT * FROM employee_departments ORDER BY id DESC")
+    departments = cursor.fetchall()
+
+    cursor.close()
+
+    return render_template(
+        "employees/employee_master.html",
+        positions=positions,
+        departments=departments
+    )
+
+@app.route("/employee_position_add", methods=["POST"])
+def employee_position_add():
+    if "loggedin" not in session:
+        return redirect(url_for('login'))
+
+    position_name = request.form["position_name"]
+
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    cursor.execute("INSERT INTO employee_positions (position_name) VALUES (%s)", (position_name,))
+    mysql.connection.commit()
+    cursor.close()
+
+    flash("Position added successfully!", "success")
+    return redirect(url_for("employee_master"))
+
+
+@app.route("/employee_position_delete/<int:id>")
+def employee_position_delete(id):
+    if "loggedin" not in session:
+        return redirect(url_for('login'))
+
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    cursor.execute("DELETE FROM employee_positions WHERE id = %s", (id,))
+    mysql.connection.commit()
+    cursor.close()
+
+    flash("Position deleted!", "success")
+    return redirect(url_for("employee_master"))
+
+@app.route("/employee_department_add", methods=["POST"])
+def employee_department_add():
+    if "loggedin" not in session:
+        return redirect(url_for('login'))
+
+    department_name = request.form["department_name"]
+
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    cursor.execute("INSERT INTO employee_departments (department_name) VALUES (%s)", (department_name,))
+    mysql.connection.commit()
+    cursor.close()
+
+    flash("Department added successfully!", "success")
+    return redirect(url_for("employee_master"))
+
+@app.route("/employee_department_delete/<int:id>")
+def employee_department_delete(id):
+    if "loggedin" not in session:
+        return redirect(url_for('login'))
+
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    cursor.execute("DELETE FROM employee_departments WHERE id = %s", (id,))
+    mysql.connection.commit()
+    cursor.close()
+
+    flash("Department deleted!", "success")
+    return redirect(url_for("employee_master"))
 
 
 
@@ -3496,6 +3594,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
