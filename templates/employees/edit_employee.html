@@ -1,0 +1,127 @@
+{% extends "admin_master.html" %}
+{% block page_content %}
+
+<h2 class="fw-bold mb-4">
+    <i class="fa-solid fa-user-pen me-2"></i> Edit Employee
+</h2>
+
+<div class="card shadow-sm">
+    <div class="card-body">
+
+        <form method="POST" enctype="multipart/form-data" class="row g-4">
+
+            <!-- BASIC INFO -->
+            <div class="col-md-6">
+                <label class="form-label fw-bold">Full Name</label>
+                <input type="text" name="name" class="form-control" value="{{ employee.name }}" required>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label fw-bold">Phone</label>
+                <input type="text" name="phone" class="form-control" value="{{ employee.phone }}">
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label fw-bold">Email</label>
+                <input type="email" name="email" class="form-control" value="{{ employee.email }}">
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label fw-bold">Salary</label>
+                <input type="number" name="salary" class="form-control" value="{{ employee.salary }}" required>
+            </div>
+
+            <!-- POSITION & DEPARTMENT -->
+            <div class="col-md-6">
+                <label class="form-label fw-bold">Position</label>
+                <select name="position_id" class="form-select" required>
+                    {% for p in positions %}
+                    <option value="{{ p.id }}"
+                        {% if p.id == employee.position_id %} selected {% endif %}>
+                        {{ p.position_name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label fw-bold">Department</label>
+                <select name="department_id" class="form-select" required>
+                    {% for d in departments %}
+                    <option value="{{ d.id }}"
+                        {% if d.id == employee.department_id %} selected {% endif %}>
+                        {{ d.department_name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- ADDRESS -->
+            <div class="col-md-12">
+                <label class="form-label fw-bold">Full Address</label>
+                <textarea name="full_address" class="form-control" rows="2">{{ employee.full_address }}</textarea>
+            </div>
+
+            <div class="col-md-4">
+                <label class="form-label fw-bold">City</label>
+                <input type="text" name="city" class="form-control" value="{{ employee.city }}">
+            </div>
+
+            <div class="col-md-4">
+                <label class="form-label fw-bold">State</label>
+                <input type="text" name="state" class="form-control" value="{{ employee.state }}">
+            </div>
+
+            <div class="col-md-4">
+                <label class="form-label fw-bold">Pincode</label>
+                <input type="text" name="pincode" class="form-control" value="{{ employee.pincode }}">
+            </div>
+
+            <!-- OTHER DETAILS -->
+            <div class="col-md-4">
+                <label class="form-label fw-bold">Date of Birth</label>
+                <input type="date" name="dob" class="form-control" value="{{ employee.dob }}">
+            </div>
+
+            <div class="col-md-4">
+                <label class="form-label fw-bold">Joining Date</label>
+                <input type="date" name="joining_date" class="form-control" value="{{ employee.joining_date }}">
+            </div>
+
+            <div class="col-md-4">
+                <label class="form-label fw-bold">Emergency Contact</label>
+                <input type="text" name="emergency_contact" class="form-control" value="{{ employee.emergency_contact }}">
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label fw-bold">Aadhar Number</label>
+                <input type="text" name="aadhar_no" class="form-control" value="{{ employee.aadhar_no }}">
+            </div>
+
+            <!-- IMAGE -->
+            <div class="col-md-6">
+                <label class="form-label fw-bold">Employee Photo</label>
+                <input type="file" name="image" class="form-control" accept="image/*">
+
+                {% if employee.image %}
+                <div class="mt-2">
+                    <p class="fw-bold small mb-1">Current Photo:</p>
+                    <img src="{{ cloudinary_url(employee.image)[0] }}" 
+                         alt="Employee Image" class="img-thumbnail" width="150">
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- SUBMIT BUTTON -->
+            <div class="col-md-12">
+                <button class="btn btn-primary px-4">
+                    <i class="fa-solid fa-save me-1"></i> Update Employee
+                </button>
+            </div>
+
+        </form>
+
+    </div>
+</div>
+
+{% endblock %}
