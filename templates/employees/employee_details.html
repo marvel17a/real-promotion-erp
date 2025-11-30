@@ -1,121 +1,73 @@
-{% extends "admin_master.html" %}
+{% extends "base.html" %}
+{% block content %}
 
-{% block page_content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/employee.css') }}">
 
-<h2 class="fw-bold mb-4">
-    <i class="fa-solid fa-id-card me-2"></i> Employee Details
-</h2>
+<div class="container py-4">
 
-<a href="{{ url_for('employees') }}" class="btn btn-outline-secondary mb-3">
-    <i class="fa-solid fa-arrow-left me-1"></i> Back to Employees
-</a>
+    <a href="{{ url_for('employees') }}" class="btn btn-outline-secondary mb-4">
+        <i class="fa-solid fa-arrow-left me-1"></i> Back to Employees
+    </a>
 
-<div class="card shadow-sm mb-4">
-    <div class="card-body">
+    <div class="card shadow-sm">
+        <div class="card-body">
 
-        <div class="row g-4">
+            <div class="row g-4">
 
-            <!-- LEFT COLUMN: PHOTO & BASIC -->
-            <div class="col-lg-4 text-center">
+                <div class="col-lg-4 text-center">
+                    {% if employee.image %}
+                        <img src="{{ cloudinary_url(employee.image)[0] }}"
+                             class="employee-avatar-large mb-3"
+                             alt="{{ employee.name }}">
+                    {% else %}
+                        <div class="employee-avatar-large-placeholder mb-3">
+                            <i class="fa-solid fa-user fs-1 text-muted"></i>
+                        </div>
+                    {% endif %}
 
-                <!-- Employee Photo -->
-                {% if employee.image %}
-                <img src="{{ cloudinary_url(employee.image)[0] }}"
-                     class="img-fluid rounded shadow-sm mb-3"
-                     style="max-width: 220px; border-radius: 10px;"
-                     alt="Employee Photo">
-                {% else %}
-                <img src="https://via.placeholder.com/200"
-                     class="img-fluid rounded shadow-sm mb-3">
-                {% endif %}
+                    <h3 class="fw-bold">{{ employee.name }}</h3>
 
-                <h3 class="fw-bold">{{ employee.name }}</h3>
-
-                <span class="badge bg-primary fs-6 mt-2">
-                    {{ employee.position_name or 'N/A' }}
-                </span>
-
-                <div class="mt-3">
-                    <span class="badge bg-secondary">
-                        {{ employee.department_name or 'N/A' }}
-                    </span>
+                    <div class="mt-2">
+                        {% if employee.position_name %}
+                        <span class="badge bg-primary me-1">{{ employee.position_name }}</span>
+                        {% endif %}
+                        {% if employee.department_name %}
+                        <span class="badge bg-secondary">{{ employee.department_name }}</span>
+                        {% endif %}
+                    </div>
                 </div>
 
-            </div>
+                <div class="col-lg-8">
 
-            <!-- RIGHT COLUMN: DETAILS -->
-            <div class="col-lg-8">
-
-                <div class="row g-4">
-
-                    <!-- Personal Info -->
-                    <div class="col-md-12">
-                        <h5 class="fw-bold mb-3">
-                            <i class="fa-solid fa-user me-2"></i> Personal Information
-                        </h5>
-                        <div class="row">
-                            <div class="col-md-6 mb-2">
-                                <strong>Phone:</strong> {{ employee.phone or 'N/A' }}
-                            </div>
-                            <div class="col-md-6 mb-2">
-                                <strong>Email:</strong> {{ employee.email or 'N/A' }}
-                            </div>
-                            <div class="col-md-6 mb-2">
-                                <strong>Date of Birth:</strong> {{ employee.dob or 'N/A' }}
-                            </div>
-                            <div class="col-md-6 mb-2">
-                                <strong>Aadhar No:</strong> {{ employee.aadhar_no or 'N/A' }}
-                            </div>
-                        </div>
+                    <h5 class="fw-bold mb-3">
+                        <i class="fa-solid fa-user me-2"></i> Personal Information
+                    </h5>
+                    <div class="row mb-4">
+                        <div class="col-md-6 mb-2"><strong>Phone:</strong> {{ employee.phone or 'N/A' }}</div>
+                        <div class="col-md-6 mb-2"><strong>Email:</strong> {{ employee.email or 'N/A' }}</div>
+                        <div class="col-md-6 mb-2"><strong>Date of Birth:</strong> {{ employee.dob or 'N/A' }}</div>
+                        <div class="col-md-6 mb-2"><strong>Aadhar No:</strong> {{ employee.aadhar_no or 'N/A' }}</div>
+                        <div class="col-md-6 mb-2"><strong>Emergency Contact:</strong> {{ employee.emergency_contact or 'N/A' }}</div>
                     </div>
 
-                    <!-- Job Info -->
-                    <div class="col-md-12 mt-3">
-                        <h5 class="fw-bold mb-3">
-                            <i class="fa-solid fa-briefcase me-2"></i> Job Information
-                        </h5>
-                        <div class="row">
-                            <div class="col-md-6 mb-2">
-                                <strong>Position:</strong> {{ employee.position_name or 'N/A' }}
-                            </div>
-                            <div class="col-md-6 mb-2">
-                                <strong>Department:</strong> {{ employee.department_name or 'N/A' }}
-                            </div>
-                            <div class="col-md-6 mb-2">
-                                <strong>Joining Date:</strong> {{ employee.joining_date or 'N/A' }}
-                            </div>
-                            <div class="col-md-6 mb-2">
-                                <strong>Salary:</strong> ₹{{ "%.2f"|format(employee.salary) }}
-                            </div>
-                        </div>
+                    <h5 class="fw-bold mb-3">
+                        <i class="fa-solid fa-briefcase me-2"></i> Job Information
+                    </h5>
+                    <div class="row mb-4">
+                        <div class="col-md-6 mb-2"><strong>Position:</strong> {{ employee.position_name or 'N/A' }}</div>
+                        <div class="col-md-6 mb-2"><strong>Department:</strong> {{ employee.department_name or 'N/A' }}</div>
+                        <div class="col-md-6 mb-2"><strong>Joining Date:</strong> {{ employee.joining_date or 'N/A' }}</div>
+                        <div class="col-md-6 mb-2"><strong>Salary:</strong> ₹{{ "%.2f"|format(employee.salary) }}</div>
                     </div>
 
-                    <!-- Address Info -->
-                    <div class="col-md-12 mt-3">
-                        <h5 class="fw-bold mb-3">
-                            <i class="fa-solid fa-location-dot me-2"></i> Address
-                        </h5>
-                        <p class="mb-1"><strong>Address:</strong><br>{{ employee.full_address or 'N/A' }}</p>
-
-                        <div class="row">
-                            <div class="col-md-4 mb-2">
-                                <strong>City:</strong> {{ employee.city or 'N/A' }}
-                            </div>
-                            <div class="col-md-4 mb-2">
-                                <strong>State:</strong> {{ employee.state or 'N/A' }}
-                            </div>
-                            <div class="col-md-4 mb-2">
-                                <strong>Pincode:</strong> {{ employee.pincode or 'N/A' }}
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Emergency -->
-                    <div class="col-md-12 mt-3">
-                        <h5 class="fw-bold mb-3">
-                            <i class="fa-solid fa-phone-volume me-2"></i> Emergency Contact
-                        </h5>
-                        <p>{{ employee.emergency_contact or 'N/A' }}</p>
+                    <h5 class="fw-bold mb-3">
+                        <i class="fa-solid fa-location-dot me-2"></i> Address
+                    </h5>
+                    <p class="mb-1"><strong>Full Address:</strong><br>{{ employee.full_address or 'N/A' }}</p>
+                    <div class="row">
+                        <div class="col-md-4 mb-2"><strong>City:</strong> {{ employee.city or 'N/A' }}</div>
+                        <div class="col-md-4 mb-2"><strong>State:</strong> {{ employee.state or 'N/A' }}</div>
+                        <div class="col-md-4 mb-2"><strong>Pincode:</strong> {{ employee.pincode or 'N/A' }}</div>
                     </div>
 
                 </div>
@@ -123,15 +75,8 @@
             </div>
 
         </div>
-
     </div>
-</div>
 
-<!-- OPTIONAL PRINT BUTTON -->
-<div class="text-end">
-    <button onclick="window.print()" class="btn btn-dark">
-        <i class="fa-solid fa-print me-1"></i> Print Profile
-    </button>
 </div>
 
 {% endblock %}
