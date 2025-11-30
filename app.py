@@ -1657,46 +1657,32 @@ def add_employee():
 #
 #
 # ROUTE 1: For the main employees page (stats & filters)
-#
 @app.route("/employees")
 def employees():
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    
-    cursor.execute("SELECT * FROM employees ORDER BY name ASC")
-    data = cursor.fetchall()
-    
-    cursor.execute("SELECT DISTINCT position FROM employees WHERE position IS NOT NULL AND position != '' ORDER BY position ASC")
-    positions = cursor.fetchall()
-    cursor.execute("SELECT DISTINCT city FROM employees WHERE city IS NOT NULL AND city != '' ORDER BY city ASC")
-    cities = cursor.fetchall()
-    
-    cursor.execute("SELECT COUNT(id) AS count, status FROM employees GROUP BY status")
-    status_counts_raw = cursor.fetchall()
-    
-    cursor.close()
-    
-    stats = {
-        'total_employees': len(data),
-        'active_employees': 0,
-        'inactive_employees': 0
-    }
-    for row in status_counts_raw:
-        if row['status'] == 'active':
-            stats['active_employees'] = row['count']
-        elif row['status'] == 'inactive':
-            stats['inactive_employees'] = row['count']
-            
-    filters = {
-        'positions': positions,
-        'cities': cities
-    }
-    
-    return render_template("employees.html", 
-                           employees=data, 
-                           stats=stats, 
-                           filters=filters)
+    if "loggedin" not in session:
+        return redirect(url_for("login"))
 
-#
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    # Join with positions and departments to show richer info
+    cursor.execute("""
+        SELECT 
+            e.*,
+            p.position_name,
+            d.department_name
+        FROM employees e
+        LEFT JOIN employee_positions p ON p.id = e.position_id
+        LEFT JOIN employee_departments d ON d.id = e.department_id
+        ORDER BY e.name ASC
+    """)
+    employees = cursor.fetchall()
+    cursor.close()
+
+    # NOTE: this is the *base.html* version of dashboard
+    return render_template("employees.html", employees=employees)
+
+
+
 # ROUTE 2: For the "View Details" page
 #
 @app.route("/employee/<int:id>")
@@ -1707,20 +1693,20 @@ def employee_details(id):
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
     cursor.execute("""
-        SELECT e.*, 
-               p.position_name,
-               d.department_name
+        SELECT 
+            e.*,
+            p.position_name,
+            d.department_name
         FROM employees e
         LEFT JOIN employee_positions p ON p.id = e.position_id
         LEFT JOIN employee_departments d ON d.id = e.department_id
         WHERE e.id = %s
     """, (id,))
-
     employee = cursor.fetchone()
-
     cursor.close()
 
-    return render_template("employees/employee_details.html", employee=employee)
+    return render_template("employee_details.html", employee=employee)
+
 
 
 
@@ -3602,6 +3588,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
