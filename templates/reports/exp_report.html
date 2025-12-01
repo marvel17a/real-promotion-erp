@@ -2,81 +2,84 @@
 {% block title %}Expense Reports{% endblock %}
 
 {% block page_content %}
-<style>
-    .report-card {
-        border: none;
-        border-radius: 0.75rem;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08);
-    }
-    .filter-section { display: none; }
-    .filter-section.active { display: block; }
-    .mom-card { border-left: 4px solid; }
-    .mom-card .change-indicator { font-size: 0.9rem; }
-</style>
 
 <div class="container-fluid">
-    <h1 class="h3 mb-4 text-gray-800">Expense Reports</h1>
 
-    <div class="card report-card mb-4">
+    <h2 class="fw-bold mb-4">
+        <i class="fa-solid fa-file-invoice-dollar me-2"></i> Expense Reports
+    </h2>
+
+    <!-- FILTER CARD -->
+    <div class="card shadow-sm mb-4">
         <div class="card-body">
+
             <form id="report-filter-form" method="GET" action="{{ url_for('exp_report') }}">
-    <div class="row align-items-end">
-        <div class="col-md-4">
-            <label for="report_type" class="form-label">Select Report Type</label>
-            <select name="type" id="report_type" class="form-select">
-                <option value="monthly_summary" {% if report_type == 'monthly_summary' %}selected{% endif %}>Monthly Summary</option>
-                <option value="detailed_log" {% if report_type == 'detailed_log' %}selected{% endif %}>Detailed Expense Log</option>
-                <option value="category_wise" {% if report_type == 'category_wise' %}selected{% endif %}>Category-wise Report</option>
-                <option value="subcategory_wise" {% if report_type == 'subcategory_wise' %}selected{% endif %}>Subcategory-wise Report</option>
-                <option value="mom_comparison" {% if report_type == 'mom_comparison' %}selected{% endif %}>Month-over-Month Comparison</option>
-                <option value="annual_summary" {% if report_type == 'annual_summary' %}selected{% endif %}>Annual Summary</option>
-            </select>
-        </div>
-<div id="filter-monthly" class="col-md-5 filter-section">
+
+                <div class="row g-3 align-items-end">
+
+                    <!-- Report Type -->
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Report Type</label>
+                        <select name="type" id="report_type" class="form-select">
+                            <option value="monthly_summary" {{ 'selected' if report_type == 'monthly_summary' else '' }}>Monthly Summary</option>
+                            <option value="detailed_log" {{ 'selected' if report_type == 'detailed_log' else '' }}>Detailed Log</option>
+                            <option value="category_wise" {{ 'selected' if report_type == 'category_wise' else '' }}>Category-wise</option>
+                            <option value="subcategory_wise" {{ 'selected' if report_type == 'subcategory_wise' else '' }}>Subcategory-wise</option>
+                            <option value="mom_comparison" {{ 'selected' if report_type == 'mom_comparison' else '' }}>Month-over-Month</option>
+                            <option value="annual_summary" {{ 'selected' if report_type == 'annual_summary' else '' }}>Annual Summary</option>
+                        </select>
+                    </div>
+
+                    <!-- MONTHLY FILTER -->
+                    <div id="filter-monthly" class="col-md-5 filter-section">
                         <div class="row">
-                             <div class="col-6">
-                                 <label class="form-label">Year</label>
-                                 <input type="number" name="year" class="form-control" value="{{ filters.year }}">
+                            <div class="col-6">
+                                <label class="form-label fw-semibold">Year</label>
+                                <input type="number" name="year" class="form-control" value="{{ filters.year }}">
                             </div>
-                             <div class="col-6">
-                                 <label class="form-label">Month</label>
-                                 <select name="month" class="form-select">
-                                     {% for num, name in months %}
-                                     <option value="{{ num }}" {% if num == filters.month %}selected{% endif %}>{{ name }}</option>
-                                     {% endfor %}
-                                 </select>
+                            <div class="col-6">
+                                <label class="form-label fw-semibold">Month</label>
+                                <select name="month" class="form-select">
+                                    {% for num, name in months %}
+                                    <option value="{{ num }}" {{ 'selected' if num == filters.month else '' }}>{{ name }}</option>
+                                    {% endfor %}
+                                </select>
                             </div>
                         </div>
                     </div>
-        
-        <div id="filter-date-range" class="col-md-5 filter-section">
-            <div class="row">
-               <div class="col-6"><label class="form-label">Start Date</label><input type="date" name="start_date" class="form-control" value="{{ filters.start_date }}"></div>
-               <div class="col-6"><label class="form-label">End Date</label><input type="date" name="end_date" class="form-control" value="{{ filters.end_date }}"></div>
-            </div>
-        </div>
-        <div id="filter-annual" class="col-md-5 filter-section">
-             <div class="row">
-               <div class="col-6"><label class="form-label">Year</label><input type="number" name="year" class="form-control" value="{{ filters.year }}"></div>
-            </div>
-        </div>
 
-        <div class="col-md-3">
-            <button type="submit" class="btn btn-primary w-100">Generate Report</button>
-        </div>
-    </div>
-    <hr>
-    <div class="row mt-3">
-        <div class="col-12 text-end">
-            <span class="text-muted me-2">Download this report:</span>
-            <button type="button" id="export-excel" class="btn btn-sm btn-success"><i class="fas fa-file-excel me-1"></i> Excel</button>
-            <button type="button" id="export-pdf" class="btn btn-sm btn-danger"><i class="fas fa-file-pdf me-1"></i> PDF</button>
-        </div>
-    </div>
-</form>
+                    <!-- DATE RANGE FILTER -->
+                    <div id="filter-date-range" class="col-md-5 filter-section">
+                        <div class="row">
+                            <div class="col-6">
+                                <label class="form-label fw-semibold">Start Date</label>
+                                <input type="date" name="start_date" class="form-control" value="{{ filters.start_date }}">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label fw-semibold">End Date</label>
+                                <input type="date" name="end_date" class="form-control" value="{{ filters.end_date }}">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ANNUAL FILTER -->
+                    <div id="filter-annual" class="col-md-5 filter-section">
+                        <label class="form-label fw-semibold">Year</label>
+                        <input type="number" name="year" class="form-control" value="{{ filters.year }}">
+                    </div>
+
+                    <div class="col-md-3">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fa-solid fa-filter me-1"></i> Generate
+                        </button>
+                    </div>
+
+                </div>
+            </form>
         </div>
     </div>
 
+    <!-- REPORT CONTENT -->
     <div id="report-content">
         {% if report_type == 'monthly_summary' %}
             {% include 'reports/_monthly_summary.html' %}
@@ -92,56 +95,7 @@
             {% include 'reports/_annual_summary.html' %}
         {% endif %}
     </div>
+
 </div>
-{% endblock %}
-{% block page_scripts %}
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const reportTypeSelect = document.getElementById('report_type');
-    
-    function toggleFilters() {
-        document.querySelectorAll('.filter-section').forEach(el => el.classList.remove('active'));
-        const selectedType = reportTypeSelect.value;
-        
-        if (selectedType === 'monthly_summary') {
-            document.getElementById('filter-monthly').classList.add('active');
-        } else if (['detailed_log', 'category_wise', 'subcategory_wise'].includes(selectedType)) {
-            document.getElementById('filter-date-range').classList.add('active');
-        } else if (['mom_comparison', 'annual_summary'].includes(selectedType)) {
-            document.getElementById('filter-annual').classList.add('active');
-        }
-    }
-    toggleFilters();
-    reportTypeSelect.addEventListener('change', toggleFilters);
 
-    // --- NEW EXPORT LOGIC ---
-    function generateExportUrl(exportType) {
-        // Collect all filter values currently on the page
-        const reportType = document.getElementById('report_type').value;
-        const year = document.querySelector('[name="year"]').value;
-        const month = document.querySelector('[name="month"]').value;
-        const startDate = document.querySelector('[name="start_date"]').value;
-        const endDate = document.querySelector('[name="end_date"]').value;
-        
-        // Build the URL with the correct parameters
-        let url = `/export/${exportType}?type=${reportType}&year=${year}&month=${month}&start_date=${startDate}&end_date=${endDate}`;
-        
-        window.open(url, '_blank'); // Open the URL to trigger the download
-    }
-
-    document.getElementById('export-excel').addEventListener('click', () => generateExportUrl('excel'));
-    document.getElementById('export-pdf').addEventListener('click', () => generateExportUrl('pdf'));
-    
-    // --- Chart Drawing Logic (Same as before) ---
-    const chartData = {{ chart_data | tojson }};
-    const categoryChartCanvas = document.getElementById('categoryChart');
-    if (categoryChartCanvas && chartData.labels) {
-        new Chart(categoryChartCanvas, { type: 'pie', data: { labels: chartData.labels, datasets: [{ data: chartData.data, backgroundColor: ['#4f46e5', '#10b981', '#0ea5e9', '#f59e0b', '#ef4444', '#6b7280'] }]}, options: { responsive: true, maintainAspectRatio: false, legend: { position: 'bottom' } }});
-    }
-    const momChartCanvas = document.getElementById('momChart');
-    if (momChartCanvas && chartData.labels) {
-        new Chart(momChartCanvas, { type: 'bar', data: { labels: chartData.labels, datasets: [{ label: 'Total Expenses (₹)', data: chartData.data, backgroundColor: 'rgba(79, 70, 229, 0.8)' }]}, options: { responsive: true, maintainAspectRatio: false, legend: { display: false } }});
-    }
-});
-</script>
 {% endblock %}
