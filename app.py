@@ -322,41 +322,31 @@ def dash():
 
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
-    # -----------------------------
-    # TOTAL SALES
-    # -----------------------------
+    # — Total Sales —
     cursor.execute("""
         SELECT IFNULL(SUM(total_amount), 0) AS total_sales
         FROM sales
     """)
     total_sales = cursor.fetchone()["total_sales"]
 
-    # -----------------------------
-    # TOTAL PURCHASES
-    # -----------------------------
+    # — Total Purchases —
     cursor.execute("""
         SELECT IFNULL(SUM(total_amount), 0) AS total_purchases
         FROM purchases
     """)
     total_purchases = cursor.fetchone()["total_purchases"]
 
-    # -----------------------------
-    # TOTAL EXPENSES
-    # -----------------------------
+    # — Total Expenses —
     cursor.execute("""
-        SELECT IFNULL(SUM(amount), 0) AS total_expenses 
+        SELECT IFNULL(SUM(amount), 0) AS total_expenses
         FROM expenses
     """)
     total_expenses = cursor.fetchone()["total_expenses"]
 
-    # -----------------------------
-    # PROFIT = SALES - (PURCHASES + EXPENSES)
-    # -----------------------------
+    # — Profit (Sales – Purchases – Expenses) —
     total_profit = total_sales - (total_purchases + total_expenses)
 
-    # -----------------------------
-    # LOW STOCK PRODUCTS
-    # -----------------------------
+    # — Low-stock count (products below or equal to alert level) —
     cursor.execute("""
         SELECT COUNT(*) AS low_stock
         FROM products
@@ -364,23 +354,20 @@ def dash():
     """)
     low_stock = cursor.fetchone()["low_stock"]
 
-    # -----------------------------
-    # CHART: SALES LAST 6 MONTHS
-    # -----------------------------
+    # — Sales chart data (for last 6 months) — adjust as needed
     cursor.execute("""
         SELECT 
-            DATE_FORMAT(sale_date, '%b %Y') AS month,
-            SUM(total_amount) AS total
+            DATE_FORMAT(sale_date, '%%b %%Y') AS month_label,
+            IFNULL(SUM(total_amount), 0) AS monthly_total
         FROM sales
         GROUP BY 1
         ORDER BY MIN(sale_date) DESC
         LIMIT 6
     """)
-    sales_chart_rows = cursor.fetchall()
-
-    # Build arrays for Chart.js
-    months = [row["month"] for row in reversed(sales_chart_rows)]
-    sales_totals = [row["total"] for row in reversed(sales_chart_rows)]
+    sales_rows = cursor.fetchall()
+    # Reverse so oldest month appears first
+    months = [row["month_label"] for row in reversed(sales_rows)]
+    sales_values = [row["monthly_total"] for row in reversed(sales_rows)]
 
     cursor.close()
 
@@ -391,8 +378,8 @@ def dash():
         total_expenses=total_expenses,
         total_profit=total_profit,
         low_stock=low_stock,
-        months=months,
-        sales_totals=sales_totals
+        chart_months=months,
+        chart_sales=sales_values
     )
 
 
@@ -3696,6 +3683,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
