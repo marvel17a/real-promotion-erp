@@ -1732,37 +1732,25 @@ def employee_master():
 
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
-    # Positions
-    cursor.execute("SELECT * FROM employee_positions ORDER BY position_name")
-    positions = cursor.fetchall()
-
-    # Departments
-    cursor.execute("SELECT * FROM employee_departments ORDER BY department_name")
-    departments = cursor.fetchall()
-
-    # Quick employee list (for admin view)
     cursor.execute("""
         SELECT 
             e.id,
             e.name,
             e.phone,
-            p.position_name,
-            d.department_name
+            e.cnic,
+            e.join_date,
+            e.image,
+            p.name AS position_name
         FROM employees e
-        LEFT JOIN employee_positions p ON p.id = e.position_id
-        LEFT JOIN employee_departments d ON d.id = e.department_id
-        ORDER BY e.name ASC
+        LEFT JOIN employee_positions p ON e.position_id = p.id
+        ORDER BY e.id DESC
     """)
     employees = cursor.fetchall()
 
     cursor.close()
 
-    return render_template(
-        "employees/employee_master.html",
-        positions=positions,
-        departments=departments,
-        employees=employees
-    )
+    return render_template("employees/employee_master.html", employees=employees)
+
 
 
 # ---------- ADMIN SIDE: POSITION MASTER ----------
@@ -3870,6 +3858,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
