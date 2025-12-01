@@ -476,27 +476,23 @@ def supplier_ledger(supplier_id):
 
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
-    # 1. Get supplier basic info
+    # Supplier info
     cursor.execute("SELECT * FROM suppliers WHERE id = %s", (supplier_id,))
     supplier = cursor.fetchone()
-    if not supplier:
-        cursor.close()
-        return "Supplier not found", 404
 
-    # 2. Purchase transactions
+    # Purchases
     cursor.execute("""
         SELECT 
             purchase_date AS date,
             total_amount AS amount,
-            bill_number,
-            'Purchase' AS type
+            bill_number
         FROM purchases
         WHERE supplier_id = %s
         ORDER BY purchase_date DESC
     """, (supplier_id,))
-    purchase_rows = cursor.fetchall()
+    purchases = cursor.fetchall()
 
-    # 3. Supplier Cashflow (Your New Module)
+    # Cashflow
     cursor.execute("""
         SELECT 
             date,
@@ -508,17 +504,14 @@ def supplier_ledger(supplier_id):
         WHERE supplier_id = %s
         ORDER BY date DESC
     """, (supplier_id,))
-    cashflow_rows = cursor.fetchall()
+    cashflow = cursor.fetchall()
 
     cursor.close()
 
-    return render_template(
-        "suppliers/supplier_ledger.html",
-        supplier=supplier,
-        purchases=purchase_rows,
-        cashflow=cashflow_rows
-    )
-
+    return render_template("suppliers/supplier_ledger.html",
+                           supplier=supplier,
+                           purchases=purchases,
+                           cashflow=cashflow)
 
 
 @app.route('/suppliers/<int:supplier_id>/payment/new', methods=['GET', 'POST'])
@@ -3862,6 +3855,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
