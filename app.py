@@ -1631,7 +1631,6 @@ def employee_master():
             e.id,
             e.name,
             e.phone,
-            e.salary,
             p.position_name,
             d.department_name
         FROM employees e
@@ -1747,7 +1746,7 @@ def add_employee():
         name = request.form.get("name", "").strip()
         phone = request.form.get("phone", "").strip()
         email = request.form.get("email", "").strip()
-        salary = request.form.get("salary") or 0
+    
 
         position_id = request.form.get("position_id")
         department_id = request.form.get("department_id")
@@ -1781,12 +1780,12 @@ def add_employee():
 
         cursor.execute("""
             INSERT INTO employees 
-            (name, phone, email, salary, position_id, department_id,
+            (name, phone, email, position_id, department_id,
              full_address, city, state, pincode, dob, joining_date,
              emergency_contact, aadhar_no, image)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """, (
-            name, phone, email, salary, position_id, department_id,
+            name, phone, email, position_id, department_id,
             full_address, city, state, pincode, dob, joining_date,
             emergency_contact, aadhar_no, image_url
         ))
@@ -1832,7 +1831,7 @@ def edit_employee(id):
         name = request.form.get("name", "").strip()
         phone = request.form.get("phone", "").strip()
         email = request.form.get("email", "").strip()
-        salary = request.form.get("salary") or 0
+        
 
         position_id = request.form.get("position_id")
         department_id = request.form.get("department_id")
@@ -1856,14 +1855,14 @@ def edit_employee(id):
 
         cursor.execute("""
             UPDATE employees SET
-                name=%s, phone=%s, email=%s, salary=%s,
+                name=%s, phone=%s, email=%s,
                 position_id=%s, department_id=%s,
                 full_address=%s, city=%s, state=%s, pincode=%s,
                 dob=%s, joining_date=%s, emergency_contact=%s, aadhar_no=%s,
                 image=%s
             WHERE id=%s
         """, (
-            name, phone, email, salary,
+            name, phone, email,
             position_id, department_id,
             full_address, city, state, pincode,
             dob, joining_date, emergency_contact, aadhar_no,
@@ -3620,6 +3619,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
