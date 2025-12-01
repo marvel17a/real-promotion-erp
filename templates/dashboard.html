@@ -1,36 +1,59 @@
 {% extends "base.html" %}
 
-
 {% block content %}
-<div class="container py-4">
-  <h2 class="mb-4">Welcome, Rahul Sir </h2>
-  <p class="text-muted">Summary for <strong>{{ report_date_str }}</strong></p>
+<div class="container py-4" style="max-width:1200px; margin:auto; font-family:Arial, sans-serif;">
+  <h2 class="mb-4" style="text-align:center; color:#2c3e50;">Welcome, Rahul Sir</h2>
+  <p class="text-muted" style="text-align:center; font-size:16px;">
+    Summary for <strong>{{ report_date_str }}</strong>
+  </p>
 
-  <div class="row g-4">
-    <div class="col-md-4">
-      <div class="card text-white bg-success shadow-sm">
+  <!-- Cards Section -->
+  <div class="row g-4" style="display:flex; flex-wrap:wrap; justify-content:center;">
+    <div class="col-md-4" style="flex:1; min-width:280px;">
+      <div class="card text-white bg-success shadow-sm" style="border-radius:10px; transition:transform 0.3s;">
         <div class="card-body text-center">
-          <h5 class="card-title">Today's Sales</h5>
-          <p class="display-6">₹{{total_sales }}</p>
+          <h5 class="card-title" style="font-size:18px;">Today's Sales</h5>
+          <p class="display-6" style="font-size:28px; font-weight:bold;">₹{{ total_sales }}</p>
         </div>
       </div>
     </div>
-    <div class="col-md-4">
-      <div class="card text-white bg-danger shadow-sm">
+    <div class="col-md-4" style="flex:1; min-width:280px;">
+      <div class="card text-white bg-danger shadow-sm" style="border-radius:10px; transition:transform 0.3s;">
         <div class="card-body text-center">
-          <h5 class="card-title">Today's Expenses</h5>
-          <p class="display-6">₹{{total_expenses }}</p>
+          <h5 class="card-title" style="font-size:18px;">Today's Expenses</h5>
+          <p class="display-6" style="font-size:28px; font-weight:bold;">₹{{ total_expenses }}</p>
         </div>
       </div>
     </div>
-    <div class="col-md-4">
-      <div class="card text-white bg-primary shadow-sm">
+    <div class="col-md-4" style="flex:1; min-width:280px;">
+      <div class="card text-white bg-primary shadow-sm" style="border-radius:10px; transition:transform 0.3s;">
         <div class="card-body text-center">
-          <h5 class="card-title">Net Cash Flow</h5>
-          <p class="display-6">₹{{net_cash_flow }}</p>
+          <h5 class="card-title" style="font-size:18px;">Net Cash Flow</h5>
+          <p class="display-6" style="font-size:28px; font-weight:bold;">₹{{ net_cash_flow }}</p>
         </div>
       </div>
     </div>
+  </div>
+
+  <!-- Buttons Section -->
+  <div class="mt-5" style="text-align:center;">
+    <ul style="list-style:none; padding:0; display:inline-block;">
+      <li style="margin:10px 0;">
+        <a class="dropdown-item" href="{{ url_for('morning') }}" 
+           style="display:inline-block; padding:12px 24px; background:#27ae60; color:#fff; 
+                  border-radius:6px; text-decoration:none; font-weight:bold; transition:0.3s;">
+          Morning Order Form
+        </a>
+      </li>
+      <li><hr class="dropdown-divider" style="border-top:2px solid #ccc; margin:15px 0;"></li>
+      <li style="margin:10px 0;">
+        <a class="dropdown-item" href="{{ url_for('evening') }}" 
+           style="display:inline-block; padding:12px 24px; background:#2980b9; color:#fff; 
+                  border-radius:6px; text-decoration:none; font-weight:bold; transition:0.3s;">
+          Evening Settlement
+        </a>
+      </li>
+    </ul>
   </div>
 </div>
 {% endblock %}
