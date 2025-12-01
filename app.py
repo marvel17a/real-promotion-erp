@@ -2270,26 +2270,145 @@ def delete_subcategory(subcategory_id):
     return redirect(url_for('category_man'))    
 
 
-@app.route("/exp_report", methods=["GET", "POST"])
+@app.route("/exp_report", methods=["GET"])
 def exp_report():
     if "loggedin" not in session:
         return redirect(url_for("login"))
 
-    filters = {}
-    if request.method == "POST":
-        filters["year"] = request.form.get("year") or ""
-        filters["month"] = request.form.get("month") or ""
-    else:
-        filters["year"] = ""
-        filters["month"] = ""
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
-    # You can add logic here to fetch expense data based on filters
-    # expenses = ...
-    expenses = []  # example
+    # --------------------------
+    # GET FILTERS
+    # --------------------------
+    report_type = request.args.get("type", "monthly_summary")
 
-    return render_template("reports/exp_report.html",
-                           filters=filters,
-                           expenses=expenses)
+    filters = {
+        "year": request.args.get("year", ""),
+        "month": request.args.get("month", ""),
+        "start_date": request.args.get("start_date", ""),
+        "end_date": request.args.get("end_date", "")
+    }
+
+    # --------------------------
+    # MONTH LIST (used by template)
+    # --------------------------
+    months = [
+        ("01", "January"), ("02", "February"), ("03", "March"),
+        ("04", "April"), ("05", "May"), ("06", "June"),
+        ("07", "July"), ("08", "August"), ("09", "September"),
+        ("10", "October"), ("11", "November"), ("12", "December")
+    ]
+
+    # --------------------------
+    # REPORT DATA HOLDER
+    # --------------------------
+    chart_data = {"labels": [], "data": []}
+    report_rows = []
+
+    # --------------------------
+    # FETCH REPORT DATA BASED ON TYPE
+    # --------------------------
+
+    # 1. MONTHLY SUMMARY
+    if report_type == "monthly_summary":
+        cursor.execute("""
+            SELECT 
+                expense_date,
+                category,
+                subcategory,
+                amount,
+                remark
+            FROM expenses
+            WHERE YEAR(expense_date) = %s AND MONTH(expense_date) = %s
+            ORDER BY expense_date DESC
+        """, (filters["year"], filters["month"]))
+        report_rows = cursor.fetchall()
+
+    # 2. DETAILED LOG (DATE RANGE)
+    elif report_type == "detailed_log":
+        cursor.execute("""
+            SELECT 
+                expense_date,
+                category,
+                subcategory,
+                amount,
+                remark
+            FROM expenses
+            WHERE expense_date BETWEEN %s AND %s
+            ORDER BY expense_date DESC
+        """, (filters["start_date"], filters["end_date"]))
+        report_rows = cursor.fetchall()
+
+    # 3. CATEGORY-WISE REPORT
+    elif report_type == "category_wise":
+        cursor.execute("""
+            SELECT category, SUM(amount) AS total
+            FROM expenses
+            WHERE expense_date BETWEEN %s AND %s
+            GROUP BY category
+            ORDER BY total DESC
+        """, (filters["start_date"], filters["end_date"]))
+        rows = cursor.fetchall()
+        report_rows = rows
+        chart_data["labels"] = [r["category"] for r in rows]
+        chart_data["data"] = [float(r["total"]) for r in rows]
+
+    # 4. SUBCATEGORY-WISE REPORT
+    elif report_type == "subcategory_wise":
+        cursor.execute("""
+            SELECT subcategory, SUM(amount) AS total
+            FROM expenses
+            WHERE expense_date BETWEEN %s AND %s
+            GROUP BY subcategory
+            ORDER BY total DESC
+        """, (filters["start_date"], filters["end_date"]))
+        rows = cursor.fetchall()
+        report_rows = rows
+        chart_data["labels"] = [r["subcategory"] for r in rows]
+        chart_data["data"] = [float(r["total"]) for r in rows]
+
+    # 5. MOM COMPARISON (month-over-month)
+    elif report_type == "mom_comparison":
+        cursor.execute("""
+            SELECT 
+                DATE_FORMAT(expense_date, '%b %Y') AS month_label,
+                SUM(amount) AS total
+            FROM expenses
+            WHERE YEAR(expense_date) = %s
+            GROUP BY month_label
+            ORDER BY MIN(expense_date)
+        """, (filters["year"],))
+        rows = cursor.fetchall()
+        report_rows = rows
+        chart_data["labels"] = [r["month_label"] for r in rows]
+        chart_data["data"] = [float(r["total"]) for r in rows]
+
+    # 6. ANNUAL SUMMARY
+    elif report_type == "annual_summary":
+        cursor.execute("""
+            SELECT 
+                category,
+                SUM(amount) AS total
+            FROM expenses
+            WHERE YEAR(expense_date) = %s
+            GROUP BY category
+            ORDER BY total DESC
+        """, (filters["year"],))
+        rows = cursor.fetchall()
+        report_rows = rows
+        chart_data["labels"] = [r["category"] for r in rows]
+        chart_data["data"] = [float(r["total"]) for r in rows]
+
+    cursor.close()
+
+    return render_template(
+        "reports/exp_report.html",
+        report_type=report_type,
+        filters=filters,
+        months=months,
+        report_rows=report_rows,
+        chart_data=chart_data
+    )
 
 
 # =====================================================================
@@ -3746,6 +3865,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
