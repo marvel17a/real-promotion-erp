@@ -315,6 +315,7 @@ def api_dashboard_charts():
 def admin_master():
     return render_template('admin_master.html')
 
+
 @app.route("/dash")
 def dash():
     if "loggedin" not in session:
@@ -322,52 +323,65 @@ def dash():
 
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
-    # — Total Sales —
+    # -----------------------------
+    # 1. TOTAL SALES = SUM(price * quantity - discount)
+    # -----------------------------
     cursor.execute("""
-        SELECT IFNULL(SUM(total_amount), 0) AS total_sales
+        SELECT 
+            IFNULL(SUM((price * quantity) - discount), 0) AS total_sales
         FROM sales
     """)
     total_sales = cursor.fetchone()["total_sales"]
 
-    # — Total Purchases —
+    # -----------------------------
+    # 2. TOTAL PURCHASES = SUM(total_amount)
+    # -----------------------------
     cursor.execute("""
         SELECT IFNULL(SUM(total_amount), 0) AS total_purchases
         FROM purchases
     """)
     total_purchases = cursor.fetchone()["total_purchases"]
 
-    # — Total Expenses —
+    # -----------------------------
+    # 3. TOTAL EXPENSES = SUM(amount)
+    # -----------------------------
     cursor.execute("""
         SELECT IFNULL(SUM(amount), 0) AS total_expenses
         FROM expenses
     """)
     total_expenses = cursor.fetchone()["total_expenses"]
 
-    # — Profit (Sales – Purchases – Expenses) —
+    # -----------------------------
+    # 4. PROFIT = SALES - (PURCHASES + EXPENSES)
+    # -----------------------------
     total_profit = total_sales - (total_purchases + total_expenses)
 
-    # — Low-stock count (products below or equal to alert level) —
+    # -----------------------------
+    # 5. LOW STOCK = stock <= low_stock_threshold
+    # -----------------------------
     cursor.execute("""
         SELECT COUNT(*) AS low_stock
         FROM products
-        WHERE quantity <= low_stock_alert
+        WHERE stock <= low_stock_threshold
     """)
     low_stock = cursor.fetchone()["low_stock"]
 
-    # — Sales chart data (for last 6 months) — adjust as needed
+    # -----------------------------
+    # 6. SALES CHART LAST 6 MONTHS
+    # -----------------------------
     cursor.execute("""
         SELECT 
             DATE_FORMAT(sale_date, '%%b %%Y') AS month_label,
-            IFNULL(SUM(total_amount), 0) AS monthly_total
+            IFNULL(SUM((price * quantity) - discount), 0) AS monthly_total
         FROM sales
         GROUP BY 1
         ORDER BY MIN(sale_date) DESC
         LIMIT 6
     """)
-    sales_rows = cursor.fetchall()
-    # Reverse so oldest month appears first
-    months = [row["month_label"] for row in reversed(sales_rows)]
-    sales_values = [row["monthly_total"] for row in reversed(sales_rows)]
+    rows = cursor.fetchall()
+
+    months = [row["month_label"] for row in reversed(rows)]
+    chart_sales = [row["monthly_total"] for row in reversed(rows)]
 
     cursor.close()
 
@@ -379,8 +393,9 @@ def dash():
         total_profit=total_profit,
         low_stock=low_stock,
         chart_months=months,
-        chart_sales=sales_values
+        chart_sales=chart_sales
     )
+
 
 
 # =====================================================================
@@ -3683,6 +3698,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
