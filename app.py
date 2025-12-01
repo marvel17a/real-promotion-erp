@@ -315,9 +315,86 @@ def api_dashboard_charts():
 def admin_master():
     return render_template('admin_master.html')
 
-@app.route('/dash')
+@app.route("/dash")
 def dash():
-    return render_template('dash.html')
+    if "loggedin" not in session:
+        return redirect(url_for("login"))
+
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    # -----------------------------
+    # TOTAL SALES
+    # -----------------------------
+    cursor.execute("""
+        SELECT IFNULL(SUM(total_amount), 0) AS total_sales
+        FROM sales
+    """)
+    total_sales = cursor.fetchone()["total_sales"]
+
+    # -----------------------------
+    # TOTAL PURCHASES
+    # -----------------------------
+    cursor.execute("""
+        SELECT IFNULL(SUM(total_amount), 0) AS total_purchases
+        FROM purchases
+    """)
+    total_purchases = cursor.fetchone()["total_purchases"]
+
+    # -----------------------------
+    # TOTAL EXPENSES
+    # -----------------------------
+    cursor.execute("""
+        SELECT IFNULL(SUM(amount), 0) AS total_expenses 
+        FROM expenses
+    """)
+    total_expenses = cursor.fetchone()["total_expenses"]
+
+    # -----------------------------
+    # PROFIT = SALES - (PURCHASES + EXPENSES)
+    # -----------------------------
+    total_profit = total_sales - (total_purchases + total_expenses)
+
+    # -----------------------------
+    # LOW STOCK PRODUCTS
+    # -----------------------------
+    cursor.execute("""
+        SELECT COUNT(*) AS low_stock
+        FROM products
+        WHERE quantity <= low_stock_alert
+    """)
+    low_stock = cursor.fetchone()["low_stock"]
+
+    # -----------------------------
+    # CHART: SALES LAST 6 MONTHS
+    # -----------------------------
+    cursor.execute("""
+        SELECT 
+            DATE_FORMAT(sale_date, '%b %Y') AS month,
+            SUM(total_amount) AS total
+        FROM sales
+        GROUP BY 1
+        ORDER BY MIN(sale_date) DESC
+        LIMIT 6
+    """)
+    sales_chart_rows = cursor.fetchall()
+
+    # Build arrays for Chart.js
+    months = [row["month"] for row in reversed(sales_chart_rows)]
+    sales_totals = [row["total"] for row in reversed(sales_chart_rows)]
+
+    cursor.close()
+
+    return render_template(
+        "dash.html",
+        total_sales=total_sales,
+        total_purchases=total_purchases,
+        total_expenses=total_expenses,
+        total_profit=total_profit,
+        low_stock=low_stock,
+        months=months,
+        sales_totals=sales_totals
+    )
+
 
 # =====================================================================
 # SUPPLIER MANAGEMENT ROUTES
@@ -3619,6 +3696,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
