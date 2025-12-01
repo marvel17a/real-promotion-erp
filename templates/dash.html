@@ -1,104 +1,152 @@
 {% extends "admin_master.html" %}
+
 {% block page_content %}
 
-<div class="container-fluid">
+<!-- DASHBOARD CSS -->
+<style>
+    .dash-card {
+        border-radius: 14px;
+        box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+        transition: 0.2s;
+    }
 
-    <h2 class="fw-bold mb-4">
-        <i class="fa-solid fa-chart-line me-2"></i> Dashboard
-    </h2>
+    .dash-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 28px rgba(0,0,0,0.12);
+    }
 
-    <!-- SUMMARY CARDS -->
-    <div class="row g-4 mb-4">
+    .dash-icon {
+        font-size: 28px;
+        opacity: 0.8;
+    }
 
-        <div class="col-md-3">
-            <div class="card shadow-sm border-start border-primary border-4">
-                <div class="card-body">
-                    <h6 class="text-muted small">Total Sales</h6>
+    .chart-container {
+        padding: 20px;
+        border-radius: 12px;
+        background: #fff;
+        box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+    }
+</style>
+
+<h2 class="fw-bold mb-4">
+    <i class="fa-solid fa-chart-line me-2"></i> Dashboard
+</h2>
+
+<div class="row g-4">
+
+    <!-- TOTAL SALES -->
+    <div class="col-md-6 col-lg-3">
+        <div class="card dash-card p-3 border-start border-primary border-4">
+            <div class="d-flex justify-content-between">
+                <div>
+                    <p class="text-muted mb-1">Total Sales</p>
                     <h3 class="fw-bold text-primary">₹{{ "%.2f"|format(total_sales) }}</h3>
                 </div>
+                <i class="fa-solid fa-coins dash-icon text-primary"></i>
             </div>
-        </div>
-
-        <div class="col-md-3">
-            <div class="card shadow-sm border-start border-success border-4">
-                <div class="card-body">
-                    <h6 class="text-muted small">Total Purchases</h6>
-                    <h3 class="fw-bold text-success">₹{{ "%.2f"|format(total_purchase) }}</h3>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-3">
-            <div class="card shadow-sm border-start border-warning border-4">
-                <div class="card-body">
-                    <h6 class="text-muted small">Inventory Value</h6>
-                    <h3 class="fw-bold text-warning">₹{{ "%.2f"|format(total_inventory) }}</h3>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-3">
-            <div class="card shadow-sm border-start border-info border-4">
-                <div class="card-body">
-                    <h6 class="text-muted small">Total Products</h6>
-                    <h3 class="fw-bold text-info">{{ total_products }}</h3>
-                </div>
-            </div>
-        </div>
-
-    </div>
-
-    <!-- SECOND ROW SUMMARY -->
-    <div class="row g-4 mb-4">
-
-        <div class="col-md-3">
-            <div class="card shadow-sm border-start border-dark border-4">
-                <div class="card-body">
-                    <h6 class="text-muted small">Total Suppliers</h6>
-                    <h3 class="fw-bold">{{ total_suppliers }}</h3>
-                </div>
-            </div>
-        </div>
-
-    </div>
-
-    <!-- SALES LAST 30 DAYS -->
-    <div class="card shadow-sm mb-4">
-        <div class="card-body">
-            <h5 class="fw-bold mb-3">
-                <i class="fa-solid fa-chart-area me-2"></i>Last 30 Days Sales
-            </h5>
-            <canvas id="salesChart" height="120"></canvas>
         </div>
     </div>
 
+    <!-- TOTAL PURCHASES -->
+    <div class="col-md-6 col-lg-3">
+        <div class="card dash-card p-3 border-start border-warning border-4">
+            <div class="d-flex justify-content-between">
+                <div>
+                    <p class="text-muted mb-1">Total Purchases</p>
+                    <h3 class="fw-bold text-warning">₹{{ "%.2f"|format(total_purchases) }}</h3>
+                </div>
+                <i class="fa-solid fa-cart-shopping dash-icon text-warning"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOTAL EXPENSES -->
+    <div class="col-md-6 col-lg-3">
+        <div class="card dash-card p-3 border-start border-danger border-4">
+            <div class="d-flex justify-content-between">
+                <div>
+                    <p class="text-muted mb-1">Total Expenses</p>
+                    <h3 class="fw-bold text-danger">₹{{ "%.2f"|format(total_expenses) }}</h3>
+                </div>
+                <i class="fa-solid fa-money-bill-wave dash-icon text-danger"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOTAL PROFIT -->
+    <div class="col-md-6 col-lg-3">
+        <div class="card dash-card p-3 border-start border-success border-4">
+            <div class="d-flex justify-content-between">
+                <div>
+                    <p class="text-muted mb-1">Net Profit</p>
+                    <h3 class="fw-bold text-success">₹{{ "%.2f"|format(total_profit) }}</h3>
+                </div>
+                <i class="fa-solid fa-indian-rupee-sign dash-icon text-success"></i>
+            </div>
+        </div>
+    </div>
 </div>
 
+<!-- LOW STOCK -->
+<div class="row mt-4">
+    <div class="col-lg-3 col-md-6">
+        <div class="card dash-card p-3 border-start border-dark border-4">
+            <div class="d-flex justify-content-between">
+                <div>
+                    <p class="text-muted mb-1">Low Stock Products</p>
+                    <h3 class="fw-bold">{{ low_stock }}</h3>
+                </div>
+                <i class="fa-solid fa-boxes-stacked dash-icon"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- SALES CHART -->
+<div class="row mt-4">
+    <div class="col-lg-8">
+        <div class="chart-container">
+            <h5 class="fw-bold mb-3">
+                <i class="fa-solid fa-chart-simple me-2"></i> Sales Overview (Last 6 Months)
+            </h5>
+            <canvas id="salesChart" height="100"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- CHART.JS -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
-    const chartData = {{ chart_data | tojson }};
-    const labels = chartData.map(d => d.d);
-    const values = chartData.map(d => d.total);
+    const monthLabels = {{ chart_months|tojson }};
+    const salesValues = {{ chart_sales|tojson }};
 
-    new Chart(document.getElementById('salesChart'), {
+    const ctx = document.getElementById('salesChart').getContext('2d');
+
+    new Chart(ctx, {
         type: 'line',
         data: {
-            labels: labels,
+            labels: monthLabels,
             datasets: [{
-                label: "Sales (₹)",
-                data: values,
-                borderColor: "rgb(54,162,235)",
-                backgroundColor: "rgba(54,162,235,0.3)",
+                label: 'Sales (₹)',
+                data: salesValues,
+                borderWidth: 3,
+                tension: 0.3,
+                borderColor: "#0d6efd",
+                backgroundColor: "rgba(13,110,253,0.15)",
+                pointRadius: 5,
+                pointBackgroundColor: "#0d6efd",
+                pointBorderColor: "#fff",
                 fill: true,
-                tension: 0.2
             }]
         },
         options: {
             responsive: true,
+            plugins: {
+                legend: { display: false }
+            },
             scales: {
-                x: { title: { display: true, text: 'Date' }},
-                y: { title: { display: true, text: 'Sales (₹)' }}
+                y: { beginAtZero: true }
             }
         }
     });
