@@ -469,28 +469,56 @@ def edit_supplier(supplier_id):
 # =====================================================================
 # SUPPLIER LEDGER & PAYMENT ROUTES
 # =====================================================================
-
-@app.route('/suppliers/ledger/<int:supplier_id>')
+@app.route("/suppliers/ledger/<int:supplier_id>")
 def supplier_ledger(supplier_id):
-    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    
-    cur.execute("SELECT * FROM suppliers WHERE id = %s", (supplier_id,))
-    supplier = cur.fetchone()
+    if "loggedin" not in session:
+        return redirect(url_for("login"))
+
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    # 1. Get supplier basic info
+    cursor.execute("SELECT * FROM suppliers WHERE id = %s", (supplier_id,))
+    supplier = cursor.fetchone()
     if not supplier:
-        flash("Supplier not found.", "danger")
-        return redirect(url_for('suppliers'))
+        cursor.close()
+        return "Supplier not found", 404
 
-    cur.execute("SELECT * FROM purchases WHERE supplier_id = %s ORDER BY purchase_date DESC", (supplier_id,))
-    purchases = cur.fetchall()
+    # 2. Purchase transactions
+    cursor.execute("""
+        SELECT 
+            purchase_date AS date,
+            total_amount AS amount,
+            bill_number,
+            'Purchase' AS type
+        FROM purchases
+        WHERE supplier_id = %s
+        ORDER BY purchase_date DESC
+    """, (supplier_id,))
+    purchase_rows = cursor.fetchall()
 
-    cur.execute("SELECT * FROM supplier_payments WHERE supplier_id = %s ORDER BY payment_date DESC", (supplier_id,))
-    payments = cur.fetchall()
+    # 3. Supplier Cashflow (Your New Module)
+    cursor.execute("""
+        SELECT 
+            date,
+            type,
+            amount,
+            mode,
+            remark
+        FROM supplier_cashflow
+        WHERE supplier_id = %s
+        ORDER BY date DESC
+    """, (supplier_id,))
+    cashflow_rows = cursor.fetchall()
 
-    cursor.execute("""SELECT date,type,amount,mode,remark FROM supplier_cashflow WHERE supplier_id = %s ORDER BY date DESC""", (supplier_id,)) 
-    cashflow = cursor.fetchall()
+    cursor.close()
 
-    cur.close()
-    return render_template('suppliers/supplier_ledger.html', supplier=supplier, purchases=purchases, payments=payments)
+    return render_template(
+        "suppliers/supplier_ledger.html",
+        supplier=supplier,
+        purchases=purchase_rows,
+        cashflow=cashflow_rows
+    )
+
 
 
 @app.route('/suppliers/<int:supplier_id>/payment/new', methods=['GET', 'POST'])
@@ -2239,7 +2267,30 @@ def delete_subcategory(subcategory_id):
     cur.execute("DELETE FROM expensesubcategories WHERE subcategory_id = %s", (subcategory_id,))
     mysql.connection.commit()
     flash('Subcategory has been deleted.', 'danger')
-    return redirect(url_for('category_man'))                                 
+    return redirect(url_for('category_man'))    
+
+
+@app.route("/exp_report", methods=["GET", "POST"])
+def exp_report():
+    if "loggedin" not in session:
+        return redirect(url_for("login"))
+
+    filters = {}
+    if request.method == "POST":
+        filters["year"] = request.form.get("year") or ""
+        filters["month"] = request.form.get("month") or ""
+    else:
+        filters["year"] = ""
+        filters["month"] = ""
+
+    # You can add logic here to fetch expense data based on filters
+    # expenses = ...
+    expenses = []  # example
+
+    return render_template("reports/exp_report.html",
+                           filters=filters,
+                           expenses=expenses)
+
 
 # =====================================================================
 # MORNING ALLOCATION ROUTES
@@ -3698,6 +3749,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
