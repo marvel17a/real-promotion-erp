@@ -2022,15 +2022,7 @@ def delete_employee(id):
 
         # ===================================================
         # DELETE CHILD RECORDS FIRST (Linux = table names lowercase)
-        # ===================================================
-
-
-
-
-        # 4. employee expenses
-        cursor.execute("DELETE FROM emp_expenses WHERE employee_id = %s", (id,))
-
-
+        # =================================================
         # 6. employee transactions (if exists)
         cursor.execute("DELETE FROM employee_transactions WHERE employee_id = %s", (id,))
 
@@ -3870,6 +3862,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
