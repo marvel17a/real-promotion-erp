@@ -2016,50 +2016,55 @@ def api_check_employee():
 
 @app.route("/delete_employee/<int:id>", methods=["POST"])
 def delete_employee(id):
-    # No login check, as requested.
-    
     cursor = None
     try:
         cursor = mysql.connection.cursor()
-        
+
         # ===================================================
-        # THE ROBUST FIX: CASCADE DELETE
-        # We must delete all "child" records from other tables *first*.
-        # (Using lowercase table names for your Linux server)
+        # DELETE CHILD RECORDS FIRST (Linux = table names lowercase)
         # ===================================================
-        
-        # 1. Delete from evening settlements
-        cursor.execute("DELETE FROM evening_settle WHERE employee_id = %s", (id,))
-        
-        # 2. Delete from morning allocations
-        cursor.execute("DELETE FROM morning_allocations WHERE employee_id = %s", (id,))
-        
-        # 3. Delete from financial transactions
+
+
+
+
+        # 4. employee expenses
+        cursor.execute("DELETE FROM emp_expenses WHERE employee_id = %s", (id,))
+
+
+        # 6. employee transactions (if exists)
         cursor.execute("DELETE FROM employee_transactions WHERE employee_id = %s", (id,))
-        
-        # 4. Delete from product returns (just in case)
+
+        # 7. morning allocations (if exists)
+        cursor.execute("DELETE FROM morning_allocations WHERE employee_id = %s", (id,))
+
+        # 8. evening settlements (if exists)
+        cursor.execute("DELETE FROM evening_settle WHERE employee_id = %s", (id,))
+
+        # 9. product returns (if exists)
         cursor.execute("DELETE FROM product_returns WHERE employee_id = %s", (id,))
 
-        # 5. NOW it is safe to delete the "parent" employee
+        # ===================================================
+        # DELETE MAIN EMPLOYEE RECORD LAST
+        # ===================================================
         cursor.execute("DELETE FROM employees WHERE id = %s", (id,))
-        
-        # 6. Commit all deletes as one single transaction
+
+        # Commit all deletes as one transaction
         mysql.connection.commit()
-        
+
         flash("Employee and all associated records deleted successfully!", "success")
 
     except Exception as e:
-        # If any delete fails, roll back all of them to protect data
+        # Rollback on failure
         mysql.connection.rollback()
         app.logger.error(f"Error deleting employee {id}: {e}")
-        # Send the real error message to the user
-        flash(f"An error occurred: {e}", "danger")
-        
+        flash(f"An error occurred while deleting employee: {e}", "danger")
+
     finally:
         if cursor:
             cursor.close()
-            
+
     return redirect(url_for("employees"))
+
 
 
 # === API: view single employee (for drawer) ===
@@ -3865,6 +3870,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
