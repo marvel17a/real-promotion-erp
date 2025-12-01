@@ -476,42 +476,57 @@ def supplier_ledger(supplier_id):
 
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
-    # Supplier info
+    # ---------------------------------------------------------
+    # 1. FETCH SUPPLIER
+    # ---------------------------------------------------------
     cursor.execute("SELECT * FROM suppliers WHERE id = %s", (supplier_id,))
     supplier = cursor.fetchone()
 
-    # Purchases
+    if not supplier:
+        cursor.close()
+        return "Supplier not found", 404
+
+    # ---------------------------------------------------------
+    # 2. FETCH PURCHASES FOR THIS SUPPLIER
+    # ---------------------------------------------------------
     cursor.execute("""
-        SELECT 
+        SELECT
+            id,
             purchase_date AS date,
-            total_amount AS amount,
-            bill_number
+            bill_number,
+            total_amount AS amount
         FROM purchases
         WHERE supplier_id = %s
         ORDER BY purchase_date DESC
     """, (supplier_id,))
     purchases = cursor.fetchall()
 
-    # Cashflow
+    # ---------------------------------------------------------
+    # 3. FETCH PAYMENTS (supplier_cashflow)
+    # ---------------------------------------------------------
     cursor.execute("""
-        SELECT 
+        SELECT
             date,
-            type,
-            amount,
             mode,
-            remark
+            amount
         FROM supplier_cashflow
         WHERE supplier_id = %s
         ORDER BY date DESC
     """, (supplier_id,))
-    cashflow = cursor.fetchall()
+    payments = cursor.fetchall()
 
     cursor.close()
 
-    return render_template("suppliers/supplier_ledger.html",
-                           supplier=supplier,
-                           purchases=purchases,
-                           cashflow=cashflow)
+    # ---------------------------------------------------------
+    # 4. SEND EVERYTHING TO TEMPLATE
+    # ---------------------------------------------------------
+    return render_template(
+        "suppliers/supplier_ledger.html",
+        supplier=supplier,
+        purchases=purchases,
+        payments=payments
+    )
+
 
 
 @app.route('/suppliers/<int:supplier_id>/payment/new', methods=['GET', 'POST'])
@@ -3855,6 +3870,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
