@@ -1736,6 +1736,7 @@ def employee_master():
             e.id,
             e.name,
             e.phone,
+            e.address,
             e.join_date,
             e.image,
             p.name AS position_name
@@ -1748,9 +1749,6 @@ def employee_master():
     cursor.close()
 
     return render_template("employees/employee_master.html", employees=employees)
-
-
-
 
 # ---------- ADMIN SIDE: POSITION MASTER ----------
 
@@ -3864,6 +3862,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
