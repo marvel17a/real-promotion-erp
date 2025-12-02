@@ -1,17 +1,28 @@
-
-  // Optional: highlight active nav link by path
-  const links = document.querySelectorAll(".navbar .nav-link");
-  links.forEach(link => {
-    if (link.getAttribute("href") === window.location.pathname) {
-      link.classList.add("active");
-    }
-  });
-document.addEventListener('DOMContentLoaded', () => {
-  // Highlight active link
-  const current = window.location.pathname;
-  document.querySelectorAll('.nav-link').forEach(link => {
-    if (link.getAttribute('href') === current) {
-      link.classList.add('active');
-    }
-  });
+// Initialize AOS (Animate On Scroll)
+document.addEventListener('DOMContentLoaded', function() {
+    AOS.init({
+        duration: 800,
+        easing: 'ease-out-cubic',
+        once: true
+    });
+    
+    // Navbar Scroll Effect (Optional: adds transparency logic if you want later)
+    const navbar = document.querySelector('.navbar');
+    
+    window.addEventListener('scroll', () => {
+        if (window.scrollY > 50) {
+            navbar.classList.add('shadow');
+        } else {
+            navbar.classList.remove('shadow');
+        }
+    });
 });
+
+// Auto-hide flash messages after 5 seconds
+setTimeout(function() {
+    let alerts = document.querySelectorAll('.alert');
+    alerts.forEach(function(alert) {
+        let bsAlert = new bootstrap.Alert(alert);
+        bsAlert.close();
+    });
+}, 5000);
