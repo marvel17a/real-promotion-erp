@@ -1,167 +1,149 @@
-/* Base */
+/* --- VARIABLES --- */
+:root {
+    --primary-color: #2c3e50;
+    --secondary-color: #34495e;
+    --accent-color: #3498db;
+    --gradient-start: #1a2980;
+    --gradient-end: #26d0ce;
+    --bg-light: #f8f9fa;
+    --text-dark: #333;
+    --nav-height: 76px;
+}
+
 body {
-  font-family: 'Poppins', sans-serif;
-  background: #f1f3f5;
-  margin: 0;
-  /* Added to prevent horizontal scroll on mobile */
-  overflow-x: hidden; 
+    font-family: 'Poppins', sans-serif;
+    background-color: #f4f7f6; /* Soft greyish blue background */
+    color: var(--text-dark);
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
 }
 
-/* Gradient Navbar */
-.navbar-gradient {
-  background: linear-gradient(90deg, #ec2f4b, #4e54c8 );
-  height: 64px;
+/* --- NAVBAR STYLING --- */
+.navbar {
+    background: linear-gradient(135deg, var(--gradient-start), var(--secondary-color));
+    padding: 0.8rem 0;
+    transition: all 0.3s ease;
 }
 
-.navbar .nav-link {
-  position: relative;
-  color: rgba(255, 255, 255, 0.9);
-  font-weight: 500;
-  padding: 0.5rem 0.75rem;
-  transition: color 0.2s;
+.brand-text {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: white;
+    letter-spacing: 0.5px;
+    line-height: 1.1;
 }
 
-.navbar .nav-link:hover,
-.navbar .nav-link.active {
-  color: yellow ;
+.brand-sub {
+    font-size: 0.65rem;
+    color: rgba(255,255,255,0.7);
+    font-weight: 500;
+    letter-spacing: 1px;
 }
 
-/* Underline-on-hover */
-.navbar .nav-link::after {
-  content: '';
-  position: absolute;
-  bottom: 6px;
-  left: 15%;
-  width: 70%;
-  height: 2px;
-  background: linear-gradient(90deg,#006d5b, #1f2937);
-  transform: scaleX(0);
-  transform-origin: center;
-  transition: transform 0.3s ease;
+.nav-link {
+    color: rgba(255,255,255,0.85) !important;
+    font-weight: 500;
+    font-size: 0.95rem;
+    margin: 0 5px;
+    transition: color 0.3s ease, transform 0.2s ease;
+    border-bottom: 2px solid transparent;
 }
 
-.navbar .nav-link:hover::after,
-.navbar .nav-link.active::after {
-  transform: scaleX(1);
+.nav-link:hover, .nav-link.active {
+    color: #fff !important;
+    transform: translateY(-1px);
 }
 
-/* Click feedback */
-.navbar .nav-link:active {
-  transform: scale(0.95);
+/* Admin Button Special Style */
+.btn-admin {
+    background: rgba(255,255,255,0.15);
+    border-radius: 50px;
+    border: 1px solid rgba(255,255,255,0.2);
+}
+.btn-admin:hover {
+    background: rgba(255,255,255,0.3);
 }
 
-/* Dropdown items hover */
-.navbar .dropdown-item:hover {
-  background: rgba(255, 255, 255, 0.1);
+.dropdown-menu {
+    border-radius: 10px;
+    margin-top: 10px;
+    overflow: hidden;
 }
 
-/* Spacer for fixed nav */
-.navbar-spacer {
-  height: 64px;
+.dropdown-item:hover {
+    background-color: var(--bg-light);
+    color: var(--gradient-start);
 }
 
-/* Main content */
-main.container {
-  min-height: calc(100vh - 64px - 80px); /* navbar + footer */
+.navbar-toggler-icon-custom {
+    color: white;
+    font-size: 1.5rem;
 }
 
-/* Gradient Footer */
-.footer-gradient {
-  background: linear-gradient(90deg, #009fff, #001b44);
+/* --- MAIN CONTENT --- */
+.main-wrapper {
+    margin-top: var(--nav-height);
+    flex: 1; /* Pushes footer down */
+    padding-top: 2rem;
+    padding-bottom: 4rem;
 }
 
-.footer-gradient h5 {
-  margin-bottom: 0.25rem;
-  font-weight: 600;
+/* --- FOOTER --- */
+.footer-section {
+    background: #1e2228;
+    position: relative;
+    box-shadow: 0 -5px 20px rgba(0,0,0,0.1);
 }
 
-.footer-gradient small {
-  opacity: 0.85;
+.footer-bottom {
+    background: #15181c;
+    border-top: 1px solid rgba(255,255,255,0.05);
 }
 
-/* Social icons */
-.social-icons a {
-  color: rgba(255, 255, 255, 0.85);
-  margin: 0 0.5rem;
-  font-size: 1.2rem;
-  display: inline-block;
-  transition: color 0.2s, transform 0.2s;
+.social-icons {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
 }
 
-.social-icons a:hover {
-  color: #ffffff;
-  transform: translateY(-3px);
+@media (min-width: 768px) {
+    .social-icons { justify-content: flex-end; }
 }
-.social-icons a { opacity: 0; animation: fadeIn 0.6s forwards; }
+
+.social-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.1);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    transition: all 0.3s ease;
+}
+
+.social-btn:hover {
+    background: var(--accent-color);
+    transform: translateY(-3px);
+    color: white;
+}
+
+/* --- ANIMATIONS & UTILS --- */
+.content-fade-in {
+    animation: fadeIn 0.8s ease-in-out;
+}
+
 @keyframes fadeIn {
-  to { opacity: 1; }
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
-.footer-contact{
-  /* =========================================
-      THIS IS THE FIX for the footer
-  =========================================
-  'position: left;' was invalid CSS. 
-  Changed to text-align.
-  */
-  text-align: left;
-  padding-left: 20px; /* Added padding */
-}
-
-
-/* =========================================
-    NEW RESPONSIVE & MOBILE NAVBAR FIX
-=========================================
-This targets screens smaller than 992px (the 'lg' breakpoint)
-*/
-@media (max-width: 991.98px) {
-  
-  /* This is the white box you hated. We'll make it dark. */
-  .navbar-collapse {
-    /* Using a dark color from your admin theme for consistency */
-    background-color: #1f2937;
-    padding: 1rem;
-    margin-top: 0.5rem;
-    border-radius: 0.5rem;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-  }
-
-  /* Make links full-width for easier tapping */
-  .navbar-nav .nav-link {
-    padding: 0.75rem 0.5rem;
-  }
-
-  /* This fixes the "Orders" dropdown menu.
-    It makes its background dark to match.
-  */
-  .navbar-nav .dropdown-menu {
-    background-color: #1f2937;
-    border: none;
-    padding: 0;
-  }
-
-  /* This fixes the links *inside* the "Orders" dropdown.
-    It makes the text light so you can see it.
-  */
-  .navbar-nav .dropdown-item {
-    color: rgba(255, 255, 255, 0.8);
-    padding: 0.75rem 1rem;
-  }
-  
-  .navbar-nav .dropdown-item:hover {
-    color: #ffffff;
-    background-color: #374151; /* A lighter dark for hover */
-  }
-
-  /* This fixes the divider in the dropdown */
-  .dropdown-divider {
-    border-color: #374151;
-  }
-
-  /* Center the footer contact info on mobile */
-  .footer-contact {
-    text-align: center;
-    padding-left: 0;
-    margin-top: 1rem;
-  }
+/* Alert Styling */
+.alert-info {
+    background-color: #fff;
+    border-left: 5px solid var(--accent-color) !important;
+    color: var(--primary-color);
 }
