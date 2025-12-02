@@ -1,21 +1,26 @@
 {% extends "admin_master.html" %}
 
 {% block page_content %}
+
 <div class="container py-4">
 
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="fw-bold text-primary">
-            <i class="fa-solid fa-users me-2"></i> Employee Master
-        </h2>
-        <a href="{{ url_for('add_employee') }}" class="btn btn-primary">
-            <i class="fa-solid fa-plus me-1"></i> Add Employee
-        </a>
-    </div>
+    <h2 class="fw-bold mb-4 text-primary">
+        <i class="fa-solid fa-users-gear me-2"></i> Employee Master Management
+    </h2>
 
-    <div class="card shadow-sm">
+    <!-- ========================= EMPLOYEE TABLE ========================== -->
+    <div class="card shadow-sm mb-5">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">Employees</h5>
+        </div>
         <div class="card-body">
+
+            <a href="{{ url_for('add_employee') }}" class="btn btn-primary mb-3">
+                <i class="fa-solid fa-plus"></i> Add Employee
+            </a>
+
             <div class="table-responsive">
-                <table class="table align-middle table-hover">
+                <table class="table table-hover align-middle">
                     <thead class="table-light">
                         <tr>
                             <th>Photo</th>
@@ -26,35 +31,29 @@
                             <th>Phone</th>
                             <th>City</th>
                             <th>Status</th>
-                            <th>Joined</th>
                             <th class="text-end">Actions</th>
                         </tr>
                     </thead>
-
                     <tbody>
+
                         {% for emp in employees %}
                         <tr>
+                            <!-- Photo -->
                             <td>
                                 {% if emp.image %}
                                     <img src="{{ cloudinary_url(emp.image)[0] }}" 
-                                         alt="Employee image"
-                                         class="rounded-circle"
-                                         style="width:45px;height:45px;object-fit:cover;">
+                                         width="45" height="45" class="rounded-circle" 
+                                         style="object-fit: cover;">
                                 {% else %}
                                     <span class="badge bg-secondary">No Image</span>
                                 {% endif %}
                             </td>
 
                             <td class="fw-bold">{{ emp.name }}</td>
-
                             <td>{{ emp.position_name or 'N/A' }}</td>
-
                             <td>{{ emp.department_name or 'N/A' }}</td>
-
                             <td>{{ emp.email or 'N/A' }}</td>
-
                             <td>{{ emp.phone or 'N/A' }}</td>
-
                             <td>{{ emp.city or 'N/A' }}</td>
 
                             <td>
@@ -65,43 +64,117 @@
                                 {% endif %}
                             </td>
 
-                            <td>
-                                {% if emp.join_date %}
-                                    {{ emp.join_date.strftime('%d-%b-%Y') }}
-                                {% else %}
-                                    N/A
-                                {% endif %}
-                            </td>
-
                             <td class="text-end">
-
-                                <a href="{{ url_for('employee_details', id=emp.id) }}" 
-                                   class="btn btn-sm btn-info">
-                                   <i class="fa-solid fa-eye"></i>
+                                <a href="{{ url_for('employee_details', id=emp.id) }}" class="btn btn-sm btn-info">
+                                    <i class="fa-solid fa-eye"></i>
                                 </a>
 
-                                <a href="{{ url_for('edit_employee', id=emp.id) }}" 
-                                   class="btn btn-sm btn-warning">
-                                   <i class="fa-solid fa-pen"></i>
+                                <a href="{{ url_for('edit_employee', id=emp.id) }}" class="btn btn-sm btn-warning">
+                                    <i class="fa-solid fa-pen"></i>
                                 </a>
 
-                                <form action="{{ url_for('delete_employee', id=emp.id) }}" 
-                                      method="POST" class="d-inline-block"
-                                      onsubmit="return confirm('Delete this employee?');">
+                                <form action="{{ url_for('delete_employee', id=emp.id) }}" method="POST" class="d-inline-block"
+                                      onsubmit="return confirm('Delete employee?');">
                                     <button class="btn btn-sm btn-danger">
                                         <i class="fa-solid fa-trash"></i>
                                     </button>
                                 </form>
-
                             </td>
-
                         </tr>
+
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
+
+        </div>
+    </div>
+
+    <!-- ========================= POSITIONS TABLE ========================== -->
+    <div class="card shadow-sm mb-5">
+        <div class="card-header bg-dark text-white">
+            <h5 class="mb-0">Employee Positions</h5>
+        </div>
+        <div class="card-body">
+
+            <a href="{{ url_for('add_position') }}" class="btn btn-dark mb-3">
+                <i class="fa-solid fa-plus"></i> Add Position
+            </a>
+
+            <table class="table table-bordered table-striped">
+                <thead class="table-light">
+                    <tr>
+                        <th>ID</th>
+                        <th>Position Name</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+
+                    {% for pos in positions %}
+                    <tr>
+                        <td>{{ pos.id }}</td>
+                        <td>{{ pos.position_name }}</td>
+                        <td class="text-end">
+                            <a href="{{ url_for('edit_position', id=pos.id) }}"
+                               class="btn btn-sm btn-warning">Edit</a>
+                            <a href="{{ url_for('delete_position', id=pos.id) }}"
+                               class="btn btn-sm btn-danger"
+                               onclick="return confirm('Delete position?');">Delete</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+
+                </tbody>
+            </table>
+
+        </div>
+    </div>
+
+    <!-- ========================= DEPARTMENTS TABLE ========================== -->
+    <div class="card shadow-sm mb-5">
+        <div class="card-header bg-secondary text-white">
+            <h5 class="mb-0">Employee Departments</h5>
+        </div>
+        <div class="card-body">
+
+            <a href="{{ url_for('add_department') }}" class="btn btn-secondary mb-3">
+                <i class="fa-solid fa-plus"></i> Add Department
+            </a>
+
+            <table class="table table-bordered table-striped">
+                <thead class="table-light">
+                    <tr>
+                        <th>ID</th>
+                        <th>Department Name</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+
+                    {% for dept in departments %}
+                    <tr>
+                        <td>{{ dept.id }}</td>
+                        <td>{{ dept.department_name }}</td>
+                        <td class="text-end">
+
+                            <a href="{{ url_for('edit_department', id=dept.id) }}" 
+                               class="btn btn-sm btn-warning">Edit</a>
+
+                            <a href="{{ url_for('delete_department', id=dept.id) }}"
+                               class="btn btn-sm btn-danger"
+                               onclick="return confirm('Delete department?');">Delete</a>
+
+                        </td>
+                    </tr>
+                    {% endfor %}
+
+                </tbody>
+            </table>
+
         </div>
     </div>
 
 </div>
+
 {% endblock %}
