@@ -1724,7 +1724,6 @@ def employee_details(id):
 
 
 # ---------- ADMIN SIDE: EMPLOYEE MASTER (admin_master.html) ----------
-
 @app.route("/employee_master")
 def employee_master():
     if "loggedin" not in session:
@@ -1737,7 +1736,7 @@ def employee_master():
             e.id,
             e.name,
             e.phone,
-            e.cnic,
+            e.address,
             e.join_date,
             e.image,
             p.name AS position_name
@@ -1750,6 +1749,7 @@ def employee_master():
     cursor.close()
 
     return render_template("employees/employee_master.html", employees=employees)
+
 
 
 
@@ -3865,6 +3865,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
