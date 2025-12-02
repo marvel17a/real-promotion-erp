@@ -35,7 +35,7 @@
                         <th>Photo</th>
                         <th>Name</th>
                         <th>Phone</th>
-                        <th>CNIC</th>
+                        <th>Address</th>
                         <th>Position</th>
                         <th>Join Date</th>
                         <th class="text-end">Actions</th>
@@ -64,8 +64,8 @@
                         <!-- Phone -->
                         <td>{{ emp.phone or 'N/A' }}</td>
 
-                        <!-- CNIC -->
-                        <td>{{ emp.cnic or 'N/A' }}</td>
+                        <td>{{ emp.address or 'N/A' }}</td>
+
 
                         <!-- Position -->
                         <td>{{ emp.position_name or 'N/A' }}</td>
@@ -122,3 +122,4 @@
 </div>
 
 {% endblock %}
+
