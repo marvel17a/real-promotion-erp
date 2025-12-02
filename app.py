@@ -2017,41 +2017,48 @@ def delete_employee(id):
         cursor = mysql.connection.cursor()
 
         # ===================================================
-        # DELETE CHILD RECORDS FIRST (Linux = table names lowercase)
-        # =================================================
-        # 6. employee transactions (if exists)
-        cursor.execute("DELETE FROM employee_transactions WHERE employee_id = %s", (id,))
+        # 1. Delete evening_settle (FK → morning_allocations)
+        # ===================================================
+        cursor.execute("""
+            DELETE es FROM evening_settle es
+            INNER JOIN morning_allocations ma ON es.allocation_id = ma.id
+            WHERE ma.employee_id = %s
+        """, (id,))
 
-        # 7. morning allocations (if exists)
+        # ===================================================
+        # 2. Delete morning_allocations
+        # ===================================================
         cursor.execute("DELETE FROM morning_allocations WHERE employee_id = %s", (id,))
 
-        # 8. evening settlements (if exists)
-        cursor.execute("DELETE FROM evening_settle WHERE employee_id = %s", (id,))
-
-        # 9. product returns (if exists)
+        # ===================================================
+        # 3. Delete product_returns
+        # ===================================================
         cursor.execute("DELETE FROM product_returns WHERE employee_id = %s", (id,))
 
         # ===================================================
-        # DELETE MAIN EMPLOYEE RECORD LAST
+        # 4. Delete employee financial transactions
+        # ===================================================
+        cursor.execute("DELETE FROM employee_transactions WHERE employee_id = %s", (id,))
+
+        # ===================================================
+        # 5. Delete employee (parent row)
         # ===================================================
         cursor.execute("DELETE FROM employees WHERE id = %s", (id,))
 
-        # Commit all deletes as one transaction
         mysql.connection.commit()
-
-        flash("Employee and all associated records deleted successfully!", "success")
+        flash("Employee and all linked records deleted successfully!", "success")
 
     except Exception as e:
-        # Rollback on failure
         mysql.connection.rollback()
-        app.logger.error(f"Error deleting employee {id}: {e}")
         flash(f"An error occurred while deleting employee: {e}", "danger")
+        app.logger.error(f"Delete Employee Error: {e}")
 
     finally:
         if cursor:
             cursor.close()
 
     return redirect(url_for("employees"))
+
 
 
 
@@ -3858,6 +3865,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
