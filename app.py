@@ -1735,17 +1735,27 @@ def employee_master():
         SELECT 
             e.id,
             e.name,
+            e.email,
             e.phone,
-            e.address,
-            e.join_date,
+            e.city,
+            e.status,
             e.image,
-            p.name AS position_name
+            e.join_date,
+            e.joining_date,
+            e.full_address,
+            e.emergency_contact,
+            e.aadhar_no,
+            e.state,
+            e.pincode,
+            p.position_name,
+            d.department_name
         FROM employees e
         LEFT JOIN employee_positions p ON e.position_id = p.id
+        LEFT JOIN employee_departments d ON e.department_id = d.id
         ORDER BY e.id DESC
     """)
-    employees = cursor.fetchall()
 
+    employees = cursor.fetchall()
     cursor.close()
 
     return render_template("employees/employee_master.html", employees=employees)
@@ -3862,6 +3872,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
