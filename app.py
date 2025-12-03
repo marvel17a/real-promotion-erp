@@ -46,21 +46,16 @@ app = Flask(__name__)
 # --- MODIFIED: Load Secret Key from Environment ---
 app.secret_key = os.environ.get("SECRET_KEY", "a_very_bad_default_secret")
 
-# --- MODIFIED: Load Database Config from Environment ---
-# This will read from your .env file locally, and from
-# Render's dashboard when deployed.
+
 app.config['MYSQL_HOST'] = os.environ.get('MYSQL_HOST')
 app.config['MYSQL_USER'] = os.environ.get('MYSQL_USER')
 app.config['MYSQL_PASSWORD'] = os.environ.get('MYSQL_PASSWORD')
 app.config['MYSQL_DB'] = os.environ.get('MYSQL_DB')
 app.config['MYSQL_CURSORCLASS'] = 'DictCursor'
 
-# NOTE: We have removed the complex SSL configuration
-# to make it compatible with more free database hosts.
 
 mysql = MySQL(app)
 
-# --- NEW: Cloudinary Configuration ---
 # This will read the keys from your .env file
 cloudinary.config(
     cloud_name = os.environ.get('CLOUDINARY_CLOUD_NAME'),
@@ -79,11 +74,6 @@ def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-#==============================================
-# --- ALL YOUR ROUTES ---
-# (Copied from your file, with modifications
-#  only to routes that save files)
-#==============================================
 
 # Helper function
 # This "context processor" injects the cloudinary_url function into all templates
@@ -94,14 +84,13 @@ def inject_cloudinary_url():
     return dict(cloudinary_url=cloudinary.utils.cloudinary_url)
 
 
-# ----------------- FINAL FIX FOR CLOUDINARY + LOCAL IMAGES -----------------
+# ----------------- FINAL FIX FOR CLOUDINARY + LOCAL IMAGES -----------------#
 @app.template_filter("fix_image")
 def fix_image(image):
     if not image or image.strip() == "":
-        # fallback avatar
+        
         return url_for('static', filename='img/default-user.png')
 
-    # CASE 1: already full Cloudinary URL
     if image.startswith("http"):
         return image
 
@@ -168,7 +157,7 @@ def dashboard():
     }
 
     try:
-        # We must use the lowercase table names for Linux
+        
         db_cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
 
@@ -204,11 +193,8 @@ def dashboard():
     report_date_obj = date.fromisoformat(report_date)
     report_date_str = report_date_obj.strftime('%d %B, %Y')
 
-    #
-    # THE FIX IS HERE:
-    # We use **summary_data to unpack the dictionary into separate variables
-    # for the template.
-    #
+    
+    
     return render_template("dashboard.html",
         report_date=report_date,
         report_date_str=report_date_str,
@@ -603,9 +589,9 @@ def delete_supplier(supplier_id):
     return redirect(url_for('suppliers'))
 
 
-#============================================================
+#============================================================#
 #SUPPLIER CASHFLOW MODULE
-#============================================================
+#============================================================#
 
 @app.route("/supplier_cashflow")
 def supplier_cashflow():
@@ -713,9 +699,9 @@ def supplier_cashflow_delete(id):
     return redirect(url_for("supplier_cashflow"))
 
 
-# =====================================================================
+# =====================================================================#
 # PURCHASE MANAGEMENT ROUTES
-# =====================================================================
+# =====================================================================#
 
 @app.route('/purchases')
 def purchases():
@@ -1120,8 +1106,8 @@ def export_purchase_pdf():
 # -------------------------------------------------------------- Category Module CRDUD Operation -------------------------------------------------------------------
 
 # ============================
-#   CATEGORY MASTER ROUTES
-# ============================
+#   CATEGORY MASTER ROUTES for product category#
+# ============================#
 
 # Show all categories
 @app.route("/categories")
@@ -1271,12 +1257,6 @@ def inventory():
         categories_map=categories_map,
         filters={"categories": filter_categories}
     )
-
-
-
-
-
-
 
 
 @app.route("/add_product_form")
@@ -2435,13 +2415,12 @@ def exp_report():
 #
 # INSTRUCTIONS:
 # 1. Delete your OLD 'morning()', 'api_fetch_stock()',
-#    'api_fetch_morning_allocation()', 'get_template_data()',
-#    and 'save_allocation_data()' functions from your app.py
+
 #
 # 2. Add ALL of the following code into that same section of your app.py
 # =====================================================================
 
-# Make sure 'json' is imported at the top of your app.py file
+# Make sure 'json' is imported at the top of your app.py file##############################################################################################################################
 import json
 
 @app.route('/morning', methods=['GET', 'POST'])
@@ -3880,6 +3859,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
