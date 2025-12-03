@@ -170,23 +170,41 @@ def employee_document(id):
 # --------------------------
 @app.route("/api/pincode_lookup/<pincode>")
 def pincode_lookup(pincode):
-    try:
-        if not pincode or len(pincode) != 6 or not pincode.isdigit():
-            return jsonify({"success": False, "message": "Invalid pincode"}), 400
-        resp = requests.get(f"https://api.postalpincode.in/pincode/{pincode}", timeout=6)
-        data = resp.json()
-        if not data or data[0].get("Status") != "Success":
-            return jsonify({"success": False, "message": "Not found"})
-        postoffice = data[0].get("PostOffice", [])
-        if not postoffice:
-            return jsonify({"success": False, "message": "No post office data"})
-        city = postoffice[0].get("District")
-        state = postoffice[0].get("State")
-        return jsonify({"success": True, "city": city, "state": state})
-    except Exception as e:
-        app.logger.exception("Pincode lookup failed")
-        return jsonify({"success": False, "message": str(e)}), 500
+    import requests
 
+    if not pincode or len(pincode) != 6 or not pincode.isdigit():
+        return jsonify({"success": False, "message": "Invalid pincode"}), 400
+
+    url_primary = f"https://api.postalpincode.in/pincode/{pincode}"
+    url_backup = f"https://india-pincode-api.vercel.app/api/pincode/{pincode}"
+
+    def fetch(url):
+        try:
+            r = requests.get(url, timeout=3)
+            return r.json()
+        except Exception as e:
+            return None
+
+    # Try primary
+    data = fetch(url_primary)
+    if data and isinstance(data, list) and data[0].get("Status") == "Success":
+        po = data[0]["PostOffice"][0]
+        return jsonify({
+            "success": True,
+            "city": po.get("District"),
+            "state": po.get("State")
+        })
+
+    # Try backup
+    backup = fetch(url_backup)
+    if backup and backup.get("status") == "OK":
+        return jsonify({
+            "success": True,
+            "city": backup["data"]["city"],
+            "state": backup["data"]["state"]
+        })
+
+    return jsonify({"success": False, "message": "Service unavailable"}), 500
 
 
 
@@ -4090,6 +4108,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
