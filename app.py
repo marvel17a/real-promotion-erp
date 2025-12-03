@@ -171,40 +171,29 @@ def employee_document(id):
 @app.route("/api/pincode_lookup/<pincode>")
 def pincode_lookup(pincode):
     import requests
-
-    if not pincode or len(pincode) != 6 or not pincode.isdigit():
+    
+    if not pincode.isdigit() or len(pincode) != 6:
         return jsonify({"success": False, "message": "Invalid pincode"}), 400
 
-    url_primary = f"https://api.postalpincode.in/pincode/{pincode}"
-    url_backup = f"https://india-pincode-api.vercel.app/api/pincode/{pincode}"
+    url = f"https://api.postcodeapi.in/pincode/{pincode}"
 
-    def fetch(url):
-        try:
-            r = requests.get(url, timeout=3)
-            return r.json()
-        except Exception as e:
-            return None
+    try:
+        res = requests.get(url, timeout=4)
+        data = res.json()
 
-    # Try primary
-    data = fetch(url_primary)
-    if data and isinstance(data, list) and data[0].get("Status") == "Success":
-        po = data[0]["PostOffice"][0]
+        if not data or "data" not in data[0]:
+            return jsonify({"success": False, "message": "Not found"}), 404
+
         return jsonify({
             "success": True,
-            "city": po.get("District"),
-            "state": po.get("State")
+            "city": data[0]["data"]["city"],
+            "district": data[0]["data"]["district"],
+            "state": data[0]["data"]["state"]
         })
 
-    # Try backup
-    backup = fetch(url_backup)
-    if backup and backup.get("status") == "OK":
-        return jsonify({
-            "success": True,
-            "city": backup["data"]["city"],
-            "state": backup["data"]["state"]
-        })
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
 
-    return jsonify({"success": False, "message": "Service unavailable"}), 500
 
 
 
@@ -1290,6 +1279,10 @@ def stock_adjust():
 
 
 # 1. Main Inventory Master View (Admin Side)
+
+# =========================================================
+#  UPDATED INVENTORY MASTER (With Stats)
+# =========================================================
 @app.route('/inventory_master')
 def inventory_master():
     if "loggedin" not in session:
@@ -1297,7 +1290,7 @@ def inventory_master():
 
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
-    # Fetch Products with Category Names
+    # 1. Fetch Products with Category Names
     cur.execute("""
         SELECT p.*, pc.category_name 
         FROM products p
@@ -1306,16 +1299,30 @@ def inventory_master():
     """)
     products = cur.fetchall()
 
-    # Fetch Categories for filter/add
+    # 2. Fetch Categories for filter/add
     cur.execute("SELECT * FROM product_categories ORDER BY category_name")
     categories = cur.fetchall()
+
+    # 3. Calculate Stats for the Dashboard
+    total_value = sum(p['price'] * p['stock'] for p in products)
+    low_stock_count = sum(1 for p in products if p['stock'] <= p['low_stock_threshold'])
+    total_items = len(products)
     
     cur.close()
 
-    return render_template('inventory/inventory_master.html', products=products, categories=categories)
+    return render_template('inventory/inventory_master.html', 
+                           products=products, 
+                           categories=categories,
+                           stats={
+                               "total_value": total_value,
+                               "low_stock": low_stock_count,
+                               "total_items": total_items
+                           })
 
 
-# 2. Category Master (Manage Categories)
+# =========================================================
+#  CATEGORY MASTER (With Product Counts)
+# =========================================================
 @app.route('/category_master', methods=['GET', 'POST'])
 def category_master():
     if "loggedin" not in session:
@@ -1324,7 +1331,6 @@ def category_master():
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
     if request.method == 'POST':
-        # Handle Add/Edit/Delete via form actions
         action = request.form.get('action')
         
         if action == 'add':
@@ -1340,17 +1346,26 @@ def category_master():
         
         elif action == 'delete':
             cat_id = request.form.get('category_id')
+            # Optional: Check if products exist in this category before deleting
             cur.execute("DELETE FROM product_categories WHERE id=%s", (cat_id,))
 
         mysql.connection.commit()
         flash("Category updated successfully", "success")
         return redirect(url_for('category_master'))
 
-    cur.execute("SELECT * FROM product_categories ORDER BY id DESC")
+    # Modified Query to Count Products
+    cur.execute("""
+        SELECT c.*, COUNT(p.id) as total_products 
+        FROM product_categories c 
+        LEFT JOIN products p ON c.id = p.category_id 
+        GROUP BY c.id 
+        ORDER BY c.category_name ASC
+    """)
     categories = cur.fetchall()
     cur.close()
 
     return render_template('inventory/category_master.html', categories=categories)
+
 
 
 # 3. Product History (The Timeline)
@@ -2038,17 +2053,16 @@ def employee_department_delete(id):
 
 
 # ---------- ADMIN SIDE: ADD EMPLOYEE (admin_master.html) ----------
-
 @app.route("/add_employee", methods=["GET", "POST"])
 def add_employee():
-    cursor = mysql.connection.cursor(DictCursor)
+    cur = mysql.connection.cursor(DictCursor)
 
     # Load dropdowns
-    cursor.execute("SELECT * FROM employee_positions")
-    positions = cursor.fetchall()
+    cur.execute("SELECT * FROM employee_positions")
+    positions = cur.fetchall()
 
-    cursor.execute("SELECT * FROM employee_departments")
-    departments = cursor.fetchall()
+    cur.execute("SELECT * FROM employee_departments")
+    departments = cur.fetchall()
 
     if request.method == "GET":
         return render_template(
@@ -2057,72 +2071,53 @@ def add_employee():
             departments=departments
         )
 
-    # ----------- VALIDATION ---------------
+    # Form values
     name = request.form.get("name")
     email = request.form.get("email")
     phone = request.form.get("phone")
+    dob = request.form.get("dob")
     pincode = request.form.get("pincode")
     city = request.form.get("city")
+    district = request.form.get("district")
     state = request.form.get("state")
-    dob = request.form.get("dob")
-    address_line1 = request.form.get("address_line1")
-    address_line2 = request.form.get("address_line2")
+    address1 = request.form.get("address_line1")
+    address2 = request.form.get("address_line2")
     position_id = request.form.get("position_id")
     department_id = request.form.get("department_id")
-    emergency_contact = request.form.get("emergency_contact")
-    aadhar_no = request.form.get("aadhar_no")
 
-    # Email validation
-    import re
-    if email and not re.match(r'^[^\s@]+@[^\s@]+\.[^\s@]+$', email):
-        flash("Invalid email format", "danger")
-        return redirect(url_for("add_employee"))
-
-    # Phone validation
-    if phone and (not phone.isdigit() or len(phone) != 10):
-        flash("Phone must be 10 digits", "danger")
-        return redirect(url_for("add_employee"))
-
-    # Emergency number
-    if emergency_contact and (not emergency_contact.isdigit() or len(emergency_contact) != 10):
-        flash("Emergency contact must be 10 digits", "danger")
-        return redirect(url_for("add_employee"))
-
-    # ---------- IMAGE UPLOAD ---------------
+    # Upload image to Cloudinary
+    image_file = request.files.get("image")
     image_url = None
-    file = request.files.get("image")
-    if file:
-        upload = cloudinary.uploader.upload(file, folder="erp_employees")
-        image_url = upload.get("public_id")
+    if image_file:
+        upload = cloudinary.uploader.upload(image_file, folder="erp_employees")
+        image_url = upload["public_id"]
 
-    # ---------- DOCUMENT UPLOAD -------------
-    document_path = None
-    doc_file = request.files.get("document")
-    if doc_file:
-        filename = secure_filename(doc_file.filename)
+    # Upload document
+    document_file = request.files.get("document")
+    document_name = None
+    if document_file:
+        filename = secure_filename(document_file.filename)
         path = os.path.join("uploads", filename)
-        doc_file.save(path)
-        document_path = filename
+        document_file.save(path)
+        document_name = filename
 
-    # ---------- INSERT INTO DB --------------
-    cursor.execute("""
-        INSERT INTO employees(
-            name,email,phone,pincode,city,state,dob,
-            address_line1,address_line2,position_id,department_id,
-            emergency_contact,aadhar_no,image,document
-        )
-        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+    # Insert employee
+    cur.execute("""
+        INSERT INTO employees
+        (name, email, phone, dob, pincode, city, district, state,
+         address_line1, address_line2, position_id, department_id, image, document)
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
     """, (
-        name, email, phone, pincode, city, state, dob,
-        address_line1, address_line2, position_id, department_id,
-        emergency_contact, aadhar_no, image_url, document_path
+        name, email, phone, dob, pincode, city, district, state,
+        address1, address2, position_id, department_id, image_url, document_name
     ))
 
     mysql.connection.commit()
-    cursor.close()
+    cur.close()
 
     flash("Employee added successfully!", "success")
     return redirect(url_for("employee_master"))
+
 
 
 
@@ -4109,6 +4104,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
