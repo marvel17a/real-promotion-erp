@@ -165,36 +165,7 @@ def employee_document(id):
         # fallback: try to redirect to constructed URL
         return redirect(url)
 
-# --------------------------
-# Pincode lookup API (India)
-# --------------------------
-import requests
 
-@app.route("/api/pincode_lookup/<pincode>")
-def pincode_lookup(pincode):
-    try:
-        if not pincode.isdigit() or len(pincode) != 6:
-            return jsonify({"success": False, "message": "Invalid pincode"}), 400
-
-        url = f"https://api.postalpincode.in/pincode/{pincode}"
-        res = requests.get(url, timeout=8)
-        data = res.json()
-
-        if data[0]["Status"] != "Success":
-            return jsonify({"success": False, "message": "No data found"}), 404
-
-        office = data[0]["PostOffice"][0]
-
-        return jsonify({
-            "success": True,
-            "city": office.get("District", ""),
-            "district": office.get("District", ""),
-            "state": office.get("State", "")
-        })
-
-    except Exception as e:
-        app.logger.error(f"Pincode error: {e}")
-        return jsonify({"success": False, "message": "Server error"}), 500
 
 
 
@@ -4120,6 +4091,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
