@@ -1188,99 +1188,135 @@ def export_purchase_pdf():
 
 
 
-# -------------------------------------------------------------- Category Module CRDUD Operation -------------------------------------------------------------------
+# ----------------- Category Module CRDUD Operation for admin side inventory management-------------------------------------------------------------------
+# =========================================================
+#  ADMIN INVENTORY MASTER MODULE
+# =========================================================
 
-# ============================
-#   CATEGORY MASTER ROUTES for product category#
-# ============================#
+# 1. Main Inventory Master View (Admin Side)
+@app.route('/inventory_master')
+def inventory_master():
+    if "loggedin" not in session:
+        return redirect(url_for("login"))
 
-# Show all categories
-@app.route("/categories")
-def categories():
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-
-    cursor.execute("""
-        SELECT 
-            c.id,
-            c.category_name,
-            COUNT(p.id) AS total_products
-        FROM product_categories c
-        LEFT JOIN products p ON p.category_id = c.id
-        GROUP BY c.id, c.category_name
-        ORDER BY c.category_name ASC
-    """)
+    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
-    categories = cursor.fetchall()
-    cursor.close()
+    # Fetch Products with Category Names
+    cur.execute("""
+        SELECT p.*, pc.category_name 
+        FROM products p
+        LEFT JOIN product_categories pc ON p.category_id = pc.id
+        ORDER BY p.id DESC
+    """)
+    products = cur.fetchall()
 
-    return render_template("Products/categories.html", categories=categories)
+    # Fetch Categories for filter/add
+    cur.execute("SELECT * FROM product_categories ORDER BY category_name")
+    categories = cur.fetchall()
+    
+    cur.close()
+
+    return render_template('inventory/inventory_master.html', products=products, categories=categories)
 
 
+# 2. Category Master (Manage Categories)
+@app.route('/category_master', methods=['GET', 'POST'])
+def category_master():
+    if "loggedin" not in session:
+        return redirect(url_for("login"))
 
-# Add new category
-@app.route("/add_category", methods=["GET", "POST"])
-def add_category():
-    if request.method == "POST":
-        category_name = request.form["category_name"]
+    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
-        cursor = mysql.connection.cursor()
-        cursor.execute("""
-            INSERT INTO product_categories (category_name)
-            VALUES (%s)
-        """, (category_name,))
+    if request.method == 'POST':
+        # Handle Add/Edit/Delete via form actions
+        action = request.form.get('action')
+        
+        if action == 'add':
+            name = request.form.get('category_name')
+            desc = request.form.get('description')
+            cur.execute("INSERT INTO product_categories (category_name, description) VALUES (%s, %s)", (name, desc))
+        
+        elif action == 'edit':
+            cat_id = request.form.get('category_id')
+            name = request.form.get('category_name')
+            desc = request.form.get('description')
+            cur.execute("UPDATE product_categories SET category_name=%s, description=%s WHERE id=%s", (name, desc, cat_id))
+        
+        elif action == 'delete':
+            cat_id = request.form.get('category_id')
+            cur.execute("DELETE FROM product_categories WHERE id=%s", (cat_id,))
+
         mysql.connection.commit()
-        cursor.close()
+        flash("Category updated successfully", "success")
+        return redirect(url_for('category_master'))
 
-        flash("Category added successfully!", "success")
-        return redirect(url_for("categories"))
+    cur.execute("SELECT * FROM product_categories ORDER BY id DESC")
+    categories = cur.fetchall()
+    cur.close()
 
-    return render_template("Products/add_category.html")
-
-
-# Edit category
-@app.route("/edit_category/<int:category_id>", methods=["GET", "POST"])
-def edit_category(category_id):
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-
-    # POST request -> update category
-    if request.method == "POST":
-        category_name = request.form["category_name"]
-
-        cursor.execute("""
-            UPDATE product_categories
-            SET category_name = %s
-            WHERE id = %s
-        """, (category_name, category_id))
-        mysql.connection.commit()
-        cursor.close()
-
-        flash("Category updated successfully!", "success")
-        return redirect(url_for("categories"))
-
-    # GET request -> fetch category
-    cursor.execute("SELECT * FROM product_categories WHERE id = %s", (category_id,))
-    category = cursor.fetchone()
-    cursor.close()
-
-    if not category:
-        flash("Category not found!", "danger")
-        return redirect(url_for("categories"))
-
-    return render_template("Products/edit_category.html", category=category)
+    return render_template('inventory/category_master.html', categories=categories)
 
 
-# Delete category
-@app.route("/delete_category/<int:category_id>", methods=["POST"])
-def delete_category(category_id):
-    cursor = mysql.connection.cursor()
-    cursor.execute("DELETE FROM product_categories WHERE id = %s", (category_id,))
-    mysql.connection.commit()
-    cursor.close()
+# 3. Product History (The Timeline)
+@app.route('/product_history/<int:product_id>')
+def product_history(product_id):
+    if "loggedin" not in session:
+        return redirect(url_for("login"))
 
-    flash("Category deleted!", "danger")
-    return redirect(url_for("categories"))
+    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
-#----------------------------------------INVENTORY-----------------------------------------------------------
+    # Get Product Details
+    cur.execute("SELECT * FROM products WHERE id = %s", (product_id,))
+    product = cur.fetchone()
+
+    # COMPLEX QUERY: Combine Purchases, Sales, and Adjustments
+    # We use UNION ALL to merge different tables into one timeline
+    query = """
+        (SELECT 
+            'Purchase' as type, 
+            purchase_date as date, 
+            quantity as qty, 
+            'in' as flow,
+            concat('Bill: ', bill_number) as details 
+         FROM purchases p 
+         JOIN purchase_items pi ON p.id = pi.purchase_id 
+         WHERE pi.product_id = %s)
+
+        UNION ALL
+
+        (SELECT 
+            'Sale' as type, 
+            es.date as date, 
+            ei.sold_qty as qty, 
+            'out' as flow,
+            concat('Sold by: ', e.name) as details
+         FROM evening_item ei
+         JOIN evening_settle es ON ei.settle_id = es.id
+         JOIN employees e ON es.employee_id = e.id
+         WHERE ei.product_id = %s AND ei.sold_qty > 0)
+
+        UNION ALL
+
+        (SELECT 
+            'Adjustment' as type, 
+            created_at as date, 
+            quantity as qty, 
+            adjustment_type as flow, -- 'add' is in, 'subtract' is out
+            reason as details
+         FROM stock_adjustments 
+         WHERE product_id = %s)
+
+        ORDER BY date DESC
+    """
+    
+    cur.execute(query, (product_id, product_id, product_id))
+    history = cur.fetchall()
+    cur.close()
+
+    return render_template('inventory/product_history.html', product=product, history=history)
+
+
+# Inventory Module #
 @app.route('/inventory')
 def inventory():
     if "loggedin" not in session:
@@ -3976,6 +4012,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
