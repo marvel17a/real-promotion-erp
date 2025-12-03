@@ -1,45 +1,58 @@
 {% extends "base.html" %}
-
 {% block page_content %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/employee.css') }}">
 
-<div class="page-wrap">
-  <div class="container py-4">
-    <h2 class="page-title">Our Team</h2>
+<style>
+.employee-glass {
+    backdrop-filter: blur(12px);
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.25);
+    border-radius: 18px;
+    padding: 20px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.25);
+    transition: 0.3s;
+}
+.employee-glass:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 12px 25px rgba(0,0,0,0.35);
+}
+.emp-img {
+    width: 90px; height: 90px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+</style>
 
-    <div class="row g-3">
-      {% for emp in employees %}
-      <div class="col-sm-6 col-md-4 col-lg-3">
-        <div class="glass-card emp-card">
-          <div class="emp-thumb">
-            {% if emp.image %}
-              <img src="{{ cloudinary_url(emp.image)[0] }}" alt="{{ emp.name }}">
-            {% else %}
-              <div class="no-thumb"> {{ emp.name[:1] | upper }} </div>
-            {% endif %}
-          </div>
-          <div class="emp-body">
-            <h5 class="emp-name">{{ emp.name }}</h5>
-            <p class="emp-meta">
-              <span>{{ emp.position_name or '—' }}</span><br>
-              <small>{{ emp.city or '' }}</small>
-            </p>
-            <div class="d-flex justify-content-between mt-2">
-              <a href="{{ url_for('employee_details', id=emp.id) }}" class="btn btn-sm btn-outline-light">View</a>
-              <span class="badge {{ 'bg-success' if emp.status == 'active' else 'bg-secondary' }}">{{ emp.status or 'inactive' }}</span>
+<div class="container mt-4">
+    <h2 class="fw-bold text-primary mb-4">Employees</h2>
+
+    <div class="row g-4">
+        {% for emp in employees %}
+        <div class="col-md-4 col-lg-3">
+            <div class="employee-glass text-center p-3">
+                <img src="{{ cloudinary_url(emp.image)[0] if emp.image else '/static/img/user.png' }}" class="emp-img mb-3">
+
+                <h5 class="fw-bold">{{ emp.name }}</h5>
+                <p class="text-muted mb-1">{{ emp.position_name or 'No Position' }} </p>
+                <p class="text-muted small mb-1">{{ emp.department_name or 'No Department' }}</p>
+
+                <p class="small mb-1">
+                    <i class="fa-solid fa-phone"></i> {{ emp.phone or 'N/A' }}
+                </p>
+
+                <p class="small mb-2">
+                    <i class="fa-solid fa-location-dot"></i>
+                    {{ emp.city or 'City' }}, {{ emp.state or 'State' }}
+                </p>
+
+                <a href="{{ url_for('employee_details', id=emp.id) }}" class="btn btn-primary btn-sm">
+                    View Details
+                </a>
             </div>
-          </div>
         </div>
-      </div>
-      {% endfor %}
+        {% else %}
+        <p class="text-center mt-4">No employees found.</p>
+        {% endfor %}
     </div>
-
-    {% if not employees %}
-      <div class="text-center text-muted my-5">No employees found.</div>
-    {% endif %}
-  </div>
 </div>
 
-<script src="{{ url_for('static', filename='js/emp.js') }}"></script>
 {% endblock %}
-
