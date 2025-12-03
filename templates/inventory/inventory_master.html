@@ -1,0 +1,154 @@
+{% extends "admin_master.html" %}
+
+{% block page_content %}
+<div class="container-fluid fade-in-up">
+    
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h3 class="fw-bold text-dark">Inventory Master</h3>
+            <p class="text-muted">Manage products, categories, and stock history.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('category_master') }}" class="btn btn-dark shadow-sm">
+                <i class="fa-solid fa-tags me-2"></i> Categories
+            </a>
+            <a href="{{ url_for('add_product') }}" class="btn btn-primary shadow-sm">
+                <i class="fa-solid fa-plus me-2"></i> Add Product
+            </a>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card glass-card border-0 p-3">
+                <div class="d-flex align-items-center">
+                    <div class="icon-box bg-primary-subtle text-primary rounded-circle p-3 me-3">
+                        <i class="fa-solid fa-box fa-lg"></i>
+                    </div>
+                    <div>
+                        <h5 class="mb-0 fw-bold">{{ products|length }}</h5>
+                        <small class="text-muted">Total Products</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        </div>
+
+    <div class="card glass-card border-0 shadow-sm">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table align-middle table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Image</th>
+                            <th>Product Name</th>
+                            <th>Category</th>
+                            <th>Stock</th>
+                            <th>Price</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for p in products %}
+                        <tr>
+                            <td>
+                                <img src="{{ p.image | fix_image }}" class="rounded shadow-sm" style="width: 45px; height: 45px; object-fit: cover;">
+                            </td>
+                            <td class="fw-bold">{{ p.name }}</td>
+                            <td>
+                                <span class="badge bg-secondary-subtle text-dark border">
+                                    {{ p.category_name or 'Uncategorized' }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if p.stock <= p.low_stock_threshold %}
+                                    <span class="badge bg-danger text-white">Low: {{ p.stock }}</span>
+                                {% else %}
+                                    <span class="badge bg-success-subtle text-success">{{ p.stock }}</span>
+                                {% endif %}
+                            </td>
+                            <td>₹{{ "%.2f"|format(p.price) }}</td>
+                            <td>
+                                <div class="dropdown">
+                                    <button class="btn btn-sm btn-light border dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                        Options
+                                    </button>
+                                    <ul class="dropdown-menu shadow border-0">
+                                        <li><a class="dropdown-item" href="{{ url_for('edit_product', product_id=p.id) }}"><i class="fa-solid fa-pen text-warning me-2"></i> Edit</a></li>
+                                        <li><a class="dropdown-item" href="{{ url_for('product_history', product_id=p.id) }}"><i class="fa-solid fa-clock-rotate-left text-info me-2"></i> History</a></li>
+                                        <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#adjustStockModal{{p.id}}"><i class="fa-solid fa-sliders text-success me-2"></i> Adjust Stock</a></li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li>
+                                            <form action="{{ url_for('delete_product', id=p.id) }}" method="POST" onsubmit="return confirm('Delete this product?');">
+                                                <button class="dropdown-item text-danger"><i class="fa-solid fa-trash me-2"></i> Delete</button>
+                                            </form>
+                                        </li>
+                                    </ul>
+                                </div>
+
+                                <div class="modal fade" id="adjustStockModal{{p.id}}" tabindex="-1">
+                                    <div class="modal-dialog">
+                                        <form action="{{ url_for('stock_adjust') }}" method="POST">
+                                            <div class="modal-content glass-card">
+                                                <div class="modal-header border-0">
+                                                    <h5 class="modal-title">Adjust Stock: {{ p.name }}</h5>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    <input type="hidden" name="product_id" value="{{ p.id }}">
+                                                    <div class="mb-3">
+                                                        <label class="form-label">Action</label>
+                                                        <select name="type" class="form-select">
+                                                            <option value="add">Add Stock (+)</option>
+                                                            <option value="subtract">Remove Stock (-)</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label class="form-label">Quantity</label>
+                                                        <input type="number" name="quantity" class="form-control" required min="1">
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label class="form-label">Reason</label>
+                                                        <input type="text" name="reason" class="form-control" placeholder="e.g. Damage, Audit correction" required>
+                                                    </div>
+                                                </div>
+                                                <div class="modal-footer border-0">
+                                                    <button type="submit" class="btn btn-primary">Save Adjustment</button>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Glassmorphism Classes for Admin */
+    .glass-card {
+        background: rgba(255, 255, 255, 0.9);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.5);
+        border-radius: 15px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    }
+    .table-hover tbody tr:hover {
+        background-color: rgba(79, 70, 229, 0.05);
+        transition: 0.3s;
+    }
+    .fade-in-up {
+        animation: fadeInUp 0.5s ease-out;
+    }
+    @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+</style>
+{% endblock %}

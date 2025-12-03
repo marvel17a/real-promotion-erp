@@ -1,0 +1,76 @@
+{% extends "admin_master.html" %}
+
+{% block page_content %}
+<div class="container py-4 fade-in-up">
+    
+    <div class="d-flex align-items-center mb-4">
+        <a href="{{ url_for('inventory_master') }}" class="btn btn-light border rounded-circle me-3">
+            <i class="fa-solid fa-arrow-left"></i>
+        </a>
+        <div>
+            <h3 class="fw-bold mb-0">{{ product.name }}</h3>
+            <span class="text-muted">Current Stock: <span class="text-primary fw-bold">{{ product.stock }}</span></span>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card glass-card border-0 p-4">
+                <h5 class="mb-4">Transaction Timeline</h5>
+                
+                {% if history %}
+                <div class="timeline">
+                    {% for h in history %}
+                    <div class="timeline-item d-flex mb-4">
+                        <div class="timeline-icon me-3">
+                            {% if h.type == 'Purchase' or h.flow == 'add' or h.flow == 'in' %}
+                                <div class="bg-success text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                    <i class="fa-solid fa-arrow-down"></i>
+                                </div>
+                            {% else %}
+                                <div class="bg-danger text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                    <i class="fa-solid fa-arrow-up"></i>
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="timeline-content">
+                            <div class="d-flex justify-content-between w-100">
+                                <h6 class="fw-bold mb-1">{{ h.type }}</h6>
+                                <small class="text-muted">{{ h.date.strftime('%d %b %Y') }}</small>
+                            </div>
+                            <p class="mb-1 text-muted small">{{ h.details }}</p>
+                            <span class="badge {% if h.flow == 'in' or h.flow == 'add' %}bg-success-subtle text-success{% else %}bg-danger-subtle text-danger{% endif %}">
+                                {% if h.flow == 'in' or h.flow == 'add' %}+{% else %}-{% endif %}{{ h.qty }}
+                            </span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                    <p class="text-center text-muted py-5">No history found for this product.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .timeline { position: relative; }
+    .timeline::before {
+        content: '';
+        position: absolute;
+        left: 20px;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: #e9ecef;
+        z-index: 0;
+    }
+    .timeline-item { position: relative; z-index: 1; }
+    .glass-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+    }
+</style>
+{% endblock %}
