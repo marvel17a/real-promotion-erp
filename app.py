@@ -2060,68 +2060,79 @@ def employee_department_delete(id):
 # ---------- ADMIN SIDE: ADD EMPLOYEE (admin_master.html) ----------
 @app.route("/add_employee", methods=["GET", "POST"])
 def add_employee():
+    if "loggedin" not in session:
+        return redirect(url_for("login"))
+
     cur = mysql.connection.cursor(DictCursor)
 
-    # Load dropdowns
-    cur.execute("SELECT * FROM employee_positions")
+    if request.method == "POST":
+        form = request.form
+
+        name = form.get("name")
+        email = form.get("email")
+        phone = form.get("phone")
+        pincode = form.get("pincode")
+        city = form.get("city")
+        district = form.get("district")
+        state = form.get("state")
+        addr1 = form.get("address_line1")
+        addr2 = form.get("address_line2")
+        dob = parse_ddmmyyyy_to_date(form.get("dob"))
+        pos_id = form.get("position_id") or None
+        dep_id = form.get("department_id") or None
+        emergency = form.get("emergency_contact")
+        aadhar = form.get("aadhar_no")
+
+        # Phone validation
+        if phone and not re.match(r"^\d{10}$", phone):
+            flash("Phone must be 10 digits", "danger")
+            return redirect(request.url)
+
+        # Upload files
+        image_id = None
+        doc_id = None
+        img = request.files.get("image")
+        doc = request.files.get("document")
+
+        if img and img.filename:
+            image_id = save_file_to_cloudinary(img, folder="erp_employees")
+
+        if doc and doc.filename:
+            up = cloudinary.uploader.upload(doc, resource_type="raw", folder="erp_employee_docs")
+            doc_id = up.get("public_id")
+
+        # Insert into DB (matches your exact structure)
+        cur.execute("""
+            INSERT INTO employees
+            (name, email, phone, pincode, city, district, state,
+             address_line1, address_line2, dob,
+             position_id, department_id, emergency_contact, aadhar_no,
+             image, document, status, join_date)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,
+                    %s,%s,%s,
+                    %s,%s,%s,%s,
+                    %s,%s,'active',CURDATE())
+        """, (name, email, phone, pincode, city, district, state,
+              addr1, addr2, dob,
+              pos_id, dep_id, emergency, aadhar,
+              image_id, doc_id))
+
+        mysql.connection.commit()
+        cur.close()
+        flash("Employee added successfully!", "success")
+        return redirect(url_for("employee_master"))
+
+    # Load position & department
+    cur.execute("SELECT * FROM employee_positions ORDER BY id DESC")
     positions = cur.fetchall()
 
-    cur.execute("SELECT * FROM employee_departments")
+    cur.execute("SELECT * FROM employee_departments ORDER BY id DESC")
     departments = cur.fetchall()
 
-    if request.method == "GET":
-        return render_template(
-            "employees/add_employee.html",
-            positions=positions,
-            departments=departments
-        )
-
-    # Form values
-    name = request.form.get("name")
-    email = request.form.get("email")
-    phone = request.form.get("phone")
-    dob = request.form.get("dob")
-    pincode = request.form.get("pincode")
-    city = request.form.get("city")
-    district = request.form.get("district")
-    state = request.form.get("state")
-    address1 = request.form.get("address_line1")
-    address2 = request.form.get("address_line2")
-    position_id = request.form.get("position_id")
-    department_id = request.form.get("department_id")
-
-    # Upload image to Cloudinary
-    image_file = request.files.get("image")
-    image_url = None
-    if image_file:
-        upload = cloudinary.uploader.upload(image_file, folder="erp_employees")
-        image_url = upload["public_id"]
-
-    # Upload document
-    document_file = request.files.get("document")
-    document_name = None
-    if document_file:
-        filename = secure_filename(document_file.filename)
-        path = os.path.join("uploads", filename)
-        document_file.save(path)
-        document_name = filename
-
-    # Insert employee
-    cur.execute("""
-        INSERT INTO employees
-        (name, email, phone, dob, pincode, city, district, state,
-         address_line1, address_line2, position_id, department_id, image, document)
-        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-    """, (
-        name, email, phone, dob, pincode, city, district, state,
-        address1, address2, position_id, department_id, image_url, document_name
-    ))
-
-    mysql.connection.commit()
     cur.close()
+    return render_template("employees/add_employee.html",
+                           positions=positions, departments=departments)
 
-    flash("Employee added successfully!", "success")
-    return redirect(url_for("employee_master"))
 
 
 
@@ -4109,6 +4120,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
