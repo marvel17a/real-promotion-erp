@@ -1189,9 +1189,87 @@ def export_purchase_pdf():
 
 
 # ----------------- Category Module CRDUD Operation for admin side inventory management-------------------------------------------------------------------
+
+# =========================================================
+#  STOCK ADJUSTMENT ROUTE
+# =========================================================###################################################
+@app.route('/inventory/adjust', methods=['GET', 'POST'])
+def stock_adjust():
+    # 1. Security Check
+    if "loggedin" not in session:
+        return redirect(url_for("login"))
+
+    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    # 2. Handle Form Submission
+    if request.method == 'POST':
+        product_id = request.form.get('product_id')
+        adj_type = request.form.get('adjustment_type')  # 'add' or 'subtract'
+        try:
+            quantity = int(request.form.get('quantity'))
+        except (ValueError, TypeError):
+            flash("Invalid quantity entered.", "danger")
+            return redirect(url_for('stock_adjust'))
+            
+        reason = request.form.get('reason')
+
+        # Basic Validation
+        if not product_id or quantity <= 0:
+            flash("Please select a product and enter a valid quantity.", "danger")
+            return redirect(url_for('stock_adjust'))
+
+        try:
+            # 3. Logic for Subtracting Stock (Check availability first)
+            if adj_type == 'subtract':
+                cur.execute("SELECT stock FROM products WHERE id = %s", (product_id,))
+                row = cur.fetchone()
+                current_stock = row['stock'] if row else 0
+
+                if current_stock < quantity:
+                    flash(f"Error: Cannot remove {quantity} items. Current stock is only {current_stock}.", "danger")
+                    return redirect(url_for('stock_adjust'))
+
+                # Decrease Stock
+                cur.execute("UPDATE products SET stock = stock - %s WHERE id = %s", (quantity, product_id))
+
+            # 4. Logic for Adding Stock
+            else:
+                cur.execute("UPDATE products SET stock = stock + %s WHERE id = %s", (quantity, product_id))
+
+            # 5. Insert into History Log (stock_adjustments table)
+            cur.execute("""
+                INSERT INTO stock_adjustments (product_id, adjustment_type, quantity, reason, created_at)
+                VALUES (%s, %s, %s, %s, NOW())
+            """, (product_id, adj_type, quantity, reason))
+
+            mysql.connection.commit()
+            flash("Stock adjustment recorded successfully!", "success")
+            
+            # Redirect to Inventory Master to see the changes
+            return redirect(url_for('inventory_master'))
+
+        except Exception as e:
+            mysql.connection.rollback()
+            app.logger.error(f"Stock Adjust Error: {e}")
+            flash(f"An error occurred: {e}", "danger")
+            return redirect(url_for('stock_adjust'))
+        finally:
+            cur.close()
+
+    # 6. GET Request - Show the Form
+    try:
+        cur.execute("SELECT id, name, stock FROM products ORDER BY name ASC")
+        products = cur.fetchall()
+        cur.close()
+        return render_template('inventory/adjust_stock.html', products=products)
+    except Exception as e:
+        flash(f"Error loading products: {e}", "danger")
+        return redirect(url_for('inventory_master'))
+
 # =========================================================
 #  ADMIN INVENTORY MASTER MODULE
 # =========================================================
+
 
 # 1. Main Inventory Master View (Admin Side)
 @app.route('/inventory_master')
@@ -4012,6 +4090,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
