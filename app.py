@@ -171,28 +171,35 @@ def employee_document(id):
 @app.route("/api/pincode_lookup/<pincode>")
 def pincode_lookup(pincode):
     import requests
-    
+
     if not pincode.isdigit() or len(pincode) != 6:
         return jsonify({"success": False, "message": "Invalid pincode"}), 400
 
     url = f"https://api.postcodeapi.in/pincode/{pincode}"
 
     try:
-        res = requests.get(url, timeout=4)
+        res = requests.get(url, timeout=8)   # increased timeout safety
         data = res.json()
 
-        if not data or "data" not in data[0]:
-            return jsonify({"success": False, "message": "Not found"}), 404
+        # Validate structure safely
+        if (not isinstance(data, list) or 
+            len(data) == 0 or 
+            "data" not in data[0]):
+            return jsonify({"success": False, "message": "No data found"}), 404
+
+        block = data[0]["data"]
 
         return jsonify({
             "success": True,
-            "city": data[0]["data"]["city"],
-            "district": data[0]["data"]["district"],
-            "state": data[0]["data"]["state"]
+            "city": block.get("city", ""),
+            "district": block.get("district", ""),
+            "state": block.get("state", "")
         })
 
     except Exception as e:
+        # DO NOT CRASH — return error as JSON
         return jsonify({"success": False, "message": str(e)}), 500
+
 
 
 
@@ -4104,6 +4111,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
