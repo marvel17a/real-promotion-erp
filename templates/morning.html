@@ -5,11 +5,17 @@
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
 <div class="container fade-in-up py-4">
+
+    <!-- Company Header -->
+    <div class="text-center mb-4">
+        <h2 class="fw-bold text-dark">REAL PROMOTION</h2>
+        <p class="text-muted fst-italic">SINCE 2005</p>
+    </div>
     
     <div class="row mb-4 align-items-center">
         <div class="col-md-8">
             <h3 class="fw-bold text-primary mb-0"><i class="fa-solid fa-sun me-2"></i>Morning Allocation</h3>
-            
+            <p class="text-muted small mb-0">Assign stock to sales staff for the day.</p>
         </div>
         <div class="col-md-4 text-md-end mt-3 mt-md-0">
             <a href="{{ url_for('allocation_list') }}" class="btn btn-outline-primary rounded-pill px-4 shadow-sm">
@@ -27,7 +33,7 @@
                     <div class="input-group shadow-sm">
                         <span class="input-group-text bg-white border-end-0"><i class="fa-solid fa-user text-muted"></i></span>
                         <select name="employee_id" id="employee_id" class="form-select border-start-0 ps-0" required>
-                            <option value="">-- Choose Employee --</option>
+                            <option value="">-- Choose Staff --</option>
                             {% for emp in employees %}
                             <option value="{{ emp.id }}">{{ emp.name }}</option>
                             {% endfor %}
@@ -36,7 +42,7 @@
                 </div>
 
                 <div class="col-md-6 col-lg-4">
-                    <label class="form-label fw-bold text-secondary small text-uppercase"> Date</label>
+                    <label class="form-label fw-bold text-secondary small text-uppercase">Allocation Date</label>
                     <div class="input-group shadow-sm">
                         <span class="input-group-text bg-white border-end-0"><i class="fa-solid fa-calendar text-muted"></i></span>
                         <input type="text" name="date" id="date" class="form-control border-start-0 ps-0 flatpickr-input" placeholder="Select Date" value="{{ today_date }}" required>
@@ -116,10 +122,10 @@
     window.productsData = {{ products | tojson | safe }};
     window.productOptions = {{ productOptions | tojson | safe }};
     
-    // Initialize Flatpickr
+    // Initialize Flatpickr with DD-MM-YYYY format
     document.addEventListener("DOMContentLoaded", function() {
         flatpickr("#date", {
-            dateFormat: "d-m-Y",
+            dateFormat: "d-m-Y",   // ✅ changed to DD-MM-YYYY
             defaultDate: "{{ today_date }}",
             allowInput: true
         });
@@ -128,4 +134,3 @@
 
 <script src="{{ url_for('static', filename='js/morning.js') }}"></script>
 {% endblock %}
-
