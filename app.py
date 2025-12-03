@@ -2039,90 +2039,91 @@ def employee_department_delete(id):
 
 # ---------- ADMIN SIDE: ADD EMPLOYEE (admin_master.html) ----------
 
-@app.route("/add_employee", methods=["GET","POST"])
+@app.route("/add_employee", methods=["GET", "POST"])
 def add_employee():
-    if "loggedin" not in session:
-        return redirect(url_for("login"))
+    cursor = mysql.connection.cursor(DictCursor)
 
-    cur = mysql.connection.cursor(DictCursor)
-    if request.method == "POST":
-        form = request.form
-        name = form.get("name","").strip()
-        email = form.get("email","").strip()
-        phone = form.get("phone","").strip()
-        pincode = form.get("pincode","").strip()
-        city = form.get("city","").strip()
-        state = form.get("state","").strip()
-        address1 = form.get("address_line1","").strip()
-        address2 = form.get("address_line2","").strip()
-        dob_str = form.get("dob","").strip()
-        dob = parse_ddmmyyyy_to_date(dob_str)
-        position_id = form.get("position_id") or None
-        department_id = form.get("department_id") or None
-        emergency_contact = form.get("emergency_contact","").strip()
-        aadhar_no = form.get("aadhar_no","").strip()
+    # Load dropdowns
+    cursor.execute("SELECT * FROM employee_positions")
+    positions = cursor.fetchall()
 
-        # validation
-        if not name:
-            flash("Name is required", "danger")
-            return redirect(request.url)
-        if email and not validate_email(email):
-            flash("Invalid email", "danger")
-            return redirect(request.url)
-        if phone and not re.match(r'^\d{10}$', phone):
-            flash("Phone must be 10 digits", "danger")
-            return redirect(request.url)
-        if pincode and not re.match(r'^\d{6}$', pincode):
-            flash("Pincode must be 6 digits", "danger")
-            return redirect(request.url)
+    cursor.execute("SELECT * FROM employee_departments")
+    departments = cursor.fetchall()
 
-        image_file = request.files.get("image")
-        doc_file = request.files.get("document")
-        image_public_id = None
-        doc_public_id = None
+    if request.method == "GET":
+        return render_template(
+            "employees/add_employee.html",
+            positions=positions,
+            departments=departments
+        )
 
-        try:
-            if image_file and image_file.filename:
-                image_public_id = save_file_to_cloudinary(image_file, folder="erp_employees")
-            if doc_file and doc_file.filename:
-                # raw resource for pdf
-                up = cloudinary.uploader.upload(doc_file, resource_type='raw', folder='erp_employee_docs')
-                doc_public_id = up.get('public_id') or up.get('secure_url')
-        except Exception as e:
-            app.logger.exception("Upload failed")
-            flash("File upload failed", "danger")
-            return redirect(request.url)
+    # ----------- VALIDATION ---------------
+    name = request.form.get("name")
+    email = request.form.get("email")
+    phone = request.form.get("phone")
+    pincode = request.form.get("pincode")
+    city = request.form.get("city")
+    state = request.form.get("state")
+    dob = request.form.get("dob")
+    address_line1 = request.form.get("address_line1")
+    address_line2 = request.form.get("address_line2")
+    position_id = request.form.get("position_id")
+    department_id = request.form.get("department_id")
+    emergency_contact = request.form.get("emergency_contact")
+    aadhar_no = request.form.get("aadhar_no")
 
-        try:
-            cur.execute("""
-                INSERT INTO employees
-                (name, email, phone, pincode, city, state, address_line1, address_line2, dob,
-                 position_id, department_id, emergency_contact, aadhar_no, image, document, status, join_date)
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'active',CURDATE())
-            """, (name, email or None, phone or None, pincode or None, city or None, state or None,
-                  address1 or None, address2 or None, dob, position_id, department_id,
-                  emergency_contact or None, aadhar_no or None, image_public_id or None,
-                  doc_public_id or None))
-            mysql.connection.commit()
-            flash("Employee added", "success")
-            return redirect(url_for("employee_master"))
-        except Exception as e:
-            mysql.connection.rollback()
-            app.logger.exception("Insert employee failed")
-            flash(f"Failed to add employee: {e}", "danger")
-            return redirect(request.url)
-        finally:
-            cur.close()
+    # Email validation
+    import re
+    if email and not re.match(r'^[^\s@]+@[^\s@]+\.[^\s@]+$', email):
+        flash("Invalid email format", "danger")
+        return redirect(url_for("add_employee"))
 
-    # GET -> show form
-    try:
-        cur.execute("SELECT * FROM employee_positions ORDER BY id DESC")
-        positions = cur.fetchall()
-        cur.execute("SELECT * FROM employee_departments ORDER BY id DESC")
-        departments = cur.fetchall()
-    finally:
-        cur.close()
-    return render_template("employees/add_employee.html", positions=positions, departments=departments)
+    # Phone validation
+    if phone and (not phone.isdigit() or len(phone) != 10):
+        flash("Phone must be 10 digits", "danger")
+        return redirect(url_for("add_employee"))
+
+    # Emergency number
+    if emergency_contact and (not emergency_contact.isdigit() or len(emergency_contact) != 10):
+        flash("Emergency contact must be 10 digits", "danger")
+        return redirect(url_for("add_employee"))
+
+    # ---------- IMAGE UPLOAD ---------------
+    image_url = None
+    file = request.files.get("image")
+    if file:
+        upload = cloudinary.uploader.upload(file, folder="erp_employees")
+        image_url = upload.get("public_id")
+
+    # ---------- DOCUMENT UPLOAD -------------
+    document_path = None
+    doc_file = request.files.get("document")
+    if doc_file:
+        filename = secure_filename(doc_file.filename)
+        path = os.path.join("uploads", filename)
+        doc_file.save(path)
+        document_path = filename
+
+    # ---------- INSERT INTO DB --------------
+    cursor.execute("""
+        INSERT INTO employees(
+            name,email,phone,pincode,city,state,dob,
+            address_line1,address_line2,position_id,department_id,
+            emergency_contact,aadhar_no,image,document
+        )
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+    """, (
+        name, email, phone, pincode, city, state, dob,
+        address_line1, address_line2, position_id, department_id,
+        emergency_contact, aadhar_no, image_url, document_path
+    ))
+
+    mysql.connection.commit()
+    cursor.close()
+
+    flash("Employee added successfully!", "success")
+    return redirect(url_for("employee_master"))
+
 
 
 # ---------- ADMIN SIDE: EDIT EMPLOYEE (admin_master.html) ----------
@@ -4108,6 +4109,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
