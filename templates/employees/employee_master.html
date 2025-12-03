@@ -1,163 +1,88 @@
 {% extends "admin_master.html" %}
-
 {% block page_content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/employee.css') }}">
 
 <div class="container py-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="fw-bold">Employee Master</h2>
+    <a href="{{ url_for('add_employee') }}" class="btn btn-primary">+ Add Employee</a>
+  </div>
 
-    <h2 class="fw-bold text-primary mb-4">
-        <i class="fa-solid fa-users-gear me-2"></i> Employee Master
-    </h2>
+  <div class="row g-4">
+    <div class="col-lg-4">
+      <div class="glass-card p-3 mb-4">
+        <h6>Positions</h6>
+        <form action="{{ url_for('employee_position_add') }}" method="POST" class="d-flex mb-3">
+          <input name="position_name" class="form-control me-2" placeholder="New position" required>
+          <button class="btn btn-primary">Add</button>
+        </form>
+        <ul class="list-group">
+          {% for pos in positions %}
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            {{ pos.position_name }}
+            <a href="{{ url_for('employee_position_delete', id=pos.id) }}" class="btn btn-sm btn-danger" onclick="return confirm('Delete position?');">Delete</a>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
 
-    <div class="row">
-        <!-- POSITIONS -->
-        <div class="col-md-6 mb-4">
-            <div class="card shadow-sm">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0"><i class="fa-solid fa-user-tie me-1"></i> Manage Positions</h5>
-                </div>
-                <div class="card-body">
-
-                    <!-- ADD POSITION -->
-                    <form action="{{ url_for('employee_position_add') }}" method="POST"
-                          class="d-flex mb-3">
-                        <input type="text" name="position_name" class="form-control me-2"
-                               placeholder="Add New Position..." required>
-                        <button class="btn btn-primary">
-                            <i class="fa-solid fa-plus"></i>
-                        </button>
-                    </form>
-
-                    <ul class="list-group">
-                        {% for pos in positions %}
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            {{ pos.position_name }}
-                            <a href="{{ url_for('employee_position_delete', id=pos.id) }}"
-                               class="btn btn-sm btn-danger"
-                               onclick="return confirm('Delete this position?');">
-                                <i class="fa-solid fa-trash"></i>
-                            </a>
-                        </li>
-                        {% endfor %}
-                    </ul>
-
-                </div>
-            </div>
-        </div>
-
-        <!-- DEPARTMENTS -->
-        <div class="col-md-6 mb-4">
-            <div class="card shadow-sm">
-                <div class="card-header bg-success text-white">
-                    <h5 class="mb-0"><i class="fa-solid fa-building me-1"></i> Manage Departments</h5>
-                </div>
-                <div class="card-body">
-
-                    <!-- ADD DEPT -->
-                    <form action="{{ url_for('employee_department_add') }}" method="POST"
-                          class="d-flex mb-3">
-                        <input type="text" name="department_name" class="form-control me-2"
-                               placeholder="Add New Department..." required>
-                        <button class="btn btn-success">
-                            <i class="fa-solid fa-plus"></i>
-                        </button>
-                    </form>
-
-                    <ul class="list-group">
-                        {% for dep in departments %}
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            {{ dep.department_name }}
-                            <a href="{{ url_for('employee_department_delete', id=dep.id) }}"
-                               class="btn btn-sm btn-danger"
-                               onclick="return confirm('Delete this department?');">
-                                <i class="fa-solid fa-trash"></i>
-                            </a>
-                        </li>
-                        {% endfor %}
-                    </ul>
-
-                </div>
-            </div>
-        </div>
+      <div class="glass-card p-3">
+        <h6>Departments</h6>
+        <form action="{{ url_for('employee_department_add') }}" method="POST" class="d-flex mb-3">
+          <input name="department_name" class="form-control me-2" placeholder="New department" required>
+          <button class="btn btn-success">Add</button>
+        </form>
+        <ul class="list-group">
+          {% for d in departments %}
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            {{ d.department_name }}
+            <a href="{{ url_for('employee_department_delete', id=d.id) }}" class="btn btn-sm btn-danger" onclick="return confirm('Delete department?');">Delete</a>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
     </div>
 
-
-    <!-- EMPLOYEE TABLE -->
-    <div class="card shadow-sm mt-4">
-        <div class="card-header bg-dark text-white">
-            <h5 class="mb-0"><i class="fa-solid fa-users me-1"></i> Employees</h5>
-        </div>
-
-        <div class="card-body">
-            <a href="{{ url_for('add_employee') }}" class="btn btn-primary mb-3">
-                <i class="fa-solid fa-plus"></i> Add Employee
-            </a>
-
-            <div class="table-responsive">
-                <table class="table table-hover align-middle">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Photo</th>
-                            <th>Name</th>
-                            <th>Phone</th>
-                            <th>Email</th>
-                            <th>Position</th>
-                            <th>Department</th>
-                            <th>Status</th>
-                            <th class="text-end">Actions</th>
-                        </tr>
-                    </thead>
-
-                    <tbody>
-                        {% for emp in employees %}
-                        <tr>
-                            <td>
-                                {% if emp.image %}
-                                <img src="{{ cloudinary_url(emp.image)[0] }}"
-                                     class="rounded-circle"
-                                     style="width:45px;height:45px;object-fit:cover;">
-                                {% else %}
-                                <span class="badge bg-secondary">No Image</span>
-                                {% endif %}
-                            </td>
-
-                            <td class="fw-bold">{{ emp.name }}</td>
-                            <td>{{ emp.phone }}</td>
-                            <td>{{ emp.email }}</td>
-                            <td>{{ emp.position_name or 'N/A' }}</td>
-                            <td>{{ emp.department_name or 'N/A' }}</td>
-
-                            <td>
-                                {% if emp.status == 'active' %}
-                                <span class="badge bg-success">Active</span>
-                                {% else %}
-                                <span class="badge bg-danger">Inactive</span>
-                                {% endif %}
-                            </td>
-
-                            <td class="text-end">
-                                <a href="{{ url_for('edit_employee', id=emp.id) }}"
-                                   class="btn btn-sm btn-warning">
-                                   <i class="fa-solid fa-pen"></i>
-                                </a>
-
-                                <form action="{{ url_for('delete_employee', id=emp.id) }}" 
-                                      method="POST" class="d-inline-block"
-                                      onsubmit="return confirm('Delete employee?');">
-                                    <button class="btn btn-sm btn-danger">
-                                        <i class="fa-solid fa-trash"></i>
-                                    </button>
-                                </form>
-                            </td>
-
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-
-                </table>
-            </div>
-        </div>
+    <div class="col-lg-8">
+      <div class="glass-card p-3">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Photo</th>
+              <th>Name</th>
+              <th>Position</th>
+              <th>Department</th>
+              <th>Phone</th>
+              <th>City</th>
+              <th>Status</th>
+              <th class="text-end">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for emp in employees %}
+            <tr>
+              <td>{% if emp.image %}<img src="{{ cloudinary_url(emp.image)[0] }}" class="table-thumb">{% else %}<span class="badge bg-secondary">No</span>{% endif %}</td>
+              <td>{{ emp.name }}</td>
+              <td>{{ emp.position_name or '—' }}</td>
+              <td>{{ emp.department_name or '—' }}</td>
+              <td>{{ emp.phone or '—' }}</td>
+              <td>{{ emp.city or '—' }}</td>
+              <td><span class="badge {{ 'bg-success' if emp.status=='active' else 'bg-secondary' }}">{{ emp.status }}</span></td>
+              <td class="text-end">
+                <a href="{{ url_for('employee_details', id=emp.id) }}" class="btn btn-sm btn-info">View</a>
+                <a href="{{ url_for('edit_employee', id=emp.id) }}" class="btn btn-sm btn-warning">Edit</a>
+                <form action="{{ url_for('delete_employee', id=emp.id) }}" method="POST" class="d-inline-block" onsubmit="return confirm('Delete employee?');">
+                  <button class="btn btn-sm btn-danger">Delete</button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
     </div>
-
+  </div>
 </div>
 
+<script src="{{ url_for('static', filename='js/emp.js') }}"></script>
 {% endblock %}
