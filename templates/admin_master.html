@@ -154,7 +154,7 @@
         <nav class="sidebar-nav">
             <!-- These links will now work correctly without causing errors -->
         <a href="{{ url_for('dash') }}"><i class="fa-solid fa-chart-pie"></i> <span class="link-text">Dashboard</span></a>
-            <a href="inventory"><i class="fa-solid fa-box-open"></i> <span class="link-text">Inventory</span></a>
+            <a href="{{ url_for('inventory_master') }}"><i class="fa-solid fa-box-open"></i> <span class="link-text">Inventory</span></a>
             
             <a href="employee_master"><i class="fa-solid fa-users"></i> <span class="link-text">Employees</span></a>
             
@@ -207,6 +207,7 @@
 {% block page_scripts %}{% endblock %}
 </body>
 </html>
+
 
 
 
