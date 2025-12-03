@@ -107,28 +107,52 @@ def fix_image(image):
     # fallback
     return url_for('static', filename='img/default-user.png')
 
+# --------------------------
+# Employee document view (redirect to Cloudinary URL)
+# --------------------------
+@app.route("/employee_document/<int:id>")
+def employee_document(id):
+    cur = mysql.connection.cursor(DictCursor)
+    try:
+        cur.execute("SELECT document FROM employees WHERE id=%s", (id,))
+        row = cur.fetchone()
+    finally:
+        cur.close()
+    if not row or not row.get("document"):
+        abort(404)
+    doc_public_id = row["document"]
+    try:
+        url, _ = cloudinary.utils.cloudinary_url(doc_public_id, resource_type='raw')
+        return redirect(url)
+    except Exception:
+        # fallback: try to redirect to constructed URL
+        return redirect(url)
 
-
-
-#pincode fetch api pinpoint
+# --------------------------
+# Pincode lookup API (India)
+# --------------------------
 @app.route("/api/pincode_lookup/<pincode>")
 def pincode_lookup(pincode):
-    import requests
-
     try:
-        response = requests.get(f"https://api.postalpincode.in/pincode/{pincode}")
-        data = response.json()
-
-        if data[0]["Status"] == "Success":
-            city = data[0]["PostOffice"][0]["District"]
-            state = data[0]["PostOffice"][0]["State"]
-
-            return {"success": True, "city": city, "state": state}
-
-        return {"success": False, "message": "Invalid Pincode"}
-
+        if not pincode or len(pincode) != 6 or not pincode.isdigit():
+            return jsonify({"success": False, "message": "Invalid pincode"}), 400
+        resp = requests.get(f"https://api.postalpincode.in/pincode/{pincode}", timeout=6)
+        data = resp.json()
+        if not data or data[0].get("Status") != "Success":
+            return jsonify({"success": False, "message": "Not found"})
+        postoffice = data[0].get("PostOffice", [])
+        if not postoffice:
+            return jsonify({"success": False, "message": "No post office data"})
+        city = postoffice[0].get("District")
+        state = postoffice[0].get("State")
+        return jsonify({"success": True, "city": city, "state": state})
     except Exception as e:
-        return {"success": False, "message": str(e)}
+        app.logger.exception("Pincode lookup failed")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+
+
 
 
 
@@ -1681,96 +1705,74 @@ def monthly_sales_dashboard():
 
 @app.route("/employees")
 def employees():
-    if "loggedin" not in session:
-        return redirect(url_for("login"))
-
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    cursor.execute("""
-        SELECT 
-            e.*,
-            p.position_name,
-            d.department_name
-        FROM employees e
-        LEFT JOIN employee_positions p ON p.id = e.position_id
-        LEFT JOIN employee_departments d ON d.id = e.department_id
-        ORDER BY e.name ASC
-    """)
-    employees = cursor.fetchall()
-    cursor.close()
-
-    return render_template("employees.html", employees=employees)
+    cur = mysql.connection.cursor(DictCursor)
+    try:
+        cur.execute("""
+            SELECT e.id, e.name, e.image, e.phone, e.city, e.status,
+                   p.position_name, d.department_name
+            FROM employees e
+            LEFT JOIN employee_positions p ON e.position_id = p.id
+            LEFT JOIN employee_departments d ON e.department_id = d.id
+            WHERE e.status = 'active'
+            ORDER BY e.name
+        """)
+        rows = cur.fetchall()
+    finally:
+        cur.close()
+    return render_template("employees.html", employees=rows)
 
 
+# --------------------------
+# Public: employee details
+# --------------------------
 @app.route("/employee/<int:id>")
 def employee_details(id):
-    if "loggedin" not in session:
-        return redirect(url_for("login"))
-
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    cursor.execute("""
-        SELECT 
-            e.*,
-            p.position_name,
-            d.department_name
-        FROM employees e
-        LEFT JOIN employee_positions p ON p.id = e.position_id
-        LEFT JOIN employee_departments d ON d.id = e.department_id
-        WHERE e.id = %s
-    """, (id,))
-    employee = cursor.fetchone()
-    cursor.close()
-
-    if not employee:
-        flash("Employee not found.", "danger")
-        return redirect(url_for("employees"))
-
-    return render_template("employees/employee_details.html", employee=employee)
+    cur = mysql.connection.cursor(DictCursor)
+    try:
+        cur.execute("""
+            SELECT e.*, p.position_name, d.department_name
+            FROM employees e
+            LEFT JOIN employee_positions p ON e.position_id = p.id
+            LEFT JOIN employee_departments d ON e.department_id = d.id
+            WHERE e.id = %s
+        """, (id,))
+        emp = cur.fetchone()
+    finally:
+        cur.close()
+    if not emp:
+        abort(404)
+    return render_template("employees/employee_details.html", employee=emp)
 
 
-# ---------- ADMIN SIDE: EMPLOYEE MASTER (admin_master.html) ----------
+# ---------- ADMIN SIDE: EMPLOYEE MASTER (admin_master.html) ----------#
 @app.route("/employee_master")
 def employee_master():
     if "loggedin" not in session:
         return redirect(url_for("login"))
 
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    cur = mysql.connection.cursor(DictCursor)
+    try:
+        cur.execute("""
+            SELECT e.id, e.name, e.email, e.phone, e.city, e.state, e.pincode,
+                   e.address_line1, e.address_line2, e.status, e.image,
+                   p.position_name, d.department_name
+            FROM employees e
+            LEFT JOIN employee_positions p ON e.position_id = p.id
+            LEFT JOIN employee_departments d ON e.department_id = d.id
+            ORDER BY e.id DESC
+        """)
+        employees = cur.fetchall()
 
-    # Fetch All Employees
-    cursor.execute("""
-        SELECT 
-            e.id,
-            e.name,
-            e.email,
-            e.phone,
-            e.city,
-            e.status,
-            e.image,
-            e.join_date,
-            p.position_name,
-            d.department_name
-        FROM employees e
-        LEFT JOIN employee_positions p ON e.position_id = p.id
-        LEFT JOIN employee_departments d ON e.department_id = d.id
-        ORDER BY e.id DESC
-    """)
-    employees = cursor.fetchall()
+        cur.execute("SELECT * FROM employee_positions ORDER BY id DESC")
+        positions = cur.fetchall()
 
-    # Fetch All Positions
-    cursor.execute("SELECT * FROM employee_positions ORDER BY id DESC")
-    positions = cursor.fetchall()
+        cur.execute("SELECT * FROM employee_departments ORDER BY id DESC")
+        departments = cur.fetchall()
+    finally:
+        cur.close()
 
-    # Fetch All Departments
-    cursor.execute("SELECT * FROM employee_departments ORDER BY id DESC")
-    departments = cursor.fetchall()
-
-    cursor.close()
-
-    return render_template(
-        "employees/employee_master.html",
-        employees=employees,
-        positions=positions,
-        departments=departments
-    )
+    return render_template("employees/employee_master.html",
+                            employees=employees, positions=positions, departments=departments)
 
 # ---------- ADMIN SIDE: POSITION MASTER ----------
 
@@ -1868,163 +1870,202 @@ def employee_department_delete(id):
 
 # ---------- ADMIN SIDE: ADD EMPLOYEE (admin_master.html) ----------
 
-@app.route("/add_employee", methods=["GET", "POST"])
+@app.route("/add_employee", methods=["GET","POST"])
 def add_employee():
     if "loggedin" not in session:
         return redirect(url_for("login"))
 
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-
-    # Dropdown data
-    cursor.execute("SELECT * FROM employee_positions ORDER BY position_name")
-    positions = cursor.fetchall()
-
-    cursor.execute("SELECT * FROM employee_departments ORDER BY department_name")
-    departments = cursor.fetchall()
-
+    cur = mysql.connection.cursor(DictCursor)
     if request.method == "POST":
-        name = request.form.get("name", "").strip()
-        phone = request.form.get("phone", "").strip()
-        email = request.form.get("email", "").strip()
-    
+        form = request.form
+        name = form.get("name","").strip()
+        email = form.get("email","").strip()
+        phone = form.get("phone","").strip()
+        pincode = form.get("pincode","").strip()
+        city = form.get("city","").strip()
+        state = form.get("state","").strip()
+        address1 = form.get("address_line1","").strip()
+        address2 = form.get("address_line2","").strip()
+        dob_str = form.get("dob","").strip()
+        dob = parse_ddmmyyyy_to_date(dob_str)
+        position_id = form.get("position_id") or None
+        department_id = form.get("department_id") or None
+        emergency_contact = form.get("emergency_contact","").strip()
+        aadhar_no = form.get("aadhar_no","").strip()
 
-        position_id = request.form.get("position_id")
-        department_id = request.form.get("department_id")
+        # validation
+        if not name:
+            flash("Name is required", "danger")
+            return redirect(request.url)
+        if email and not validate_email(email):
+            flash("Invalid email", "danger")
+            return redirect(request.url)
+        if phone and not re.match(r'^\d{10}$', phone):
+            flash("Phone must be 10 digits", "danger")
+            return redirect(request.url)
+        if pincode and not re.match(r'^\d{6}$', pincode):
+            flash("Pincode must be 6 digits", "danger")
+            return redirect(request.url)
 
-        full_address = request.form.get("full_address", "").strip()
-        city = request.form.get("city", "").strip()
-        state = request.form.get("state", "").strip()
-        pincode = request.form.get("pincode", "").strip()
+        image_file = request.files.get("image")
+        doc_file = request.files.get("document")
+        image_public_id = None
+        doc_public_id = None
 
-        dob = request.form.get("dob") or None
-        joining_date = request.form.get("joining_date") or None
+        try:
+            if image_file and image_file.filename:
+                image_public_id = save_file_to_cloudinary(image_file, folder="erp_employees")
+            if doc_file and doc_file.filename:
+                # raw resource for pdf
+                up = cloudinary.uploader.upload(doc_file, resource_type='raw', folder='erp_employee_docs')
+                doc_public_id = up.get('public_id') or up.get('secure_url')
+        except Exception as e:
+            app.logger.exception("Upload failed")
+            flash("File upload failed", "danger")
+            return redirect(request.url)
 
-        emergency_contact = request.form.get("emergency_contact", "").strip()
-        aadhar_no = request.form.get("aadhar_no", "").strip()
+        try:
+            cur.execute("""
+                INSERT INTO employees
+                (name, email, phone, pincode, city, state, address_line1, address_line2, dob,
+                 position_id, department_id, emergency_contact, aadhar_no, image, document, status, join_date)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'active',CURDATE())
+            """, (name, email or None, phone or None, pincode or None, city or None, state or None,
+                  address1 or None, address2 or None, dob, position_id, department_id,
+                  emergency_contact or None, aadhar_no or None, image_public_id or None,
+                  doc_public_id or None))
+            mysql.connection.commit()
+            flash("Employee added", "success")
+            return redirect(url_for("employee_master"))
+        except Exception as e:
+            mysql.connection.rollback()
+            app.logger.exception("Insert employee failed")
+            flash(f"Failed to add employee: {e}", "danger")
+            return redirect(request.url)
+        finally:
+            cur.close()
 
-        # Basic validation
-        if not name or not phone:
-            flash("Name and phone are required.", "danger")
-            return render_template(
-                "employees/add_employee.html",
-                positions=positions,
-                departments=departments
-            )
-
-        # Cloudinary image upload
-        image_url = None
-        file = request.files.get("image")
-        if file and file.filename:
-            upload_result = cloudinary.uploader.upload(file, folder="erp_employees")
-            image_url = upload_result["public_id"]
-
-        cursor.execute("""
-            INSERT INTO employees 
-            (name, phone, email, position_id, department_id,
-             full_address, city, state, pincode, dob, joining_date,
-             emergency_contact, aadhar_no, image)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        """, (
-            name, phone, email, position_id, department_id,
-            full_address, city, state, pincode, dob, joining_date,
-            emergency_contact, aadhar_no, image_url
-        ))
-
-        mysql.connection.commit()
-        cursor.close()
-
-        flash("Employee added successfully!", "success")
-        return redirect(url_for("employees"))
-
-    cursor.close()
-    return render_template(
-        "employees/add_employee.html",
-        positions=positions,
-        departments=departments
-    )
+    # GET -> show form
+    try:
+        cur.execute("SELECT * FROM employee_positions ORDER BY id DESC")
+        positions = cur.fetchall()
+        cur.execute("SELECT * FROM employee_departments ORDER BY id DESC")
+        departments = cur.fetchall()
+    finally:
+        cur.close()
+    return render_template("employees/add_employee.html", positions=positions, departments=departments)
 
 
 # ---------- ADMIN SIDE: EDIT EMPLOYEE (admin_master.html) ----------
 
-@app.route("/edit_employee/<int:id>", methods=["GET", "POST"])
+@app.route("/edit_employee/<int:id>", methods=["GET","POST"])
 def edit_employee(id):
     if "loggedin" not in session:
         return redirect(url_for("login"))
 
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-
-    cursor.execute("SELECT * FROM employees WHERE id=%s", (id,))
-    employee = cursor.fetchone()
-
-    if not employee:
-        cursor.close()
-        flash("Employee not found.", "danger")
-        return redirect(url_for("employees"))
-
-    cursor.execute("SELECT * FROM employee_positions ORDER BY position_name")
-    positions = cursor.fetchall()
-
-    cursor.execute("SELECT * FROM employee_departments ORDER BY department_name")
-    departments = cursor.fetchall()
-
+    cur = mysql.connection.cursor(DictCursor)
     if request.method == "POST":
-        name = request.form.get("name", "").strip()
-        phone = request.form.get("phone", "").strip()
-        email = request.form.get("email", "").strip()
-        
+        form = request.form
+        name = form.get("name","").strip()
+        email = form.get("email","").strip()
+        phone = form.get("phone","").strip()
+        pincode = form.get("pincode","").strip()
+        city = form.get("city","").strip()
+        state = form.get("state","").strip()
+        address1 = form.get("address_line1","").strip()
+        address2 = form.get("address_line2","").strip()
+        dob_str = form.get("dob","").strip()
+        dob = parse_ddmmyyyy_to_date(dob_str)
+        position_id = form.get("position_id") or None
+        department_id = form.get("department_id") or None
+        emergency_contact = form.get("emergency_contact","").strip()
+        aadhar_no = form.get("aadhar_no","").strip()
 
-        position_id = request.form.get("position_id")
-        department_id = request.form.get("department_id")
+        # validation
+        if not name:
+            flash("Name is required", "danger")
+            return redirect(request.url)
+        if email and not validate_email(email):
+            flash("Invalid email", "danger")
+            return redirect(request.url)
+        if phone and not re.match(r'^\d{10}$', phone):
+            flash("Phone must be 10 digits", "danger")
+            return redirect(request.url)
+        if pincode and not re.match(r'^\d{6}$', pincode):
+            flash("Pincode must be 6 digits", "danger")
+            return redirect(request.url)
 
-        full_address = request.form.get("full_address", "").strip()
-        city = request.form.get("city", "").strip()
-        state = request.form.get("state", "").strip()
-        pincode = request.form.get("pincode", "").strip()
+        image_file = request.files.get("image")
+        doc_file = request.files.get("document")
+        image_public_id = None
+        doc_public_id = None
 
-        dob = request.form.get("dob") or None
-        joining_date = request.form.get("joining_date") or None
+        try:
+            if image_file and image_file.filename:
+                image_public_id = save_file_to_cloudinary(image_file, folder="erp_employees")
+            if doc_file and doc_file.filename:
+                up = cloudinary.uploader.upload(doc_file, resource_type='raw', folder='erp_employee_docs')
+                doc_public_id = up.get('public_id') or up.get('secure_url')
+        except Exception as e:
+            app.logger.exception("Upload failed")
+            flash("File upload failed", "danger")
+            return redirect(request.url)
 
-        emergency_contact = request.form.get("emergency_contact", "").strip()
-        aadhar_no = request.form.get("aadhar_no", "").strip()
+        try:
+            # Build update set dynamically (don't overwrite image/doc if not provided)
+            fields = [
+                ("name", name),
+                ("email", email or None),
+                ("phone", phone or None),
+                ("pincode", pincode or None),
+                ("city", city or None),
+                ("state", state or None),
+                ("address_line1", address1 or None),
+                ("address_line2", address2 or None),
+                ("dob", dob),
+                ("position_id", position_id),
+                ("department_id", department_id),
+                ("emergency_contact", emergency_contact or None),
+                ("aadhar_no", aadhar_no or None)
+            ]
+            if image_public_id:
+                fields.append(("image", image_public_id))
+            if doc_public_id:
+                fields.append(("document", doc_public_id))
 
-        image_url = employee["image"]
-        file = request.files.get("image")
-        if file and file.filename:
-            upload_result = cloudinary.uploader.upload(file, folder="erp_employees")
-            image_url = upload_result["public_id"]
+            set_sql = ", ".join([f"{k}=%s" for k,_ in fields])
+            params = [v for _,v in fields]
+            params.append(id)
 
-        cursor.execute("""
-            UPDATE employees SET
-                name=%s, phone=%s, email=%s,
-                position_id=%s, department_id=%s,
-                full_address=%s, city=%s, state=%s, pincode=%s,
-                dob=%s, joining_date=%s, emergency_contact=%s, aadhar_no=%s,
-                image=%s
-            WHERE id=%s
-        """, (
-            name, phone, email,
-            position_id, department_id,
-            full_address, city, state, pincode,
-            dob, joining_date, emergency_contact, aadhar_no,
-            image_url, id
-        ))
+            cur.execute(f"UPDATE employees SET {set_sql} WHERE id=%s", tuple(params))
+            mysql.connection.commit()
+            flash("Employee updated", "success")
+            return redirect(url_for("employee_master"))
+        except Exception as e:
+            mysql.connection.rollback()
+            app.logger.exception("Update failed")
+            flash(f"Failed to update employee: {e}", "danger")
+            return redirect(request.url)
+        finally:
+            cur.close()
 
-        mysql.connection.commit()
-        cursor.close()
+    # GET -> load employee
+    try:
+        cur.execute("SELECT * FROM employees WHERE id=%s", (id,))
+        emp = cur.fetchone()
+        if not emp:
+            flash("Employee not found", "danger")
+            cur.close()
+            return redirect(url_for("employee_master"))
 
-        flash("Employee updated successfully!", "success")
-        return redirect(url_for("employees"))
+        cur.execute("SELECT * FROM employee_positions ORDER BY id DESC")
+        positions = cur.fetchall()
+        cur.execute("SELECT * FROM employee_departments ORDER BY id DESC")
+        departments = cur.fetchall()
+    finally:
+        cur.close()
+    return render_template("employees/edit_employee.html", employee=emp, positions=positions, departments=departments)
 
-    cursor.close()
-    return render_template(
-        "employees/edit_employee.html",
-        employee=employee,
-        positions=positions,
-        departments=departments
-    )
-
-
-# ---------- ADMIN SIDE: DELETE EMPLOYEE ----------
 
 # ------------------ EMPLOYEES ----------------------------------------------------------------------
 @app.route('/api/check-employee')
@@ -2095,9 +2136,6 @@ def delete_employee(id):
             cursor.close()
 
     return redirect(url_for("employees"))
-
-
-
 
 # === API: view single employee (for drawer) ===
 @app.route("/api/employees/<int:id>")
@@ -3901,6 +3939,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
