@@ -1,4 +1,4 @@
-// static/js/pin.js
+// static/js/pin
 document.addEventListener("DOMContentLoaded", () => {
     const pin = document.getElementById("pincode");
     const city = document.getElementById("city");
