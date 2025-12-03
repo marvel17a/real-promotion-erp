@@ -77,6 +77,36 @@ def allowed_file(filename):
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
+# Helpers
+def parse_ddmmyyyy_to_date(s):
+    if not s:
+        return None
+    try:
+        return datetime.strptime(s, "%d-%m-%Y").date()
+    except Exception:
+        return None
+
+def validate_email(email):
+    if not email:
+        return True
+    return re.match(r'^[^\s@]+@[^\s@]+\.[^\s@]+$', email) is not None
+
+def save_file_to_cloudinary(fileobj, folder, resource_type='image'):
+    """Upload fileobj (werkzeug FileStorage) to Cloudinary and return public_id (or secure_url fallback)."""
+    if not fileobj or not getattr(fileobj, "filename", None):
+        return None
+    filename = secure_filename(fileobj.filename)
+    try:
+        if resource_type == 'raw':
+            res = cloudinary.uploader.upload(fileobj, resource_type='raw', folder=folder)
+        else:
+            res = cloudinary.uploader.upload(fileobj, folder=folder)
+        return res.get('public_id') or res.get('secure_url')
+    except Exception as e:
+        app.logger.exception("Cloudinary upload failed")
+        raise
+
+
 # Helper function
 # This "context processor" injects the cloudinary_url function into all templates
 @app.context_processor
@@ -3941,6 +3971,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
