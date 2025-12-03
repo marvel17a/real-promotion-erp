@@ -1,82 +1,69 @@
 {% extends "admin_master.html" %}
 {% block page_content %}
-
+<link rel="stylesheet" href="{{ url_for('static', filename='css/employee.css') }}">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 
-<style>
-.glass-card {
-    background: rgba(255,255,255,0.15);
-    backdrop-filter: blur(14px);
-    border: 1px solid rgba(255,255,255,0.3);
-    padding: 25px;
-    border-radius: 16px;
-    box-shadow: 0 8px 20px rgba(0,0,0,0.22);
-}
-</style>
-
 <div class="container py-4">
-  <div class="glass-card mx-auto" style="max-width:900px;">
+  <div class="glass-card p-4 mx-auto" style="max-width:980px;">
+    <h4 class="mb-3">Add Employee</h4>
 
-    <h3 class="mb-4">Add Employee</h3>
-
-    <form method="POST" action="{{ url_for('add_employee') }}" enctype="multipart/form-data">
-
+    <form id="addEmployeeForm" action="{{ url_for('add_employee') }}" method="POST" enctype="multipart/form-data">
       <div class="row g-3">
 
         <div class="col-md-6">
-          <label>Name *</label>
+          <label class="form-label">Name *</label>
           <input name="name" class="form-control" required>
         </div>
 
         <div class="col-md-6">
-          <label>Email</label>
-          <input name="email" id="email" class="form-control">
+          <label class="form-label">Email</label>
+          <input name="email" type="email" class="form-control">
         </div>
 
         <div class="col-md-4">
-          <label>Phone *</label>
-          <input name="phone" maxlength="10" id="phone" class="form-control" required>
+          <label class="form-label">Phone</label>
+          <input id="phone" name="phone" class="form-control" maxlength="10" placeholder="10-digit" required>
         </div>
 
         <div class="col-md-4">
-          <label>Pincode *</label>
-          <input name="pincode" maxlength="6" id="pincode" class="form-control" required>
+          <label class="form-label">Pincode</label>
+          <input id="pincode" name="pincode" class="form-control" maxlength="6">
         </div>
 
         <div class="col-md-4">
-          <label>City</label>
-          <input name="city" id="city" readonly class="form-control">
+          <label class="form-label">City</label>
+          <input id="city" name="city" class="form-control" readonly>
         </div>
 
         <div class="col-md-6">
-          <label>District</label>
-          <input name="district" id="district" readonly class="form-control">
+          <label class="form-label">District</label>
+          <input id="district" name="district" class="form-control" readonly>
         </div>
 
         <div class="col-md-6">
-          <label>State</label>
-          <input name="state" id="state" readonly class="form-control">
+          <label class="form-label">State</label>
+          <input id="state" name="state" class="form-control" readonly>
         </div>
 
         <div class="col-md-6">
-          <label>Date of Birth</label>
-          <input name="dob" id="dob" class="form-control dob-picker">
+          <label class="form-label">Date of Birth</label>
+          <input name="dob" class="form-control dob-picker">
         </div>
 
         <div class="col-md-6">
-          <label>Address Line 1</label>
+          <label class="form-label">Address Line 1</label>
           <input name="address_line1" class="form-control">
         </div>
 
         <div class="col-md-6">
-          <label>Address Line 2</label>
+          <label class="form-label">Address Line 2</label>
           <input name="address_line2" class="form-control">
         </div>
 
         <div class="col-md-6">
-          <label>Position</label>
+          <label class="form-label">Position</label>
           <select name="position_id" class="form-select">
-            <option value="">Select</option>
+            <option value="">Select position</option>
             {% for pos in positions %}
               <option value="{{ pos.id }}">{{ pos.position_name }}</option>
             {% endfor %}
@@ -84,38 +71,52 @@
         </div>
 
         <div class="col-md-6">
-          <label>Department</label>
+          <label class="form-label">Department</label>
           <select name="department_id" class="form-select">
-            <option value="">Select</option>
-            {% for dep in departments %}
-              <option value="{{ dep.id }}">{{ dep.department_name }}</option>
+            <option value="">Select department</option>
+            {% for d in departments %}
+              <option value="{{ d.id }}">{{ d.department_name }}</option>
             {% endfor %}
           </select>
         </div>
 
         <div class="col-md-6">
-          <label>Photo</label>
-          <input type="file" name="image" id="imageInput" class="form-control" accept="image/*">
-          <img id="imagePreview" style="display:none;max-width:150px;margin-top:10px;border-radius:10px;">
+          <label class="form-label">Emergency Contact</label>
+          <input name="emergency_contact" maxlength="10" class="form-control">
         </div>
 
         <div class="col-md-6">
-          <label>Document (PDF)</label>
-          <input type="file" name="document" accept="application/pdf" class="form-control">
+          <label class="form-label">Aadhar No</label>
+          <input name="aadhar_no" maxlength="12" class="form-control">
+        </div>
+
+        <div class="col-md-6">
+          <label class="form-label">Employee Photo</label>
+          <input id="imageInput" name="image" type="file" accept="image/*" class="form-control">
+          <img id="imagePreview" class="img-preview mt-2" style="display:none;max-width:120px;border-radius:8px;">
+        </div>
+
+        <div class="col-md-6">
+          <label class="form-label">Document (PDF)</label>
+          <input name="document" type="file" accept="application/pdf" class="form-control">
+        </div>
+
+        <div class="col-12 text-end">
+          <button class="btn btn-primary px-4">Save Employee</button>
         </div>
 
       </div>
-
-      <div class="text-end mt-3">
-        <button class="btn btn-primary">Save Employee</button>
-      </div>
-
     </form>
-
   </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script src="{{ url_for('static', filename='js/pin.js') }}"></script>
+<script src="{{ url_for('static', filename='js/emp.js') }}"></script>
 
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    flatpickr(".dob-picker", { dateFormat: "d-m-Y", maxDate: "today" });
+});
+</script>
 {% endblock %}
