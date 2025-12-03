@@ -1,148 +1,181 @@
 {% extends "base.html" %}
+
 {% block content %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
-<link rel="stylesheet" href="{{ url_for('static', filename='css/evening.css') }}">
-
-<div class="container my-4">
-
-  <!-- Header -->
-  <div class="text-center mb-4">
-    <h3 class="fw-bold text-primary"><i class="bi bi-sunset-fill"></i> Evening Settlement</h3>
-    <p class="text-muted small">Finalize sales, returns, and stock balance for the day</p>
-  </div>
-
-  <!-- Fetch Controls -->
-  <div class="card shadow-sm mb-3">
-    <div class="card-body">
-      <div class="row g-2 align-items-end">
-        <div class="col-md-5">
-          <label class="form-label small"><i class="bi bi-person"></i> Employee</label>
-          <select class="form-select form-select-sm" id="employee">
-            <option value="">Select Employee</option>
-            {% for emp in employees %}
-              <option value="{{ emp.id }}">{{ emp.name }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="col-md-4">
-          <label class="form-label small"><i class="bi bi-calendar-date"></i> Date</label>
-          <input type="date" class="form-control form-control-sm" id="date" value="{{ today }}">
-        </div>
-        <div class="col-md-3">
-          <button type="button" id="btnFetch" class="btn btn-primary btn-sm w-100"><i class="bi bi-search"></i> Fetch Morning Data</button>
-        </div>
-      </div>
-      <div id="fetchMsg" class="small text-danger mt-2"></div>
-    </div>
-  </div>
-
-  <!-- "Download PDF" button will appear here after saving -->
-  {% if last_settle_id %}
-  <div class="alert alert-success d-flex justify-content-between align-items-center">
-    <span>Settlement saved successfully! You can now download the PDF report.</span>
-    <a href="{{ url_for('generate_pdf', settle_id=last_settle_id) }}" class="btn btn-sm btn-outline-success" target="_blank">
-      <i class="bi bi-file-earmark-pdf"></i> Download PDF Report
-    </a>
-  </div>
-  {% endif %}
-
-  <!-- Evening Form -->
-  <form id="eveningForm" action="{{ url_for('evening') }}" method="POST">
-    <!-- Hidden fields -->
-    <input type="hidden" name="allocation_id" id="allocation_id">
-    <input type="hidden" name="h_employee" id="h_employee">
-    <input type="hidden" name="h_date" id="h_date">
+<div class="container fade-in-up py-4 mb-5">
     
-    <!-- Product and Payment cards... (rest of the form is the same) -->
-    <div class="card shadow-sm mb-4">
-      <div class="card-header bg-light">
-        <h5 class="mb-0"><i class="bi bi-box-seam"></i> Product Details</h5>
-      </div>
-      <div class="card-body">
-        <div class="table-responsive">
-          <table class="table table-hover table-bordered align-middle text-center" id="productsTable">
-            <thead class="table-gradient text-white">
-              <tr>
-                <th>#</th>
-                <th class="text-start">Product</th>
-                <th>Total</th>
-                <th>Sold</th>
-                <th>Return</th>
-                <th>Remaining</th>
-                <th>Price</th>
-                <th>Amount</th>
-              </tr>
-            </thead>
-            <tbody id="rowsArea">
-              <tr><td colspan="8" class="text-muted p-4">Select an employee and date to load allocation.</td></tr>
-            </tbody>
-            <tfoot class="table-light fw-bold">
-              <tr>
-                <td colspan="2" class="text-end">Totals:</td>
-                <td id="totTotal"></td>
-                <td id="totSold"></td>
-                <td id="totReturn"></td>
-                <td id="totRemain"></td>
-                <td>—</td>
-                <td id="totAmount">0.00</td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-      </div>
+    <div class="text-center mb-5">
+        <h3 class="fw-bold text-dark"><i class="fa-solid fa-moon text-primary me-2"></i>Evening Settlement</h3>
+        <p class="text-muted small">Reconcile stock and payments for the day.</p>
     </div>
-    <div class="card shadow-sm">
-      <div class="card-header bg-light">
-        <h5 class="mb-0"><i class="bi bi-cash-stack"></i> Payment Settlement</h5>
-      </div>
-      <div class="card-body">
-        <div class="row justify-content-center">
-          <div class="col-lg-8">
-            <div class="mb-3 row">
-              <label class="col-sm-4 col-form-label text-sm-end">Total Sales Amount</label>
-              <div class="col-sm-8">
-                <input type="number" id="totalAmount" name="totalAmount" class="form-control-plaintext fs-5 fw-bold" value="0.00" readonly>
-              </div>
-            </div>
-            <div class="mb-3 row">
 
-            <div class="mb-3 row">
-              <label for="discount" class="col-sm-4 col-form-label text-sm-end">Discount Given</label>
-              <div class="col-sm-8">
-                <input type="number" name="discount" id="discount" class="form-control" value="" min="0" step="0.01">
-              </div>
-            </div>   
-              <label for="online" class="col-sm-4 col-form-label text-sm-end">Online Received</label>
-              <div class="col-sm-8">
-                <input type="number" name="online" id="online" class="form-control" value="" min="0" step="0.01">
-              </div>
+    <div class="card glass-card border-0 p-4 mb-4">
+        <div class="row g-3 align-items-end">
+            <div class="col-md-5">
+                <label class="form-label fw-bold text-secondary small text-uppercase">Employee</label>
+                <select class="form-select form-select-lg shadow-sm" id="employee">
+                    <option value="">-- Select Staff --</option>
+                    {% for emp in employees %}
+                        <option value="{{ emp.id }}">{{ emp.name }}</option>
+                    {% endfor %}
+                </select>
             </div>
-            <div class="mb-3 row">
-              <label for="cash" class="col-sm-4 col-form-label text-sm-end">Cash Received</label>
-              <div class="col-sm-8">
-                <input type="number" name="cash" id="cash" class="form-control" value="" min="0" step="0.01">
-              </div>
+            <div class="col-md-4">
+                <label class="form-label fw-bold text-secondary small text-uppercase">Date</label>
+                <input type="text" class="form-control form-control-lg shadow-sm flatpickr-input" id="date" value="{{ today }}">
             </div>
-           
-            <hr class="my-4">
-            <div class="mb-3 row align-items-center">
-              <strong class="col-sm-4 col-form-label text-sm-end fs-5">Balance (Due)</strong>
-              <div class="col-sm-8">
-                <div class="alert alert-info py-2 fs-5 fw-bold text-center mb-0">
-                  <span id="dueAmount">0.00</span>
-                </div>
-              </div>
+            <div class="col-md-3">
+                <button type="button" id="btnFetch" class="btn btn-primary btn-lg w-100 shadow hover-scale">
+                    <i class="fa-solid fa-download me-2"></i> Load Data
+                </button>
             </div>
-          </div>
         </div>
-      </div>
+        <div id="fetchMsg" class="mt-2 fw-bold"></div>
     </div>
-    <div class="mt-4 text-end">
-        <button type="submit" class="btn btn-success btn-lg"><i class="bi bi-save"></i> Submit Evening Form</button>
+
+    {% if last_settle_id %}
+    <div class="alert alert-success border-0 shadow-sm d-flex justify-content-between align-items-center mb-4">
+        <span><i class="fa-solid fa-check-circle me-2"></i>Saved successfully!</span>
+        <a href="{{ url_for('generate_pdf', settle_id=last_settle_id) }}" class="btn btn-sm btn-white text-success fw-bold shadow-sm" target="_blank">
+            Download PDF
+        </a>
     </div>
-  </form>
+    {% endif %}
+
+    <form id="eveningForm" action="{{ url_for('evening') }}" method="POST">
+        <input type="hidden" name="allocation_id" id="allocation_id">
+        <input type="hidden" name="h_employee" id="h_employee">
+        <input type="hidden" name="h_date" id="h_date">
+
+        <div class="row g-4">
+            
+            <div class="col-lg-8">
+                <div class="card glass-card border-0 h-100">
+                    <div class="card-header bg-transparent border-0 pt-4 px-4 pb-2">
+                        <h5 class="fw-bold"><i class="fa-solid fa-box-open me-2 text-primary"></i>Stock Reconciliation</h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table align-middle table-hover mb-0" id="productsTable">
+                                <thead class="bg-light text-secondary small text-uppercase">
+                                    <tr>
+                                        <th class="ps-4">Product</th>
+                                        <th class="text-center">Total</th>
+                                        <th style="width: 100px;">Sold</th>
+                                        <th style="width: 100px;">Return</th>
+                                        <th class="text-center">Left</th>
+                                        <th class="text-end pe-4">Revenue</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="rowsArea" class="bg-white">
+                                    <tr><td colspan="6" class="text-center text-muted py-5">Load data to begin...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-light border-0 py-3">
+                        <div class="d-flex justify-content-between fw-bold text-dark">
+                            <span>Total Sold: <span id="totSold" class="text-primary">0</span></span>
+                            <span>Total Revenue: <span id="totAmount">0.00</span></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="card glass-card border-0 h-100">
+                    <div class="card-header bg-transparent border-0 pt-4 px-4">
+                        <h5 class="fw-bold"><i class="fa-solid fa-wallet me-2 text-success"></i>Payment</h5>
+                    </div>
+                    <div class="card-body px-4">
+                        
+                        <div class="mb-4 text-center p-3 bg-light rounded-3">
+                            <small class="text-uppercase text-muted fw-bold">Total Sales Value</small>
+                            <h2 class="fw-bold text-dark mb-0">₹ <input type="number" id="totalAmount" name="totalAmount" class="d-inline border-0 bg-transparent text-center fw-bold text-dark" style="width: 120px;" value="0.00" readonly></h2>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold text-secondary">Discount</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white border-end-0">₹</span>
+                                <input type="number" name="discount" id="discount" class="form-control form-control-lg border-start-0" placeholder="0" min="0" step="0.01">
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold text-secondary">Cash Received</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white border-end-0"><i class="fa-solid fa-money-bill text-success"></i></span>
+                                <input type="number" name="cash" id="cash" class="form-control form-control-lg border-start-0" placeholder="0" min="0" step="0.01">
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label small fw-bold text-secondary">Online Received</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white border-end-0"><i class="fa-solid fa-qrcode text-primary"></i></span>
+                                <input type="number" name="online" id="online" class="form-control form-control-lg border-start-0" placeholder="0" min="0" step="0.01">
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <div class="alert alert-warning border-0 text-center mb-0">
+                            <small class="text-uppercase fw-bold text-danger">Pending Due</small>
+                            <h3 class="fw-bold text-danger mb-0">₹ <span id="dueAmount">0.00</span></h3>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <nav class="navbar fixed-bottom bg-white border-top shadow-lg py-3" style="z-index: 1050;">
+            <div class="container d-flex justify-content-between align-items-center">
+                <div>
+                    <small class="text-muted d-block">Net Balance</small>
+                    <span class="fw-bold text-dark fs-5">Due: ₹ <span id="stickyDue">0.00</span></span>
+                </div>
+                <button type="submit" class="btn btn-dark rounded-pill px-4 shadow">
+                    <i class="fa-solid fa-paper-plane me-2"></i> Submit
+                </button>
+            </div>
+        </nav>
+
+    </form>
 </div>
+
+<style>
+    .glass-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
+    .form-control-lg { font-size: 1.1rem; }
+    .table input.form-control { min-width: 70px; text-align: center; font-weight: bold; }
+    .hover-scale:hover { transform: translateY(-2px); transition: 0.3s; }
+    
+    /* Make body have padding for sticky footer */
+    body { padding-bottom: 100px; }
+</style>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        flatpickr("#date", {
+            dateFormat: "Y-m-d",
+            defaultDate: "{{ today }}",
+            allowInput: true
+        });
+        
+        // Update Sticky Footer on Change
+        const dueEl = document.getElementById('dueAmount');
+        const stickyEl = document.getElementById('stickyDue');
+        
+        // Observe changes to the main due amount to update sticky
+        const observer = new MutationObserver(function(mutations) {
+            stickyEl.innerText = dueEl.innerText;
+        });
+        observer.observe(dueEl, { childList: true, characterData: true, subtree: true });
+    });
+</script>
 
 <script src="{{ url_for('static', filename='js/evening.js') }}"></script>
 {% endblock %}
-
