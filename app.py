@@ -1774,16 +1774,25 @@ def employee_position_add():
 
 @app.route("/employee_position_delete/<int:id>")
 def employee_position_delete(id):
-    if "loggedin" not in session:
-        return redirect(url_for("login"))
+    cursor = mysql.connection.cursor()
 
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    # Check if any employee is using this position
+    cursor.execute("SELECT COUNT(*) AS cnt FROM employees WHERE position_id=%s", (id,))
+    count = cursor.fetchone()['cnt']
+
+    if count > 0:
+        flash("Cannot delete this position because employees are using it.", "danger")
+        cursor.close()
+        return redirect(url_for("employee_master"))
+
+    # Safe delete
     cursor.execute("DELETE FROM employee_positions WHERE id=%s", (id,))
     mysql.connection.commit()
     cursor.close()
 
-    flash("Position deleted.", "success")
+    flash("Position deleted successfully!", "success")
     return redirect(url_for("employee_master"))
+
 
 
 # ---------- ADMIN SIDE: DEPARTMENT MASTER ----------
@@ -1812,16 +1821,25 @@ def employee_department_add():
 
 @app.route("/employee_department_delete/<int:id>")
 def employee_department_delete(id):
-    if "loggedin" not in session:
-        return redirect(url_for("login"))
+    cursor = mysql.connection.cursor()
 
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    # Check if any employee is using this department
+    cursor.execute("SELECT COUNT(*) AS cnt FROM employees WHERE department_id=%s", (id,))
+    count = cursor.fetchone()['cnt']
+
+    if count > 0:
+        flash("Cannot delete this department because employees are using it.", "danger")
+        cursor.close()
+        return redirect(url_for("employee_master"))
+
+    # Safe delete
     cursor.execute("DELETE FROM employee_departments WHERE id=%s", (id,))
     mysql.connection.commit()
     cursor.close()
 
-    flash("Department deleted.", "success")
+    flash("Department deleted successfully!", "success")
     return redirect(url_for("employee_master"))
+
 
 
 # ---------- ADMIN SIDE: ADD EMPLOYEE (admin_master.html) ----------
@@ -3859,6 +3877,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
