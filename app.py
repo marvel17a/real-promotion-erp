@@ -168,43 +168,34 @@ def employee_document(id):
 # --------------------------
 # Pincode lookup API (India)
 # --------------------------
+import requests
+
 @app.route("/api/pincode_lookup/<pincode>")
 def pincode_lookup(pincode):
-    import requests, traceback
-
-    print("### PINCODE LOOKUP HIT:", pincode)
-
     try:
         if not pincode.isdigit() or len(pincode) != 6:
-            print("Invalid Pincode:", pincode)
             return jsonify({"success": False, "message": "Invalid pincode"}), 400
 
-        url = f"https://api.postcodeapi.in/pincode/{pincode}"
-        print("Requesting:", url)
-
-        res = requests.get(url, timeout=10)
-        print("Raw response text:", res.text)
-
+        url = f"https://api.postalpincode.in/pincode/{pincode}"
+        res = requests.get(url, timeout=8)
         data = res.json()
-        print("Parsed JSON:", data)
 
-        block = data[0].get("data")
-        if not block:
-            print("Data missing for pincode:", pincode)
-            return jsonify({"success": False, "message": "Not found"}), 404
+        if data[0]["Status"] != "Success":
+            return jsonify({"success": False, "message": "No data found"}), 404
+
+        office = data[0]["PostOffice"][0]
 
         return jsonify({
             "success": True,
-            "city": block.get("city", ""),
-            "district": block.get("district", ""),
-            "state": block.get("state", "")
+            "city": office.get("District", ""),
+            "district": office.get("District", ""),
+            "state": office.get("State", "")
         })
 
     except Exception as e:
-        print("### ERROR OCCURRED ###")
-        print(traceback.format_exc())     # Forces error to show in logs
-        app.logger.exception("PINCODE LOOKUP FAILED")  # Forces Flask to log error
-        return jsonify({"success": False, "message": str(e)}), 500
+        app.logger.error(f"Pincode error: {e}")
+        return jsonify({"success": False, "message": "Server error"}), 500
+
 
 
 
@@ -4118,6 +4109,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
