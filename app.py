@@ -109,6 +109,30 @@ def fix_image(image):
 
 
 
+
+#pincode fetch api pinpoint
+@app.route("/api/pincode_lookup/<pincode>")
+def pincode_lookup(pincode):
+    import requests
+
+    try:
+        response = requests.get(f"https://api.postalpincode.in/pincode/{pincode}")
+        data = response.json()
+
+        if data[0]["Status"] == "Success":
+            city = data[0]["PostOffice"][0]["District"]
+            state = data[0]["PostOffice"][0]["State"]
+
+            return {"success": True, "city": city, "state": state}
+
+        return {"success": False, "message": "Invalid Pincode"}
+
+    except Exception as e:
+        return {"success": False, "message": str(e)}
+
+
+
+
 @app.route("/")
 def index1():
     return redirect(url_for("login"))
@@ -3877,6 +3901,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
