@@ -170,24 +170,28 @@ def employee_document(id):
 # --------------------------
 @app.route("/api/pincode_lookup/<pincode>")
 def pincode_lookup(pincode):
-    import requests
+    import requests, traceback
 
-    if not pincode.isdigit() or len(pincode) != 6:
-        return jsonify({"success": False, "message": "Invalid pincode"}), 400
-
-    url = f"https://api.postcodeapi.in/pincode/{pincode}"
+    print("### PINCODE LOOKUP HIT:", pincode)
 
     try:
-        res = requests.get(url, timeout=8)   # increased timeout safety
+        if not pincode.isdigit() or len(pincode) != 6:
+            print("Invalid Pincode:", pincode)
+            return jsonify({"success": False, "message": "Invalid pincode"}), 400
+
+        url = f"https://api.postcodeapi.in/pincode/{pincode}"
+        print("Requesting:", url)
+
+        res = requests.get(url, timeout=10)
+        print("Raw response text:", res.text)
+
         data = res.json()
+        print("Parsed JSON:", data)
 
-        # Validate structure safely
-        if (not isinstance(data, list) or 
-            len(data) == 0 or 
-            "data" not in data[0]):
-            return jsonify({"success": False, "message": "No data found"}), 404
-
-        block = data[0]["data"]
+        block = data[0].get("data")
+        if not block:
+            print("Data missing for pincode:", pincode)
+            return jsonify({"success": False, "message": "Not found"}), 404
 
         return jsonify({
             "success": True,
@@ -197,8 +201,11 @@ def pincode_lookup(pincode):
         })
 
     except Exception as e:
-        # DO NOT CRASH — return error as JSON
+        print("### ERROR OCCURRED ###")
+        print(traceback.format_exc())     # Forces error to show in logs
+        app.logger.exception("PINCODE LOOKUP FAILED")  # Forces Flask to log error
         return jsonify({"success": False, "message": str(e)}), 500
+
 
 
 
@@ -4111,6 +4118,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
