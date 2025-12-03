@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, make_response,session,flash,abort, 
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, make_response,session,flash,abort
 from flask_mysqldb import MySQL
 import MySQLdb.cursors
 from datetime import date,timedelta,datetime
@@ -3971,6 +3971,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
