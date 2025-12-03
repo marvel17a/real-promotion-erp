@@ -1,0 +1,130 @@
+{% extends "admin_master.html" %}
+
+{% block page_content %}
+<div class="container py-4 fade-in-up">
+    
+    <div class="d-flex align-items-center mb-4">
+        <a href="{{ url_for('inventory_master') }}" class="btn btn-light border rounded-circle me-3 shadow-sm">
+            <i class="fa-solid fa-arrow-left"></i>
+        </a>
+        <div>
+            <h3 class="fw-bold mb-0">Manual Stock Adjustment</h3>
+            <p class="text-muted small mb-0">Correct stock levels for damages, internal use, or audit findings.</p>
+        </div>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            
+            <div class="card glass-card border-0 p-4">
+                <form action="{{ url_for('stock_adjust') }}" method="POST">
+                    
+                    <div class="mb-4">
+                        <label class="form-label fw-bold text-secondary">Select Product</label>
+                        <select name="product_id" id="productSelect" class="form-select form-select-lg shadow-sm" required onchange="updateStockDisplay()">
+                            <option value="" selected disabled>-- Choose a Product --</option>
+                            {% for p in products %}
+                                <option value="{{ p.id }}" data-stock="{{ p.stock }}">
+                                    {{ p.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                        <div id="currentStockDisplay" class="mt-2 small text-muted">
+                            <i class="fa-solid fa-info-circle"></i> Select a product to see current stock.
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-bold text-secondary d-block">Action Type</label>
+                        <div class="d-flex gap-3">
+                            <div class="form-check form-check-inline custom-radio-card flex-fill">
+                                <input class="form-check-input" type="radio" name="adjustment_type" id="typeAdd" value="add" checked>
+                                <label class="form-check-label w-100 text-center p-3 rounded border" for="typeAdd">
+                                    <i class="fa-solid fa-plus-circle text-success mb-1 d-block fs-4"></i>
+                                    <span class="fw-bold text-dark">Add Stock (+)</span>
+                                    <small class="d-block text-muted">Returns, Audit Found</small>
+                                </label>
+                            </div>
+                            
+                            <div class="form-check form-check-inline custom-radio-card flex-fill">
+                                <input class="form-check-input" type="radio" name="adjustment_type" id="typeSub" value="subtract">
+                                <label class="form-check-label w-100 text-center p-3 rounded border" for="typeSub">
+                                    <i class="fa-solid fa-minus-circle text-danger mb-1 d-block fs-4"></i>
+                                    <span class="fw-bold text-dark">Remove Stock (-)</span>
+                                    <small class="d-block text-muted">Damage, Theft, Loss</small>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold text-secondary">Quantity</label>
+                            <input type="number" name="quantity" class="form-control form-control-lg shadow-sm" placeholder="0" min="1" required>
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label fw-bold text-secondary">Reason / Note</label>
+                            <input type="text" name="reason" class="form-control form-control-lg shadow-sm" placeholder="e.g. Damaged during shipping" required>
+                        </div>
+                    </div>
+
+                    <div class="d-grid mt-5">
+                        <button type="submit" class="btn btn-primary btn-lg rounded-pill shadow">
+                            <i class="fa-solid fa-check-circle me-2"></i> Update Stock
+                        </button>
+                    </div>
+
+                </form>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<style>
+    .glass-card {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-radius: 16px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
+    }
+    
+    /* Custom Radio Button Cards */
+    .custom-radio-card input[type="radio"] {
+        display: none;
+    }
+    .custom-radio-card label {
+        cursor: pointer;
+        transition: all 0.2s ease;
+        background: #f8f9fa;
+        border: 2px solid transparent !important;
+    }
+    .custom-radio-card input[type="radio"]:checked + label {
+        background: #fff;
+        border-color: #4f46e5 !important;
+        box-shadow: 0 4px 12px rgba(79, 70, 229, 0.15);
+        transform: translateY(-2px);
+    }
+</style>
+
+<script>
+    function updateStockDisplay() {
+        const select = document.getElementById('productSelect');
+        const display = document.getElementById('currentStockDisplay');
+        
+        // Get the selected option
+        const selectedOption = select.options[select.selectedIndex];
+        
+        // Get the data-stock attribute
+        const stock = selectedOption.getAttribute('data-stock');
+        
+        if (stock) {
+            display.innerHTML = `
+                <div class="alert alert-info py-2 px-3 d-inline-block m-0 border-0">
+                    Current Stock: <strong>${stock} units</strong> available
+                </div>
+            `;
+        }
+    }
+</script>
+{% endblock %}
