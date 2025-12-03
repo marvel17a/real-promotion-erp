@@ -3,6 +3,39 @@
 --- */
 
 
+/* static/css/employee.css */
+
+/* Glassmorphism base card */
+.glass-card {
+  backdrop-filter: blur(10px);
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+  padding: 18px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+}
+
+/* Employee small cards */
+.emp-card { text-align:center; padding:18px; border-radius:12px; color: #fff; }
+.emp-thumb img { width:86px; height:86px; object-fit:cover; border-radius:12px; }
+
+/* Table thumb */
+.table-thumb { width:44px; height:44px; object-fit:cover; border-radius:8px; }
+
+/* Form image preview */
+.img-preview { display:block; max-width:140px; border-radius:8px; }
+
+/* Page title */
+.page-title { font-size:1.4rem; margin-bottom:1rem; color:var(--bs-primary); }
+
+/* small helper text */
+.form-note { font-size:0.85rem; color: rgba(255,255,255,0.7); }
+
+/* Responsive adjustments */
+@media (max-width:768px) {
+  .emp-card { padding: 14px; }
+}
+
 .employee-card {
     border-radius: 14px;
     box-shadow: 0 8px 18px rgba(0,0,0,0.06);
@@ -439,4 +472,5 @@ body {
   color: var(--text-light);
   font-style: italic;
 }
+
 
