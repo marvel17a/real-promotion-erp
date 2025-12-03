@@ -7,6 +7,9 @@ cloudinary
 fpdf
 openpyxl
 reportlab
+requests
+
+
 
 
 
