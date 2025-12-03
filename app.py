@@ -8,6 +8,8 @@ from MySQLdb.cursors import DictCursor
 
 
 
+
+
 # --- NEW IMPORTS ---
 import json
 import locale
@@ -17,6 +19,9 @@ import cloudinary
 import cloudinary.uploader
 import cloudinary.api
 import cloudinary.utils
+import re
+import requests
+
 # --- END NEW IMPORTS ---
 
 from fpdf import FPDF
@@ -3971,6 +3976,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
