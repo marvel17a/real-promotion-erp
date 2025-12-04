@@ -2745,7 +2745,7 @@ def morning():
             db_cursor.close()
 
 
-# Kept your ORIGINAL function name
+# Fetch Stck #
 @app.route('/api/fetch_stock')
 def api_fetch_stock():
     # 1. ADDED SECURITY CHECK
@@ -2759,12 +2759,19 @@ def api_fetch_stock():
         return jsonify({"error": "Employee and date are required."}), 400
 
     try:
-        current_date = date.fromisoformat(date_str)
+        # --- FIX START: Handle DD-MM-YYYY format sent by frontend ---
+        try:
+            # Try parsing DD-MM-YYYY (e.g., 20-05-2025)
+            current_date = datetime.strptime(date_str, "%d-%m-%Y").date()
+        except ValueError:
+            # Fallback if it happens to be YYYY-MM-DD
+            current_date = date.fromisoformat(date_str)
+        # --- FIX END ---
+
         previous_day = current_date - timedelta(days=1)
 
         cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
         
-        # 3. ROBUST FIX: All table names are lowercase
         cur.execute("""
             SELECT 
               ei.product_id,
@@ -2790,7 +2797,7 @@ def api_fetch_stock():
 
     except Exception as e:
         app.logger.error("fetch_stock error: %s", e)
-        return jsonify({"error": "Internal server error."}), 500
+        return jsonify({"error": str(e)}), 500
 
 
 # Kept your ORIGINAL function name
@@ -4363,6 +4370,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
