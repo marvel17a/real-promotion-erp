@@ -1,49 +1,52 @@
-document.addEventListener("DOMContentLoaded", function () {
+document.addEventListener("DOMContentLoaded", () => {
     const pin = document.getElementById("pincode");
     const city = document.getElementById("city");
     const district = document.getElementById("district");
     const state = document.getElementById("state");
 
-    pin.addEventListener("keyup", function () {
-        let pincode = pin.value.trim();
+    async function fetchPincodeDetails(pincode) {
+        const url = https://api.postalpincode.in/pincode/${pincode};
 
-        if (pincode.length !== 6 || !/^\d+$/.test(pincode)) {
-            return;
-        }
+        try {
+            const response = await fetch(url);
+            const data = await response.json();
 
-        // Fetch from stable API
-        fetch("https://postalpincode.in/api/pincode/" + pincode)
-            .then(response => response.json())
-            .then(data => {
-                if (data.Status !== "Success") {
-                    city.value = "";
-                    district.value = "";
-                    state.value = "";
-                    return;
-                }
-
-                let PO = data.PostOffice[0];
-
-                // Determine correct CITY/TALUKA
-                let cityName = "";
-
-                if (PO.Block && PO.Block.trim() !== "") {
-                    cityName = PO.Block;            // Best option
-                } else if (PO.Name && PO.Name.trim() !== "") {
-                    cityName = PO.Name;             // Secondary option
-                } else {
-                    cityName = PO.District;         // Fallback
-                }
-
-                city.value = cityName;
-                district.value = PO.District || "";
-                state.value = PO.State || "";
-            })
-            .catch(err => {
-                console.error("Pincode lookup error:", err);
+            if (!data || data[0].Status !== "Success") {
                 city.value = "";
                 district.value = "";
                 state.value = "";
-            });
+                return;
+            }
+
+            let po = data[0].PostOffice[0];
+
+            // CITY/TALUKA SELECTION PRIORITY
+            // 1. Block (Taluka)
+            // 2. Name (Local Post Office Area)
+            // 3. District
+            let cityValue = po.Block && po.Block.trim() !== "" ? po.Block :
+                            po.Name && po.Name.trim() !== "" ? po.Name :
+                            po.District;
+
+            city.value = cityValue;
+            district.value = po.District;
+            state.value = po.State;
+
+        } catch (err) {
+            // Completely safe fallback — no page crash
+            console.error("Pincode API error:", err);
+
+            city.value = "";
+            district.value = "";
+            state.value = "";
+        }
+    }
+
+    pin.addEventListener("input", () => {
+        let pincode = pin.value.trim();
+
+        if (pincode.length === 6 && /^\d+$/.test(pincode)) {
+            fetchPincodeDetails(pincode);
+        }
     });
 });
