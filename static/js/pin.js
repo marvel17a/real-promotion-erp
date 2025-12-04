@@ -1,35 +1,53 @@
 document.addEventListener("DOMContentLoaded", function () {
-    const pinField = document.getElementById("pincode");
-    const cityField = document.getElementById("city");
-    const districtField = document.getElementById("district");
-    const stateField = document.getElementById("state");
+    const pin = document.getElementById("pincode");
+    const city = document.getElementById("city");
+    const district = document.getElementById("district");
+    const state = document.getElementById("state");
 
-    pinField.addEventListener("keyup", function () {
-        let pin = pinField.value.trim();
+    pin.addEventListener("keyup", function () {
+        let p = pin.value.trim();
 
-        if (pin.length === 6 && /^\d+$/.test(pin)) {
-            fetch("https://api.postalpincode.in/pincode/" + pin)
+        if (p.length === 6 && /^\d+$/.test(p)) {
+
+            fetch("https://api.postalpincode.in/pincode/" + p)
                 .then(res => res.json())
                 .then(data => {
-                    if (data[0].Status === "Success") {
-                        let PO = data[0].PostOffice[0];
 
-                        // Fill all three fields
-                        cityField.value = PO.Name || "";      // Area/City
-                        districtField.value = PO.District || "";
-                        stateField.value = PO.State || "";
+                    if (data[0].Status === "Success") {
+
+                        let PO = data[0].PostOffice[0];   // Always take first office
+
+                        // -----------------------
+                        // Find correct city/taluka
+                        // -----------------------
+                        let cityName = "";
+
+                        if (PO.Division && PO.Division !== "") {
+                            cityName = PO.Division;
+                        }
+                        else if (PO.Taluk && PO.Taluk !== "") {
+                            cityName = PO.Taluk;
+                        }
+                        else {
+                            cityName = PO.District; // fallback
+                        }
+
+                        // Autofill the fields
+                        city.value = cityName;
+                        district.value = PO.District || "";
+                        state.value = PO.State || "";
+
                     } else {
-                        cityField.value = "";
-                        districtField.value = "";
-                        stateField.value = "";
-                        console.error("Invalid pincode");
+                        city.value = "";
+                        district.value = "";
+                        state.value = "";
                     }
                 })
                 .catch(err => {
-                    console.error("Error fetching pincode:", err);
-                    cityField.value = "";
-                    districtField.value = "";
-                    stateField.value = "";
+                    console.error("Pincode error:", err);
+                    city.value = "";
+                    district.value = "";
+                    state.value = "";
                 });
         }
     });
