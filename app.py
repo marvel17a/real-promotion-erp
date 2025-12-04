@@ -167,6 +167,46 @@ def employee_document(id):
 
 
 
+import requests
+from flask import jsonify
+import time
+
+@app.route("/api/pincode_lookup/<pincode>")
+def pincode_lookup(pincode):
+    url = f"https://api.postalpincode.in/pincode/{pincode}"
+
+    try:
+        print("Pincode lookup:", pincode)
+
+        for attempt in range(2):   # retry 2 times
+            try:
+                res = requests.get(url, timeout=5)
+                break
+            except Exception as e:
+                print("Retry...", attempt+1, e)
+                time.sleep(1)
+        else:
+            return jsonify({"success": False}), 500
+
+        data = res.json()
+
+        if not data or data[0]["Status"] != "Success":
+            return jsonify({"success": False})
+
+        po = data[0]["PostOffice"][0]
+
+        return jsonify({
+            "success": True,
+            "city": po["District"],
+            "district": po["District"],  # corrected mapping
+            "state": po["State"]
+        })
+
+    except Exception as e:
+        print("Pincode error:", e)
+        return jsonify({"success": False}), 500
+
+
 
 
 
@@ -2031,78 +2071,72 @@ def employee_department_delete(id):
 # ---------- ADMIN SIDE: ADD EMPLOYEE (admin_master.html) ----------
 @app.route("/add_employee", methods=["GET", "POST"])
 def add_employee():
-    if "loggedin" not in session:
-        return redirect(url_for("login"))
-
     cur = mysql.connection.cursor(DictCursor)
 
     if request.method == "POST":
-        form = request.form
+        data = request.form
+        image = request.files.get("image")
+        document = request.files.get("document")
 
-        name = form.get("name")
-        email = form.get("email")
-        phone = form.get("phone")
-        pincode = form.get("pincode")
-        city = form.get("city")
-        district = form.get("district")
-        state = form.get("state")
-        addr1 = form.get("address_line1")
-        addr2 = form.get("address_line2")
-        dob = parse_ddmmyyyy_to_date(form.get("dob"))
-        pos_id = form.get("position_id") or None
-        dep_id = form.get("department_id") or None
-        emergency = form.get("emergency_contact")
-        aadhar = form.get("aadhar_no")
+        # Upload image + document to Cloudinary
+        img_url = None
+        doc_url = None
 
-        # Phone validation
-        if phone and not re.match(r"^\d{10}$", phone):
-            flash("Phone must be 10 digits", "danger")
-            return redirect(request.url)
+        if image:
+            upload_img = cloudinary.uploader.upload(image, folder="erp_employees")
+            img_url = upload_img["public_id"]
 
-        # Upload files
-        image_id = None
-        doc_id = None
-        img = request.files.get("image")
-        doc = request.files.get("document")
+        if document:
+            upload_doc = cloudinary.uploader.upload(document, folder="erp_employee_docs")
+            doc_url = upload_doc["public_id"]
 
-        if img and img.filename:
-            image_id = save_file_to_cloudinary(img, folder="erp_employees")
-
-        if doc and doc.filename:
-            up = cloudinary.uploader.upload(doc, resource_type="raw", folder="erp_employee_docs")
-            doc_id = up.get("public_id")
-
-        # Insert into DB (matches your exact structure)
-        cur.execute("""
+        sql = """
             INSERT INTO employees
-            (name, email, phone, pincode, city, district, state,
-             address_line1, address_line2, dob,
-             position_id, department_id, emergency_contact, aadhar_no,
-             image, document, status, join_date)
-            VALUES (%s,%s,%s,%s,%s,%s,%s,
-                    %s,%s,%s,
-                    %s,%s,%s,%s,
-                    %s,%s,'active',CURDATE())
-        """, (name, email, phone, pincode, city, district, state,
-              addr1, addr2, dob,
-              pos_id, dep_id, emergency, aadhar,
-              image_id, doc_id))
+            (name, email, phone, aadhar_no, emergency_contact, dob,
+             position_id, department_id,
+             address_line1, address_line2, pincode, city, district, state,
+             image, document)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        """
+
+        cur.execute(sql, (
+            data.get("name"),
+            data.get("email"),
+            data.get("phone"),
+            data.get("aadhar_no"),
+            data.get("emergency_contact"),
+            data.get("dob"),
+            data.get("position_id"),
+            data.get("department_id"),
+            data.get("address_line1"),
+            data.get("address_line2"),
+            data.get("pincode"),
+            data.get("city"),
+            data.get("district"),
+            data.get("state"),
+            img_url,
+            doc_url
+        ))
 
         mysql.connection.commit()
         cur.close()
-        flash("Employee added successfully!", "success")
-        return redirect(url_for("employee_master"))
 
-    # Load position & department
-    cur.execute("SELECT * FROM employee_positions ORDER BY id DESC")
+        flash("Employee added successfully!", "success")
+        return redirect(url_for("employees"))
+
+    # GET method
+    cur.execute("SELECT * FROM employee_positions")
     positions = cur.fetchall()
 
-    cur.execute("SELECT * FROM employee_departments ORDER BY id DESC")
+    cur.execute("SELECT * FROM employee_departments")
     departments = cur.fetchall()
 
     cur.close()
+
     return render_template("employees/add_employee.html",
-                           positions=positions, departments=departments)
+                           positions=positions,
+                           departments=departments)
+
 
 
 
@@ -4331,6 +4365,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
