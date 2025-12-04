@@ -1,0 +1,159 @@
+{% extends "admin_master.html" %}
+
+{% block page_content %}
+<div class="container-fluid fade-in-up">
+    
+    <div class="d-flex align-items-center mb-4">
+        <a href="{{ url_for('admin_evening_master') }}" class="btn btn-light border rounded-circle me-3 shadow-sm">
+            <i class="fa-solid fa-arrow-left"></i>
+        </a>
+        <div>
+            <h3 class="fw-bold mb-0">Edit Settlement</h3>
+            <p class="text-muted small mb-0">{{ settlement.emp_name }} | {{ settlement.date }}</p>
+        </div>
+    </div>
+
+    <form method="POST">
+        <div class="row g-4">
+            
+            <div class="col-lg-8">
+                <div class="card glass-card border-0 p-0 overflow-hidden shadow-sm">
+                    <table class="table table-hover align-middle mb-0" id="editTable">
+                        <thead class="bg-light text-secondary small text-uppercase">
+                            <tr>
+                                <th class="ps-4">Product</th>
+                                <th class="text-center" style="width: 80px;">Total</th>
+                                <th style="width: 100px;">Sold</th>
+                                <th style="width: 100px;">Return</th>
+                                <th class="text-center" style="width: 80px;">Left</th>
+                                <th class="text-end pe-4" style="width: 120px;">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in items %}
+                            <tr class="item-row">
+                                <td class="ps-4 fw-bold">
+                                    {{ item.product_name }}
+                                    <input type="hidden" name="product_id[]" value="{{ item.product_id }}">
+                                </td>
+                                <td class="text-center">
+                                    <input type="text" class="form-control-plaintext text-center total-qty" value="{{ item.total_qty }}" readonly>
+                                </td>
+                                <td>
+                                    <input type="number" name="sold[]" class="form-control sold-input" value="{{ item.sold_qty }}" min="0">
+                                </td>
+                                <td>
+                                    <input type="number" name="return[]" class="form-control return-input" value="{{ item.return_qty }}" min="0">
+                                </td>
+                                <td class="text-center">
+                                    <span class="remaining-qty fw-bold text-muted">{{ item.remaining_qty }}</span>
+                                </td>
+                                <td class="text-end pe-4 fw-bold">
+                                    <span class="row-amount">0.00</span>
+                                    <input type="hidden" class="unit-price" value="{{ item.unit_price }}">
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="card glass-card border-0 p-4 shadow-sm sticky-top" style="top: 20px;">
+                    <h5 class="fw-bold mb-3">Payment Correction</h5>
+                    
+                    <div class="mb-3">
+                        <label class="small fw-bold text-muted">Total Sales</label>
+                        <input type="number" name="totalAmount" id="totalAmount" class="form-control fw-bold fs-4 text-dark" readonly value="{{ settlement.total_amount }}">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="small fw-bold text-muted">Discount</label>
+                        <input type="number" name="discount" id="discount" class="form-control" value="{{ settlement.discount }}" step="0.01">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="small fw-bold text-muted">Cash Received</label>
+                        <input type="number" name="cash" id="cash" class="form-control" value="{{ settlement.cash_money }}" step="0.01">
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="small fw-bold text-muted">Online Received</label>
+                        <input type="number" name="online" id="online" class="form-control" value="{{ settlement.online_money }}" step="0.01">
+                    </div>
+
+                    <div class="alert alert-info border-0 text-center">
+                        <small>New Due Balance</small>
+                        <h4 class="fw-bold mb-0 text-primary" id="dueAmount">0.00</h4>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100 btn-lg shadow">
+                        Update & Adjust Stock
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </form>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const table = document.getElementById('editTable');
+        const totalAmountEl = document.getElementById('totalAmount');
+        const dueEl = document.getElementById('dueAmount');
+        const inputs = document.querySelectorAll('#cash, #online, #discount');
+
+        function calculate() {
+            let grandTotal = 0;
+
+            table.querySelectorAll('.item-row').forEach(row => {
+                const total = parseInt(row.querySelector('.total-qty').value) || 0;
+                const soldInput = row.querySelector('.sold-input');
+                const returnInput = row.querySelector('.return-input');
+                const price = parseFloat(row.querySelector('.unit-price').value) || 0;
+
+                let sold = parseInt(soldInput.value) || 0;
+                let ret = parseInt(returnInput.value) || 0;
+
+                // Auto-adjust return if sold+return > total
+                if (sold + ret > total) {
+                    ret = total - sold;
+                    if(ret < 0) ret = 0;
+                    returnInput.value = ret;
+                }
+
+                const remaining = total - sold - ret;
+                row.querySelector('.remaining-qty').innerText = remaining;
+
+                const amount = sold * price;
+                row.querySelector('.row-amount').innerText = amount.toFixed(2);
+                grandTotal += amount;
+            });
+
+            totalAmountEl.value = grandTotal.toFixed(2);
+            
+            // Calc Due
+            const cash = parseFloat(document.getElementById('cash').value) || 0;
+            const online = parseFloat(document.getElementById('online').value) || 0;
+            const discount = parseFloat(document.getElementById('discount').value) || 0;
+            
+            const due = grandTotal - (cash + online + discount);
+            dueEl.innerText = due.toFixed(2);
+        }
+
+        // Listeners
+        table.addEventListener('input', calculate);
+        inputs.forEach(i => i.addEventListener('input', calculate));
+        
+        // Initial Run
+        calculate();
+    });
+</script>
+
+<style>
+    .glass-card { background: #fff; border-radius: 12px; }
+    .form-control { border-radius: 8px; }
+</style>
+{% endblock %}
