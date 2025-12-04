@@ -154,3 +154,56 @@ document.addEventListener("DOMContentLoaded", () => {
         input.addEventListener('input', calculateDueAmount);
     });
 });
+
+
+
+async function fetchMorningAllocation() {
+        const employeeId = ui.employeeSelect.value;
+        const dateStr = ui.dateInput.value; // Flatpickr puts the value here
+
+        // Debugging Logs
+        console.log("Fetching for:", { employeeId, dateStr });
+
+        ui.tableBody.innerHTML = '<tr><td colspan="6" class="text-center p-4"><div class="spinner-border text-primary" role="status"></div><div class="mt-2">Loading stock data...</div></td></tr>';
+        ui.fetchMsg.textContent = "";
+
+        if (!employeeId || !dateStr) {
+            ui.tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted p-4">Please select both Employee and Date.</td></tr>';
+            return;
+        }
+
+        ui.hidden.employee.value = employeeId;
+        ui.hidden.date.value = dateStr;
+
+        try {
+            // Fetch Request
+            const url = `/api/fetch_morning_allocation?employee_id=${employeeId}&date=${dateStr}`;
+            console.log("Request URL:", url);
+            
+            const response = await fetch(url);
+            
+            // Check for HTTP errors (like 500 or 404)
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || `Server Error: ${response.status}`);
+            }
+
+            const data = await response.json();
+            console.log("Data Received:", data); // See if data arrives
+
+            ui.hidden.allocationId.value = data.allocation_id;
+
+            if (!data.items || data.items.length === 0) {
+                ui.tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-warning p-4 fw-bold">No items found in morning allocation.</td></tr>';
+                return;
+            }
+
+            renderTable(data.items);
+            ui.fetchMsg.className = "small text-success mt-2";
+            ui.fetchMsg.textContent = "Data loaded successfully.";
+
+        } catch (error) {
+            console.error("Fetch Error:", error);
+            ui.tableBody.innerHTML = `<tr><td colspan="6" class="text-center text-danger p-4">Error: ${error.message}</td></tr>`;
+        }
+    }
