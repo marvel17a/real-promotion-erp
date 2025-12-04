@@ -1,212 +1,195 @@
 document.addEventListener("DOMContentLoaded", () => {
-    
-    // 1. UI Elements Cache
+    // 1. UI Elements
     const ui = {
-        employeeSelect: document.getElementById("employee"),
+        employeeSelect: document.getElementById("employee_id"),
         dateInput: document.getElementById("date"),
-        fetchButton: document.getElementById("btnFetch"),
-        tableBody: document.getElementById("rowsArea"),
+        tableBody: document.querySelector("#productTable tbody"),
+        addRowBtn: document.getElementById("addRow"),
         fetchMsg: document.getElementById("fetchMsg"),
-        
-        // Hidden Fields for Form Submission
-        hidden: {
-            allocationId: document.getElementById('allocation_id'),
-            employee: document.getElementById('h_employee'),
-            date: document.getElementById('h_date'),
-        },
-        
         // Footer Totals
-        footer: {
-            sold: document.getElementById('totSold'),
-            amount: document.getElementById('totAmount')
-        },
-        
-        // Payment Inputs
-        payment: {
-            totalAmount: document.getElementById('totalAmount'),
-            online: document.getElementById('online'),
-            cash: document.getElementById('cash'),
-            discount: document.getElementById('discount'),
-            dueAmount: document.getElementById('dueAmount')
-        },
-
-        // Sticky Footer
-        stickyDue: document.getElementById('stickyDue')
+        totals: {
+            opening: document.getElementById("totalOpening"),
+            given: document.getElementById("totalGiven"),
+            all: document.getElementById("totalAll"),
+            grand: document.getElementById("grandTotal")
+        }
     };
 
-    // 2. Fetch Data Function
-    async function fetchMorningAllocation() {
+    // State
+    let currentStockData = {}; // Stores fetched stock { product_id: { remaining, price } }
+    const productsMap = new Map((window.productsData || []).map(p => [String(p.id), p]));
+    const productOptionsHtml = window.productOptions || "";
+
+    // 2. Fetch Previous Day's Stock (Opening Balance)
+    async function fetchStockData() {
         const employeeId = ui.employeeSelect.value;
         const dateStr = ui.dateInput.value;
 
-        // Reset Table
-        ui.tableBody.innerHTML = '<tr><td colspan="6" class="text-center p-4"><div class="spinner-border text-primary" role="status"></div><div class="mt-2">Loading stock data...</div></td></tr>';
-        ui.fetchMsg.textContent = "";
+        if (!employeeId || !dateStr) return;
 
-        if (!employeeId || !dateStr) {
-            ui.tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted p-4">Please select both Employee and Date.</td></tr>';
-            return;
-        }
-
-        // Set Hidden Values for Submission
-        ui.hidden.employee.value = employeeId;
-        ui.hidden.date.value = dateStr;
+        ui.fetchMsg.textContent = "Fetching previous closing stock...";
+        ui.fetchMsg.classList.remove('d-none', 'alert-danger', 'alert-success');
+        ui.fetchMsg.classList.add('alert-info');
 
         try {
-            const response = await fetch(`/api/fetch_morning_allocation?employee_id=${employeeId}&date=${dateStr}`);
+            const response = await fetch(`/api/fetch_stock?employee_id=${employeeId}&date=${dateStr}`);
             const data = await response.json();
 
-            if (!response.ok) throw new Error(data.error || 'Failed to fetch data.');
+            if (data.error) throw new Error(data.error);
 
-            ui.hidden.allocationId.value = data.allocation_id;
-
-            if (!data.items || data.items.length === 0) {
-                ui.tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-warning p-4 fw-bold">No morning allocation found for this date/employee.</td></tr>';
-                return;
-            }
-
-            renderTable(data.items);
-            ui.fetchMsg.className = "small text-success mt-2";
-            ui.fetchMsg.textContent = "Data loaded successfully.";
+            currentStockData = data; // Store globally
+            
+            // Update any existing rows with new stock info
+            updateAllRowsStock();
+            
+            ui.fetchMsg.textContent = "Stock data loaded. Opening balances updated.";
+            ui.fetchMsg.classList.remove('alert-info');
+            ui.fetchMsg.classList.add('alert-success');
+            setTimeout(() => ui.fetchMsg.classList.add('d-none'), 3000);
 
         } catch (error) {
-            console.error(error);
-            ui.tableBody.innerHTML = `<tr><td colspan="6" class="text-center text-danger p-4">Error: ${error.message}</td></tr>`;
+            console.error("Stock Fetch Error:", error);
+            ui.fetchMsg.textContent = "Note: Could not fetch previous stock (New allocation or Error).";
+            ui.fetchMsg.classList.remove('alert-info');
+            ui.fetchMsg.classList.add('alert-warning');
+            currentStockData = {}; // Reset on error
         }
     }
 
-    // 3. Render Table Rows (Matched to New HTML)
-    function renderTable(items) {
-        ui.tableBody.innerHTML = '';
-        
-        items.forEach((item, index) => {
-            const totalQty = parseInt(item.total_qty);
-            const price = parseFloat(item.unit_price);
-            
-            const rowHtml = `
-                <tr class="item-row">
-                    <td class="ps-4">
-                        <div class="fw-bold text-dark">${item.product_name}</div>
-                        <input type="hidden" name="product_id[]" value="${item.product_id}">
-                        <input type="hidden" name="total_qty[]" value="${totalQty}">
-                        <input type="hidden" name="price[]" class="price-input" value="${price.toFixed(2)}">
-                    </td>
+    // 3. Row Management
+    function createRow() {
+        // Remove "Select Employee..." message if it exists
+        if (ui.tableBody.rows.length === 1 && ui.tableBody.rows[0].cells.length > 1) {
+            ui.tableBody.innerHTML = '';
+        }
 
-                    <td class="text-center">
-                        <span class="badge bg-light text-dark border fs-6">${totalQty}</span>
-                    </td>
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+            <td class="row-index ps-3 text-muted fw-bold"></td>
+            <td>
+                <select name="product_id[]" class="form-select product-dropdown" required>
+                    <option value="">-- Select Product --</option>
+                    ${productOptionsHtml}
+                </select>
+            </td>
+            <td><input type="number" name="opening[]" class="form-control text-center opening" value="0" readonly tabindex="-1"></td>
+            <td><input type="number" name="given[]" class="form-control text-center fw-bold text-primary given" min="0" placeholder="0" required></td>
+            <td><input type="number" name="total[]" class="form-control text-center bg-light total" value="0" readonly tabindex="-1"></td>
+            <td><input type="number" name="price[]" class="form-control text-center bg-light price" step="0.01" value="0.00" readonly tabindex="-1"></td>
+            <td><input type="number" name="amount[]" class="form-control text-end amount" value="0.00" readonly tabindex="-1"></td>
+            <td class="text-center"><button type="button" class="btn btn-sm text-danger btn-remove-row"><i class="fa-solid fa-trash"></i></button></td>
+        `;
+        ui.tableBody.appendChild(tr);
+        updateRowIndexes();
+    }
 
-                    <td>
-                        <input type="number" name="sold[]" class="form-control form-control-lg text-center fw-bold text-primary sold-input" 
-                               min="0" max="${totalQty}" placeholder="0">
-                    </td>
-
-                    <td>
-                        <input type="number" name="return[]" class="form-control form-control-lg text-center text-danger return-input" 
-                               min="0" max="${totalQty}" placeholder="0">
-                    </td>
-
-                    <td class="text-center">
-                        <input type="number" name="remaining[]" class="form-control-plaintext text-center fw-bold text-muted remain-input" 
-                               value="${totalQty}" readonly>
-                    </td>
-
-                    <td class="text-end pe-4">
-                        <span class="fw-bold text-dark fs-5">₹ <span class="amount-display">0.00</span></span>
-                    </td>
-                </tr>
-            `;
-            ui.tableBody.insertAdjacentHTML('beforeend', rowHtml);
+    function updateAllRowsStock() {
+        ui.tableBody.querySelectorAll("tr").forEach(row => {
+            const select = row.querySelector(".product-dropdown");
+            if (select && select.value) {
+                updateRowData(row, select.value);
+            }
         });
-
         recalculateTotals();
     }
 
-    // 4. Calculations
-    function recalculateTotals() {
-        let grandTotalSold = 0;
-        let grandTotalAmount = 0;
-
-        const rows = ui.tableBody.querySelectorAll('.item-row');
-
-        rows.forEach(row => {
-            const totalQty = parseInt(row.querySelector('input[name="total_qty[]"]').value) || 0;
-            const price = parseFloat(row.querySelector('.price-input').value) || 0;
-            
-            const soldInput = row.querySelector('.sold-input');
-            const returnInput = row.querySelector('.return-input');
-            const remainInput = row.querySelector('.remain-input');
-            const amountDisplay = row.querySelector('.amount-display');
-
-            let sold = parseInt(soldInput.value) || 0;
-            let ret = parseInt(returnInput.value) || 0;
-
-            // Validation: Cannot exceed total
-            if ((sold + ret) > totalQty) {
-                // Prioritize Sold, adjust Return
-                ret = totalQty - sold;
-                if (ret < 0) { 
-                    sold = totalQty; 
-                    ret = 0; 
-                }
-                soldInput.value = sold || '';
-                returnInput.value = ret || '';
-            }
-
-            // Calc Remaining & Amount
-            const remaining = totalQty - sold - ret;
-            const revenue = sold * price;
-
-            remainInput.value = remaining;
-            amountDisplay.textContent = revenue.toFixed(2);
-
-            // Add to Grand Totals
-            grandTotalSold += sold;
-            grandTotalAmount += revenue;
-        });
-
-        // Update Footer
-        ui.footer.sold.textContent = grandTotalSold;
-        ui.footer.amount.textContent = grandTotalAmount.toFixed(2);
+    function updateRowData(row, productId) {
+        const openingInput = row.querySelector(".opening");
+        const priceInput = row.querySelector(".price");
         
-        // Update Payment Card
-        ui.payment.totalAmount.value = grandTotalAmount.toFixed(2);
+        // 1. Set Opening Stock (from API)
+        let openingQty = 0;
+        if (currentStockData[productId]) {
+            openingQty = parseInt(currentStockData[productId].remaining) || 0;
+        }
+        openingInput.value = openingQty;
 
-        calculateDue();
+        // 2. Set Price (from Window Data or API)
+        // API price takes precedence, otherwise fallback to product master price
+        let price = 0;
+        if (currentStockData[productId]) {
+            price = parseFloat(currentStockData[productId].price);
+        } else {
+            const product = productsMap.get(productId);
+            if (product) price = parseFloat(product.price);
+        }
+        priceInput.value = price.toFixed(2);
+        
+        recalculateRow(row);
     }
 
-    function calculateDue() {
-        const total = parseFloat(ui.payment.totalAmount.value) || 0;
-        const discount = parseFloat(ui.payment.discount.value) || 0;
-        const cash = parseFloat(ui.payment.cash.value) || 0;
-        const online = parseFloat(ui.payment.online.value) || 0;
+    // 4. Calculations
+    function recalculateRow(row) {
+        const opening = parseInt(row.querySelector(".opening").value) || 0;
+        const given = parseInt(row.querySelector(".given").value) || 0;
+        const price = parseFloat(row.querySelector(".price").value) || 0;
 
-        const due = total - (discount + cash + online);
-        
-        ui.payment.dueAmount.textContent = due.toFixed(2);
-        
-        // Update Sticky Footer
-        if(ui.stickyDue) {
-            ui.stickyDue.textContent = due.toFixed(2);
-        }
+        const total = opening + given;
+        const amount = total * price;
+
+        row.querySelector(".total").value = total;
+        row.querySelector(".amount").value = amount.toFixed(2);
+    }
+
+    function recalculateTotals() {
+        let tOpening = 0, tGiven = 0, tAll = 0, tGrand = 0;
+
+        ui.tableBody.querySelectorAll("tr").forEach(row => {
+            if (!row.querySelector(".total")) return; // Skip info rows
+
+            tOpening += parseInt(row.querySelector(".opening").value) || 0;
+            tGiven += parseInt(row.querySelector(".given").value) || 0;
+            tAll += parseInt(row.querySelector(".total").value) || 0;
+            tGrand += parseFloat(row.querySelector(".amount").value) || 0;
+        });
+
+        ui.totals.opening.textContent = tOpening;
+        ui.totals.given.textContent = tGiven;
+        ui.totals.all.textContent = tAll;
+        ui.totals.grand.textContent = tGrand.toFixed(2);
+    }
+
+    function updateRowIndexes() {
+        ui.tableBody.querySelectorAll("tr").forEach((tr, i) => {
+            const idx = tr.querySelector(".row-index");
+            if(idx) idx.textContent = i + 1;
+        });
     }
 
     // 5. Event Listeners
-    if(ui.fetchButton) {
-        ui.fetchButton.addEventListener("click", fetchMorningAllocation);
-    }
+    
+    // Fetch Stock when Employee or Date changes
+    ui.employeeSelect.addEventListener("change", fetchStockData);
+    ui.dateInput.addEventListener("change", fetchStockData);
 
-    // Delegate Input Events for Table (Performance)
-    ui.tableBody.addEventListener('input', (e) => {
-        if (e.target.matches('.sold-input') || e.target.matches('.return-input')) {
+    // Add Row
+    ui.addRowBtn.addEventListener("click", () => {
+        createRow();
+        recalculateTotals();
+    });
+
+    // Delegate Events inside Table (Input & Click)
+    ui.tableBody.addEventListener("click", e => {
+        if (e.target.closest(".btn-remove-row")) {
+            e.target.closest("tr").remove();
+            updateRowIndexes();
             recalculateTotals();
         }
     });
 
-    // Payment Inputs
-    [ui.payment.discount, ui.payment.cash, ui.payment.online].forEach(input => {
-        if(input) {
-            input.addEventListener('input', calculateDue);
+    ui.tableBody.addEventListener("change", e => {
+        if (e.target.matches(".product-dropdown")) {
+            const row = e.target.closest("tr");
+            updateRowData(row, e.target.value);
+            recalculateTotals();
+        }
+    });
+
+    ui.tableBody.addEventListener("input", e => {
+        if (e.target.matches(".given")) {
+            const row = e.target.closest("tr");
+            recalculateRow(row);
+            recalculateTotals();
         }
     });
 
