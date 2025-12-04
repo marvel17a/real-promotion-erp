@@ -33,3 +33,28 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 });
+
+
+document.addEventListener("DOMContentLoaded", function () {
+    const pin = document.getElementById("pincode");
+
+    pin.addEventListener("keyup", () => {
+        let p = pin.value.trim();
+
+        if (p.length === 6 && /^\d+$/.test(p)) {
+            fetch(`/api/pincode_lookup/${p}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById("city").value = data.city;
+                        document.getElementById("district").value = data.district;
+                        document.getElementById("state").value = data.state;
+                    } else {
+                        console.log("Invalid!");
+                    }
+                })
+                .catch(err => console.log(err));
+        }
+    });
+});
+
