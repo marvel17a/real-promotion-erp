@@ -1,230 +1,213 @@
 document.addEventListener("DOMContentLoaded", () => {
-    // --- 1. DOM Element Cache ---
-    const ui = {
-        employeeSelect: document.getElementById("employee_id"),
-        dateInput: document.getElementById("date"),
-        tableBody: document.querySelector("#productTable tbody"),
-        addRowBtn: document.getElementById("addRow"),
-        morningForm: document.getElementById("morningForm"),
-        fetchMsg: document.getElementById("fetchMsg"),
-        totals: {
-            opening: document.getElementById("totalOpening"),
-            given: document.getElementById("totalGiven"),
-            all: document.getElementById("totalAll"),
-            grand: document.getElementById("grandTotal")
-        }
-    };
     
-    // Use the new safe injection method
-    const productOptionsHtml = window.productOptions || "";
-    const productsMap = new Map((window.productsData || []).map(p => [String(p.id), p]));
+    // 1. UI Elements Cache
+    const ui = {
+        employeeSelect: document.getElementById("employee"),
+        dateInput: document.getElementById("date"),
+        fetchButton: document.getElementById("btnFetch"),
+        tableBody: document.getElementById("rowsArea"),
+        fetchMsg: document.getElementById("fetchMsg"),
+        
+        // Hidden Fields for Form Submission
+        hidden: {
+            allocationId: document.getElementById('allocation_id'),
+            employee: document.getElementById('h_employee'),
+            date: document.getElementById('h_date'),
+        },
+        
+        // Footer Totals
+        footer: {
+            sold: document.getElementById('totSold'),
+            amount: document.getElementById('totAmount')
+        },
+        
+        // Payment Inputs
+        payment: {
+            totalAmount: document.getElementById('totalAmount'),
+            online: document.getElementById('online'),
+            cash: document.getElementById('cash'),
+            discount: document.getElementById('discount'),
+            dueAmount: document.getElementById('dueAmount')
+        },
 
+        // Sticky Footer
+        stickyDue: document.getElementById('stickyDue')
+    };
 
-    // --- 2. Core Functions ---
-    async function fetchAndPopulate() {
+    // 2. Fetch Data Function
+    async function fetchMorningAllocation() {
         const employeeId = ui.employeeSelect.value;
         const dateStr = ui.dateInput.value;
 
-        ui.tableBody.innerHTML = ''; 
-        ui.fetchMsg.textContent = '';
-        recalculateTotals();
+        // Reset Table
+        ui.tableBody.innerHTML = '<tr><td colspan="6" class="text-center p-4"><div class="spinner-border text-primary" role="status"></div><div class="mt-2">Loading stock data...</div></td></tr>';
+        ui.fetchMsg.textContent = "";
 
         if (!employeeId || !dateStr) {
-            ui.tableBody.innerHTML = '<tr><td colspan="8" class="text-muted p-4">Select an employee and date to begin.</td></tr>';
+            ui.tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted p-4">Please select both Employee and Date.</td></tr>';
             return;
         }
 
-        ui.fetchMsg.textContent = "Checking for previous day's stock...";
-        ui.fetchMsg.className = "small text-info mb-2";
+        // Set Hidden Values for Submission
+        ui.hidden.employee.value = employeeId;
+        ui.hidden.date.value = dateStr;
 
         try {
-            // Uses your ORIGINAL API function name
-            const response = await fetch(`/api/fetch_stock?employee_id=${employeeId}&date=${dateStr}`);
+            const response = await fetch(`/api/fetch_morning_allocation?employee_id=${employeeId}&date=${dateStr}`);
             const data = await response.json();
-            if (!response.ok) throw new Error(data.error || "Network error");
 
-            if (Object.keys(data).length === 0) {
-                ui.fetchMsg.textContent = "No remaining stock found. Starting a new allocation.";
-                createRow(); 
-            } else {
-                ui.fetchMsg.textContent = "Previous day's stock loaded successfully.";
-                for (const productId in data) {
-                    const item = data[productId];
-                    createRow({ id: productId, opening: item.remaining, price: item.price });
-                }
+            if (!response.ok) throw new Error(data.error || 'Failed to fetch data.');
+
+            ui.hidden.allocationId.value = data.allocation_id;
+
+            if (!data.items || data.items.length === 0) {
+                ui.tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-warning p-4 fw-bold">No morning allocation found for this date/employee.</td></tr>';
+                return;
             }
+
+            renderTable(data.items);
+            ui.fetchMsg.className = "small text-success mt-2";
+            ui.fetchMsg.textContent = "Data loaded successfully.";
+
         } catch (error) {
-            console.error('Fetch Error:', error);
-            ui.fetchMsg.textContent = `Error: ${error.message}. Starting a new allocation.`;
-            ui.fetchMsg.className = "small text-danger mb-2";
-            createRow(); 
-        } finally {
-            recalculateTotals();
+            console.error(error);
+            ui.tableBody.innerHTML = `<tr><td colspan="6" class="text-center text-danger p-4">Error: ${error.message}</td></tr>`;
         }
     }
 
-    function createRow(productData = {}) {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-            <td class="row-index"></td>
-            <td class="text-start">
-                <select name="product_id[]" class="form-select form-select-sm product-dropdown" required>
-                    <option value="">-- Select Product --</option>
-                    ${productOptionsHtml}
-                </select>
-            </td>
-            <td><input type="number" name="opening[]" class="form-control form-control-sm opening" value="${productData.opening || 0}" readonly></td>
-            <td><input type="number" name="given[]" class="form-control form-control-sm given" min="0" value="" required></td>
-            <td><input type="number" name="total[]" class="form-control form-control-sm total" value="0" readonly></td>
-            <td><input type="number" name="price[]" class="form-control form-control-sm price" step="0.01" min="0" value="${productData.price || 0.00}" readonly></td>
-            <td><input type="number" name="amount[]" class="form-control form-control-sm amount" value="0" readonly></td>
-            <td><button type="button" class="btn-remove-row" title="Remove row">Delete</button></td>
-        `;
-        const select = tr.querySelector(".product-dropdown");
-        if (productData.id) {
-            select.value = productData.id;
-        }
-        ui.tableBody.appendChild(tr);
-        updateRowIndexes();
-    }
+    // 3. Render Table Rows (Matched to New HTML)
+    function renderTable(items) {
+        ui.tableBody.innerHTML = '';
+        
+        items.forEach((item, index) => {
+            const totalQty = parseInt(item.total_qty);
+            const price = parseFloat(item.unit_price);
+            
+            const rowHtml = `
+                <tr class="item-row">
+                    <td class="ps-4">
+                        <div class="fw-bold text-dark">${item.product_name}</div>
+                        <input type="hidden" name="product_id[]" value="${item.product_id}">
+                        <input type="hidden" name="total_qty[]" value="${totalQty}">
+                        <input type="hidden" name="price[]" class="price-input" value="${price.toFixed(2)}">
+                    </td>
 
-    function recalculateTotals() {
-        let totalOpening = 0, totalGiven = 0, totalAll = 0, grandTotal = 0;
-        ui.tableBody.querySelectorAll("tr").forEach(row => {
-            const opening = parseInt(row.querySelector(".opening")?.value) || 0;
-            const given = parseInt(row.querySelector(".given")?.value) || 0;
-            const price = parseFloat(row.querySelector(".price")?.value) || 0;
-            if (!row.querySelector(".total")) return; 
+                    <td class="text-center">
+                        <span class="badge bg-light text-dark border fs-6">${totalQty}</span>
+                    </td>
 
-            const total = opening + given;
-            const amount = total * price;
+                    <td>
+                        <input type="number" name="sold[]" class="form-control form-control-lg text-center fw-bold text-primary sold-input" 
+                               min="0" max="${totalQty}" placeholder="0">
+                    </td>
 
-            row.querySelector(".total").value = total;
-            row.querySelector(".amount").value = amount.toFixed(2);
+                    <td>
+                        <input type="number" name="return[]" class="form-control form-control-lg text-center text-danger return-input" 
+                               min="0" max="${totalQty}" placeholder="0">
+                    </td>
 
-            totalOpening += opening;
-            totalGiven += given;
-            totalAll += total;
-            grandTotal += amount;
+                    <td class="text-center">
+                        <input type="number" name="remaining[]" class="form-control-plaintext text-center fw-bold text-muted remain-input" 
+                               value="${totalQty}" readonly>
+                    </td>
+
+                    <td class="text-end pe-4">
+                        <span class="fw-bold text-dark fs-5">₹ <span class="amount-display">0.00</span></span>
+                    </td>
+                </tr>
+            `;
+            ui.tableBody.insertAdjacentHTML('beforeend', rowHtml);
         });
 
-        ui.totals.opening.textContent = totalOpening;
-        ui.totals.given.textContent = totalGiven;
-        ui.totals.all.textContent = totalAll;
-        ui.totals.grand.textContent = grandTotal.toFixed(2);
-    }
-
-    function updateRowIndexes() {
-        ui.tableBody.querySelectorAll("tr").forEach((tr, i) => {
-            const indexCell = tr.querySelector(".row-index");
-            if (indexCell) indexCell.textContent = i + 1;
-        });
-    }
-
-    function validateDuplicates(currentSelect) {
-        const selectedValues = [...ui.tableBody.querySelectorAll(".product-dropdown")]
-            .map(s => s.value).filter(v => v);
-        if (selectedValues.filter(v => v === currentSelect.value).length > 1) {
-            alert("Duplicate product selected. Please choose a different product.");
-            currentSelect.value = "";
-        }
-    }
-
-    function handleArrowKeyNavigation(e) {
-        const key = e.key;
-        if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(key)) {
-            return;
-        }
-
-        const activeElement = document.activeElement;
-        if (!activeElement || !ui.tableBody.contains(activeElement) || (activeElement.tagName !== 'INPUT' && activeElement.tagName !== 'SELECT')) {
-            return;
-        }
-
-        e.preventDefault();
-
-        const currentRow = activeElement.closest('tr');
-        const rows = Array.from(ui.tableBody.children);
-        const rowIndex = rows.indexOf(currentRow);
-        let targetElement = null;
-
-        if (key === 'ArrowUp' || key === 'ArrowDown') {
-            const nextRowIndex = key === 'ArrowDown' ? rowIndex + 1 : rowIndex - 1;
-            if (nextRowIndex >= 0 && nextRowIndex < rows.length) {
-                const targetRow = rows[nextRowIndex];
-                const activeElementClass = activeElement.className.split(' ').find(c => ['product-dropdown', 'given', 'price'].includes(c));
-                if (activeElementClass) {
-                    targetElement = targetRow.querySelector(`.${activeElementClass}`);
-                }
-            }
-        } else if (key === 'ArrowLeft' || key === 'ArrowRight') {
-            const focusableInRow = Array.from(currentRow.querySelectorAll('input:not([readonly]), select'));
-            const currentIndexInRow = focusableInRow.indexOf(activeElement);
-            const nextIndexInRow = key === 'ArrowRight' ? currentIndexInRow + 1 : currentIndexInRow - 1;
-
-            if (nextIndexInRow >= 0 && nextIndexInRow < focusableInRow.length) {
-                targetElement = focusableInRow[nextIndexInRow];
-            }
-        }
-
-        if (targetElement) {
-            targetElement.focus();
-            if (targetElement.tagName === 'INPUT' && targetElement.type === 'number') {
-                targetElement.select();
-            }
-        }
-    }
-
-    // --- 3. Event Listeners ---
-    ui.employeeSelect.addEventListener("change", fetchAndPopulate);
-    ui.dateInput.addEventListener("change", fetchAndPopulate);
-    ui.addRowBtn.addEventListener("click", () => {
-        createRow();
         recalculateTotals();
-    });
+    }
 
-    ui.tableBody.addEventListener("input", e => {
-        if (e.target.matches(".given, .price")) {
-            recalculateTotals();
-        }
-    });
+    // 4. Calculations
+    function recalculateTotals() {
+        let grandTotalSold = 0;
+        let grandTotalAmount = 0;
 
-    ui.tableBody.addEventListener("change", e => {
-        if (e.target.matches(".product-dropdown")) {
-            validateDuplicates(e.target);
-            const productSelect = e.target;
-            const productId = productSelect.value;
-            const row = productSelect.closest('tr');
-            if (!row) return;
+        const rows = ui.tableBody.querySelectorAll('.item-row');
 
-            const priceInput = row.querySelector('.price');
-            if (!priceInput) return;
+        rows.forEach(row => {
+            const totalQty = parseInt(row.querySelector('input[name="total_qty[]"]').value) || 0;
+            const price = parseFloat(row.querySelector('.price-input').value) || 0;
+            
+            const soldInput = row.querySelector('.sold-input');
+            const returnInput = row.querySelector('.return-input');
+            const remainInput = row.querySelector('.remain-input');
+            const amountDisplay = row.querySelector('.amount-display');
 
-            if (productId) {
-                const product = productsMap.get(productId);
-                if (product) {
-                    priceInput.value = product.price;
+            let sold = parseInt(soldInput.value) || 0;
+            let ret = parseInt(returnInput.value) || 0;
+
+            // Validation: Cannot exceed total
+            if ((sold + ret) > totalQty) {
+                // Prioritize Sold, adjust Return
+                ret = totalQty - sold;
+                if (ret < 0) { 
+                    sold = totalQty; 
+                    ret = 0; 
                 }
-            } else {
-                priceInput.value = '0.00';
+                soldInput.value = sold || '';
+                returnInput.value = ret || '';
             }
+
+            // Calc Remaining & Amount
+            const remaining = totalQty - sold - ret;
+            const revenue = sold * price;
+
+            remainInput.value = remaining;
+            amountDisplay.textContent = revenue.toFixed(2);
+
+            // Add to Grand Totals
+            grandTotalSold += sold;
+            grandTotalAmount += revenue;
+        });
+
+        // Update Footer
+        ui.footer.sold.textContent = grandTotalSold;
+        ui.footer.amount.textContent = grandTotalAmount.toFixed(2);
+        
+        // Update Payment Card
+        ui.payment.totalAmount.value = grandTotalAmount.toFixed(2);
+
+        calculateDue();
+    }
+
+    function calculateDue() {
+        const total = parseFloat(ui.payment.totalAmount.value) || 0;
+        const discount = parseFloat(ui.payment.discount.value) || 0;
+        const cash = parseFloat(ui.payment.cash.value) || 0;
+        const online = parseFloat(ui.payment.online.value) || 0;
+
+        const due = total - (discount + cash + online);
+        
+        ui.payment.dueAmount.textContent = due.toFixed(2);
+        
+        // Update Sticky Footer
+        if(ui.stickyDue) {
+            ui.stickyDue.textContent = due.toFixed(2);
+        }
+    }
+
+    // 5. Event Listeners
+    if(ui.fetchButton) {
+        ui.fetchButton.addEventListener("click", fetchMorningAllocation);
+    }
+
+    // Delegate Input Events for Table (Performance)
+    ui.tableBody.addEventListener('input', (e) => {
+        if (e.target.matches('.sold-input') || e.target.matches('.return-input')) {
             recalculateTotals();
         }
     });
 
-    ui.tableBody.addEventListener("click", e => {
-        if (e.target.closest(".btn-remove-row")) {
-            // =========================================
-            //  DELETE POPUP ADDED (FIXED)
-            // =========================================
-            if (confirm("Are you sure you want to delete this row?")) {
-                e.target.closest("tr").remove();
-                updateRowIndexes();
-                recalculateTotals();
-            }
+    // Payment Inputs
+    [ui.payment.discount, ui.payment.cash, ui.payment.online].forEach(input => {
+        if(input) {
+            input.addEventListener('input', calculateDue);
         }
     });
 
-    ui.tableBody.addEventListener("keydown", handleArrowKeyNavigation);
 });
-// SYNTAX ERROR FIXED: No extra '}' at the end.
