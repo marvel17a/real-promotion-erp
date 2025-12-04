@@ -1,56 +1,56 @@
 {% extends "admin_master.html" %}
 
 {% block page_content %}
-<div class="container py-4">
-<script src="{{ url_for('static', filename='js/pin.js') }}"></script>
+<div class="container py-5">
+    <script src="{{ url_for('static', filename='js/pin.js') }}"></script>
     <script src="{{ url_for('static', filename='js/emp.js') }}"></script>
-    <div class="card glass-card p-4">
-        <h3 class="mb-4 fw-bold">Add New Employee</h3>
+    <!-- Flatpickr CSS & JS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
+    <div class="card glass-card shadow-lg p-4">
+        <!-- Company Name -->
+        <h1 class="text-center fw-bold mb-4">REAL PROMOTION</h1>
+        <h2 class="mb-4 fw-bold text-center">Employee Joining Form</h2>
 
         <form action="{{ url_for('add_employee') }}" method="POST" enctype="multipart/form-data" id="empForm">
+            <div class="row g-4">
 
-            <div class="row">
-
-                <!-- NAME -->
-                <div class="col-md-6 mb-3">
+                <!-- Personal Information -->
+                <div class="col-md-6">
                     <label class="form-label fw-semibold">Full Name</label>
                     <input type="text" name="name" class="form-control" required>
                 </div>
 
-                <!-- EMAIL -->
-                <div class="col-md-6 mb-3">
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Date of Birth</label>
+                    <input type="text" name="dob" id="dob" class="form-control">
+                </div>
+
+                <div class="col-md-6">
                     <label class="form-label fw-semibold">Email</label>
                     <input type="email" name="email" class="form-control" required>
                 </div>
 
-                <!-- PHONE -->
-                <div class="col-md-6 mb-3">
+                <div class="col-md-6">
                     <label class="form-label fw-semibold">Phone (10 digits)</label>
                     <input type="text" maxlength="10" minlength="10" pattern="\d{10}" name="phone" class="form-control" required>
                 </div>
 
-                <!-- AADHAR -->
-                <div class="col-md-6 mb-3">
-                    <label class="form-label fw-semibold">Aadhar No</label>
-                    <input type="text" name="aadhar_no" class="form-control">
-                </div>
-
-                <!-- DOB -->
-                <div class="col-md-6 mb-3">
-                    <label class="form-label fw-semibold">Date of Birth</label>
-                    <input type="date" name="dob" class="form-control">
-                </div>
-
-                <!-- EMERGENCY CONTACT -->
-                <div class="col-md-6 mb-3">
+                <div class="col-md-6">
                     <label class="form-label fw-semibold">Emergency Contact</label>
                     <input type="text" maxlength="10" pattern="\d{10}" name="emergency_contact" class="form-control">
                 </div>
 
-                <!-- POSITION -->
-                <div class="col-md-6 mb-3">
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Aadhar No</label>
+                    <input type="text" name="aadhar_no" class="form-control">
+                </div>
+
+                <!-- Job Information -->
+                <div class="col-md-6">
                     <label class="form-label fw-semibold">Position</label>
-                    <select name="position_id" class="form-control" required>
+                    <select name="position_id" class="form-select" required>
                         <option value="">Select Position</option>
                         {% for p in positions %}
                         <option value="{{ p.id }}">{{ p.position_name }}</option>
@@ -58,10 +58,9 @@
                     </select>
                 </div>
 
-                <!-- DEPARTMENT -->
-                <div class="col-md-6 mb-3">
+                <div class="col-md-6">
                     <label class="form-label fw-semibold">Department</label>
-                    <select name="department_id" class="form-control" required>
+                    <select name="department_id" class="form-select" required>
                         <option value="">Select Department</option>
                         {% for d in departments %}
                         <option value="{{ d.id }}">{{ d.department_name }}</option>
@@ -69,69 +68,76 @@
                     </select>
                 </div>
 
-                <!-- ADDRESS LINE 1 -->
-                <div class="col-md-6 mb-3">
-                    <label class="form-label fw-semibold">Address Line 1</label>
-                    <input type="text" name="address_line1" class="form-control">
-                </div>
-
-                <!-- ADDRESS LINE 2 -->
-                <div class="col-md-6 mb-3">
-                    <label class="form-label fw-semibold">Address Line 2</label>
-                    <input type="text" name="address_line2" class="form-control">
-                </div>
-
-                <!-- PINCODE -->
-                <div class="col-md-4 mb-3">
+                <!-- Address Section -->
+                <div class="col-md-4">
                     <label class="form-label fw-semibold">Pincode</label>
                     <input type="text" maxlength="6" name="pincode" id="pincode" class="form-control" required>
                 </div>
 
-                <!-- CITY -->
-                <div class="col-md-4 mb-3">
+                <div class="col-md-4">
                     <label class="form-label fw-semibold">City</label>
                     <input type="text" name="city" id="city" class="form-control" readonly>
                 </div>
 
-                <!-- DISTRICT -->
-                <div class="col-md-4 mb-3">
+                <div class="col-md-4">
                     <label class="form-label fw-semibold">District</label>
                     <input type="text" name="district" id="district" class="form-control" readonly>
                 </div>
 
-                <!-- STATE -->
-                <div class="col-md-6 mb-3">
+                <div class="col-md-6">
                     <label class="form-label fw-semibold">State</label>
                     <input type="text" name="state" id="state" class="form-control" readonly>
                 </div>
 
-                <!-- IMAGE UPLOAD -->
-                <div class="col-md-6 mb-3">
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Address Line 1</label>
+                    <input type="text" name="address_line1" class="form-control">
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Address Line 2</label>
+                    <input type="text" name="address_line2" class="form-control">
+                </div>
+
+                <!-- Uploads -->
+                <div class="col-md-6">
                     <label class="form-label fw-semibold">Profile Image</label>
                     <input type="file" name="image" class="form-control">
                 </div>
 
-                <!-- DOCUMENT -->
-                <div class="col-md-6 mb-3">
+                <div class="col-md-6">
                     <label class="form-label fw-semibold">Document</label>
                     <input type="file" name="document" class="form-control">
                 </div>
 
             </div>
 
-            <button type="submit" class="btn btn-primary mt-3 px-4 py-2">Save Employee</button>
+            <div class="text-center mt-4">
+                <button type="submit" class="btn btn-primary px-5 py-2 fw-semibold">Save Employee</button>
+            </div>
         </form>
     </div>
-
 </div>
 
 <style>
 .glass-card {
     backdrop-filter: blur(12px);
-    background: rgba(255,255,255,0.25);
+    background: rgba(255, 255, 255, 0.25);
     border-radius: 16px;
-    border: 1px solid rgba(255,255,255,0.3);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+}
+.form-control, .form-select {
+    background: rgba(255,255,255,0.6);
+    border: 1px solid rgba(255,255,255,0.4);
 }
 </style>
 
+<script>
+    // Initialize Flatpickr for DOB
+    flatpickr("#dob", {
+        dateFormat: "Y-m-d",
+        maxDate: "today"
+    });
+</script>
 {% endblock %}
