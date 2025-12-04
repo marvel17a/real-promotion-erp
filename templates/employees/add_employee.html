@@ -1,122 +1,136 @@
 {% extends "admin_master.html" %}
+
 {% block page_content %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/employee.css') }}">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-
 <div class="container py-4">
-  <div class="glass-card p-4 mx-auto" style="max-width:980px;">
-    <h4 class="mb-3">Add Employee</h4>
 
-    <form id="addEmployeeForm" action="{{ url_for('add_employee') }}" method="POST" enctype="multipart/form-data">
-      <div class="row g-3">
+    <div class="card glass-card p-4">
+        <h3 class="mb-4 fw-bold">Add New Employee</h3>
 
-        <div class="col-md-6">
-          <label class="form-label">Name *</label>
-          <input name="name" class="form-control" required>
-        </div>
+        <form action="{{ url_for('add_employee') }}" method="POST" enctype="multipart/form-data" id="empForm">
 
-        <div class="col-md-6">
-          <label class="form-label">Email</label>
-          <input name="email" type="email" class="form-control">
-        </div>
+            <div class="row">
 
-        <div class="col-md-4">
-          <label class="form-label">Phone</label>
-          <input id="phone" name="phone" class="form-control" maxlength="10" placeholder="10-digit" required>
-        </div>
+                <!-- NAME -->
+                <div class="col-md-6 mb-3">
+                    <label class="form-label fw-semibold">Full Name</label>
+                    <input type="text" name="name" class="form-control" required>
+                </div>
 
-        <div class="col-md-4">
-          <label class="form-label">Pincode</label>
-          <input id="pincode" name="pincode" class="form-control" maxlength="6">
-        </div>
+                <!-- EMAIL -->
+                <div class="col-md-6 mb-3">
+                    <label class="form-label fw-semibold">Email</label>
+                    <input type="email" name="email" class="form-control" required>
+                </div>
 
-        <div class="col-md-4">
-          <label class="form-label">City</label>
-          <input id="city" name="city" class="form-control" readonly>
-        </div>
+                <!-- PHONE -->
+                <div class="col-md-6 mb-3">
+                    <label class="form-label fw-semibold">Phone (10 digits)</label>
+                    <input type="text" maxlength="10" minlength="10" pattern="\d{10}" name="phone" class="form-control" required>
+                </div>
 
-        <div class="col-md-6">
-          <label class="form-label">District</label>
-          <input id="district" name="district" class="form-control" readonly>
-        </div>
+                <!-- AADHAR -->
+                <div class="col-md-6 mb-3">
+                    <label class="form-label fw-semibold">Aadhar No</label>
+                    <input type="text" name="aadhar_no" class="form-control">
+                </div>
 
-        <div class="col-md-6">
-          <label class="form-label">State</label>
-          <input id="state" name="state" class="form-control" readonly>
-        </div>
+                <!-- DOB -->
+                <div class="col-md-6 mb-3">
+                    <label class="form-label fw-semibold">Date of Birth</label>
+                    <input type="date" name="dob" class="form-control">
+                </div>
 
-        <div class="col-md-6">
-          <label class="form-label">Date of Birth</label>
-          <input name="dob" class="form-control dob-picker">
-        </div>
+                <!-- EMERGENCY CONTACT -->
+                <div class="col-md-6 mb-3">
+                    <label class="form-label fw-semibold">Emergency Contact</label>
+                    <input type="text" maxlength="10" pattern="\d{10}" name="emergency_contact" class="form-control">
+                </div>
 
-        <div class="col-md-6">
-          <label class="form-label">Address Line 1</label>
-          <input name="address_line1" class="form-control">
-        </div>
+                <!-- POSITION -->
+                <div class="col-md-6 mb-3">
+                    <label class="form-label fw-semibold">Position</label>
+                    <select name="position_id" class="form-control" required>
+                        <option value="">Select Position</option>
+                        {% for p in positions %}
+                        <option value="{{ p.id }}">{{ p.position_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
 
-        <div class="col-md-6">
-          <label class="form-label">Address Line 2</label>
-          <input name="address_line2" class="form-control">
-        </div>
+                <!-- DEPARTMENT -->
+                <div class="col-md-6 mb-3">
+                    <label class="form-label fw-semibold">Department</label>
+                    <select name="department_id" class="form-control" required>
+                        <option value="">Select Department</option>
+                        {% for d in departments %}
+                        <option value="{{ d.id }}">{{ d.department_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
 
-        <div class="col-md-6">
-          <label class="form-label">Position</label>
-          <select name="position_id" class="form-select">
-            <option value="">Select position</option>
-            {% for pos in positions %}
-              <option value="{{ pos.id }}">{{ pos.position_name }}</option>
-            {% endfor %}
-          </select>
-        </div>
+                <!-- ADDRESS LINE 1 -->
+                <div class="col-md-6 mb-3">
+                    <label class="form-label fw-semibold">Address Line 1</label>
+                    <input type="text" name="address_line1" class="form-control">
+                </div>
 
-        <div class="col-md-6">
-          <label class="form-label">Department</label>
-          <select name="department_id" class="form-select">
-            <option value="">Select department</option>
-            {% for d in departments %}
-              <option value="{{ d.id }}">{{ d.department_name }}</option>
-            {% endfor %}
-          </select>
-        </div>
+                <!-- ADDRESS LINE 2 -->
+                <div class="col-md-6 mb-3">
+                    <label class="form-label fw-semibold">Address Line 2</label>
+                    <input type="text" name="address_line2" class="form-control">
+                </div>
 
-        <div class="col-md-6">
-          <label class="form-label">Emergency Contact</label>
-          <input name="emergency_contact" maxlength="10" class="form-control">
-        </div>
+                <!-- PINCODE -->
+                <div class="col-md-4 mb-3">
+                    <label class="form-label fw-semibold">Pincode</label>
+                    <input type="text" maxlength="6" name="pincode" id="pincode" class="form-control" required>
+                </div>
 
-        <div class="col-md-6">
-          <label class="form-label">Aadhar No</label>
-          <input name="aadhar_no" maxlength="12" class="form-control">
-        </div>
+                <!-- CITY -->
+                <div class="col-md-4 mb-3">
+                    <label class="form-label fw-semibold">City</label>
+                    <input type="text" name="city" id="city" class="form-control" readonly>
+                </div>
 
-        <div class="col-md-6">
-          <label class="form-label">Employee Photo</label>
-          <input id="imageInput" name="image" type="file" accept="image/*" class="form-control">
-          <img id="imagePreview" class="img-preview mt-2" style="display:none;max-width:120px;border-radius:8px;">
-        </div>
+                <!-- DISTRICT -->
+                <div class="col-md-4 mb-3">
+                    <label class="form-label fw-semibold">District</label>
+                    <input type="text" name="district" id="district" class="form-control" readonly>
+                </div>
 
-        <div class="col-md-6">
-          <label class="form-label">Document (PDF)</label>
-          <input name="document" type="file" accept="application/pdf" class="form-control">
-        </div>
+                <!-- STATE -->
+                <div class="col-md-6 mb-3">
+                    <label class="form-label fw-semibold">State</label>
+                    <input type="text" name="state" id="state" class="form-control" readonly>
+                </div>
 
-        <div class="col-12 text-end">
-          <button class="btn btn-primary px-4">Save Employee</button>
-        </div>
+                <!-- IMAGE UPLOAD -->
+                <div class="col-md-6 mb-3">
+                    <label class="form-label fw-semibold">Profile Image</label>
+                    <input type="file" name="image" class="form-control">
+                </div>
 
-      </div>
-    </form>
-  </div>
+                <!-- DOCUMENT -->
+                <div class="col-md-6 mb-3">
+                    <label class="form-label fw-semibold">Document</label>
+                    <input type="file" name="document" class="form-control">
+                </div>
+
+            </div>
+
+            <button type="submit" class="btn btn-primary mt-3 px-4 py-2">Save Employee</button>
+        </form>
+    </div>
+
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-<script src="{{ url_for('static', filename='js/pin.js') }}"></script>
-<script src="{{ url_for('static', filename='js/emp.js') }}"></script>
+<style>
+.glass-card {
+    backdrop-filter: blur(12px);
+    background: rgba(255,255,255,0.25);
+    border-radius: 16px;
+    border: 1px solid rgba(255,255,255,0.3);
+}
+</style>
 
-<script>
-document.addEventListener("DOMContentLoaded", function () {
-    flatpickr(".dob-picker", { dateFormat: "d-m-Y", maxDate: "today" });
-});
-</script>
 {% endblock %}
