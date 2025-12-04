@@ -2796,36 +2796,36 @@ def api_fetch_stock():
 # Kept your ORIGINAL function name
 @app.route('/api/fetch_morning_allocation')
 def api_fetch_morning_allocation():
-    # 1. ADDED SECURITY CHECK
     if "loggedin" not in session:
         return jsonify({"error": "Unauthorized"}), 401
         
     employee_id = request.args.get('employee_id')
     date_str    = request.args.get('date')
+
     if not employee_id or not date_str:
         return jsonify({"error": "Employee and date are required."}), 400
+
     try:
         cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
         
-        # 3. ROBUST FIX: All table names are lowercase
+        # 1. Find the Allocation ID
         cur.execute(
             "SELECT id FROM morning_allocations WHERE employee_id=%s AND date=%s",
             (employee_id, date_str)
         )
         alloc = cur.fetchone()
+        
         if not alloc:
             cur.close()
-            return jsonify({"error": "No allocation found."}), 404
+            return jsonify({"error": "No morning allocation found for this employee/date."}), 404
             
         alloc_id = alloc['id']
         
-        # 3. ROBUST FIX: All table names are lowercase
+        # 2. Fetch Items
         cur.execute("""
             SELECT 
               mai.product_id,
-              p.name       AS product_name,
-              mai.opening_qty,
-              mai.given_qty,
+              p.name AS product_name,
               mai.total_qty,
               mai.unit_price
             FROM morning_allocation_items mai
@@ -2835,16 +2835,22 @@ def api_fetch_morning_allocation():
         items = cur.fetchall()
         cur.close()
         
+        # 3. CRITICAL FIX: Convert Decimal to Float for JSON
+        # JSON cannot handle 'Decimal' objects directly.
+        clean_items = []
         for i in items:
-            i['opening_qty'] = int(i['opening_qty'])
-            i['given_qty']   = int(i['given_qty'])
-            i['total_qty']   = int(i['total_qty'])
-            i['unit_price']  = float(i['unit_price'])
+            clean_items.append({
+                'product_id': i['product_id'],
+                'product_name': i['product_name'],
+                'total_qty': int(i['total_qty']),        # Convert to int
+                'unit_price': float(i['unit_price'])     # Convert Decimal to float
+            })
             
-        return jsonify({"allocation_id": alloc_id, "items": items})
+        return jsonify({"allocation_id": alloc_id, "items": clean_items})
+
     except Exception as e:
-        app.logger.error("fetch_morning_allocation error: %s", e)
-        return jsonify({"error": "Internal server error."}), 500
+        app.logger.error(f"Fetch Allocation Error: {e}")
+        return jsonify({"error": str(e)}), 500
 
 
 # =====================================================================
@@ -3021,16 +3027,22 @@ def edit_morning_allocation(allocation_id):
 # ----------------------------------------------------------------------------------------------------------
 @app.route('/evening', methods=['GET', 'POST'])
 def evening():
+    # 1. Handle Form Submission
     if request.method == 'POST':
         db_cursor = None
         try:
+            # Get Form Data
             allocation_id = request.form.get('allocation_id')
             employee_id = request.form.get('h_employee')
             date_str = request.form.get('h_date')
-            total_amount = request.form.get('totalAmount')
-            online_received = request.form.get('online')
-            cash_received = request.form.get('cash')
-            discount = request.form.get('discount')
+            
+            # Payment Details
+            total_amount = request.form.get('totalAmount') or 0
+            online_received = request.form.get('online') or 0
+            cash_received = request.form.get('cash') or 0
+            discount = request.form.get('discount') or 0
+
+            # Arrays
             product_ids = request.form.getlist('product_id[]')
             total_qtys = request.form.getlist('total_qty[]')
             sold_qtys = request.form.getlist('sold[]')
@@ -3038,49 +3050,72 @@ def evening():
             unit_prices = request.form.getlist('price[]')
 
             if not allocation_id:
-                flash("Error: Morning Allocation ID missing. Please fetch data again.", "danger")
+                flash("Error: Allocation ID missing. Please fetch data first.", "danger")
                 return redirect(url_for('evening'))
 
             db_cursor = mysql.connection.cursor()
+
+            # 2. Insert into Evening Settle (Parent Table)
+            # Note: due_amount is auto-calculated by Database (GENERATED COLUMN)
             db_cursor.execute("""
-                INSERT INTO evening_settle (allocation_id, employee_id, date, total_amount, online_money, cash_money, discount)
+                INSERT INTO evening_settle 
+                (allocation_id, employee_id, date, total_amount, online_money, cash_money, discount)
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
             """, (allocation_id, employee_id, date_str, total_amount, online_received, cash_received, discount))
+            
             settle_id = db_cursor.lastrowid
+
+            # 3. Insert Items & Update Inventory
             item_sql = """
                 INSERT INTO evening_item (settle_id, product_id, total_qty, sold_qty, return_qty, unit_price)
                 VALUES (%s, %s, %s, %s, %s, %s)
             """
-            inventory_update_list = []
-            for i, product_id in enumerate(product_ids):
-                if not product_id:
-                    continue
-                sold_qty = int(sold_qtys[i] or 0)
-                return_qty = int(return_qtys[i] or 0)
-                db_cursor.execute(item_sql, (settle_id, product_id, total_qtys[i], sold_qty, return_qty, unit_prices[i]))
-                if sold_qty > 0 or return_qty > 0:
-                    inventory_update_list.append({'id': product_id, 'sold': sold_qty, 'returned': return_qty})
 
-            if inventory_update_list:
-                for item in inventory_update_list:
-                    db_cursor.execute("UPDATE products SET stock = stock - %s + %s WHERE id = %s", 
-                                      (item['sold'], item['returned'], item['id']))
+            for i, product_id in enumerate(product_ids):
+                if not product_id: continue
+                
+                # Parse Values
+                try:
+                    p_sold = int(sold_qtys[i] or 0)
+                    p_return = int(return_qtys[i] or 0)
+                    p_total = int(total_qtys[i] or 0)
+                    p_price = float(unit_prices[i] or 0)
+                except ValueError:
+                    continue # Skip invalid rows
+
+                # Insert Item
+                db_cursor.execute(item_sql, (settle_id, product_id, p_total, p_sold, p_return, p_price))
+                
+                # Update Inventory Stock
+                # Logic: We deduct what was SOLD. (Returns go back to stock or stay in stock depending on your logic)
+                # Assuming 'stock' holds current inventory:
+                # If you took 10 items in morning, sold 2, returned 8.
+                # Your main stock was already deducted when you bought them? Or is morning allocation virtual?
+                # Usually: Stock decreases when Sold.
+                if p_sold > 0:
+                    db_cursor.execute("UPDATE products SET stock = stock - %s WHERE id = %s", (p_sold, product_id))
+
             mysql.connection.commit()
+            flash("Evening settlement submitted successfully!", "success")
             return redirect(url_for('evening', last_settle_id=settle_id))
+
         except Exception as e:
-            mysql.connection.rollback()
+            if db_cursor: mysql.connection.rollback()
+            app.logger.error(f"Evening Submit Error: {e}")
             flash(f"An error occurred: {e}", "danger")
             return redirect(url_for('evening'))
+            
         finally:
-            if db_cursor:
-                db_cursor.close()
+            if db_cursor: db_cursor.close()
 
-    # GET request
+    # 2. GET Request (Show Page)
     last_settle_id = request.args.get('last_settle_id', None)
+    
     db_cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    db_cursor.execute("SELECT id, name FROM employees ORDER BY name")
+    db_cursor.execute("SELECT id, name FROM employees WHERE status='active' ORDER BY name")
     employees = db_cursor.fetchall()
     db_cursor.close()
+    
     today_date = date.today().isoformat()
     return render_template('evening.html', employees=employees, today=today_date, last_settle_id=last_settle_id)
 
@@ -4328,6 +4363,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
