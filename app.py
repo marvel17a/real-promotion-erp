@@ -2759,12 +2759,15 @@ def api_fetch_stock():
         return jsonify({"error": "Employee and date are required."}), 400
 
     try:
-        # --- FIX START: Handle DD-MM-YYYY format sent by frontend ---
+        # --- FIX START: Handle datetime module vs class conflict ---
         try:
-            # Try parsing DD-MM-YYYY (e.g., 20-05-2025)
+            # We use datetime.datetime because 'import datetime' made 'datetime' a module
+            current_date = datetime.datetime.strptime(date_str, "%d-%m-%Y").date()
+        except AttributeError:
+            # Fallback in case 'datetime' is actually the class in some contexts
             current_date = datetime.strptime(date_str, "%d-%m-%Y").date()
         except ValueError:
-            # Fallback if it happens to be YYYY-MM-DD
+            # Fallback if the date format is already YYYY-MM-DD
             current_date = date.fromisoformat(date_str)
         # --- FIX END ---
 
@@ -4370,6 +4373,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
