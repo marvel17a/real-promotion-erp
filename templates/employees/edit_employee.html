@@ -1,92 +1,138 @@
 {% extends "admin_master.html" %}
+
 {% block page_content %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/employee.css') }}">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<div class="container py-5">
+    <script src="{{ url_for('static', filename='js/pincode.js') }}"></script>
 
-<div class="container py-4">
-  <div class="glass-card p-4 mx-auto" style="max-width:980px;">
-    <h4 class="mb-3">Edit Employee</h4>
+    <div class="card glass-card p-4 shadow-lg">
+        <h2 class="text-center fw-bold mb-4">Edit Employee</h2>
 
-    <form id="editEmployeeForm" action="{{ url_for('edit_employee', id=employee.id) }}" method="POST" enctype="multipart/form-data">
-      <div class="row g-3">
-        <div class="col-md-6"><label>Name *</label><input name="name" class="form-control" value="{{ employee.name }}" required></div>
-        <div class="col-md-6"><label>Email</label><input name="email" type="email" class="form-control" value="{{ employee.email }}"></div>
+        <form action="{{ url_for('edit_employee', id=employee.id) }}" 
+              method="POST" enctype="multipart/form-data">
 
-        <div class="col-md-4"><label>Phone</label><input id="phone" name="phone" class="form-control" value="{{ employee.phone or '' }}"></div>
+            <div class="row g-4">
 
-        <div class="col-md-4"><label>Pincode</label><input id="pincode" name="pincode" class="form-control" maxlength="6" value="{{ employee.pincode or '' }}"></div>
+                <!-- Name -->
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Full Name</label>
+                    <input type="text" name="name" value="{{ employee.name }}" class="form-control" required>
+                </div>
 
-        <div class="col-md-4"><label>City</label><input id="city" name="city" class="form-control" value="{{ employee.city or '' }}"></div>
+                <!-- DOB -->
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Date of Birth</label>
+                    <input type="date" name="dob" value="{{ employee.dob }}" class="form-control">
+                </div>
 
-        <div class="col-md-6"><label>State</label><input id="state" name="state" class="form-control" value="{{ employee.state or '' }}"></div>
+                <!-- Email -->
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Email</label>
+                    <input type="email" name="email" value="{{ employee.email }}" class="form-control" required>
+                </div>
 
-        <div class="col-md-6"><label>Date of Birth</label><input name="dob" class="form-control dob-picker" value="{{ employee.dob.strftime('%d-%m-%Y') if employee.dob else '' }}"></div>
+                <!-- Phone -->
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Phone</label>
+                    <input type="text" maxlength="10" pattern="\d{10}" 
+                           name="phone" value="{{ employee.phone }}" class="form-control" required>
+                </div>
 
-        <div class="col-md-6"><label>Address Line 1</label><input name="address_line1" class="form-control" maxlength="150" value="{{ employee.address_line1 or '' }}"></div>
+                <!-- Emergency Contact -->
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Emergency Contact</label>
+                    <input type="text" maxlength="10" pattern="\d{10}" 
+                           name="emergency_contact" value="{{ employee.emergency_contact }}" class="form-control">
+                </div>
 
-        <div class="col-md-6"><label>Address Line 2</label><input name="address_line2" class="form-control" maxlength="150" value="{{ employee.address_line2 or '' }}"></div>
+                <!-- Aadhar -->
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Aadhar No</label>
+                    <input type="text" name="aadhar_no" value="{{ employee.aadhar_no }}" class="form-control">
+                </div>
 
-        <div class="col-md-6">
-          <label>Position</label>
-          <select name="position_id" class="form-select">
-            <option value="">Select</option>
-            {% for pos in positions %}
-            <option value="{{ pos.id }}" {{ 'selected' if employee.position_id==pos.id else '' }}>{{ pos.position_name }}</option>
-            {% endfor %}
-          </select>
-        </div>
+                <!-- Position -->
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Position</label>
+                    <select name="position_id" class="form-select">
+                        {% for p in positions %}
+                        <option value="{{ p.id }}" {% if p.id == employee.position_id %}selected{% endif %}>
+                            {{ p.position_name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
 
-        <div class="col-md-6">
-          <label>Department</label>
-          <select name="department_id" class="form-select">
-            <option value="">Select</option>
-            {% for d in departments %}
-            <option value="{{ d.id }}" {{ 'selected' if employee.department_id==d.id else '' }}>{{ d.department_name }}</option>
-            {% endfor %}
-          </select>
-        </div>
+                <!-- Department -->
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Department</label>
+                    <select name="department_id" class="form-select">
+                        {% for d in departments %}
+                        <option value="{{ d.id }}" {% if d.id == employee.department_id %}selected{% endif %}>
+                            {{ d.department_name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
 
-        <div class="col-md-6"><label>Emergency Contact</label><input id="emergency_contact" name="emergency_contact" class="form-control" value="{{ employee.emergency_contact or '' }}"></div>
+                <!-- Pincode -->
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">Pincode</label>
+                    <input type="text" maxlength="6" id="pincode" name="pincode"
+                           value="{{ employee.pincode }}" class="form-control">
+                </div>
 
-        <div class="col-md-6"><label>Aadhar No</label><input name="aadhar_no" class="form-control" value="{{ employee.aadhar_no or '' }}"></div>
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">City</label>
+                    <input type="text" id="city" name="city" value="{{ employee.city }}" class="form-control" readonly>
+                </div>
 
-        <div class="col-md-6">
-          <label>Image (Photo)</label>
-          <input id="imageInput" name="image" type="file" accept="image/*" class="form-control">
-          {% if employee.image %}
-            <img id="imagePreview" class="img-preview mt-2" src="{{ cloudinary_url(employee.image)[0] }}" style="max-width:120px;border-radius:8px;">
-          {% else %}
-            <img id="imagePreview" class="img-preview mt-2" style="display:none;max-width:120px;border-radius:8px;">
-          {% endif %}
-        </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">District</label>
+                    <input type="text" id="district" name="district" value="{{ employee.district }}" class="form-control" readonly>
+                </div>
 
-        <div class="col-md-6">
-          <label>Document (PDF)</label>
-          <input name="document" type="file" accept="application/pdf" class="form-control">
-          {% if employee.document %}
-            <div class="mt-2">
-              <a target="_blank" href="{{ url_for('employee_document', id=employee.id) }}" class="btn btn-sm btn-outline-primary">View current</a>
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">State</label>
+                    <input type="text" id="state" name="state" value="{{ employee.state }}" class="form-control" readonly>
+                </div>
+
+                <!-- Address -->
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Address Line 1</label>
+                    <input type="text" name="address_line1" value="{{ employee.address_line1 }}" class="form-control">
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Address Line 2</label>
+                    <input type="text" name="address_line2" value="{{ employee.address_line2 }}" class="form-control">
+                </div>
+
+                <!-- Image -->
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Profile Image</label>
+                    {% if employee.image %}
+                        <img src="{{ cloudinary_url(employee.image)[0] }}" 
+                             class="img-thumbnail mb-2" width="120">
+                    {% endif %}
+                    <input type="file" name="image" class="form-control">
+                </div>
+
+                <!-- Document -->
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Document</label>
+                    {% if employee.document %}
+                        <a href="{{ cloudinary_url(employee.document)[0] }}" target="_blank">View Document</a>
+                    {% endif %}
+                    <input type="file" name="document" class="form-control">
+                </div>
+
             </div>
-          {% endif %}
-        </div>
 
-        <div class="col-12 text-end">
-          <button class="btn btn-primary">Update</button>
-        </div>
+            <div class="text-center mt-4">
+                <button class="btn btn-primary px-5 py-2">Update Employee</button>
+            </div>
 
-      </div>
-    </form>
-  </div>
+        </form>
+    </div>
 </div>
-
-<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-<script src="{{ url_for('static', filename='js/emp.js') }}"></script>
-<script src="{{ url_for('static', filename='js/pin.js') }}"></script>
-<script>
-  document.addEventListener('DOMContentLoaded', function() {
-    if (window.flatpickr) {
-      flatpickr(".dob-picker", { dateFormat: "d-m-Y", maxDate: "today", allowInput: true });
-    }
-  });
-</script>
 {% endblock %}
