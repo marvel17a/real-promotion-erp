@@ -5,15 +5,10 @@
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
 <div class="container fade-in-up py-4 mb-5">
-
-    <!-- Company Header -->
-    <div class="text-center mb-4">
-        <h2 class="fw-bold text-dark">REAL PROMOTION</h2>
-        <p class="text-muted fst-italic">SINCE 2005</p>
-    </div>
     
     <div class="text-center mb-5">
         <h3 class="fw-bold text-dark"><i class="fa-solid fa-moon text-primary me-2"></i>Evening Settlement</h3>
+        <p class="text-muted small">Reconcile stock and payments for the day.</p>
     </div>
 
     <div class="card glass-card border-0 p-4 mb-4">
@@ -165,5 +160,22 @@
 <script>
     document.addEventListener("DOMContentLoaded", function() {
         flatpickr("#date", {
-            dateFormat: "d-m-Y
-                
+            dateFormat: "d-m-Y",
+            defaultDate: "{{ today }}",
+            allowInput: true
+        });
+        
+        // Update Sticky Footer on Change
+        const dueEl = document.getElementById('dueAmount');
+        const stickyEl = document.getElementById('stickyDue');
+        
+        // Observe changes to the main due amount to update sticky
+        const observer = new MutationObserver(function(mutations) {
+            stickyEl.innerText = dueEl.innerText;
+        });
+        observer.observe(dueEl, { childList: true, characterData: true, subtree: true });
+    });
+</script>
+
+<script src="{{ url_for('static', filename='js/evening.js') }}"></script>
+{% endblock %}
