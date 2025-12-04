@@ -167,44 +167,7 @@ def employee_document(id):
 
 
 
-import requests
-from flask import jsonify
-import time
 
-@app.route("/api/pincode_lookup/<pincode>")
-def pincode_lookup(pincode):
-    url = f"https://api.postalpincode.in/pincode/{pincode}"
-
-    try:
-        print("Pincode lookup:", pincode)
-
-        for attempt in range(2):   # retry 2 times
-            try:
-                res = requests.get(url, timeout=5)
-                break
-            except Exception as e:
-                print("Retry...", attempt+1, e)
-                time.sleep(1)
-        else:
-            return jsonify({"success": False}), 500
-
-        data = res.json()
-
-        if not data or data[0]["Status"] != "Success":
-            return jsonify({"success": False})
-
-        po = data[0]["PostOffice"][0]
-
-        return jsonify({
-            "success": True,
-            "city": po["District"],
-            "district": po["District"],  # corrected mapping
-            "state": po["State"]
-        })
-
-    except Exception as e:
-        print("Pincode error:", e)
-        return jsonify({"success": False}), 500
 
 
 
@@ -4365,6 +4328,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
