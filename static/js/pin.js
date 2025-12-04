@@ -15,27 +15,30 @@ document.addEventListener("DOMContentLoaded", function () {
 
                     if (data[0].Status === "Success") {
 
-                        let PO = data[0].PostOffice[0];   // Always take first office
+                        let PO = data[0].PostOffice[0];
 
-                        // -----------------------
-                        // Find correct city/taluka
-                        // -----------------------
+                        let d = PO.District || "";
+                        let s = PO.State || "";
+                        let taluk = PO.Taluk || "";
+                        let division = PO.Division || "";
+                        let area = PO.Name || "";
+
                         let cityName = "";
 
-                        if (PO.Division && PO.Division !== "") {
-                            cityName = PO.Division;
-                        }
-                        else if (PO.Taluk && PO.Taluk !== "") {
-                            cityName = PO.Taluk;
-                        }
+                        // SMART INDIA-WIDE CITY LOGIC
+                        if (taluk && taluk !== d) {
+                            cityName = taluk;
+                        } 
+                        else if (division && division !== d) {
+                            cityName = division;
+                        } 
                         else {
-                            cityName = PO.District; // fallback
+                            cityName = area;  // Village / locality name
                         }
 
-                        // Autofill the fields
                         city.value = cityName;
-                        district.value = PO.District || "";
-                        state.value = PO.State || "";
+                        district.value = d;
+                        state.value = s;
 
                     } else {
                         city.value = "";
