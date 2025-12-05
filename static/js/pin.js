@@ -1,16 +1,22 @@
+// static/js/pincode.js
 document.addEventListener("DOMContentLoaded", () => {
-    const pincode = document.getElementById("pincode");
-    const city = document.getElementById("city");
-    const district = document.getElementById("district");
-    const state = document.getElementById("state");
+    const pinInput = document.getElementById("pincode");
+    const citySelect = document.getElementById("city");
+    const districtInput = document.getElementById("district");
+    const stateInput = document.getElementById("state");
 
-    pincode.addEventListener("input", async () => {
-        const pin = pincode.value.trim();
+    if (!pinInput || !citySelect || !districtInput || !stateInput) {
+        return; // safety if script loaded on other pages
+    }
 
+    pinInput.addEventListener("input", async () => {
+        const pin = pinInput.value.trim();
+
+        // Basic validation
         if (pin.length !== 6 || !/^\d{6}$/.test(pin)) {
-            city.innerHTML = "<option value=''>Select Area</option>";
-            district.value = "";
-            state.value = "";
+            citySelect.innerHTML = "<option value=''>Select City/Area</option>";
+            districtInput.value = "";
+            stateInput.value = "";
             return;
         }
 
@@ -19,29 +25,37 @@ document.addEventListener("DOMContentLoaded", () => {
             const data = await res.json();
 
             if (!data || data[0].Status !== "Success") {
-                city.innerHTML = "<option value=''>Select Area</option>";
-                district.value = "";
-                state.value = "";
+                citySelect.innerHTML = "<option value=''>Select City/Area</option>";
+                districtInput.value = "";
+                stateInput.value = "";
                 return;
             }
 
             const offices = data[0].PostOffice;
 
-            // district & state accurate
-            district.value = offices[0].District;
-            state.value = offices[0].State;
+            // district & state from first office (these are reliable)
+            districtInput.value = offices[0].District || "";
+            stateInput.value = offices[0].State || "";
 
-            city.innerHTML = "<option value=''>Please Select Area</option>";
+            // build city / area dropdown
+            citySelect.innerHTML = "<option value=''>Select City/Area</option>";
+
             offices.forEach(o => {
-                let area = o.Name || o.BranchType || o.Block || o.District;
-                let op = document.createElement("option");
-                op.value = area;
-                op.textContent = area;
-                city.appendChild(op);
+                // Prefer Block (taluka) then Name, fallback to District
+                const label = o.Block || o.Name || o.District || "";
+                if (!label) return;
+
+                const opt = document.createElement("option");
+                opt.value = label;
+                opt.textContent = label;
+                citySelect.appendChild(opt);
             });
 
-        } catch (e) {
-            console.log("Pincode JS error", e);
+        } catch (err) {
+            console.log("Pincode API error:", err);
+            citySelect.innerHTML = "<option value=''>Select City/Area</option>";
+            districtInput.value = "";
+            stateInput.value = "";
         }
     });
 });
