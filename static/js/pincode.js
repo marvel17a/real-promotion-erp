@@ -6,52 +6,53 @@ document.addEventListener("DOMContentLoaded", function () {
     const districtField = document.getElementById("district");
     const stateField = document.getElementById("state");
 
-    // If fields do not exist (other pages), stop script
     if (!pincodeField || !cityField || !districtField || !stateField) {
-        console.warn("Pincode script loaded, but form fields not found.");
+        console.warn("Pincode fields not found on this page.");
         return;
     }
 
     async function fetchPincodeDetails(pin) {
         try {
+            // ----------------------------------------
+            // THE FIX → BACKTICKS ARE REQUIRED HERE
+            // ----------------------------------------
             const res = await fetch(https://api.postalpincode.in/pincode/${pin});
             const data = await res.json();
 
             if (!data || !data[0] || data[0].Status !== "Success") {
-                console.warn("Invalid pincode");
+                console.warn("Invalid or unknown pincode");
                 districtField.value = "";
                 stateField.value = "";
                 cityField.innerHTML = "<option value=''>Select City/Area</option>";
                 return;
             }
 
-            const offices = data[0].PostOffice || [];
+            const officeList = data[0].PostOffice || [];
 
-            // DISTRICT & STATE autofill
-            districtField.value = offices[0].District || "";
-            stateField.value = offices[0].State || "";
+            districtField.value = officeList[0].District || "";
+            stateField.value = officeList[0].State || "";
 
-            // City/Area dropdown
             cityField.innerHTML = "<option value=''>Select City/Area</option>";
-            offices.forEach(po => {
-                const name = po.Block || po.Name || po.BranchType || po.District;
-                if (!name) return;
+
+            officeList.forEach(po => {
+                const label = po.Block || po.Name || po.BranchType || po.District || "";
+                if (!label) return;
 
                 let opt = document.createElement("option");
-                opt.value = name;
-                opt.textContent = name;
+                opt.value = label;
+                opt.textContent = label;
                 cityField.appendChild(opt);
             });
 
         } catch (err) {
-            console.error("Pincode fetch failed:", err);
+            console.error("Network/API error:", err);
             districtField.value = "";
             stateField.value = "";
             cityField.innerHTML = "<option value=''>Select City/Area</option>";
         }
     }
 
-    function handleInput() {
+    function handlePincodeInput() {
         const pin = pincodeField.value.trim();
         if (/^\d{6}$/.test(pin)) {
             fetchPincodeDetails(pin);
@@ -62,6 +63,6 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     }
 
-    pincodeField.addEventListener("keyup", handleInput);
-    pincodeField.addEventListener("change", handleInput);
+    pincodeField.addEventListener("keyup", handlePincodeInput);
+    pincodeField.addEventListener("change", handlePincodeInput);
 });
