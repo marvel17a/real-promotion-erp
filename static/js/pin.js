@@ -1,6 +1,6 @@
 document.addEventListener("DOMContentLoaded", function () {
     const pincodeField = document.getElementById("pincode");
-    const cityField = document.getElementById("city_area");
+    const cityField = document.getElementById("city");
     const districtField = document.getElementById("district");
     const stateField = document.getElementById("state");
 
