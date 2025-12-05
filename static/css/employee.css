@@ -1,476 +1,113 @@
-/* ---
-  PREMIUM VIVID (TEAL/BLUE) GRADIENT THEME
---- */
-
-
-/* static/css/employee.css */
-
-/* Glassmorphism base card */
-.glass-card {
-  backdrop-filter: blur(10px);
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 12px;
-  padding: 18px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.12);
-}
-
-/* Employee small cards */
-.emp-card { text-align:center; padding:18px; border-radius:12px; color: #fff; }
-.emp-thumb img { width:86px; height:86px; object-fit:cover; border-radius:12px; }
-
-/* Table thumb */
-.table-thumb { width:44px; height:44px; object-fit:cover; border-radius:8px; }
-
-/* Form image preview */
-.img-preview { display:block; max-width:140px; border-radius:8px; }
-
-/* Page title */
-.page-title { font-size:1.4rem; margin-bottom:1rem; color:var(--bs-primary); }
-
-/* small helper text */
-.form-note { font-size:0.85rem; color: rgba(255,255,255,0.7); }
-
-/* Responsive adjustments */
-@media (max-width:768px) {
-  .emp-card { padding: 14px; }
-}
-
-.employee-card {
-    border-radius: 14px;
-    box-shadow: 0 8px 18px rgba(0,0,0,0.06);
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
-}
-
-.employee-card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 12px 26px rgba(0,0,0,0.12);
-}
-
-.employee-avatar {
-    width: 80px;
-    height: 80px;
-    border-radius: 50%;
-    object-fit: cover;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.15);
-}
-
-.employee-avatar-placeholder {
-    width: 80px;
-    height: 80px;
-    border-radius: 50%;
-    background: #f5f5f5;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.employee-avatar-large {
-    width: 170px;
-    height: 170px;
-    border-radius: 12px;
-    object-fit: cover;
-    box-shadow: 0 6px 16px rgba(0,0,0,0.18);
-}
-
-.employee-avatar-large-placeholder {
-    width: 170px;
-    height: 170px;
-    border-radius: 12px;
-    background: #f5f5f5;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-@media (max-width: 576px) {
-    .employee-card {
-        margin-bottom: 1rem;
-    }
-}
-
+/* Global Reset override for Glass Theme */
 :root {
-  /* Vivid Gradient Colors */
-  --grad-start: #10B981;  /* Teal */
-  --grad-end: #06B6D4;    /* Cyan */
-  --grad-accent: linear-gradient(90deg, var(--grad-start) 0%, var(--grad-end) 100%);
-  
-  /* Background & Card Colors */
-  --bg-main: linear-gradient(135deg, #f8faff 0%, #f0f3fb 100%);
-  --bg-card: #FFFFFF;
-  --bg-card-hover: #FFFFFF;
-  --bg-form: #fdfdfd;
-
-  /* Text Colors */
-  --text-dark: #212529;
-  --text-medium: #495057;
-  --text-light: #6c757d;
-  
-  /* Border & Shadow */
-  --border-color: #dee2e6;
-  --shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
-  --shadow-hover: 0 12px 35px rgba(0, 0, 0, 0.12);
-  
-  --radius-md: 0.5rem;   /* 8px */
-  --radius-lg: 0.75rem;  /* 12px */
+    --glass-bg: rgba(255, 255, 255, 0.25);
+    --glass-border: 1px solid rgba(255, 255, 255, 0.18);
+    --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+    --glass-blur: blur(10px);
+    --text-color: #2d3748;
+    --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
-/* --- Base --- */
 body {
-  background: var(--bg-main);
-  color: var(--text-medium);
-  min-height: 100vh;
+    /* Optional: If you want a full gradient background for the whole page */
+    /* background: var(--primary-gradient); */
+    /* min-height: 100vh; */
 }
 
-/* --- Page Header & Stats --- */
-.page-header-vivid {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
-}
-.page-header-vivid h2 {
-  color: var(--text-dark);
-  font-weight: 700;
-}
-
-/* --- Gradient Buttons --- */
-.btn-primary {
-  background: var(--grad-accent);
-  border: none;
-  font-weight: 600;
-  padding: 0.6rem 1.25rem;
-  border-radius: var(--radius-md);
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
-  color: #FFFFFF;
-}
-.btn-primary:hover {
-  background: var(--grad-accent);
-  color: #FFFFFF;
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
-}
-.btn-secondary {
-  border-color: var(--border-color);
-  background-color: var(--bg-card);
-  font-weight: 600;
-  border-radius: var(--radius-md);
-  color: var(--text-medium);
-}
-.btn-secondary:hover {
-  background-color: #f8f9fa;
-  border-color: #c1c9d3;
-  color: var(--text-dark);
+/* --- GLASS CARD --- */
+.glass-card {
+    background: var(--glass-bg);
+    box-shadow: var(--glass-shadow);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border-radius: 16px;
+    border: var(--glass-border);
+    padding: 2rem;
+    color: var(--text-color);
+    transition: transform 0.3s ease;
 }
 
-/* --- Stat Cards --- */
-.stat-card-vivid {
-  background-color: var(--bg-card);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--bg-card);
-  box-shadow: var(--shadow);
-}
-.stat-card-vivid .card-title {
-  color: var(--text-light);
-  font-weight: 600;
-  font-size: 0.9rem;
-  text-transform: uppercase;
-}
-.stat-card-vivid .card-text {
-  color: var(--text-dark);
-  font-size: 2rem;
-  font-weight: 700;
+.glass-card:hover {
+    transform: translateY(-5px);
 }
 
-/* --- Filter Card --- */
-.filter-card-vivid {
-  background-color: var(--bg-card);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--bg-card);
-  box-shadow: var(--shadow);
-}
-.filter-card-vivid .form-label {
-  color: var(--text-medium);
-  font-weight: 600;
-  font-size: 0.875rem;
+/* --- GLASS INPUTS --- */
+.glass-card .form-control, 
+.glass-card .form-select {
+    background: rgba(255, 255, 255, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 10px;
+    backdrop-filter: blur(5px);
+    color: #333;
+    transition: all 0.3s;
 }
 
-/* --- Light Form Elements --- */
-.form-control, .form-select {
-  background-color: var(--bg-form);
-  color: var(--text-dark);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  font-size: 0.9rem;
-}
-.form-control::placeholder {
-  color: var(--text-light);
-}
-.form-control:focus, .form-select:focus {
-  background-color: var(--bg-card);
-  color: var(--text-dark);
-  border-color: var(--grad-start);
-  box-shadow: 0 0 0 0.25rem rgba(16, 185, 129, 0.25);
-}
-.form-control.is-invalid, .form-select.is-invalid {
-  border-color: var(--bs-danger);
-}
-.form-label span {
-  color: var(--bs-danger);
-}
-.form-error {
-  font-size: 0.8rem;
-  color: var(--bs-danger);
-  height: 1.2em;
-  margin-top: 0.25rem;
+.glass-card .form-control:focus, 
+.glass-card .form-select:focus {
+    background: rgba(255, 255, 255, 0.8);
+    box-shadow: 0 0 0 0.25rem rgba(118, 75, 162, 0.25);
+    border-color: #764ba2;
 }
 
-/* --- Employee Card Grid --- */
-.employee-card-vivid {
-  background: var(--bg-card);
-  border: 1px solid #FFFFFF;
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow);
-  transition: all 0.3s ease;
-  position: relative;
-  overflow: hidden;
-}
-.employee-card-vivid:before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  background-color: #f0f2f5;
-  transition: all 0.3s ease;
-}
-.employee-card-vivid:hover {
-  transform: translateY(-5px);
-  box-shadow: var(--shadow-hover);
-  background: var(--bg-card-hover);
-  border-color: #FFFFFF;
-}
-.employee-card-vivid:hover:before {
-  background: var(--grad-accent);
+.glass-card label {
+    font-weight: 600;
+    color: #4a5568;
+    margin-bottom: 0.5rem;
 }
 
-.card-status-menu {
-  padding: 0.75rem 1.25rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.card-menu .dropdown-toggle {
-  color: var(--text-light);
-  text-decoration: none;
-}
-.card-menu .dropdown-toggle::after {
-  display: none;
-}
-.card-menu .dropdown-toggle:hover {
-  color: var(--text-dark);
-}
-.dropdown-menu {
-  background-color: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow);
-}
-.dropdown-item {
-  color: var(--text-medium);
-  font-size: 0.9rem;
-}
-.dropdown-item:hover {
-  background: var(--grad-accent);
-  color: #FFFFFF;
-}
-.dropdown-item.text-danger:hover {
-  background-color: var(--bs-danger);
-  color: #FFFFFF;
-}
-.dropdown-divider {
-  border-top: 1px solid var(--border-color);
+/* --- GLASS TABLE --- */
+.glass-table-container {
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: var(--glass-shadow);
 }
 
-.card-avatar-section {
-  padding: 1rem 1.5rem;
-  text-align: center;
-}
-.avatar { /* Your class */
-  width: 100px;
-  height: 100px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 4px solid #FFFFFF;
-  box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-}
-.placeholder { /* Your class */
-  width: 100px;
-  height: 100px;
-  border-radius: 50%;
-  background-color: #f0f2f5;
-  color: var(--text-light);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1rem;
-  font-weight: 600;
-  border: 4px solid #FFFFFF;
-  box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-}
-.card-title-vivid {
-  color: var(--text-dark);
-  font-weight: 700;
-  font-size: 1.2rem;
-  margin-top: 1rem;
-  margin-bottom: 0.25rem;
-}
-.card-position-vivid {
-  color: var(--grad-start);
-  font-weight: 600;
-  font-size: 0.9rem;
-  margin-bottom: 1rem;
+.glass-table {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.4);
+    backdrop-filter: blur(10px);
+    border-collapse: separate;
+    border-spacing: 0;
 }
 
-.card-contact-info {
-  font-size: 0.9rem;
-  color: var(--text-medium);
-  border-top: 1px solid #f0f0f0;
-  padding: 1rem 1.5rem;
-}
-.card-contact-info p {
-  margin-bottom: 0.5rem;
-  display: flex;
-  align-items: center;
-  word-break: break-all;
-}
-.card-contact-info i {
-  color: var(--text-light);
-  width: 25px;
-  font-size: 1.1rem;
-}
-.card-footer-actions {
-  border-top: 1px solid #f0f0f0;
-  padding: 1rem 1.5rem;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.75rem;
+.glass-table thead {
+    background: rgba(118, 75, 162, 0.1);
 }
 
-/* --- Details Page --- */
-.detail-card-left-vivid {
-  background-color: var(--bg-card);
-  border: 1px solid #FFFFFF;
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow);
-}
-.detail-avatar {
-  width: 150px;
-  height: 150px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 4px solid #FFFFFF;
-  box-shadow: 0 10px 20px rgba(0,0,0,0.1);
-}
-.detail-avatar.placeholder {
-  background-color: #f0f2f5;
-  color: var(--text-light);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 3rem;
-  font-weight: 600;
-}
-.detail-name {
-  color: var(--text-dark);
-  font-weight: 700;
-}
-.detail-position {
-  color: var(--grad-start);
-  font-size: 1.2rem;
-  font-weight: 600;
-}
-.detail-card-right-vivid {
-  background-color: var(--bg-card);
-  border: 1px solid #FFFFFF;
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow);
-}
-.detail-info-item {
-  display: flex;
-  align-items: flex-start;
-  font-size: 0.95rem;
-  padding: 1.25rem 0;
-  border-bottom: 1px solid #f0f0f0;
-}
-.detail-info-item:last-child {
-  border-bottom: none;
-}
-.detail-info-item i {
-  color: var(--grad-start);
-  font-size: 1.5rem;
-  width: 40px;
-  text-align: center;
-  margin-right: 1rem;
-}
-.info-label {
-  font-weight: 600;
-  color: var(--text-light);
-  font-size: 0.8rem;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 0.25rem;
-}
-.info-value {
-  color: var(--text-dark);
-  font-weight: 500;
-  word-break: break-all;
+.glass-table th {
+    padding: 15px;
+    color: #4a5568;
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    border-bottom: 1px solid rgba(0,0,0,0.05);
 }
 
-/* --- Form Page --- */
-.form-card-vivid {
-  background-color: var(--bg-card);
-  border: 1px solid #FFFFFF;
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow);
-}
-.form-card-vivid .card-header {
-  background-color: #fdfdfd;
-  border-bottom: 1px solid #f0f0f0;
-}
-.form-card-vivid .card-header h5 {
-  color: var(--text-dark);
-  font-weight: 600;
-}
-.form-actions {
-  background-color: #f8f9fa;
-  border-top: 1px solid #f0f0f0;
-  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
-}
-.preview-box {
-  border: 2px dashed var(--border-color);
-  border-radius: var(--radius-md);
-  padding: 1rem;
-  min-height: 150px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: #f8f9fa;
-}
-.preview-img-circle {
-  width: 150px;
-  height: 150px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 3px solid #FFFFFF;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-}
-.preview-placeholder {
-  font-size: 0.9rem;
-  color: var(--text-light);
-  font-style: italic;
+.glass-table td {
+    padding: 15px;
+    background: rgba(255, 255, 255, 0.2);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+    color: #2d3748;
+    vertical-align: middle;
 }
 
+.glass-table tr:hover td {
+    background: rgba(255, 255, 255, 0.6);
+}
 
+/* --- BUTTONS --- */
+.btn-glass-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    color: white;
+    border-radius: 50px;
+    padding: 10px 30px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    transition: all 0.3s;
+}
+
+.btn-glass-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+    color: white;
+}
