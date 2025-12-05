@@ -1,59 +1,85 @@
 {% extends "base.html" %}
 {% block content %}
 
-<style>
-.employee-glass {
-    backdrop-filter: blur(12px);
-    background: rgba(255,255,255,0.15);
-    border: 1px solid rgba(255,255,255,0.25);
-    border-radius: 18px;
-    padding: 20px;
-    box-shadow: 0 8px 20px rgba(0,0,0,0.25);
-    transition: 0.3s;
-}
-.employee-glass:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 12px 25px rgba(0,0,0,0.35);
-}
-.emp-img {
-    width: 90px; height: 90px;
-    border-radius: 50%;
-    object-fit: cover;
-}
-</style>
+<!-- Link to Glass Theme -->
+<link rel="stylesheet" href="{{ url_for('static', filename='css/glass_theme.css') }}">
 
-<div class="container mt-4">
-    <h2 class="fw-bold text-primary mb-4">Employees</h2>
+<div class="container py-5">
+    <div class="d-flex justify-content-between align-items-center mb-5">
+        <div>
+            <h2 class="fw-bold text-dark mb-1">Our Team</h2>
+            <p class="text-muted">Meet the people behind the success</p>
+        </div>
+        <!-- Optional: Add Search or Filter here -->
+    </div>
 
     <div class="row g-4">
         {% for emp in employees %}
-        <div class="col-md-4 col-lg-3">
-            <div class="employee-glass text-center p-3">
-                <img src="{{ cloudinary_url(emp.image)[0] if emp.image else '/static/img/user.png' }}" class="emp-img mb-3">
+        <div class="col-md-6 col-lg-4 col-xl-3">
+            <div class="glass-card h-100 text-center position-relative p-4 group-hover">
+                
+                <!-- Status Badge -->
+                {% if emp.status == 'active' %}
+                    <span class="position-absolute top-0 end-0 m-3 p-2 bg-success rounded-circle border border-2 border-white" title="Active"></span>
+                {% else %}
+                    <span class="position-absolute top-0 end-0 m-3 p-2 bg-secondary rounded-circle border border-2 border-white" title="Inactive"></span>
+                {% endif %}
 
-                <h5 class="fw-bold">{{ emp.name }}</h5>
-                <p class="text-muted mb-1">{{ emp.position_name or 'No Position' }} </p>
-                <p class="text-muted small mb-1">{{ emp.department_name or 'No Department' }}</p>
+                <!-- Profile Image -->
+                <div class="mb-3 d-inline-block position-relative">
+                    {% if emp.image %}
+                        <img src="{{ cloudinary_url(emp.image)[0] }}" 
+                             class="rounded-circle shadow-sm border border-4 border-white object-fit-cover" 
+                             width="110" height="110" alt="{{ emp.name }}">
+                    {% else %}
+                        <div class="rounded-circle shadow-sm border border-4 border-white bg-light d-flex align-items-center justify-content-center text-secondary" 
+                             style="width: 110px; height: 110px; font-size: 2.5rem;">
+                            <i class="fas fa-user"></i>
+                        </div>
+                    {% endif %}
+                </div>
 
-                <p class="small mb-1">
-                    <i class="fa-solid fa-phone"></i> {{ emp.phone or 'N/A' }}
-                </p>
+                <!-- Info -->
+                <h5 class="fw-bold text-dark mb-1">{{ emp.name }}</h5>
+                <p class="text-primary small fw-semibold mb-2">{{ emp.position_name or emp.position or 'Team Member' }}</p>
+                <p class="text-muted small mb-3">{{ emp.department_name }}</p>
 
-                <p class="small mb-2">
-                    <i class="fa-solid fa-location-dot"></i>
-                    {{ emp.city or 'City' }}, {{ emp.state or 'State' }}
-                </p>
+                <!-- Mini Details -->
+                <div class="d-flex justify-content-center gap-3 mb-4 text-muted small">
+                    {% if emp.phone %}
+                    <div title="Phone">
+                        <i class="fas fa-phone me-1"></i> {{ emp.phone }}
+                    </div>
+                    {% endif %}
+                    {% if emp.city %}
+                    <div title="Location">
+                        <i class="fas fa-map-marker-alt me-1"></i> {{ emp.city }}
+                    </div>
+                    {% endif %}
+                </div>
 
-                <a href="{{ url_for('employee_details', id=emp.id) }}" class="btn btn-primary btn-sm">
-                    View Details
+                <!-- Action -->
+                <a href="{{ url_for('employee_details', id=emp.id) }}" 
+                   class="btn btn-glass-primary btn-sm w-100 rounded-pill">
+                    View Profile
                 </a>
+
             </div>
         </div>
         {% else %}
-        <p class="text-center mt-4">No employees found.</p>
+        <div class="col-12 text-center py-5">
+            <div class="glass-card d-inline-block px-5">
+                <i class="fas fa-users-slash fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">No employees found.</h5>
+            </div>
+        </div>
         {% endfor %}
     </div>
 </div>
 
-{% endblock %}
+<style>
+    .object-fit-cover { object-fit: cover; }
+    .group-hover:hover { transform: translateY(-5px); }
+</style>
 
+{% endblock %}
