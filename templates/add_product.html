@@ -1,1 +1,97 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container fade-in-up py-4">
+
+    <div class="d-flex align-items-center mb-4">
+        <a href="{{ url_for('inventory') }}" class="btn btn-light border rounded-circle me-3 shadow-sm">
+            <i class="fa-solid fa-arrow-left"></i>
+        </a>
+        <div>
+            <h3 class="fw-bold text-primary mb-0">Add New Product</h3>
+            <p class="text-muted small mb-0">Create a new item in your inventory.</p>
+        </div>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card glass-card border-0 p-4">
+                
+                <form action="{{ url_for('add_product') }}" method="POST" enctype="multipart/form-data">
+                    
+                    <h5 class="fw-bold text-secondary mb-3"><i class="fa-solid fa-box me-2"></i>Basic Information</h5>
+                    
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-8">
+                            <label class="form-label small fw-bold text-uppercase text-muted">Product Name</label>
+                            <input type="text" name="name" class="form-control form-control-lg shadow-sm" placeholder="e.g. Dairy Milk Silk" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold text-uppercase text-muted">Category</label>
+                            <select name="category_id" class="form-select form-select-lg shadow-sm">
+                                <option value="">-- Uncategorized --</option>
+                                {% for cat in categories %}
+                                    <option value="{{ cat.id }}">{{ cat.category_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <hr class="text-muted opacity-25">
+
+                    <h5 class="fw-bold text-secondary mb-3 mt-4"><i class="fa-solid fa-tags me-2"></i>Pricing & Stock</h5>
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold text-uppercase text-muted">Selling Price (₹)</label>
+                            <div class="input-group shadow-sm">
+                                <span class="input-group-text bg-white border-end-0">₹</span>
+                                <input type="number" name="price" class="form-control form-control-lg border-start-0 ps-0" step="0.01" min="0" placeholder="0.00" required>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold text-uppercase text-muted">Initial Stock</label>
+                            <input type="number" name="stock" class="form-control form-control-lg shadow-sm" min="0" value="0" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold text-uppercase text-muted">Low Stock Alert</label>
+                            <input type="number" name="low_stock_threshold" class="form-control form-control-lg shadow-sm" min="0" value="10">
+                            <div class="form-text small">Alert when stock falls below this.</div>
+                        </div>
+                    </div>
+
+                    <hr class="text-muted opacity-25">
+
+                    <h5 class="fw-bold text-secondary mb-3 mt-4"><i class="fa-solid fa-image me-2"></i>Product Image</h5>
+                    
+                    <div class="mb-4">
+                        <label class="form-label small fw-bold text-uppercase text-muted">Upload Image</label>
+                        <input type="file" name="image" class="form-control shadow-sm" accept="image/*">
+                        <div class="form-text text-muted">Supported formats: JPG, PNG, JPEG.</div>
+                    </div>
+
+                    <div class="d-grid mt-5">
+                        <button type="submit" class="btn btn-primary btn-lg rounded-pill shadow hover-scale">
+                            <i class="fa-solid fa-save me-2"></i> Save Product
+                        </button>
+                    </div>
+
+                </form>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .glass-card { 
+        background: rgba(255, 255, 255, 0.95); 
+        backdrop-filter: blur(10px); 
+        border-radius: 16px; 
+        box-shadow: 0 4px 20px rgba(0,0,0,0.05); 
+    }
+    .hover-scale:hover { transform: translateY(-2px); transition: 0.3s; }
+    .form-control-lg, .form-select-lg { font-size: 1rem; padding: 0.75rem 1rem; }
+</style>
+{% endblock %}
 
