@@ -1,4 +1,3 @@
-// static/js/pincode.js
 document.addEventListener("DOMContentLoaded", function () {
 
     const pincodeField = document.getElementById("pincode");
@@ -6,50 +5,58 @@ document.addEventListener("DOMContentLoaded", function () {
     const districtField = document.getElementById("district");
     const stateField = document.getElementById("state");
 
+    // Guard clause: if elements don't exist, stop running
     if (!pincodeField || !cityField || !districtField || !stateField) {
-        console.warn("Pincode fields not found on this page.");
         return;
     }
 
     async function fetchPincodeDetails(pin) {
         try {
-            // ----------------------------------------
-            // THE FIX → BACKTICKS ARE REQUIRED HERE
-            // ----------------------------------------
-            const res = await fetch(https://api.postalpincode.in/pincode/${pin});
+            // Show loading state
+            cityField.innerHTML = "<option>Loading...</option>";
+            districtField.placeholder = "Fetching...";
+            stateField.placeholder = "Fetching...";
+
+            // FIXED: Added backticks around the URL for string interpolation
+            const res = await fetch(`https://api.postalpincode.in/pincode/${pin}`);
             const data = await res.json();
 
             if (!data || !data[0] || data[0].Status !== "Success") {
-                console.warn("Invalid or unknown pincode");
-                districtField.value = "";
-                stateField.value = "";
-                cityField.innerHTML = "<option value=''>Select City/Area</option>";
+                alert("Invalid Pincode or API Error");
+                resetFields();
                 return;
             }
 
             const officeList = data[0].PostOffice || [];
 
-            districtField.value = officeList[0].District || "";
-            stateField.value = officeList[0].State || "";
+            // Auto-fill District and State from the first result
+            if (officeList.length > 0) {
+                districtField.value = officeList[0].District;
+                stateField.value = officeList[0].State;
+            }
 
+            // Populate City/Area Dropdown
             cityField.innerHTML = "<option value=''>Select City/Area</option>";
-
             officeList.forEach(po => {
-                const label = po.Block || po.Name || po.BranchType || po.District || "";
-                if (!label) return;
-
+                const cityName = po.Name; 
                 let opt = document.createElement("option");
-                opt.value = label;
-                opt.textContent = label;
+                opt.value = cityName;
+                opt.textContent = cityName;
                 cityField.appendChild(opt);
             });
 
         } catch (err) {
-            console.error("Network/API error:", err);
-            districtField.value = "";
-            stateField.value = "";
-            cityField.innerHTML = "<option value=''>Select City/Area</option>";
+            console.error("API Fetch Error:", err);
+            resetFields();
         }
+    }
+
+    function resetFields() {
+        districtField.value = "";
+        stateField.value = "";
+        districtField.placeholder = "";
+        stateField.placeholder = "";
+        cityField.innerHTML = "<option value=''>Select City/Area</option>";
     }
 
     function handlePincodeInput() {
@@ -57,12 +64,12 @@ document.addEventListener("DOMContentLoaded", function () {
         if (/^\d{6}$/.test(pin)) {
             fetchPincodeDetails(pin);
         } else {
-            districtField.value = "";
-            stateField.value = "";
-            cityField.innerHTML = "<option value=''>Select City/Area</option>";
+            // Only reset if the user had previously entered valid data
+            if(districtField.value !== "") resetFields();
         }
     }
 
     pincodeField.addEventListener("keyup", handlePincodeInput);
+    // Also trigger on change (e.g. paste)
     pincodeField.addEventListener("change", handlePincodeInput);
 });
