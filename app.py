@@ -2031,41 +2031,44 @@ def employee_department_delete(id):
 
 
 
-# ---------- ADMIN SIDE: ADD EMPLOYEE (admin_master.html) ----------
+
+
+
 
 @app.route("/add_employee", methods=["GET", "POST"])
 def add_employee():
     if "loggedin" not in session:
         return redirect(url_for("login"))
 
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    cur = mysql.connection.cursor(DictCursor)
 
-    # Dropdown data for both GET and POST error re-render
-    cursor.execute("SELECT id, position_name FROM employee_positions ORDER BY position_name")
-    positions = cursor.fetchall()
+    # For GET and for re-rendering after validation errors
+    cur.execute("SELECT id, position_name FROM employee_positions ORDER BY position_name")
+    positions = cur.fetchall()
 
-    cursor.execute("SELECT id, department_name FROM employee_departments ORDER BY department_name")
-    departments = cursor.fetchall()
+    cur.execute("SELECT id, department_name FROM employee_departments ORDER BY department_name")
+    departments = cur.fetchall()
 
     if request.method == "GET":
-        cursor.close()
+        cur.close()
         return render_template(
             "employees/add_employee.html",
             positions=positions,
             departments=departments
         )
 
-    # ------------ POST: SAVE EMPLOYEE ------------
+    # ----------- POST: READ FORM DATA ----------- #
     name = request.form.get("name", "").strip()
     email = request.form.get("email", "").strip()
     phone = request.form.get("phone", "").strip()
     dob = request.form.get("dob") or None
-    joining_date = request.form.get("joining_date") or None  # maps to join_date
+    join_date = request.form.get("join_date") or None
     status = request.form.get("status", "active")
 
     emergency_contact = request.form.get("emergency_contact", "").strip() or None
     aadhar_no = request.form.get("aadhar_no", "").strip() or None
-     # optional second date
+
+    position_text = request.form.get("position", "").strip() or None  # employees.position column
 
     pincode = request.form.get("pincode", "").strip() or None
     city = request.form.get("city", "").strip() or None
@@ -2081,7 +2084,7 @@ def add_employee():
     # ---- basic validation ----
     if not name or not email or not phone:
         flash("Name, email and phone are required.", "danger")
-        cursor.close()
+        cur.close()
         return render_template(
             "employees/add_employee.html",
             positions=positions,
@@ -2089,8 +2092,8 @@ def add_employee():
         )
 
     if phone and (not phone.isdigit() or len(phone) != 10):
-        flash("Phone must be 10 digits.", "danger")
-        cursor.close()
+        flash("Phone must be exactly 10 digits.", "danger")
+        cur.close()
         return render_template(
             "employees/add_employee.html",
             positions=positions,
@@ -2098,17 +2101,17 @@ def add_employee():
         )
 
     if emergency_contact and (not emergency_contact.isdigit() or len(emergency_contact) != 10):
-        flash("Emergency contact must be 10 digits.", "danger")
-        cursor.close()
+        flash("Emergency contact must be exactly 10 digits.", "danger")
+        cur.close()
         return render_template(
             "employees/add_employee.html",
             positions=positions,
             departments=departments
         )
 
-    # ---- file uploads to Cloudinary ----
+    # ---- Cloudinary uploads ----
     image_url = None
-    doc_url = None
+    document_url = None
 
     image_file = request.files.get("image")
     if image_file and image_file.filename:
@@ -2118,36 +2121,37 @@ def add_employee():
     doc_file = request.files.get("document")
     if doc_file and doc_file.filename:
         upload_doc = cloudinary.uploader.upload(doc_file, folder="erp_employee_docs")
-        doc_url = upload_doc.get("secure_url")
+        document_url = upload_doc.get("secure_url")
 
-    # ---- INSERT into employees ----
-    # position (text) we leave NULL; you can later fill it from position_name if you want.
-    cursor.execute("""
+    # ----------- INSERT INTO employees (NO joining_date COLUMN) ----------- #
+    insert_sql = """
         INSERT INTO employees
-        (name, position, email, phone, joining_date, status,
+        (name, position, email, phone, join_date, status,
          image, document, position_id, department_id,
-          emergency_contact, aadhar_no,
+         emergency_contact, aadhar_no,
          address_line1, address_line2, dob,
          pincode, city, district, state)
         VALUES
-        (%s,   %s,      %s,    %s,    %s,        %s,
+        (%s,   %s,       %s,    %s,    %s,        %s,
          %s,    %s,       %s,          %s,
-         %s,           %s,               %s,
-         %s,            %s,            
+         %s,           %s,
+         %s,            %s,            %s,
          %s,      %s,   %s,      %s)
-    """, (
-        name, None, email, phone, joining_date, status,
-        image_url, doc_url, position_id, department_id,
-         emergency_contact, aadhar_no,
+    """
+
+    cur.execute(insert_sql, (
+        name, position_text, email, phone, join_date, status,
+        image_url, document_url, position_id, department_id,
+        emergency_contact, aadhar_no,
         address_line1, address_line2, dob,
         pincode, city, district, state
     ))
 
     mysql.connection.commit()
-    cursor.close()
+    cur.close()
 
     flash("Employee added successfully.", "success")
-    return redirect(url_for("add_employee"))
+    return redirect(url_for("employees"))
 
 
 
@@ -4423,6 +4427,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
