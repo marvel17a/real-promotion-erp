@@ -2031,87 +2031,124 @@ def employee_department_delete(id):
 
 
 
+# ---------- ADMIN SIDE: ADD EMPLOYEE (admin_master.html) ----------
 
 @app.route("/add_employee", methods=["GET", "POST"])
 def add_employee():
-    cursor = mysql.connection.cursor(DictCursor)
+    if "loggedin" not in session:
+        return redirect(url_for("login"))
+
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    # Dropdown data for both GET and POST error re-render
+    cursor.execute("SELECT id, position_name FROM employee_positions ORDER BY position_name")
+    positions = cursor.fetchall()
+
+    cursor.execute("SELECT id, department_name FROM employee_departments ORDER BY department_name")
+    departments = cursor.fetchall()
 
     if request.method == "GET":
-        cursor.execute("SELECT id, name FROM employee_departments")
-        departments = cursor.fetchall()
-
-        cursor.execute("SELECT id, name FROM employee_positions")
-        positions = cursor.fetchall()
-
         cursor.close()
-
         return render_template(
             "employees/add_employee.html",
-            departments=departments,
-            positions=positions
+            positions=positions,
+            departments=departments
         )
 
-    # ------ FORM DATA ------
-    name = request.form['name']
-    email = request.form['email']
-    phone = request.form['phone']
-    dob = request.form['dob']
-    joining_date = request.form['joining_date']
-    emergency_contact = request.form['emergency_contact']
-    status = request.form['status']
+    # ------------ POST: SAVE EMPLOYEE ------------
+    name = request.form.get("name", "").strip()
+    email = request.form.get("email", "").strip()
+    phone = request.form.get("phone", "").strip()
+    dob = request.form.get("dob") or None
+    joining_date = request.form.get("joining_date") or None  # maps to join_date
+    status = request.form.get("status", "active")
 
-    pincode = request.form['pincode']
-    city = request.form['city']
-    district = request.form['district']
-    state = request.form['state']
-    address_line1 = request.form['address_line1']
-    address_line2 = request.form['address_line2']
+    emergency_contact = request.form.get("emergency_contact", "").strip() or None
+    aadhar_no = request.form.get("aadhar_no", "").strip() or None
+     # optional second date
 
-    department_id = request.form['department_id']
-    position_id = request.form['position_id']
+    pincode = request.form.get("pincode", "").strip() or None
+    city = request.form.get("city", "").strip() or None
+    district = request.form.get("district", "").strip() or None
+    state = request.form.get("state", "").strip() or None
 
-    # ------ CLOUDINARY PHOTO + DOCUMENT ------
+    address_line1 = request.form.get("address_line1", "").strip() or None
+    address_line2 = request.form.get("address_line2", "").strip() or None
+
+    department_id = request.form.get("department_id") or None
+    position_id = request.form.get("position_id") or None
+
+    # ---- basic validation ----
+    if not name or not email or not phone:
+        flash("Name, email and phone are required.", "danger")
+        cursor.close()
+        return render_template(
+            "employees/add_employee.html",
+            positions=positions,
+            departments=departments
+        )
+
+    if phone and (not phone.isdigit() or len(phone) != 10):
+        flash("Phone must be 10 digits.", "danger")
+        cursor.close()
+        return render_template(
+            "employees/add_employee.html",
+            positions=positions,
+            departments=departments
+        )
+
+    if emergency_contact and (not emergency_contact.isdigit() or len(emergency_contact) != 10):
+        flash("Emergency contact must be 10 digits.", "danger")
+        cursor.close()
+        return render_template(
+            "employees/add_employee.html",
+            positions=positions,
+            departments=departments
+        )
+
+    # ---- file uploads to Cloudinary ----
     image_url = None
-    document_url = None
+    doc_url = None
 
-    if "image" in request.files:
-        f = request.files["image"]
-        if f and f.filename:
-            upload = cloudinary.uploader.upload(f)
-            image_url = upload["secure_url"]
+    image_file = request.files.get("image")
+    if image_file and image_file.filename:
+        upload_res = cloudinary.uploader.upload(image_file, folder="erp_employees")
+        image_url = upload_res.get("secure_url")
 
-    if "document" in request.files:
-        d = request.files["document"]
-        if d and d.filename:
-            upload2 = cloudinary.uploader.upload(d)
-            document_url = upload2["secure_url"]
+    doc_file = request.files.get("document")
+    if doc_file and doc_file.filename:
+        upload_doc = cloudinary.uploader.upload(doc_file, folder="erp_employee_docs")
+        doc_url = upload_doc.get("secure_url")
 
-    cursor = mysql.connection.cursor()
-
+    # ---- INSERT into employees ----
+    # position (text) we leave NULL; you can later fill it from position_name if you want.
     cursor.execute("""
         INSERT INTO employees
-        (name, email, phone, dob, joining_date, emergency_contact, status,
-         pincode, city, district, state,
-         address_line1, address_line2,
-         department_id, position_id, image, document)
+        (name, position, email, phone, joining_date, status,
+         image, document, position_id, department_id,
+          emergency_contact, aadhar_no,
+         address_line1, address_line2, dob,
+         pincode, city, district, state)
         VALUES
-        (%s,%s,%s,%s,%s,%s,%s,
-         %s,%s,%s,%s,
-         %s,%s,
-         %s,%s,%s,%s)
+        (%s,   %s,      %s,    %s,    %s,        %s,
+         %s,    %s,       %s,          %s,
+         %s,           %s,               %s,
+         %s,            %s,            
+         %s,      %s,   %s,      %s)
     """, (
-        name, email, phone, dob, joining_date, emergency_contact, status,
-        pincode, city, district, state,
-        address_line1, address_line2,
-        department_id, position_id,
-        image_url, document_url
+        name, None, email, phone, joining_date, status,
+        image_url, doc_url, position_id, department_id,
+         emergency_contact, aadhar_no,
+        address_line1, address_line2, dob,
+        pincode, city, district, state
     ))
 
     mysql.connection.commit()
     cursor.close()
 
-    flash("Employee Added Successfully!", "success")
+    flash("Employee added successfully.", "success")
     return redirect(url_for("add_employee"))
+
 
 
 
@@ -4386,6 +4423,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
