@@ -1,46 +1,47 @@
 document.addEventListener("DOMContentLoaded", () => {
-    const pin = document.getElementById("pincode");
+    const pincode = document.getElementById("pincode");
     const city = document.getElementById("city");
     const district = document.getElementById("district");
     const state = document.getElementById("state");
 
-    pin.addEventListener("input", async () => {
-        const pincode = pin.value.trim();
+    pincode.addEventListener("input", async () => {
+        const pin = pincode.value.trim();
 
-        // Validate pincode length
-        if (pincode.length !== 6 || !/^\d+$/.test(pincode)) {
+        if (pin.length !== 6 || !/^\d{6}$/.test(pin)) {
+            city.innerHTML = "<option value=''>Select Area</option>";
+            district.value = "";
+            state.value = "";
             return;
         }
 
-        const url = https://api.postalpincode.in/pincode/${pincode};
-
         try {
-            const res = await fetch(url);
+            const res = await fetch(https://api.postalpincode.in/pincode/${pin});
             const data = await res.json();
 
             if (!data || data[0].Status !== "Success") {
-                city.value = "";
+                city.innerHTML = "<option value=''>Select Area</option>";
                 district.value = "";
                 state.value = "";
                 return;
             }
 
-            const PO = data[0].PostOffice[0];
+            const offices = data[0].PostOffice;
 
-            // City logic (Block → Name → District)
-            let cityValue = PO.Block && PO.Block.trim() !== "" 
-                            ? PO.Block 
-                            : (PO.Name || PO.District);
+            // district & state accurate
+            district.value = offices[0].District;
+            state.value = offices[0].State;
 
-            city.value = cityValue;
-            district.value = PO.District || "";
-            state.value = PO.State || "";
+            city.innerHTML = "<option value=''>Please Select Area</option>";
+            offices.forEach(o => {
+                let area = o.Name || o.BranchType || o.Block || o.District;
+                let op = document.createElement("option");
+                op.value = area;
+                op.textContent = area;
+                city.appendChild(op);
+            });
 
-        } catch (err) {
-            console.error("API failed:", err);
-            city.value = "";
-            district.value = "";
-            state.value = "";
+        } catch (e) {
+            console.log("Pincode JS error", e);
         }
     });
 });
