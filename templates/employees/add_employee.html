@@ -7,123 +7,133 @@
     <form action="{{ url_for('add_employee') }}" method="POST"
           enctype="multipart/form-data" class="glass-card p-4">
 
+        <!-- BASIC INFO -->
         <div class="row mb-3">
-            <div class="col-md-6">
+            <div class="col-md-4">
                 <label class="form-label">Full Name</label>
                 <input type="text" name="name" class="form-control" required>
             </div>
 
-            <div class="col-md-6">
+            <div class="col-md-4">
                 <label class="form-label">Email</label>
                 <input type="email" name="email" class="form-control" required>
             </div>
-        </div>
 
-        <div class="row mb-3">
             <div class="col-md-4">
                 <label class="form-label">Phone</label>
                 <input type="text" name="phone" maxlength="10"
                        pattern="\d{10}" class="form-control" required>
             </div>
-
-            <div class="col-md-4">
-                <label class="form-label">Date of Birth</label>
-                <input type="date" name="dob" class="form-control" required>
-            </div>
-
-            <div class="col-md-4">
-                <label class="form-label">Joining Date</label>
-                <input type="date" name="joining_date" class="form-control" required>
-            </div>
         </div>
 
-        <!-- EMERGENCY CONTACT -->
         <div class="row mb-3">
-            <div class="col-md-6">
-                <label class="form-label">Emergency Contact</label>
-                <input type="text" name="emergency_contact"
-                       maxlength="10" pattern="\d{10}"
-                       class="form-control" required>
+            <div class="col-md-4">
+                <label class="form-label">Date of Birth</label>
+                <input type="date" name="dob" class="form-control">
             </div>
 
-            <div class="col-md-6">
+            <div class="col-md-4">
+                <label class="form-label">Join Date</label>
+                <!-- maps to join_date; if empty DB default curdate() is used -->
+                <input type="date" name="joining_date" class="form-control">
+            </div>
+
+            <div class="col-md-4">
                 <label class="form-label">Status</label>
                 <select name="status" class="form-control" required>
-                    <option value="">Select</option>
-                    <option value="active">Active</option>
+                    <option value="active" selected>Active</option>
                     <option value="inactive">Inactive</option>
                 </select>
             </div>
         </div>
 
-        <!-- PINCODE AUTOFILL -->
+        <!-- EXTRA HR INFO -->
+        <div class="row mb-3">
+            <div class="col-md-4">
+                <label class="form-label">Emergency Contact</label>
+                <input type="text" name="emergency_contact"
+                       maxlength="10" pattern="\d{10}"
+                       class="form-control">
+            </div>
+
+            <div class="col-md-4">
+                <label class="form-label">Aadhar Number</label>
+                <input type="text" name="aadhar_no"
+                       maxlength="12" class="form-control">
+            </div>
+
+            <div class="col-md-4">
+                <label class="form-label">Alternative Joining Date</label>
+                <!-- maps to joining_date (optional) -->
+                <input type="date" name="joining_date" class="form-control">
+            </div>
+        </div>
+
+        <!-- PINCODE / ADDRESS -->
         <div class="row mb-3">
             <div class="col-md-3">
                 <label class="form-label">Pincode</label>
-                <input type="text" id="pincode"
-                       name="pincode" maxlength="6"
-                       pattern="\d{6}" class="form-control" required>
+                <input type="text" id="pincode" name="pincode"
+                       maxlength="6" pattern="\d{6}"
+                       class="form-control">
             </div>
 
             <div class="col-md-3">
                 <label class="form-label">City / Area</label>
-                <select name="city" id="city" class="form-control" required>
+                <select id="city" name="city" class="form-control">
                     <option value="">Select City/Area</option>
                 </select>
             </div>
 
             <div class="col-md-3">
                 <label class="form-label">District</label>
-                <input type="text" name="district" id="district"
-                       class="form-control" readonly required>
+                <input type="text" id="district" name="district"
+                       class="form-control" readonly>
             </div>
 
             <div class="col-md-3">
                 <label class="form-label">State</label>
-                <input type="text" name="state" id="state"
-                       class="form-control" readonly required>
+                <input type="text" id="state" name="state"
+                       class="form-control" readonly>
             </div>
         </div>
 
-        <!-- ADDRESS -->
         <div class="row mb-3">
             <div class="col-md-6">
                 <label class="form-label">Address Line 1</label>
-                <input type="text" name="address_line1"
-                       class="form-control" required>
+                <input type="text" name="address_line1" class="form-control">
             </div>
 
             <div class="col-md-6">
                 <label class="form-label">Address Line 2</label>
-                <input type="text" name="address_line2"
-                       class="form-control">
+                <input type="text" name="address_line2" class="form-control">
             </div>
         </div>
 
-        <!-- DEPARTMENT + POSITIONS -->
+        <!-- DEPARTMENT & POSITION (FKs) -->
         <div class="row mb-3">
             <div class="col-md-6">
                 <label class="form-label">Department</label>
-                <select name="department_id" class="form-control" required>
+                <select name="department_id" class="form-control">
                     <option value="">Select Department</option>
                     {% for d in departments %}
-                    <option value="{{ d.id }}">{{ d.name }}</option>
+                    <option value="{{ d.id }}">{{ d.department_name }}</option>
                     {% endfor %}
                 </select>
             </div>
 
             <div class="col-md-6">
                 <label class="form-label">Position</label>
-                <select name="position_id" class="form-control" required>
+                <select name="position_id" class="form-control">
                     <option value="">Select Position</option>
                     {% for p in positions %}
-                    <option value="{{ p.id }}">{{ p.name }}</option>
+                    <option value="{{ p.id }}">{{ p.position_name }}</option>
                     {% endfor %}
                 </select>
             </div>
         </div>
 
-        <!-- IMAGE + DOCUMENT -->
+        <!-- FILES -->
         <div class="row mb-3">
             <div class="col-md-6">
                 <label class="form-label">Employee Photo</label>
@@ -131,7 +141,7 @@
             </div>
 
             <div class="col-md-6">
-                <label class="form-label">Document File</label>
+                <label class="form-label">Document (ID Proof, etc.)</label>
                 <input type="file" name="document" class="form-control">
             </div>
         </div>
@@ -140,6 +150,7 @@
     </form>
 </div>
 
-<script src="/static/js/pin.js"></script>
+<!-- client-side pincode script -->
+<script src="{{ url_for('static', filename='js/pin.js') }}"></script>
 
 {% endblock %}
