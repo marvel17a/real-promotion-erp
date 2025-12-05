@@ -2033,55 +2033,52 @@ def employee_department_delete(id):
     return redirect(url_for("employee_master"))
 
 
-# 1. ADD EMPLOYEE ROUTE
+# ==========================================
+# FIXED ADD EMPLOYEE ROUTE
+# ==========================================#
 @app.route("/add_employee", methods=["GET", "POST"])
 def add_employee():
+    # 1. Open Database Connection
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
+    # 2. Handle Form Submission (POST)
     if request.method == "POST":
-        # Form Data
-        name = request.form.get("name")
-        email = request.form.get("email")
-        phone = request.form.get("phone")
-        dob = request.form.get("dob") or None
-        
-        # Note: HTML form uses 'join_date', SQL uses 'joining_date'
-        joining_date = request.form.get("join_date") or None 
-        
-        status = request.form.get("status")
-        emergency = request.form.get("emergency_contact")
-        aadhar = request.form.get("aadhar_no")
-        
-        # Handling Position (Text) vs Position ID (FK)
-        position_text = request.form.get("position")
-        position_id = request.form.get("position_id")
-        if position_id == "": position_id = None
-        
-        department_id = request.form.get("department_id")
-        if department_id == "": department_id = None
-
-        # Address Fields
-        pincode = request.form.get("pincode")
-        city = request.form.get("city")
-        district = request.form.get("district") # New Field
-        state = request.form.get("state")       # New Field
-        addr1 = request.form.get("address_line1")
-        addr2 = request.form.get("address_line2")
-
-        # Cloudinary Uploads
-        image_file = request.files.get("image")
-        doc_file = request.files.get("document")
-
-        image_public_id = None
-        doc_public_id = None
-
-        if image_file and image_file.filename:
-            image_public_id = save_file_to_cloudinary(image_file, folder="erp_employees")
-
-        if doc_file and doc_file.filename:
-            doc_public_id = save_file_to_cloudinary(doc_file, folder="erp_employee_docs", resource_type='raw')
-
         try:
+            name = request.form.get("name")
+            email = request.form.get("email")
+            phone = request.form.get("phone")
+            dob = request.form.get("dob") or None
+            # Note: HTML name is 'join_date', DB column is 'joining_date'
+            joining_date = request.form.get("join_date") or None 
+            status = request.form.get("status")
+            emergency = request.form.get("emergency_contact")
+            aadhar = request.form.get("aadhar_no")
+            
+            position_text = request.form.get("position")
+            position_id = request.form.get("position_id") or None
+            department_id = request.form.get("department_id") or None
+
+            # Address Fields
+            pincode = request.form.get("pincode")
+            city = request.form.get("city")
+            district = request.form.get("district")
+            state = request.form.get("state")
+            addr1 = request.form.get("address_line1")
+            addr2 = request.form.get("address_line2")
+
+            # Cloudinary Uploads
+            image_file = request.files.get("image")
+            doc_file = request.files.get("document")
+
+            image_public_id = None
+            doc_public_id = None
+
+            if image_file and image_file.filename:
+                image_public_id = save_file_to_cloudinary(image_file, folder="erp_employees")
+
+            if doc_file and doc_file.filename:
+                doc_public_id = save_file_to_cloudinary(doc_file, folder="erp_employee_docs", resource_type='raw')
+
             sql = """
                 INSERT INTO employees 
                 (name, email, phone, dob, joining_date, status, emergency_contact, aadhar_no,
@@ -2096,15 +2093,38 @@ def add_employee():
             ))
             mysql.connection.commit()
             flash("Employee added successfully!", "success")
-            return redirect(url_for("employee_master"))
             
+            # RETURN 1: Successful POST
+            return redirect(url_for("employee_master"))
+
         except Exception as e:
             mysql.connection.rollback()
             app.logger.error(f"Error adding employee: {e}")
             flash(f"Error adding employee: {e}", "danger")
+            # RETURN 2: Error during POST
             return redirect(url_for("add_employee"))
         finally:
             cur.close()
+
+    # 3. Handle Page Load (GET)
+    # CRITICAL: This must be OUTSIDE the 'if request.method == "POST":' block
+    try:
+        cur.execute("SELECT * FROM employee_departments ORDER BY department_name")
+        departments = cur.fetchall()
+        
+        cur.execute("SELECT * FROM employee_positions ORDER BY position_name")
+        positions = cur.fetchall()
+        
+        # RETURN 3: Normal Page Load
+        return render_template("employees/add_employee.html",
+                               departments=departments,
+                               positions=positions)
+    except Exception as e:
+        app.logger.error(f"Error loading add_employee form: {e}")
+        flash("Could not load form data.", "danger")
+        return redirect(url_for("employee_master"))
+    finally:
+        cur.close()
 
 
 
@@ -4385,6 +4405,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
