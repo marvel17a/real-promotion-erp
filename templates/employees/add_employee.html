@@ -1,142 +1,147 @@
 {% extends "admin_master.html" %}
 {% block page_content %}
 
-<div class="container mt-4">
-    <h2 class="fw-bold mb-4">Add Employee</h2>
+<!-- Link to new Glass Theme -->
+<link rel="stylesheet" href="{{ url_for('static', filename='css/employee.css') }}">
 
-    <form action="{{ url_for('add_employee') }}" method="POST" enctype="multipart/form-data" class="glass-card p-4">
+<div class="container mt-5 mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold text-dark">Add New Employee</h2>
+        <a href="{{ url_for('employee_master') }}" class="btn btn-outline-secondary rounded-pill">
+            <i class="fas fa-arrow-left"></i> Back to Master
+        </a>
+    </div>
 
-        <div class="row mb-3">
-            <div class="col-md-4">
-                <label class="form-label">Full Name</label>
-                <input type="text" name="name" class="form-control" required>
+    <!-- Glass Card Form -->
+    <div class="glass-card">
+        <form action="{{ url_for('add_employee') }}" method="POST" enctype="multipart/form-data" id="addEmployeeForm">
+            
+            <h5 class="text-muted mb-4 border-bottom pb-2">Basic Details</h5>
+            <div class="row mb-4">
+                <div class="col-md-4">
+                    <label class="form-label">Full Name <span class="text-danger">*</span></label>
+                    <input type="text" name="name" class="form-control" placeholder="John Doe" required>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Email</label>
+                    <input type="email" name="email" class="form-control" placeholder="john@example.com">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Phone <span class="text-danger">*</span></label>
+                    <input type="text" name="phone" maxlength="10" pattern="\d{10}" class="form-control" placeholder="9876543210" required>
+                </div>
             </div>
 
-            <div class="col-md-4">
-                <label class="form-label">Email</label>
-                <input type="email" name="email" class="form-control">
+            <div class="row mb-4">
+                <div class="col-md-4">
+                    <label class="form-label">Date of Birth</label>
+                    <input type="date" name="dob" class="form-control">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Join Date</label>
+                    <input type="date" name="join_date" class="form-control">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Status</label>
+                    <select name="status" class="form-select">
+                        <option value="active" selected>Active</option>
+                        <option value="inactive">Inactive</option>
+                    </select>
+                </div>
             </div>
 
-            <div class="col-md-4">
-                <label class="form-label">Phone</label>
-                <input type="text" name="phone" maxlength="10" pattern="\d{10}" class="form-control">
-            </div>
-        </div>
-
-        <div class="row mb-3">
-            <div class="col-md-4">
-                <label class="form-label">Date of Birth</label>
-                <input type="date" name="dob" class="form-control">
-            </div>
-
-            <div class="col-md-4">
-                <label class="form-label">Join Date</label>
-                <input type="date" name="join_date" class="form-control">
+            <div class="row mb-4">
+                <div class="col-md-4">
+                    <label class="form-label">Emergency Contact</label>
+                    <input type="text" name="emergency_contact" maxlength="10" pattern="\d{10}" class="form-control">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Aadhar Number</label>
+                    <input type="text" name="aadhar_no" maxlength="12" class="form-control">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Position Title (Optional)</label>
+                    <input type="text" name="position" class="form-control" placeholder="e.g. Senior Dev">
+                </div>
             </div>
 
-            <div class="col-md-4">
-                <label class="form-label">Status</label>
-                <select name="status" class="form-control">
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                </select>
-            </div>
-        </div>
-
-        <div class="row mb-3">
-            <div class="col-md-4">
-                <label class="form-label">Emergency Contact</label>
-                <input type="text" name="emergency_contact" maxlength="10" pattern="\d{10}" class="form-control">
-            </div>
-
-            <div class="col-md-4">
-                <label class="form-label">Aadhar Number</label>
-                <input type="text" name="aadhar_no" maxlength="12" class="form-control">
-            </div>
-
-            <div class="col-md-4">
-                <label class="form-label">Position Title (optional)</label>
-                <input type="text" name="position" class="form-control">
-            </div>
-        </div>
-
-        <!-- PINCODE AREA FIXED -->
-        <div class="row mb-3">
-            <div class="col-md-3">
-                <label class="form-label">Pincode</label>
-                <input type="text" id="pincode" name="pincode" maxlength="6" pattern="\d{6}" class="form-control">
+            <h5 class="text-muted mb-4 border-bottom pb-2 mt-2">Address & Location (Auto-fill)</h5>
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <label class="form-label">Pincode <span class="text-danger">*</span></label>
+                    <input type="text" id="pincode" name="pincode" maxlength="6" pattern="\d{6}" class="form-control" placeholder="Enter Pincode" required>
+                    <small class="text-muted">Enter 6 digit pincode to fetch details</small>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">City / Area</label>
+                    <select id="city" name="city" class="form-select" required>
+                        <option value="">Select City/Area</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">District</label>
+                    <input type="text" id="district" name="district" class="form-control bg-light" readonly>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">State</label>
+                    <input type="text" id="state" name="state" class="form-control bg-light" readonly>
+                </div>
             </div>
 
-            <div class="col-md-3">
-                <label class="form-label">City / Area</label>
-                <select id="city" name="city" class="form-control">
-                    <option value="">Select City/Area</option>
-                </select>
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <label class="form-label">Address Line 1</label>
+                    <input type="text" name="address_line1" class="form-control" placeholder="Flat No, Building">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Address Line 2</label>
+                    <input type="text" name="address_line2" class="form-control" placeholder="Street, Landmark">
+                </div>
             </div>
 
-            <div class="col-md-3">
-                <label class="form-label">District</label>
-                <input type="text" id="district" name="district" class="form-control" readonly>
+            <h5 class="text-muted mb-4 border-bottom pb-2 mt-2">Organization Details</h5>
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <label class="form-label">Department <span class="text-danger">*</span></label>
+                    <select name="department_id" class="form-select" required>
+                        <option value="">Select Department</option>
+                        {% for d in departments %}
+                            <option value="{{ d.id }}">{{ d.department_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Position (Master) <span class="text-danger">*</span></label>
+                    <select name="position_id" class="form-select" required>
+                        <option value="">Select Position</option>
+                        {% for p in positions %}
+                            <option value="{{ p.id }}">{{ p.position_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
             </div>
 
-            <div class="col-md-3">
-                <label class="form-label">State</label>
-                <input type="text" id="state" name="state" class="form-control" readonly>
-            </div>
-        </div>
-
-        <div class="row mb-3">
-            <div class="col-md-6">
-                <label class="form-label">Address Line 1</label>
-                <input type="text" name="address_line1" class="form-control">
-            </div>
-
-            <div class="col-md-6">
-                <label class="form-label">Address Line 2</label>
-                <input type="text" name="address_line2" class="form-control">
-            </div>
-        </div>
-
-        <!-- DEPARTMENT+POSITION CORRECTED -->
-        <div class="row mb-3">
-            <div class="col-md-6">
-                <label class="form-label">Department</label>
-                <select name="department_id" class="form-control">
-                    <option value="">Select Department</option>
-                    {% for d in departments %}
-                        <option value="{{ d.id }}">{{ d.department_name }}</option>
-                    {% endfor %}
-                </select>
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <label class="form-label">Employee Photo</label>
+                    <input type="file" name="image" class="form-control">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Documents (PDF)</label>
+                    <input type="file" name="document" class="form-control">
+                </div>
             </div>
 
-            <div class="col-md-6">
-                <label class="form-label">Position (Master)</label>
-                <select name="position_id" class="form-control">
-                    <option value="">Select Position</option>
-                    {% for p in positions %}
-                        <option value="{{ p.id }}">{{ p.position_name }}</option>
-                    {% endfor %}
-                </select>
+            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                <button type="submit" class="btn btn-glass-primary px-5">
+                    <i class="fas fa-save me-2"></i> Save Employee
+                </button>
             </div>
-        </div>
-
-        <!-- FILE UPLOADS -->
-        <div class="row mb-3">
-            <div class="col-md-6">
-                <label class="form-label">Employee Photo</label>
-                <input type="file" name="image" class="form-control">
-            </div>
-
-            <div class="col-md-6">
-                <label class="form-label">Document</label>
-                <input type="file" name="document" class="form-control">
-            </div>
-        </div>
-
-        <button class="btn btn-primary mt-3">Save Employee</button>
-    </form>
+        </form>
+    </div>
 </div>
 
 <script src="{{ url_for('static', filename='js/pincode.js') }}"></script>
+<script src="{{ url_for('static', filename='js/employee_add.js') }}"></script>
 
 {% endblock %}
