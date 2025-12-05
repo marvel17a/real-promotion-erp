@@ -4,10 +4,8 @@
 <div class="container mt-4">
     <h2 class="fw-bold mb-4">Add Employee</h2>
 
-    <form action="{{ url_for('add_employee') }}" method="POST"
-          enctype="multipart/form-data" class="glass-card p-4">
+    <form action="{{ url_for('add_employee') }}" method="POST" enctype="multipart/form-data" class="glass-card p-4">
 
-        <!-- BASIC INFO -->
         <div class="row mb-3">
             <div class="col-md-4">
                 <label class="form-label">Full Name</label>
@@ -16,13 +14,12 @@
 
             <div class="col-md-4">
                 <label class="form-label">Email</label>
-                <input type="email" name="email" class="form-control" required>
+                <input type="email" name="email" class="form-control">
             </div>
 
             <div class="col-md-4">
                 <label class="form-label">Phone</label>
-                <input type="text" name="phone" maxlength="10"
-                       pattern="\d{10}" class="form-control" required>
+                <input type="text" name="phone" maxlength="10" pattern="\d{10}" class="form-control">
             </div>
         </div>
 
@@ -34,48 +31,40 @@
 
             <div class="col-md-4">
                 <label class="form-label">Join Date</label>
-                <!-- maps to column join_date -->
                 <input type="date" name="join_date" class="form-control">
             </div>
 
             <div class="col-md-4">
                 <label class="form-label">Status</label>
-                <select name="status" class="form-control" required>
-                    <option value="active" selected>Active</option>
+                <select name="status" class="form-control">
+                    <option value="active">Active</option>
                     <option value="inactive">Inactive</option>
                 </select>
             </div>
         </div>
 
-        <!-- EXTRA HR INFO -->
         <div class="row mb-3">
             <div class="col-md-4">
                 <label class="form-label">Emergency Contact</label>
-                <input type="text" name="emergency_contact"
-                       maxlength="10" pattern="\d{10}"
-                       class="form-control">
+                <input type="text" name="emergency_contact" maxlength="10" pattern="\d{10}" class="form-control">
             </div>
 
             <div class="col-md-4">
                 <label class="form-label">Aadhar Number</label>
-                <input type="text" name="aadhar_no"
-                       maxlength="12" class="form-control">
+                <input type="text" name="aadhar_no" maxlength="12" class="form-control">
             </div>
 
             <div class="col-md-4">
-                <!-- optional free-text position label, mapped to employees.position -->
-                <label class="form-label">Position Title (optional text)</label>
+                <label class="form-label">Position Title (optional)</label>
                 <input type="text" name="position" class="form-control">
             </div>
         </div>
 
-        <!-- PINCODE / ADDRESS -->
+        <!-- PINCODE AREA FIXED -->
         <div class="row mb-3">
             <div class="col-md-3">
                 <label class="form-label">Pincode</label>
-                <input type="text" id="pincode" name="pincode"
-                       maxlength="6" pattern="\d{6}"
-                       class="form-control">
+                <input type="text" id="pincode" name="pincode" maxlength="6" pattern="\d{6}" class="form-control">
             </div>
 
             <div class="col-md-3">
@@ -87,14 +76,12 @@
 
             <div class="col-md-3">
                 <label class="form-label">District</label>
-                <input type="text" id="district" name="district"
-                       class="form-control" readonly>
+                <input type="text" id="district" name="district" class="form-control" readonly>
             </div>
 
             <div class="col-md-3">
                 <label class="form-label">State</label>
-                <input type="text" id="state" name="state"
-                       class="form-control" readonly>
+                <input type="text" id="state" name="state" class="form-control" readonly>
             </div>
         </div>
 
@@ -110,14 +97,14 @@
             </div>
         </div>
 
-        <!-- DEPARTMENT & POSITION (FKs) -->
+        <!-- DEPARTMENT+POSITION CORRECTED -->
         <div class="row mb-3">
             <div class="col-md-6">
                 <label class="form-label">Department</label>
                 <select name="department_id" class="form-control">
                     <option value="">Select Department</option>
                     {% for d in departments %}
-                    <option value="{{ d.id }}">{{ d.department_name }}</option>
+                        <option value="{{ d.id }}">{{ d.department_name }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -127,13 +114,13 @@
                 <select name="position_id" class="form-control">
                     <option value="">Select Position</option>
                     {% for p in positions %}
-                    <option value="{{ p.id }}">{{ p.position_name }}</option>
+                        <option value="{{ p.id }}">{{ p.position_name }}</option>
                     {% endfor %}
                 </select>
             </div>
         </div>
 
-        <!-- FILES -->
+        <!-- FILE UPLOADS -->
         <div class="row mb-3">
             <div class="col-md-6">
                 <label class="form-label">Employee Photo</label>
@@ -141,7 +128,7 @@
             </div>
 
             <div class="col-md-6">
-                <label class="form-label">Document (ID Proof, etc.)</label>
+                <label class="form-label">Document</label>
                 <input type="file" name="document" class="form-control">
             </div>
         </div>
@@ -150,7 +137,6 @@
     </form>
 </div>
 
-<!-- client-side pincode script -->
 <script src="{{ url_for('static', filename='js/pincode.js') }}"></script>
 
 {% endblock %}
