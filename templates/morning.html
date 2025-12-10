@@ -6,12 +6,7 @@
 
 <div class="container fade-in-up py-4">
 
-    <!-- Company Header -->
-    <div class="text-center mb-4">
-        <h2 class="fw-bold text-dark">REAL PROMOTION</h2>
-        <p class="text-muted fst-italic">SINCE 2005</p>
-    </div>
-    
+    <!-- Header -->
     <div class="row mb-4 align-items-center">
         <div class="col-md-8">
             <h3 class="fw-bold text-primary mb-0"><i class="fa-solid fa-sun me-2"></i>Morning Allocation</h3>
@@ -19,11 +14,12 @@
         </div>
         <div class="col-md-4 text-md-end mt-3 mt-md-0">
             <a href="{{ url_for('allocation_list') }}" class="btn btn-outline-primary rounded-pill px-4 shadow-sm">
-                <i class="fa-solid fa-list-check me-2"></i> View History
+                <i class="fa-solid fa-clock-rotate-left me-2"></i> View History
             </a>
         </div>
     </div>
 
+    <!-- Main Card -->
     <div class="card glass-card border-0 p-4 mb-5">
         <form id="morningForm" method="POST" action="{{ url_for('morning') }}">
             
@@ -33,7 +29,7 @@
                     <div class="input-group shadow-sm">
                         <span class="input-group-text bg-white border-end-0"><i class="fa-solid fa-user text-muted"></i></span>
                         <select name="employee_id" id="employee_id" class="form-select border-start-0 ps-0" required>
-                            <option value="">-- Choose Employee --</option>
+                            <option value="">-- Choose Staff --</option>
                             {% for emp in employees %}
                             <option value="{{ emp.id }}">{{ emp.name }}</option>
                             {% endfor %}
@@ -45,18 +41,21 @@
                     <label class="form-label fw-bold text-secondary small text-uppercase">Allocation Date</label>
                     <div class="input-group shadow-sm">
                         <span class="input-group-text bg-white border-end-0"><i class="fa-solid fa-calendar text-muted"></i></span>
-                        <input type="text" name="date" id="date" class="form-control border-start-0 ps-0 flatpickr-input" placeholder="Select Date" value="{{ today_date }}" required>
+                        <!-- Flatpickr attached here -->
+                        <input type="text" name="date" id="date" class="form-control border-start-0 ps-0" value="{{ today_date }}" required>
                     </div>
                 </div>
             </div>
 
-            <div id="fetchMsg" class="alert alert-soft-info d-none mb-3 border-0"></div>
+            <!-- Fetch Status Message -->
+            <div id="fetchMsg" class="alert d-none mb-3 border-0 shadow-sm rounded-3"></div>
 
+            <!-- Table -->
             <div class="table-responsive rounded-3 shadow-sm border mb-4">
                 <table class="table table-hover align-middle mb-0" id="productTable">
                     <thead class="bg-light text-secondary small text-uppercase">
                         <tr>
-                            <th class="ps-3" style="width: 50px;">No</th>
+                            <th class="ps-3" style="width: 50px;">#</th>
                             <th style="min-width: 250px;">Product Name</th>
                             <th style="width: 100px;">Opening</th>
                             <th style="width: 120px;">Given</th>
@@ -67,11 +66,7 @@
                         </tr>
                     </thead>
                     <tbody class="bg-white">
-                        <tr>
-                            <td colspan="8" class="text-center text-muted py-5">
-                                <i class="fa-solid fa-arrow-up me-2"></i>Select Employee & Date to start
-                            </td>
-                        </tr>
+                        <!-- JS creates rows here -->
                     </tbody>
                     <tfoot class="bg-light fw-bold text-dark">
                         <tr>
@@ -108,24 +103,18 @@
         box-shadow: 0 4px 20px rgba(0,0,0,0.05);
     }
     .hover-scale:hover { transform: translateY(-2px); transition: 0.3s; }
-    .alert-soft-info { background-color: #e0f2fe; color: #0284c7; }
-    
-    /* Input Styling inside Table */
-    .form-control-sm { border-radius: 6px; border: 1px solid #e2e8f0; }
-    .form-control-sm:focus { border-color: #4f46e5; box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1); }
-    
-    /* Date Picker Fix */
     .flatpickr-calendar { box-shadow: 0 10px 30px rgba(0,0,0,0.1) !important; border: none !important; }
 </style>
 
+
+<!-- FIXED JSON INJECTION -->
 <script>
-    window.productsData = {{ products | tojson | safe }};
-    window.productOptions = {{ productOptions | tojson | safe }};
+    window.productsData = JSON.parse({{ products | tojson | safe }});
+    window.productOptions = {{ productOptions | safe }};
     
-    // Initialize Flatpickr with DD-MM-YYYY format
     document.addEventListener("DOMContentLoaded", function() {
         flatpickr("#date", {
-            dateFormat: "d-m-Y",   // ✅ changed to DD-MM-YYYY
+            dateFormat: "d-m-Y",
             defaultDate: "{{ today_date }}",
             allowInput: true
         });
@@ -134,4 +123,3 @@
 
 <script src="{{ url_for('static', filename='js/morning.js') }}"></script>
 {% endblock %}
-
