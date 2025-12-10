@@ -3,44 +3,62 @@
 {% block content %}
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
 
-<div class="container fade-in-up py-4 mb-5">
-    
-    <div class="text-center mb-5">
-        <h3 class="fw-bold text-dark"><i class="fa-solid fa-moon text-primary me-2"></i>Evening Settlement</h3>
-        <p class="text-muted small">Reconcile stock and payments.</p>
+<div class="glass-container fade-in-up mb-5">
+
+    <!-- Premium Header -->
+    <div class="glass-header d-flex flex-wrap justify-content-between align-items-center mb-4 p-4">
+        <div class="address-block text-muted small" style="max-width: 350px; font-size: 0.85rem;">
+            <i class="fa-solid fa-location-dot text-primary me-2"></i>
+            <strong>Real Promotion</strong>, G/12, Tulsimangalam Complex,<br>
+            B/h. Trimurti Complex, Ghodiya Bazar,<br>
+            Nadiad-387001, Gujarat, India
+        </div>
+        <div class="brand-block text-end mt-3 mt-md-0">
+            <h1 class="company-name text-gradient fw-bold mb-0">REAL PROMOTION</h1>
+            <p class="since-text text-secondary mb-0 letter-spacing-2">SINCE 2005</p>
+        </div>
     </div>
 
-    <!-- Filter -->
-    <div class="card glass-card border-0 p-4 mb-4">
+    <!-- Filter Panel -->
+    <div class="glass-panel p-4 mb-4">
         <div class="row g-3 align-items-end">
             <div class="col-md-5">
-                <label class="form-label fw-bold text-secondary small text-uppercase">Employee</label>
-                <select class="form-select form-select-lg shadow-sm" id="employee_id">
-                    <option value="">-- Select Staff --</option>
-                    {% for emp in employees %}
-                        <option value="{{ emp.id }}">{{ emp.name }}</option>
-                    {% endfor %}
-                </select>
+                <label class="form-label text-uppercase small fw-bold text-secondary">Sales Representative</label>
+                <div class="input-group input-group-glass">
+                    <span class="input-group-text"><i class="fa-solid fa-user-tie"></i></span>
+                    <select class="form-select" id="employee_id">
+                        <option value="">-- Select Staff --</option>
+                        {% for emp in employees %}
+                            <option value="{{ emp.id }}">{{ emp.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
             </div>
             <div class="col-md-4">
-                <label class="form-label fw-bold text-secondary small text-uppercase">Date</label>
-                <input type="text" class="form-control form-control-lg shadow-sm" id="date" value="{{ today }}">
+                <label class="form-label text-uppercase small fw-bold text-secondary">Settlement Date</label>
+                <div class="input-group input-group-glass">
+                    <span class="input-group-text"><i class="fa-solid fa-calendar-day"></i></span>
+                    <input type="text" class="form-control" id="date" value="{{ today }}">
+                </div>
             </div>
             <div class="col-md-3">
-                <button type="button" id="btnFetch" class="btn btn-primary btn-lg w-100 shadow hover-scale">
-                    <i class="fa-solid fa-download me-2"></i> Load Data
+                <button type="button" id="btnFetch" class="btn btn-gradient-primary w-100 py-2 shadow-sm">
+                    <i class="fa-solid fa-sync-alt me-2"></i> Load Allocation
                 </button>
             </div>
         </div>
-        <div id="fetchMsg" class="mt-2 fw-bold"></div>
+        <div id="fetchMsg" class="mt-2 text-center fw-bold small"></div>
     </div>
 
-    <!-- Success -->
+    <!-- Success Message -->
     {% if last_settle_id %}
-    <div class="alert alert-success border-0 shadow-sm d-flex justify-content-between align-items-center mb-4">
-        <span><i class="fa-solid fa-check-circle me-2"></i>Saved!</span>
-        <a href="{{ url_for('generate_pdf', settle_id=last_settle_id) }}" class="btn btn-sm btn-white text-success fw-bold shadow-sm" target="_blank">PDF</a>
+    <div class="glass-panel p-3 mb-4 border-success-subtle bg-success-subtle d-flex justify-content-between align-items-center">
+        <span class="text-success fw-bold"><i class="fa-solid fa-check-circle me-2"></i>Saved successfully!</span>
+        <a href="{{ url_for('generate_pdf', settle_id=last_settle_id) }}" class="btn btn-sm btn-white text-success fw-bold shadow-sm" target="_blank">
+            <i class="fa-solid fa-file-pdf me-2"></i> Receipt
+        </a>
     </div>
     {% endif %}
 
@@ -51,105 +69,155 @@
 
         <div class="row g-4">
             
-            <!-- Stock Table with Images -->
+            <!-- Stock Table -->
             <div class="col-lg-8">
-                <div class="card glass-card border-0 h-100">
-                    <div class="card-header bg-transparent border-0 pt-4 px-4 pb-2">
-                        <h5 class="fw-bold"><i class="fa-solid fa-box-open me-2 text-primary"></i>Stock</h5>
+                <div class="glass-panel h-100 p-0 overflow-hidden">
+                    <div class="p-3 border-bottom bg-light bg-opacity-50">
+                        <h5 class="fw-bold mb-0 text-dark"><i class="fa-solid fa-boxes-stacked me-2 text-primary"></i>Stock Reconciliation</h5>
                     </div>
-                    <div class="card-body p-0">
-                        <div class="table-responsive">
-                            <table class="table align-middle table-hover mb-0" id="productsTable">
-                                <thead class="bg-light text-secondary small text-uppercase">
-                                    <tr>
-                                        <th class="ps-4" style="width: 60px;">Img</th>
-                                        <th>Product</th>
-                                        <th class="text-center">Total</th>
-                                        <th style="width: 90px;">Sold</th>
-                                        <th style="width: 90px;">Return</th>
-                                        <th class="text-center">Left</th>
-                                        <th class="text-end pe-4">Revenue</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="rowsArea" class="bg-white">
-                                    <tr><td colspan="7" class="text-center text-muted py-5">Load data to begin...</td></tr>
-                                </tbody>
-                            </table>
-                        </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0" id="productsTable">
+                            <thead class="bg-light text-secondary small text-uppercase">
+                                <tr>
+                                    <th class="ps-4" style="width: 80px;">Img</th> <!-- Wider column for larger image -->
+                                    <th>Product</th>
+                                    <th class="text-center">Total</th>
+                                    <th style="width: 90px;">Sold</th>
+                                    <th style="width: 90px;">Return</th>
+                                    <th class="text-center">Left</th>
+                                    <th class="text-end pe-4">Revenue</th>
+                                </tr>
+                            </thead>
+                            <tbody id="rowsArea" class="bg-white">
+                                <tr><td colspan="7" class="text-center text-muted py-5">Load data to begin...</td></tr>
+                            </tbody>
+                        </table>
                     </div>
-                    <div class="card-footer bg-light border-0 py-3">
-                        <div class="d-flex justify-content-between fw-bold text-dark">
-                            <span>Total Sold: <span id="totSold" class="text-primary">0</span></span>
-                            <span>Total Revenue: <span id="totAmount">0.00</span></span>
-                        </div>
+                    <div class="p-3 bg-light border-top d-flex justify-content-between fw-bold text-dark">
+                        <span>Total Sold: <span id="totSold" class="text-primary">0</span></span>
+                        <span>Total Revenue: <span id="totAmount">0.00</span></span>
                     </div>
                 </div>
             </div>
 
-            <!-- Payments -->
+            <!-- Payment Card -->
             <div class="col-lg-4">
-                <div class="card glass-card border-0 h-100">
-                    <div class="card-header bg-transparent border-0 pt-4 px-4">
-                        <h5 class="fw-bold"><i class="fa-solid fa-wallet me-2 text-success"></i>Payment</h5>
+                <div class="glass-panel h-100 p-4">
+                    <h5 class="fw-bold mb-4 text-dark"><i class="fa-solid fa-cash-register me-2 text-success"></i>Settlement</h5>
+                    
+                    <div class="total-display p-4 mb-4 text-center rounded-4 shadow-inner">
+                        <small class="text-uppercase text-muted fw-bold d-block mb-1">Total Sales Value</small>
+                        <h2 class="fw-bold text-gradient mb-0">₹ <input type="number" id="totalAmount" name="totalAmount" class="d-inline border-0 bg-transparent text-center fw-bold text-gradient" style="width: 140px;" value="0.00" readonly></h2>
                     </div>
-                    <div class="card-body px-4">
-                        
-                        <div class="mb-4 text-center p-3 bg-light rounded-3">
-                            <small class="text-uppercase text-muted fw-bold">Total Sales Value</small>
-                            <h2 class="fw-bold text-dark mb-0">₹ <input type="number" id="totalAmount" name="totalAmount" class="d-inline border-0 bg-transparent text-center fw-bold text-dark" style="width: 120px;" value="0.00" readonly></h2>
-                        </div>
 
+                    <div class="payment-inputs">
                         <div class="mb-3">
                             <label class="form-label small fw-bold text-secondary">Discount</label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-white border-end-0">₹</span>
-                                <input type="number" name="discount" id="discount" class="form-control form-control-lg border-start-0" placeholder="0" min="0" step="0.01">
+                            <div class="input-group input-group-glass">
+                                <span class="input-group-text text-warning"><i class="fa-solid fa-tag"></i></span>
+                                <input type="number" name="discount" id="discount" class="form-control" placeholder="0" min="0" step="0.01">
                             </div>
                         </div>
 
                         <div class="mb-3">
-                            <label class="form-label small fw-bold text-secondary">Cash</label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-white border-end-0"><i class="fa-solid fa-money-bill text-success"></i></span>
-                                <input type="number" name="cash" id="cash" class="form-control form-control-lg border-start-0" placeholder="0" min="0" step="0.01">
+                            <label class="form-label small fw-bold text-secondary">Cash Received</label>
+                            <div class="input-group input-group-glass">
+                                <span class="input-group-text text-success"><i class="fa-solid fa-money-bill-wave"></i></span>
+                                <input type="number" name="cash" id="cash" class="form-control" placeholder="0" min="0" step="0.01">
                             </div>
                         </div>
 
                         <div class="mb-4">
-                            <label class="form-label small fw-bold text-secondary">Online</label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-white border-end-0"><i class="fa-solid fa-qrcode text-primary"></i></span>
-                                <input type="number" name="online" id="online" class="form-control form-control-lg border-start-0" placeholder="0" min="0" step="0.01">
+                            <label class="form-label small fw-bold text-secondary">Online Received</label>
+                            <div class="input-group input-group-glass">
+                                <span class="input-group-text text-info"><i class="fa-solid fa-qrcode"></i></span>
+                                <input type="number" name="online" id="online" class="form-control" placeholder="0" min="0" step="0.01">
                             </div>
                         </div>
+                    </div>
 
-                        <hr>
-                        <div class="alert alert-warning border-0 text-center mb-0">
-                            <small class="text-uppercase fw-bold text-danger">Due</small>
-                            <h3 class="fw-bold text-danger mb-0">₹ <span id="dueAmount">0.00</span></h3>
-                        </div>
+                    <div class="due-card p-3 rounded-3 text-center border border-danger border-opacity-25 bg-danger bg-opacity-10">
+                        <small class="text-uppercase fw-bold text-danger">Pending Due</small>
+                        <h3 class="fw-bold text-danger mb-0">₹ <span id="dueAmount">0.00</span></h3>
                     </div>
                 </div>
             </div>
         </div>
 
-        <nav class="navbar fixed-bottom bg-white border-top shadow-lg py-3" style="z-index: 1050;">
+        <!-- Sticky Submit Footer -->
+        <nav class="navbar fixed-bottom glass-header border-top shadow-lg py-3" style="z-index: 1050;">
             <div class="container d-flex justify-content-between align-items-center">
-                <div>
-                    <small class="text-muted d-block">Net Balance</small>
-                    <span class="fw-bold text-dark fs-5">Due: ₹ <span id="stickyDue">0.00</span></span>
+                <div class="d-flex align-items-center">
+                    <div class="icon-circle bg-dark text-white me-3 rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                        <i class="fa-solid fa-scale-balanced"></i>
+                    </div>
+                    <div>
+                        <small class="text-muted d-block lh-1">Net Balance</small>
+                        <span class="fw-bold text-dark fs-5">Due: ₹ <span id="stickyDue">0.00</span></span>
+                    </div>
                 </div>
-                <button type="submit" class="btn btn-dark rounded-pill px-4 shadow">Submit</button>
+                <button type="submit" class="btn btn-dark rounded-pill px-5 shadow hover-lift fw-bold">
+                    <i class="fa-solid fa-paper-plane me-2"></i> Submit
+                </button>
             </div>
         </nav>
+
     </form>
 </div>
 
 <style>
-    .glass-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
-    .product-thumb { width: 40px; height: 40px; object-fit: cover; border-radius: 8px; border: 1px solid #eee; }
-    .hover-scale:hover { transform: translateY(-2px); transition: 0.3s; }
-    body { padding-bottom: 100px; }
+    /* Theme + Evening Specifics */
+    body { background: #f0f2f5; font-family: 'Poppins', sans-serif; padding-bottom: 100px; }
+    .glass-container { max-width: 1200px; margin: 2rem auto; padding: 0 15px; }
+    
+    .glass-header {
+        background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(12px);
+        border-radius: 20px; border: 1px solid rgba(255, 255, 255, 0.5);
+        box-shadow: 0 8px 32px rgba(0,0,0,0.05);
+    }
+    .text-gradient { background: linear-gradient(45deg, #1a237e, #0d47a1); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .letter-spacing-2 { letter-spacing: 2px; font-size: 0.75rem; }
+
+    .glass-panel {
+        background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(16px);
+        border-radius: 24px; border: 1px solid rgba(255, 255, 255, 0.6);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.04);
+    }
+
+    /* Input Styling */
+    .input-group-glass .input-group-text { background: white; border: 1px solid #eee; border-right: none; border-radius: 12px 0 0 12px; }
+    .input-group-glass .form-control, .input-group-glass .form-select { background: white; border: 1px solid #eee; border-left: none; border-radius: 0 12px 12px 0; padding: 0.6rem; }
+    .input-group-glass .form-control:focus, .input-group-glass .form-select:focus { border-color: #0d47a1; box-shadow: none; }
+
+    /* Payment & Table */
+    .total-display { background: #f8f9fa; box-shadow: inset 0 2px 6px rgba(0,0,0,0.03); }
+    .table input.form-control { border: 1px solid transparent; background: transparent; text-align: center; font-weight: 600; }
+    .table input.form-control:focus { background: white; border: 1px solid #ddd; box-shadow: 0 0 0 3px rgba(0,0,0,0.05); border-radius: 6px; }
+    .table input.sold { color: #0d47a1; background: #e3f2fd; border-radius: 6px; }
+    .table input.return { color: #c62828; }
+
+    .btn-gradient-primary { background: linear-gradient(135deg, #1a237e 0%, #0d47a1 100%); color: white; border: none; transition: 0.3s; }
+    .btn-gradient-primary:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(13, 71, 161, 0.3); color: white; }
+    
+    /* Enlarged Image Style */
+    .product-thumb { 
+        width: 55px; 
+        height: 55px; 
+        object-fit: cover; 
+        border-radius: 8px; 
+        border: 2px solid white; 
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1); 
+        transition: transform 0.2s ease;
+        cursor: pointer;
+    }
+    .product-thumb:hover {
+        transform: scale(2.0); /* Zoom */
+        z-index: 100;
+        position: relative;
+        box-shadow: 0 10px 20px rgba(0,0,0,0.15);
+        border-color: #0d47a1;
+    }
+
     .flatpickr-calendar { box-shadow: 0 10px 30px rgba(0,0,0,0.1) !important; border: none !important; }
 </style>
 
