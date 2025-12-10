@@ -1,8 +1,7 @@
 document.addEventListener("DOMContentLoaded", () => {
     
-    // 1. UI Elements
+    // 1. UI Elements (Must match HTML IDs)
     const ui = {
-        // Matched ID to 'evening.html'
         employeeSelect: document.getElementById("employee_id"), 
         dateInput: document.getElementById("date"),
         fetchButton: document.getElementById("btnFetch"),
@@ -44,7 +43,7 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        // Set Hidden Values (REQUIRED by Backend)
+        // Set Hidden Values (CRITICAL for Backend)
         ui.hidden.employee.value = employeeId;
         ui.hidden.date.value = dateStr;
 
@@ -59,7 +58,7 @@ document.addEventListener("DOMContentLoaded", () => {
             ui.hidden.allocationId.value = data.allocation_id;
 
             if (!data.items || data.items.length === 0) {
-                ui.tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-warning p-4 fw-bold">No morning items found.</td></tr>';
+                ui.tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-warning p-4 fw-bold">No items allocated this morning.</td></tr>';
                 return;
             }
 
