@@ -2668,26 +2668,24 @@ def exp_report():
 
 
 # =============================================================================
-# COPY THIS INTO app.py - REPLACING OLD MORNING/EVENING ROUTES
+# COPY THIS INTO app.py - REPLACES MORNING & EVENING ROUTES
 # =============================================================================
 
-from datetime import datetime, date, timedelta  # Standardized imports
+from datetime import datetime, date, timedelta
 
-# --- Helper to handle DD-MM-YYYY to YYYY-MM-DD ---
+# --- Helper: Robust Date Parsing ---
 def parse_date(date_str):
     if not date_str: return None
     try:
-        # Try DD-MM-YYYY first (Frontend Format)
         return datetime.strptime(date_str, "%d-%m-%Y").date()
     except ValueError:
         try:
-            # Try YYYY-MM-DD (Database Format)
             return datetime.strptime(date_str, "%Y-%m-%d").date()
         except ValueError:
             return None
 
 # ---------------------------------------------------------
-# 1. MORNING ALLOCATION (Entry Page)
+# 1. MORNING ALLOCATION
 # ---------------------------------------------------------
 @app.route('/morning', methods=['GET', 'POST'])
 def morning():
@@ -2712,35 +2710,21 @@ def morning():
 
             formatted_date = date_obj.strftime('%Y-%m-%d')
 
-            # Check duplication
-            db_cursor.execute(
-                "SELECT id FROM morning_allocations WHERE employee_id=%s AND date=%s",
-                (employee_id, formatted_date)
-            )
+            # Check Duplication
+            db_cursor.execute("SELECT id FROM morning_allocations WHERE employee_id=%s AND date=%s", (employee_id, formatted_date))
             if db_cursor.fetchone():
-                db_cursor.close()
                 flash("Allocation already exists for this date.", "warning")
                 return redirect(url_for('morning'))
 
             # Insert Header
-            db_cursor.execute(
-                "INSERT INTO morning_allocations (employee_id, date) VALUES (%s, %s)",
-                (employee_id, formatted_date)
-            )
+            db_cursor.execute("INSERT INTO morning_allocations (employee_id, date) VALUES (%s, %s)", (employee_id, formatted_date))
             alloc_id = db_cursor.lastrowid
             
             # Insert Items
-            insert_sql = """
-              INSERT INTO morning_allocation_items
-                (allocation_id, product_id, opening_qty, given_qty, unit_price)
-              VALUES (%s, %s, %s, %s, %s)
-            """
+            insert_sql = "INSERT INTO morning_allocation_items (allocation_id, product_id, opening_qty, given_qty, unit_price) VALUES (%s, %s, %s, %s, %s)"
             for idx, pid in enumerate(product_ids):
                 if not pid: continue
-                open_q = int(opening_list[idx] or 0)
-                giv_q  = int(given_list[idx]   or 0)
-                price  = float(price_list[idx] or 0.0)
-                db_cursor.execute(insert_sql, (alloc_id, pid, open_q, giv_q, price))
+                db_cursor.execute(insert_sql, (alloc_id, pid, opening_list[idx], given_list[idx], price_list[idx]))
 
             mysql.connection.commit()
             flash("Morning allocation saved successfully.", "success")
@@ -2750,19 +2734,23 @@ def morning():
         db_cursor.execute("SELECT id, name FROM employees WHERE status='active' ORDER BY name")
         employees = db_cursor.fetchall()
         
-        # Ensure we send a valid list for JS
-        db_cursor.execute("SELECT id, name, price FROM products ORDER BY name")
+        # FETCH PRODUCTS WITH IMAGES
+        db_cursor.execute("SELECT id, name, price, image FROM products ORDER BY name")
         products_raw = db_cursor.fetchall() or []
         
+        # Prepare Data for JS (Include Image URL)
         products_for_js = [
-            {'id': p['id'], 'name': p['name'], 'price': float(p['price'])}
+            {
+                'id': p['id'], 
+                'name': p['name'], 
+                'price': float(p['price']), 
+                'image': p['image'] if p['image'] else '' 
+            }
             for p in products_raw
         ]
         
-        # Simple HTML options generator
-        productOptions = ''.join(
-            f'<option value="{p["id"]}">{p["name"]}</option>' for p in products_for_js
-        )
+        # Build Dropdown Options
+        productOptions = ''.join(f'<option value="{p["id"]}">{p["name"]}</option>' for p in products_for_js)
 
         return render_template('morning.html',
                                employees=employees,
@@ -2772,62 +2760,14 @@ def morning():
 
     except Exception as e:
         if db_cursor: mysql.connection.rollback()
-        app.logger.error(f"Morning route error: {e}")
         flash(f"Error: {e}", "danger")
         return redirect(url_for('morning'))
     finally:
         if db_cursor: db_cursor.close()
 
-# ---------------------------------------------------------
-# 2. API: FETCH STOCK (For Morning Opening Balance)
-# ---------------------------------------------------------
-@app.route('/api/fetch_stock')
-def api_fetch_stock():
-    if "loggedin" not in session: return jsonify({"error": "Unauthorized"}), 401
-    
-    employee_id = request.args.get('employee_id')
-    date_str    = request.args.get('date')
-
-    if not employee_id or not date_str:
-        return jsonify({"error": "Missing parameters"}), 400
-
-    try:
-        current_date = parse_date(date_str)
-        if not current_date:
-            return jsonify({"error": "Invalid date format"}), 400
-
-        # Logic: Opening stock today = Remaining stock from YESTERDAY's Evening Settlement
-        previous_day = current_date - timedelta(days=1)
-
-        cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-        cur.execute("""
-            SELECT 
-              ei.product_id,
-              ei.remaining_qty  AS remaining,
-              ei.unit_price     AS price
-            FROM evening_item ei
-            JOIN evening_settle es ON ei.settle_id = es.id
-            WHERE es.employee_id = %s
-              AND es.date        = %s
-        """, (employee_id, previous_day))
-        rows = cur.fetchall()
-        cur.close()
-
-        # Convert to easy lookup object
-        data = {
-            str(r['product_id']): {
-                'remaining': int(r['remaining']),
-                'price': float(r['price'])
-            } for r in rows
-        }
-        return jsonify(data)
-
-    except Exception as e:
-        app.logger.error(f"Stock API Error: {e}")
-        return jsonify({"error": str(e)}), 500
 
 # ---------------------------------------------------------
-# 3. EVENING SETTLEMENT
+# 2. EVENING SETTLEMENT
 # ---------------------------------------------------------
 @app.route('/evening', methods=['GET', 'POST'])
 def evening():
@@ -2841,54 +2781,45 @@ def evening():
             date_str = request.form.get('h_date')
             
             date_obj = parse_date(date_str)
-            if not date_obj: raise ValueError("Invalid Date")
-            formatted_date = date_obj.strftime('%Y-%m-%d')
+            formatted_date = date_obj.strftime('%Y-%m-%d') if date_obj else date_str
 
             # Payments
             total_amount = request.form.get('totalAmount') or 0
-            online_received = request.form.get('online') or 0
-            cash_received = request.form.get('cash') or 0
+            online = request.form.get('online') or 0
+            cash = request.form.get('cash') or 0
             discount = request.form.get('discount') or 0
 
-            # Items
-            product_ids = request.form.getlist('product_id[]')
-            total_qtys = request.form.getlist('total_qty[]')
-            sold_qtys = request.form.getlist('sold[]')
-            return_qtys = request.form.getlist('return[]')
-            unit_prices = request.form.getlist('price[]')
+            # Arrays
+            p_ids = request.form.getlist('product_id[]')
+            t_qtys = request.form.getlist('total_qty[]')
+            s_qtys = request.form.getlist('sold[]')
+            r_qtys = request.form.getlist('return[]')
+            prices = request.form.getlist('price[]')
 
             db_cursor = mysql.connection.cursor()
 
-            # Header
+            # Insert Header
             db_cursor.execute("""
-                INSERT INTO evening_settle 
-                (allocation_id, employee_id, date, total_amount, online_money, cash_money, discount)
+                INSERT INTO evening_settle (allocation_id, employee_id, date, total_amount, online_money, cash_money, discount)
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
-            """, (allocation_id, employee_id, formatted_date, total_amount, online_received, cash_received, discount))
+            """, (allocation_id, employee_id, formatted_date, total_amount, online, cash, discount))
             settle_id = db_cursor.lastrowid
 
-            # Items
+            # Insert Items
             item_sql = "INSERT INTO evening_item (settle_id, product_id, total_qty, sold_qty, return_qty, unit_price, remaining_qty) VALUES (%s, %s, %s, %s, %s, %s, %s)"
             
-            for i, pid in enumerate(product_ids):
+            for i, pid in enumerate(p_ids):
                 if not pid: continue
-                p_total  = int(total_qtys[i] or 0)
-                p_sold   = int(sold_qtys[i] or 0)
-                p_return = int(return_qtys[i] or 0)
-                p_price  = float(unit_prices[i] or 0)
+                sold = int(s_qtys[i] or 0)
+                rem = int(t_qtys[i] or 0) - sold - int(r_qtys[i] or 0)
+                db_cursor.execute(item_sql, (settle_id, pid, t_qtys[i], sold, r_qtys[i], prices[i], rem))
                 
-                # Calculate Remaining for DB storage
-                p_remain = p_total - p_sold - p_return 
-                if p_remain < 0: p_remain = 0
-
-                db_cursor.execute(item_sql, (settle_id, pid, p_total, p_sold, p_return, p_price, p_remain))
-                
-                # Update Main Inventory: Reduce stock by amount sold
-                if p_sold > 0:
-                    db_cursor.execute("UPDATE products SET stock = stock - %s WHERE id = %s", (p_sold, pid))
+                # Reduce Stock
+                if sold > 0:
+                    db_cursor.execute("UPDATE products SET stock = stock - %s WHERE id = %s", (sold, pid))
 
             mysql.connection.commit()
-            flash("Evening settlement submitted!", "success")
+            flash("Settlement submitted!", "success")
             return redirect(url_for('evening', last_settle_id=settle_id))
 
         except Exception as e:
@@ -2905,13 +2836,41 @@ def evening():
     employees = cur.fetchall()
     cur.close()
     
-    return render_template('evening.html', 
-                           employees=employees, 
-                           today=date.today().strftime('%d-%m-%Y'), 
-                           last_settle_id=last_settle_id)
+    return render_template('evening.html', employees=employees, today=date.today().strftime('%d-%m-%Y'), last_settle_id=last_settle_id)
+
 
 # ---------------------------------------------------------
-# 4. API: FETCH MORNING ALLOCATION (For Evening Page)
+# 3. API: FETCH STOCK (For Morning)
+# ---------------------------------------------------------
+@app.route('/api/fetch_stock')
+def api_fetch_stock():
+    if "loggedin" not in session: return jsonify({"error": "Unauthorized"}), 401
+    
+    employee_id = request.args.get('employee_id')
+    date_str = request.args.get('date')
+
+    try:
+        current_date = parse_date(date_str)
+        if not current_date: return jsonify({"error": "Invalid date"}), 400
+        previous_day = current_date - timedelta(days=1)
+
+        cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        cur.execute("""
+            SELECT ei.product_id, ei.remaining_qty AS remaining, ei.unit_price AS price
+            FROM evening_item ei
+            JOIN evening_settle es ON ei.settle_id = es.id
+            WHERE es.employee_id = %s AND es.date = %s AND ei.remaining_qty > 0
+        """, (employee_id, previous_day))
+        rows = cur.fetchall()
+        cur.close()
+
+        return jsonify({str(r['product_id']): {'remaining': int(r['remaining']), 'price': float(r['price'])} for r in rows})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# ---------------------------------------------------------
+# 4. API: FETCH ALLOCATION (For Evening) - INCLUDES IMAGE
 # ---------------------------------------------------------
 @app.route('/api/fetch_morning_allocation')
 def api_fetch_morning_allocation():
@@ -2922,8 +2881,7 @@ def api_fetch_morning_allocation():
 
     try:
         date_obj = parse_date(date_str)
-        if not date_obj: return jsonify({"error": "Invalid Date"}), 400
-        formatted_date = date_obj.strftime('%Y-%m-%d')
+        formatted_date = date_obj.strftime('%Y-%m-%d') if date_obj else date_str
 
         cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
         
@@ -2931,23 +2889,19 @@ def api_fetch_morning_allocation():
         cur.execute("SELECT id FROM evening_settle WHERE employee_id=%s AND date=%s", (employee_id, formatted_date))
         if cur.fetchone():
             cur.close()
-            return jsonify({"error": "Evening settlement already done."}), 400
+            return jsonify({"error": "Already settled."}), 400
 
-        # Find Morning Allocation
+        # Find Allocation
         cur.execute("SELECT id FROM morning_allocations WHERE employee_id=%s AND date=%s", (employee_id, formatted_date))
         alloc = cur.fetchone()
         
         if not alloc:
             cur.close()
-            return jsonify({"error": "No morning allocation found."}), 404
+            return jsonify({"error": "No allocation found."}), 404
             
-        # Get Items
+        # Get Items + IMAGES
         cur.execute("""
-            SELECT 
-              mai.product_id,
-              p.name AS product_name,
-              mai.total_qty,
-              mai.unit_price
+            SELECT mai.product_id, p.name AS product_name, p.image, mai.total_qty, mai.unit_price
             FROM morning_allocation_items mai
             JOIN products p ON mai.product_id = p.id
             WHERE mai.allocation_id = %s
@@ -2955,10 +2909,10 @@ def api_fetch_morning_allocation():
         items = cur.fetchall()
         cur.close()
         
-        # Prepare JSON response
         clean_items = [{
             'product_id': i['product_id'],
             'product_name': i['product_name'],
+            'image': i['image'] if i['image'] else '', # Pass image URL
             'total_qty': int(i['total_qty']),
             'unit_price': float(i['unit_price'])
         } for i in items]
@@ -2967,6 +2921,91 @@ def api_fetch_morning_allocation():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+# ---------------------------------------------------------
+# 5. GENERATE PDF (Evening Settlement Receipt)
+# ---------------------------------------------------------
+@app.route('/evening/pdf/<int:settle_id>')
+def generate_pdf(settle_id):
+    db_cursor = None
+    try:
+        db_cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        db_cursor.execute("""
+            SELECT es.*, e.name as employee_name
+            FROM evening_settle es
+            JOIN employees e ON es.employee_id = e.id
+            WHERE es.id = %s
+        """, (settle_id,))
+        settlement = db_cursor.fetchone()
+        if not settlement:
+            return "Settlement not found", 404
+        db_cursor.execute("""
+            SELECT ei.*, p.name as product_name
+            FROM evening_item ei
+            JOIN products p ON ei.product_id = p.id
+            WHERE ei.settle_id = %s
+        """, (settle_id,))
+        items = db_cursor.fetchall()
+
+        pdf = PDF() 
+        pdf.add_page()
+        pdf.set_font(pdf.font_family, 'B', 12)
+        pdf.cell(0, 10, pdf.safe_text(f"Employee: {settlement['employee_name']}"), 0, 0, 'L')
+        pdf.cell(0, 10, f"Date: {settlement['date'].strftime('%d-%m-%Y')}", 0, 1, 'R')
+        pdf.ln(5)
+        pdf.set_font(pdf.font_family, 'B', 10)
+        pdf.set_fill_color(230, 230, 230)
+        headers = [('#', 10), ('Product', 60), ('Total', 15), ('Sold', 15),
+                   ('Return', 15), ('Remaining', 20), ('Price', 20), ('Amount', 25)]
+        for header, width in headers:
+            pdf.cell(width, 8, header, 1, 0, 'C' if header != 'Product' else 'L', 1)
+        pdf.ln()
+        pdf.set_font(pdf.font_family, '', 10)
+        for i, item in enumerate(items):
+            amount = (item.get('sold_qty') or 0) * (item.get('unit_price') or 0)
+            remaining = (item.get('total_qty', 0) - item.get('sold_qty', 0))
+            pdf.cell(10, 8, str(i + 1), 1, 0, 'C')
+            pdf.cell(60, 8, pdf.safe_text(item.get('product_name', '')), 1, 0, 'L')
+            pdf.cell(15, 8, str(item.get('total_qty', 0)), 1, 0, 'C')
+            pdf.cell(15, 8, str(item.get('sold_qty', 0)), 1, 0, 'C')
+            pdf.cell(15, 8, str(item.get('return_qty', 0)), 1, 0, 'C')
+            pdf.cell(20, 8, str(remaining), 1, 0, 'C')
+            pdf.cell(20, 8, f"{float(item.get('unit_price', 0)):.2f}", 1, 0, 'R')
+            pdf.cell(25, 8, f"{float(amount):.2f}", 1, 1, 'R')
+        pdf.ln(10)
+        pdf.set_font(pdf.font_family, 'B', 12)
+        pdf.cell(0, 10, 'Financial Summary', 0, 1, 'L')
+        pdf.set_font(pdf.font_family, '', 10)
+        total_amount = settlement.get('total_amount', 0)
+        online_money = settlement.get('online_money', 0)
+        cash_money = settlement.get('cash_money', 0)
+        discount = settlement.get('discount', 0)
+        due_amount = total_amount - (online_money + cash_money + discount)
+        summary_data = [
+            ("Total Sales Amount:", total_amount),
+            ("Online Received:", online_money),
+            ("Cash Received:", cash_money),
+            ("Discount Given:", discount),
+        ]
+        for label, value in summary_data:
+            pdf.cell(50, 8, label, 0, 0, 'R')
+            pdf.cell(30, 8, f"{float(value):.2f}", 0, 1, 'R')
+        pdf.set_font(pdf.font_family, 'B', 10)
+        pdf.cell(50, 8, 'Balance Due:', 0, 0, 'R')
+        pdf.cell(30, 8, f"{float(due_amount):.2f}", 0, 1, 'R')
+        pdf_output = pdf.output(dest='S').encode('latin1')
+        filename = f"Settlement_{settlement['employee_name']}_{settlement['date']}.pdf"
+        response = make_response(pdf_output)
+        response.headers.set('Content-Type', 'application/pdf')
+        response.headers.set('Content-Disposition', 'attachment', filename=filename)
+        return response
+    except Exception as e:
+        app.logger.error(f"!!! PDF GENERATION FAILED: {type(e).__name__}: {e} !!!")
+        flash(f"Could not generate PDF. Server error: {e}", "danger")
+        return redirect(url_for('evening'))
+    finally:
+        if db_cursor:
+            db_cursor.close()
 
 
 # =====================================================================
@@ -4299,6 +4338,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
