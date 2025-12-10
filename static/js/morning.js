@@ -6,7 +6,6 @@ document.addEventListener("DOMContentLoaded", () => {
         tableBody: document.querySelector("#productTable tbody"),
         addRowBtn: document.getElementById("addRow"),
         fetchMsg: document.getElementById("fetchMsg"),
-        // Footer Totals
         totals: {
             opening: document.getElementById("totalOpening"),
             given: document.getElementById("totalGiven"),
@@ -15,51 +14,60 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     };
 
-    // State
-    let currentStockData = {}; // Stores fetched stock { product_id: { remaining, price } }
+    let currentStockData = {}; 
     const productsMap = new Map((window.productsData || []).map(p => [String(p.id), p]));
     const productOptionsHtml = window.productOptions || "";
 
-    // 2. Fetch Previous Day's Stock (Opening Balance)
+    // 2. Fetch Previous Closing Stock
     async function fetchStockData() {
         const employeeId = ui.employeeSelect.value;
         const dateStr = ui.dateInput.value;
 
-        if (!employeeId || !dateStr) return;
+        if (!employeeId || !dateStr) {
+            ui.tableBody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-5"><i class="fa-solid fa-arrow-up me-2"></i>Select Employee & Date to start</td></tr>';
+            return;
+        }
 
-        ui.fetchMsg.textContent = "Fetching previous closing stock...";
-        ui.fetchMsg.classList.remove('d-none', 'alert-danger', 'alert-success');
-        ui.fetchMsg.classList.add('alert-info');
+        ui.fetchMsg.textContent = "Checking previous closing stock...";
+        ui.fetchMsg.className = "alert alert-info mb-3 border-0 shadow-sm rounded-3";
+        ui.fetchMsg.classList.remove('d-none');
 
         try {
+            // Uses the fixed API in app.py
             const response = await fetch(`/api/fetch_stock?employee_id=${employeeId}&date=${dateStr}`);
             const data = await response.json();
 
-            if (data.error) throw new Error(data.error);
+            if (data.error && response.status !== 500) {
+                // Expected error (e.g., no previous day data found), treat as 0 opening
+                console.warn(data.error);
+                currentStockData = {}; 
+            } else {
+                currentStockData = data;
+            }
 
-            currentStockData = data; // Store globally
-            
-            // Update any existing rows with new stock info
+            // If table is empty, clear the "Select Employee" message
+            if (ui.tableBody.rows.length === 1 && ui.tableBody.rows[0].cells.length === 1) {
+                ui.tableBody.innerHTML = '';
+            }
+
+            // Update existing rows
             updateAllRowsStock();
-            
-            ui.fetchMsg.textContent = "Stock data loaded. Opening balances updated.";
-            ui.fetchMsg.classList.remove('alert-info');
-            ui.fetchMsg.classList.add('alert-success');
+
+            ui.fetchMsg.textContent = "Ready. (Opening stock updated from previous day)";
+            ui.fetchMsg.className = "alert alert-success mb-3 border-0 shadow-sm rounded-3";
             setTimeout(() => ui.fetchMsg.classList.add('d-none'), 3000);
 
         } catch (error) {
             console.error("Stock Fetch Error:", error);
-            ui.fetchMsg.textContent = "Note: Could not fetch previous stock (New allocation or Error).";
-            ui.fetchMsg.classList.remove('alert-info');
-            ui.fetchMsg.classList.add('alert-warning');
-            currentStockData = {}; // Reset on error
+            ui.fetchMsg.textContent = "Could not connect to server.";
+            ui.fetchMsg.className = "alert alert-danger mb-3 border-0";
         }
     }
 
     // 3. Row Management
     function createRow() {
-        // Remove "Select Employee..." message if it exists
-        if (ui.tableBody.rows.length === 1 && ui.tableBody.rows[0].cells.length > 1) {
+        // Clear placeholder if it exists
+        if (ui.tableBody.rows.length === 1 && ui.tableBody.rows[0].cells.length === 1) {
             ui.tableBody.innerHTML = '';
         }
 
@@ -67,16 +75,16 @@ document.addEventListener("DOMContentLoaded", () => {
         tr.innerHTML = `
             <td class="row-index ps-3 text-muted fw-bold"></td>
             <td>
-                <select name="product_id[]" class="form-select product-dropdown" required>
-                    <option value="">-- Select Product --</option>
+                <select name="product_id[]" class="form-select product-dropdown border-0" required>
+                    <option value="">-- Select --</option>
                     ${productOptionsHtml}
                 </select>
             </td>
-            <td><input type="number" name="opening[]" class="form-control text-center opening" value="0" readonly tabindex="-1"></td>
+            <td><input type="number" name="opening[]" class="form-control text-center opening bg-light" value="0" readonly tabindex="-1"></td>
             <td><input type="number" name="given[]" class="form-control text-center fw-bold text-primary given" min="0" placeholder="0" required></td>
             <td><input type="number" name="total[]" class="form-control text-center bg-light total" value="0" readonly tabindex="-1"></td>
             <td><input type="number" name="price[]" class="form-control text-center bg-light price" step="0.01" value="0.00" readonly tabindex="-1"></td>
-            <td><input type="number" name="amount[]" class="form-control text-end amount" value="0.00" readonly tabindex="-1"></td>
+            <td><input type="number" name="amount[]" class="form-control text-end amount bg-light" value="0.00" readonly tabindex="-1"></td>
             <td class="text-center"><button type="button" class="btn btn-sm text-danger btn-remove-row"><i class="fa-solid fa-trash"></i></button></td>
         `;
         ui.tableBody.appendChild(tr);
@@ -97,15 +105,14 @@ document.addEventListener("DOMContentLoaded", () => {
         const openingInput = row.querySelector(".opening");
         const priceInput = row.querySelector(".price");
         
-        // 1. Set Opening Stock (from API)
+        // Opening Stock Logic
         let openingQty = 0;
         if (currentStockData[productId]) {
             openingQty = parseInt(currentStockData[productId].remaining) || 0;
         }
         openingInput.value = openingQty;
 
-        // 2. Set Price (from Window Data or API)
-        // API price takes precedence, otherwise fallback to product master price
+        // Price Logic (API price > Product Master price)
         let price = 0;
         if (currentStockData[productId]) {
             price = parseFloat(currentStockData[productId].price);
@@ -118,7 +125,6 @@ document.addEventListener("DOMContentLoaded", () => {
         recalculateRow(row);
     }
 
-    // 4. Calculations
     function recalculateRow(row) {
         const opening = parseInt(row.querySelector(".opening").value) || 0;
         const given = parseInt(row.querySelector(".given").value) || 0;
@@ -135,7 +141,7 @@ document.addEventListener("DOMContentLoaded", () => {
         let tOpening = 0, tGiven = 0, tAll = 0, tGrand = 0;
 
         ui.tableBody.querySelectorAll("tr").forEach(row => {
-            if (!row.querySelector(".total")) return; // Skip info rows
+            if (!row.querySelector(".total")) return;
 
             tOpening += parseInt(row.querySelector(".opening").value) || 0;
             tGiven += parseInt(row.querySelector(".given").value) || 0;
@@ -156,19 +162,15 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // 5. Event Listeners
-    
-    // Fetch Stock when Employee or Date changes
+    // Event Listeners
     ui.employeeSelect.addEventListener("change", fetchStockData);
     ui.dateInput.addEventListener("change", fetchStockData);
-
-    // Add Row
+    
     ui.addRowBtn.addEventListener("click", () => {
         createRow();
         recalculateTotals();
     });
 
-    // Delegate Events inside Table (Input & Click)
     ui.tableBody.addEventListener("click", e => {
         if (e.target.closest(".btn-remove-row")) {
             e.target.closest("tr").remove();
@@ -192,5 +194,4 @@ document.addEventListener("DOMContentLoaded", () => {
             recalculateTotals();
         }
     });
-
 });
