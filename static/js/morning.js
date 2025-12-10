@@ -1,5 +1,4 @@
 document.addEventListener("DOMContentLoaded", () => {
-    // 1. UI Elements (Matched to IDs in morning.html)
     const ui = {
         employeeSelect: document.getElementById("employee_id"),
         dateInput: document.getElementById("date"),
@@ -15,61 +14,51 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     let currentStockData = {};
-    // Create Map for fast lookup
     const productsMap = new Map((window.productsData || []).map(p => [String(p.id), p]));
+    const DEFAULT_IMG = "https://via.placeholder.com/40?text=?";
 
-    // 2. Fetch Previous Closing Stock
+    // Fetch Stock
     async function fetchStockData() {
         const employeeId = ui.employeeSelect.value;
         const dateStr = ui.dateInput.value;
-
         if (!employeeId || !dateStr) {
-            ui.tableBody.innerHTML = '<tr class="placeholder-row"><td colspan="8" class="text-center text-muted py-5"><i class="fa-solid fa-arrow-up me-2"></i>Select Employee & Date to start</td></tr>';
+            ui.tableBody.innerHTML = '<tr class="placeholder-row"><td colspan="9" class="text-center text-muted py-5">Select Employee & Date</td></tr>';
             return;
         }
 
-        ui.fetchMsg.textContent = "Checking previous closing stock...";
-        ui.fetchMsg.className = "alert alert-info mb-3 border-0 shadow-sm rounded-3";
+        ui.fetchMsg.textContent = "Checking stock...";
+        ui.fetchMsg.className = "alert alert-info mb-3 border-0 shadow-sm";
         ui.fetchMsg.classList.remove("d-none");
 
         try {
             const response = await fetch(`/api/fetch_stock?employee_id=${employeeId}&date=${dateStr}`);
             const data = await response.json();
+            currentStockData = data.error ? {} : data;
 
-            if (data.error && response.status !== 500) {
-                console.warn(data.error);
-                currentStockData = {};
-                ui.fetchMsg.textContent = "No previous stock found. Starting fresh.";
-                ui.fetchMsg.className = "alert alert-warning mb-3 border-0";
-            } else {
-                currentStockData = data;
-                ui.fetchMsg.textContent = "Opening stock updated from previous day.";
-                ui.fetchMsg.className = "alert alert-success mb-3 border-0";
-            }
+            if (ui.tableBody.querySelector(".placeholder-row")) ui.tableBody.innerHTML = "";
 
-            // Clear placeholder row if present
-            const placeholder = ui.tableBody.querySelector(".placeholder-row");
-            if (placeholder) ui.tableBody.innerHTML = "";
+            updateAllRows();
 
-            // Update any existing rows
-            updateAllRowsStock();
-            setTimeout(() => ui.fetchMsg.classList.add("d-none"), 3000);
+            ui.fetchMsg.textContent = "Stock updated.";
+            ui.fetchMsg.className = "alert alert-success mb-3 border-0 shadow-sm";
+            setTimeout(() => ui.fetchMsg.classList.add("d-none"), 2000);
 
         } catch (error) {
-            console.error("Stock Fetch Error:", error);
-            ui.fetchMsg.textContent = "Could not connect to server.";
+            ui.fetchMsg.textContent = "Connection error.";
             ui.fetchMsg.className = "alert alert-danger mb-3 border-0";
         }
     }
 
-    // 3. Row Management
+    // Create Row
     function createRow() {
-        const placeholder = ui.tableBody.querySelector(".placeholder-row");
-        if (placeholder) ui.tableBody.innerHTML = "";
+        if (ui.tableBody.querySelector(".placeholder-row")) ui.tableBody.innerHTML = "";
 
         const tr = document.createElement("tr");
         tr.innerHTML = `
             <td class="row-index ps-3 text-muted fw-bold"></td>
+            <td class="text-center">
+                <img src="${DEFAULT_IMG}" class="product-thumb" alt="img">
+            </td>
             <td>
                 <select name="product_id[]" class="form-select product-dropdown border-0" required>
                     <option value="">-- Select --</option>
@@ -87,12 +76,10 @@ document.addEventListener("DOMContentLoaded", () => {
         updateRowIndexes();
     }
 
-    function updateAllRowsStock() {
+    function updateAllRows() {
         ui.tableBody.querySelectorAll("tr").forEach(row => {
             const select = row.querySelector(".product-dropdown");
-            if (select && select.value) {
-                updateRowData(row, select.value);
-            }
+            if (select && select.value) updateRowData(row, select.value);
         });
         recalculateTotals();
     }
@@ -100,22 +87,24 @@ document.addEventListener("DOMContentLoaded", () => {
     function updateRowData(row, productId) {
         const openingInput = row.querySelector(".opening");
         const priceInput = row.querySelector(".price");
+        const img = row.querySelector(".product-thumb");
 
-        // Stock Logic
-        let openingQty = 0;
-        if (currentStockData[productId]) {
-            openingQty = parseInt(currentStockData[productId].remaining, 10) || 0;
+        const product = productsMap.get(productId);
+        if (product && typeof product.image === "string" && product.image.length > 0) {
+            if (product.image.startsWith("http")) img.src = product.image;
+            else img.src = `/static/uploads/${product.image}`;
+            img.onerror = () => { img.src = DEFAULT_IMG; };
+        } else {
+            img.src = DEFAULT_IMG;
         }
+
+        let openingQty = 0;
+        if (currentStockData[productId]) openingQty = parseInt(currentStockData[productId].remaining, 10) || 0;
         openingInput.value = openingQty;
 
-        // Price Logic (Prefer API price, else fallback to Product list)
         let price = 0;
-        if (currentStockData[productId]) {
-            price = parseFloat(currentStockData[productId].price) || 0;
-        } else {
-            const product = productsMap.get(productId);
-            if (product) price = parseFloat(product.price) || 0;
-        }
+        if (currentStockData[productId]) price = parseFloat(currentStockData[productId].price) || 0;
+        else if (product) price = parseFloat(product.price) || 0;
         priceInput.value = price.toFixed(2);
 
         recalculateRow(row);
@@ -125,12 +114,10 @@ document.addEventListener("DOMContentLoaded", () => {
         const opening = parseInt(row.querySelector(".opening").value, 10) || 0;
         const given = parseInt(row.querySelector(".given").value, 10) || 0;
         const price = parseFloat(row.querySelector(".price").value) || 0;
-
         const total = opening + given;
-        const amount = total * price;
 
         row.querySelector(".total").value = total;
-        row.querySelector(".amount").value = amount.toFixed(2);
+        row.querySelector(".amount").value = (total * price).toFixed(2);
     }
 
     function recalculateTotals() {
@@ -160,18 +147,9 @@ document.addEventListener("DOMContentLoaded", () => {
     ui.dateInput.addEventListener("change", fetchStockData);
     ui.addRowBtn.addEventListener("click", () => { createRow(); recalculateTotals(); });
 
-    ui.tableBody.addEventListener("click", e => {
-        if (e.target.closest(".btn-remove-row")) {
-            e.target.closest("tr").remove();
-            updateRowIndexes();
-            recalculateTotals();
-        }
-    });
-
     ui.tableBody.addEventListener("change", e => {
         if (e.target.matches(".product-dropdown")) {
-            const row = e.target.closest("tr");
-            updateRowData(row, e.target.value);
+            updateRowData(e.target.closest("tr"), e.target.value);
             recalculateTotals();
         }
     });
@@ -180,6 +158,19 @@ document.addEventListener("DOMContentLoaded", () => {
         if (e.target.matches(".given")) {
             recalculateRow(e.target.closest("tr"));
             recalculateTotals();
+        }
+    });
+
+    ui.tableBody.addEventListener("click", e => {
+        if (e.target.closest(".btn-remove-row")) {
+            const row = e.target.closest("tr");
+            // Confirmation popup before deletion
+            const confirmDelete = confirm("Are you sure you want to delete this item?");
+            if (confirmDelete) {
+                row.remove();
+                updateRowIndexes();
+                recalculateTotals();
+            }
         }
     });
 });
