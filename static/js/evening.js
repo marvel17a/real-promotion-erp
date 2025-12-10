@@ -1,19 +1,23 @@
 document.addEventListener("DOMContentLoaded", () => {
+    
     const ui = {
         employeeSelect: document.getElementById("employee_id"), 
         dateInput: document.getElementById("date"),
         fetchButton: document.getElementById("btnFetch"),
         tableBody: document.getElementById("rowsArea"),
         fetchMsg: document.getElementById("fetchMsg"),
+        
         hidden: {
             allocationId: document.getElementById('allocation_id'),
             employee: document.getElementById('h_employee'),
             date: document.getElementById('h_date'),
         },
+        
         footer: {
             sold: document.getElementById('totSold'),
             amount: document.getElementById('totAmount')
         },
+        
         payment: {
             totalAmount: document.getElementById('totalAmount'),
             discount: document.getElementById('discount'),
@@ -54,13 +58,12 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             renderTable(data.items);
-            ui.fetchMsg.textContent = "Data loaded.";
-            ui.fetchMsg.className = "fw-bold text-success mt-2";
+            ui.fetchMsg.innerHTML = '<span class="text-success"><i class="fa-solid fa-check"></i> Data loaded</span>';
 
         } catch (error) {
             ui.tableBody.innerHTML = `<tr><td colspan="7" class="text-center text-danger p-4">${error.message}</td></tr>`;
             ui.fetchMsg.textContent = error.message;
-            ui.fetchMsg.className = "fw-bold text-danger mt-2";
+            ui.fetchMsg.className = "text-danger";
         }
     }
 
@@ -71,34 +74,30 @@ document.addEventListener("DOMContentLoaded", () => {
             const totalQty = parseInt(item.total_qty);
             const price = parseFloat(item.unit_price);
             
-            // Image handling
             let imgSrc = DEFAULT_IMG;
             if(item.image) {
-                if(item.image.startsWith('http')) imgSrc = item.image;
-                else imgSrc = `/static/uploads/${item.image}`;
+                imgSrc = item.image.startsWith('http') ? item.image : `/static/uploads/${item.image}`;
             }
 
             const rowHtml = `
                 <tr class="item-row">
-                    <td class="ps-4">
+                    <td class="ps-4 text-center">
                         <img src="${imgSrc}" class="product-thumb" alt="img" onerror="this.src='${DEFAULT_IMG}'">
                     </td>
                     <td>
-                        <div class="fw-bold text-dark">${item.product_name}</div>
+                        <div class="fw-bold text-dark text-start">${item.product_name}</div>
                         <input type="hidden" name="product_id[]" value="${item.product_id}">
                         <input type="hidden" name="total_qty[]" value="${totalQty}">
                         <input type="hidden" name="price[]" class="price-input" value="${price.toFixed(2)}">
                     </td>
                     <td class="text-center">
-                        <span class="badge bg-light text-dark border fs-6">${totalQty}</span>
+                        <span class="badge bg-light text-dark border px-3 py-2 rounded-pill">${totalQty}</span>
                     </td>
                     <td>
-                        <input type="number" name="sold[]" class="form-control form-control-lg text-center fw-bold text-primary sold-input" 
-                               min="0" max="${totalQty}" placeholder="0">
+                        <input type="number" name="sold[]" class="form-control sold" min="0" max="${totalQty}" placeholder="0">
                     </td>
                     <td>
-                        <input type="number" name="return[]" class="form-control form-control-lg text-center text-danger return-input" 
-                               min="0" max="${totalQty}" placeholder="0">
+                        <input type="number" name="return[]" class="form-control return" min="0" max="${totalQty}" placeholder="0">
                     </td>
                     <td class="text-center">
                         <input type="number" name="remaining[]" class="form-control-plaintext text-center fw-bold text-muted remain-input" 
@@ -122,8 +121,8 @@ document.addEventListener("DOMContentLoaded", () => {
         rows.forEach(row => {
             const totalQty = parseInt(row.querySelector('input[name="total_qty[]"]').value) || 0;
             const price = parseFloat(row.querySelector('.price-input').value) || 0;
-            const soldInput = row.querySelector('.sold-input');
-            const returnInput = row.querySelector('.return-input');
+            const soldInput = row.querySelector('.sold');
+            const returnInput = row.querySelector('.return');
             const remainInput = row.querySelector('.remain-input');
             
             let sold = parseInt(soldInput.value) || 0;
@@ -161,9 +160,11 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     if(ui.fetchButton) ui.fetchButton.addEventListener("click", fetchMorningAllocation);
+    
     ui.tableBody.addEventListener('input', e => {
-        if (e.target.matches('.sold-input, .return-input')) recalculateTotals();
+        if (e.target.matches('.sold, .return')) recalculateTotals();
     });
+    
     [ui.payment.discount, ui.payment.cash, ui.payment.online].forEach(el => {
         if(el) el.addEventListener('input', calculateDue);
     });
