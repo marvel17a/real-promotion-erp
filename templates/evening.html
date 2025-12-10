@@ -15,7 +15,8 @@
         <div class="row g-3 align-items-end">
             <div class="col-md-5">
                 <label class="form-label fw-bold text-secondary small text-uppercase">Employee</label>
-                <select class="form-select form-select-lg shadow-sm" id="employee">
+                <!-- ID changed to employee_id to match Morning logic -->
+                <select class="form-select form-select-lg shadow-sm" id="employee_id">
                     <option value="">-- Select Staff --</option>
                     {% for emp in employees %}
                         <option value="{{ emp.id }}">{{ emp.name }}</option>
@@ -24,7 +25,8 @@
             </div>
             <div class="col-md-4">
                 <label class="form-label fw-bold text-secondary small text-uppercase">Date</label>
-                <input type="text" class="form-control form-control-lg shadow-sm flatpickr-input" id="date" value="{{ today }}">
+                <!-- Flatpickr attached -->
+                <input type="text" class="form-control form-control-lg shadow-sm" id="date" value="{{ today }}">
             </div>
             <div class="col-md-3">
                 <button type="button" id="btnFetch" class="btn btn-primary btn-lg w-100 shadow hover-scale">
@@ -45,6 +47,7 @@
     {% endif %}
 
     <form id="eveningForm" action="{{ url_for('evening') }}" method="POST">
+        <!-- Hidden Inputs for Backend -->
         <input type="hidden" name="allocation_id" id="allocation_id">
         <input type="hidden" name="h_employee" id="h_employee">
         <input type="hidden" name="h_date" id="h_date">
@@ -152,9 +155,8 @@
     .form-control-lg { font-size: 1.1rem; }
     .table input.form-control { min-width: 70px; text-align: center; font-weight: bold; }
     .hover-scale:hover { transform: translateY(-2px); transition: 0.3s; }
-    
-    /* Make body have padding for sticky footer */
     body { padding-bottom: 100px; }
+    .flatpickr-calendar { box-shadow: 0 10px 30px rgba(0,0,0,0.1) !important; border: none !important; }
 </style>
 
 <script>
@@ -165,12 +167,10 @@
             allowInput: true
         });
         
-        // Update Sticky Footer on Change
+        // Sticky Footer Logic
         const dueEl = document.getElementById('dueAmount');
         const stickyEl = document.getElementById('stickyDue');
-        
-        // Observe changes to the main due amount to update sticky
-        const observer = new MutationObserver(function(mutations) {
+        const observer = new MutationObserver(() => {
             stickyEl.innerText = dueEl.innerText;
         });
         observer.observe(dueEl, { childList: true, characterData: true, subtree: true });
