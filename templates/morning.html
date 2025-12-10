@@ -7,16 +7,14 @@
 <div class="container fade-in-up py-4">
 
     <!-- Header -->
-    <div class="row mb-4 align-items-center">
-        <div class="col-md-8">
+    <div class="d-flex align-items-center mb-4">
+        <div class="me-auto">
             <h3 class="fw-bold text-primary mb-0"><i class="fa-solid fa-sun me-2"></i>Morning Allocation</h3>
-            <p class="text-muted small mb-0">Assign stock to sales staff for the day.</p>
+            <p class="text-muted small mb-0">Assign stock to sales staff.</p>
         </div>
-        <div class="col-md-4 text-md-end mt-3 mt-md-0">
-            <a href="{{ url_for('allocation_list') }}" class="btn btn-outline-primary rounded-pill px-4 shadow-sm">
-                <i class="fa-solid fa-clock-rotate-left me-2"></i> View History
-            </a>
-        </div>
+        <a href="{{ url_for('allocation_list') }}" class="btn btn-outline-primary rounded-pill px-4 shadow-sm">
+            <i class="fa-solid fa-list me-2"></i> History
+        </a>
     </div>
 
     <!-- Main Card -->
@@ -28,7 +26,6 @@
                     <label class="form-label fw-bold text-secondary small text-uppercase">Select Employee</label>
                     <div class="input-group shadow-sm">
                         <span class="input-group-text bg-white border-end-0"><i class="fa-solid fa-user text-muted"></i></span>
-                        <!-- ID: employee_id -->
                         <select name="employee_id" id="employee_id" class="form-select border-start-0 ps-0" required>
                             <option value="">-- Choose Staff --</option>
                             {% for emp in employees %}
@@ -39,16 +36,14 @@
                 </div>
 
                 <div class="col-md-6 col-lg-4">
-                    <label class="form-label fw-bold text-secondary small text-uppercase">Allocation Date</label>
+                    <label class="form-label fw-bold text-secondary small text-uppercase">Date</label>
                     <div class="input-group shadow-sm">
                         <span class="input-group-text bg-white border-end-0"><i class="fa-solid fa-calendar text-muted"></i></span>
-                        <!-- ID: date -->
                         <input type="text" name="date" id="date" class="form-control border-start-0 ps-0" value="{{ today_date }}" required>
                     </div>
                 </div>
             </div>
 
-            <!-- Fetch Status Message -->
             <div id="fetchMsg" class="alert d-none mb-3 border-0 shadow-sm rounded-3"></div>
 
             <!-- Table -->
@@ -56,22 +51,22 @@
                 <table class="table table-hover align-middle mb-0" id="productTable">
                     <thead class="bg-light text-secondary small text-uppercase">
                         <tr>
-                            <th class="ps-3" style="width: 50px;">#</th>
-                            <th style="min-width: 250px;">Product Name</th>
+                            <th class="ps-3" style="width: 40px;">#</th>
+                            <th style="width: 60px;">Img</th>
+                            <th style="min-width: 200px;">Product</th>
                             <th style="width: 100px;">Opening</th>
-                            <th style="width: 120px;">Given</th>
+                            <th style="width: 100px;">Given</th>
                             <th style="width: 100px;">Total</th>
                             <th style="width: 120px;">Price</th>
                             <th style="width: 120px;">Amount</th>
-                            <th class="text-center" style="width: 80px;"><i class="fa-solid fa-trash"></i></th>
+                            <th class="text-center" style="width: 60px;"><i class="fa-solid fa-trash"></i></th>
                         </tr>
                     </thead>
-                    <tbody class="bg-white">
-                        <!-- JS creates rows here -->
-                    </tbody>
+                    <tbody class="bg-white"></tbody>
                     <tfoot class="bg-light fw-bold text-dark">
                         <tr>
-                            <td colspan="2" class="text-end text-uppercase text-secondary small">Totals:</td>
+                            <!-- Match columns: 9 cells total -->
+                            <td colspan="3" class="text-end text-uppercase text-secondary small">Totals:</td>
                             <td id="totalOpening">0</td>
                             <td id="totalGiven" class="text-primary">0</td>
                             <td id="totalAll">0</td>
@@ -88,7 +83,7 @@
                     <i class="fa-solid fa-plus me-2"></i> Add Item
                 </button>
                 <button type="submit" class="btn btn-primary btn-lg px-5 rounded-pill shadow-lg hover-scale">
-                    <i class="fa-solid fa-check me-2"></i> Save Allocation
+                    <i class="fa-solid fa-check me-2"></i> Save
                 </button>
             </div>
 
@@ -98,19 +93,20 @@
 
 <style>
     .glass-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
+    .product-thumb { width: 40px; height: 40px; object-fit: cover; border-radius: 8px; border: 1px solid #eee; }
     .hover-scale:hover { transform: translateY(-2px); transition: 0.3s; }
     .flatpickr-calendar { box-shadow: 0 10px 30px rgba(0,0,0,0.1) !important; border: none !important; }
 </style>
 
 <script>
-    // Safe Variable Injection
+    // Safe injection
     window.productsData = {{ products | tojson | safe }};
+    // Ensure this is a JSON string of <option> tags (e.g., "<option ...>...</option>...")
     window.productOptions = {{ productOptions | tojson | safe }};
     
     document.addEventListener("DOMContentLoaded", function() {
         flatpickr("#date", { dateFormat: "d-m-Y", defaultDate: "{{ today_date }}", allowInput: true });
     });
 </script>
-
 <script src="{{ url_for('static', filename='js/morning.js') }}"></script>
 {% endblock %}
