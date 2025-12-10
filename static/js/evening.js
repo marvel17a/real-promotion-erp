@@ -2,52 +2,49 @@ document.addEventListener("DOMContentLoaded", () => {
     
     // 1. UI Elements
     const ui = {
-        employeeSelect: document.getElementById("employee"),
+        // Matched ID to 'evening.html'
+        employeeSelect: document.getElementById("employee_id"), 
         dateInput: document.getElementById("date"),
         fetchButton: document.getElementById("btnFetch"),
         tableBody: document.getElementById("rowsArea"),
         fetchMsg: document.getElementById("fetchMsg"),
         
-        // Hidden Inputs (CRITICAL for Backend)
         hidden: {
             allocationId: document.getElementById('allocation_id'),
             employee: document.getElementById('h_employee'),
             date: document.getElementById('h_date'),
         },
         
-        // Footer Stats
         footer: {
             sold: document.getElementById('totSold'),
             amount: document.getElementById('totAmount')
         },
         
-        // Payment Inputs
         payment: {
             totalAmount: document.getElementById('totalAmount'),
             discount: document.getElementById('discount'),
             cash: document.getElementById('cash'),
             online: document.getElementById('online'),
-            due: document.getElementById('dueAmount'),
-            stickyDue: document.getElementById('stickyDue')
+            due: document.getElementById('dueAmount')
         }
     };
 
-    // 2. Fetch Data Function
+    // 2. Fetch Data
     async function fetchMorningAllocation() {
         const employeeId = ui.employeeSelect.value;
         const dateStr = ui.dateInput.value;
 
-        // Reset UI
-        ui.tableBody.innerHTML = '<tr><td colspan="6" class="text-center p-4"><div class="spinner-border text-primary" role="status"></div><div class="mt-2">Loading morning data...</div></td></tr>';
+        // Reset Table
+        ui.tableBody.innerHTML = '<tr><td colspan="6" class="text-center p-4"><div class="spinner-border text-primary" role="status"></div><div class="mt-2">Loading data...</div></td></tr>';
         ui.fetchMsg.textContent = "";
-        ui.fetchMsg.className = "mt-2 fw-bold"; // Reset classes
+        ui.fetchMsg.className = "mt-2 fw-bold";
 
         if (!employeeId || !dateStr) {
-            ui.tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted p-4">Please select both Employee and Date.</td></tr>';
+            ui.tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted p-4">Please select Employee and Date.</td></tr>';
             return;
         }
 
-        // Set Hidden Values Immediately (So form works even if they don't change anything)
+        // Set Hidden Values (REQUIRED by Backend)
         ui.hidden.employee.value = employeeId;
         ui.hidden.date.value = dateStr;
 
@@ -59,7 +56,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 throw new Error(data.error || 'No data found.');
             }
 
-            // Set Allocation ID (Critical)
             ui.hidden.allocationId.value = data.allocation_id;
 
             if (!data.items || data.items.length === 0) {
@@ -79,7 +75,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // 3. Render Rows
+    // 3. Render
     function renderTable(items) {
         ui.tableBody.innerHTML = '';
         
@@ -121,7 +117,7 @@ document.addEventListener("DOMContentLoaded", () => {
         recalculateTotals();
     }
 
-    // 4. Calculations (Sold + Return <= Total)
+    // 4. Calculations
     function recalculateTotals() {
         let grandTotalSold = 0;
         let grandTotalAmount = 0;
@@ -140,7 +136,7 @@ document.addEventListener("DOMContentLoaded", () => {
             let sold = parseInt(soldInput.value) || 0;
             let ret = parseInt(returnInput.value) || 0;
 
-            // Logic: Sold + Return cannot be more than Total
+            // Logic: Sold + Return cannot exceed Total
             if ((sold + ret) > totalQty) {
                 // Adjust Return to fit
                 ret = totalQty - sold;
@@ -160,11 +156,9 @@ document.addEventListener("DOMContentLoaded", () => {
             grandTotalAmount += revenue;
         });
 
-        // Update UI Totals
         ui.footer.sold.textContent = grandTotalSold;
         ui.footer.amount.textContent = grandTotalAmount.toFixed(2);
         
-        // Update Form Payment Total
         ui.payment.totalAmount.value = grandTotalAmount.toFixed(2);
         
         calculateDue();
@@ -179,12 +173,9 @@ document.addEventListener("DOMContentLoaded", () => {
         const due = total - (discount + cash + online);
         
         ui.payment.due.textContent = due.toFixed(2);
-        if(ui.payment.stickyDue) {
-            ui.payment.stickyDue.textContent = due.toFixed(2);
-        }
     }
 
-    // 5. Event Listeners
+    // 5. Events
     if(ui.fetchButton) ui.fetchButton.addEventListener("click", fetchMorningAllocation);
 
     ui.tableBody.addEventListener('input', (e) => {
@@ -196,5 +187,4 @@ document.addEventListener("DOMContentLoaded", () => {
     [ui.payment.discount, ui.payment.cash, ui.payment.online].forEach(el => {
         if(el) el.addEventListener('input', calculateDue);
     });
-
 });
