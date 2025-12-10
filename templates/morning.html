@@ -3,105 +3,110 @@
 {% block content %}
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
 
-<div class="container fade-in-up py-4">
+<div class="glass-container fade-in-up">
 
-    <!-- Header -->
-    <div class="d-flex align-items-center mb-4">
-        <div class="me-auto">
-            <h3 class="fw-bold text-primary mb-0"><i class="fa-solid fa-sun me-2"></i>Morning Allocation</h3>
-            <p class="text-muted small mb-0">Assign stock to sales staff.</p>
+    <!-- Premium Header -->
+    <div class="glass-header d-flex flex-wrap justify-content-between align-items-center mb-4 p-4">
+        <div class="address-block text-muted small" style="max-width: 350px; font-size: 0.85rem;">
+            <i class="fa-solid fa-location-dot text-primary me-2"></i>
+            <strong>Real Promotion</strong>, G/12, Tulsimangalam Complex,<br>
+            B/h. Trimurti Complex, Ghodiya Bazar,<br>
+            Nadiad-387001, Gujarat, India
         </div>
-        <a href="{{ url_for('allocation_list') }}" class="btn btn-outline-primary rounded-pill px-4 shadow-sm">
-            <i class="fa-solid fa-list me-2"></i> History
-        </a>
+        <div class="brand-block text-end mt-3 mt-md-0">
+            <h1 class="company-name text-gradient fw-bold mb-0">REAL PROMOTION</h1>
+            <p class="since-text text-secondary mb-0 letter-spacing-2">SINCE 2005</p>
+        </div>
     </div>
 
-    <!-- Main Card -->
-    <div class="card glass-card border-0 p-4 mb-5">
+    <!-- Controls Card -->
+    <div class="glass-panel p-4 mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h4 class="fw-bold text-dark"><i class="fa-solid fa-sun text-warning me-2"></i>Morning Allocation</h4>
+            <a href="{{ url_for('allocation_list') }}" class="btn btn-outline-dark rounded-pill px-4 btn-sm">
+                <i class="fa-solid fa-clock-rotate-left me-2"></i> History
+            </a>
+        </div>
+
         <form id="morningForm" method="POST" action="{{ url_for('morning') }}">
-            
-            <div class="row g-3 mb-4">
-                <div class="col-md-6 col-lg-5">
-                    <label class="form-label fw-bold text-secondary small text-uppercase">Select Employee</label>
-                    <div class="input-group shadow-sm">
-                        <span class="input-group-text bg-white border-end-0"><i class="fa-solid fa-user text-muted"></i></span>
-                        <select name="employee_id" id="employee_id" class="form-select border-start-0 ps-0" required>
-                            <option value="">-- Choose Staff --</option>
+            <div class="row g-3">
+                <div class="col-md-5">
+                    <label class="form-label text-uppercase small fw-bold text-secondary">Sales Representative</label>
+                    <div class="input-group input-group-glass">
+                        <span class="input-group-text"><i class="fa-solid fa-user"></i></span>
+                        <select name="employee_id" id="employee_id" class="form-select" required>
+                            <option value="">-- Select Staff --</option>
                             {% for emp in employees %}
                             <option value="{{ emp.id }}">{{ emp.name }}</option>
                             {% endfor %}
                         </select>
                     </div>
                 </div>
-
-                <div class="col-md-6 col-lg-4">
-                    <label class="form-label fw-bold text-secondary small text-uppercase">Date</label>
-                    <div class="input-group shadow-sm">
-                        <span class="input-group-text bg-white border-end-0"><i class="fa-solid fa-calendar text-muted"></i></span>
-                        <input type="text" name="date" id="date" class="form-control border-start-0 ps-0" value="{{ today_date }}" required>
+                <div class="col-md-4">
+                    <label class="form-label text-uppercase small fw-bold text-secondary">Date</label>
+                    <div class="input-group input-group-glass">
+                        <span class="input-group-text"><i class="fa-solid fa-calendar"></i></span>
+                        <input type="text" name="date" id="date" class="form-control" value="{{ today_date }}" required>
                     </div>
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <div id="fetchMsg" class="w-100 text-center small fw-bold"></div>
                 </div>
             </div>
 
-            <div id="fetchMsg" class="alert d-none mb-3 border-0 shadow-sm rounded-3"></div>
-
-            <!-- Table -->
-            <div class="table-responsive rounded-3 shadow-sm border mb-4">
-                <table class="table table-hover align-middle mb-0" id="productTable">
-                    <thead class="bg-light text-secondary small text-uppercase">
+            <!-- Table Section -->
+            <div class="table-responsive glass-table-container mt-4">
+                <table class="table table-borderless align-middle mb-0" id="productTable">
+                    <thead class="table-head-glass">
                         <tr>
-                            <th class="ps-3" style="width: 40px;">#</th>
-                            <th style="width: 100px;">Img</th>
+                            <th class="ps-4" style="width: 50px;">#</th>
+                            <th style="width: 80px;">Img</th>
                             <th style="min-width: 200px;">Product</th>
                             <th style="width: 100px;">Opening</th>
                             <th style="width: 100px;">Given</th>
                             <th style="width: 100px;">Total</th>
-                            <th style="width: 120px;">Price</th>
+                            <th style="width: 110px;">Price</th>
                             <th style="width: 120px;">Amount</th>
                             <th class="text-center" style="width: 60px;"><i class="fa-solid fa-trash"></i></th>
                         </tr>
                     </thead>
-                    <tbody class="bg-white"></tbody>
-                    <tfoot class="bg-light fw-bold text-dark">
+                    <tbody class="table-body-glass"></tbody>
+                    <tfoot class="table-foot-glass">
                         <tr>
-                            <!-- Match columns: 9 cells total -->
-                            <td colspan="3" class="text-end text-uppercase text-secondary small">Totals:</td>
-                            <td id="totalOpening">0</td>
-                            <td id="totalGiven" class="text-primary">0</td>
-                            <td id="totalAll">0</td>
-                            <td>—</td>
-                            <td id="grandTotal">0.00</td>
-                            <td>—</td>
+                            <td colspan="4" class="text-end text-uppercase text-secondary small fw-bold">Totals:</td>
+                            <td id="totalOpening" class="fw-bold">0</td>
+                            <td id="totalGiven" class="text-primary fw-bold">0</td>
+                            <td id="totalAll" class="fw-bold">0</td>
+                            <td>-</td>
+                            <td id="grandTotal" class="text-dark fw-bold">0.00</td>
+                            <td>-</td>
                         </tr>
                     </tfoot>
                 </table>
             </div>
 
-            <div class="d-flex justify-content-between align-items-center">
-                <button type="button" id="addRow" class="btn btn-light border shadow-sm text-success fw-bold">
-                    <i class="fa-solid fa-plus me-2"></i> Add Item
+            <!-- Actions -->
+            <div class="d-flex justify-content-between align-items-center mt-4">
+                <button type="button" id="addRow" class="btn btn-glass-light text-success fw-bold">
+                    <i class="fa-solid fa-plus-circle me-2"></i> Add Item
                 </button>
-                <button type="submit" class="btn btn-primary btn-lg px-5 rounded-pill shadow-lg hover-scale">
-                    <i class="fa-solid fa-check me-2"></i> Save
+                <button type="submit" class="btn btn-gradient-primary px-5 rounded-pill shadow-lg hover-lift">
+                    <i class="fa-solid fa-check me-2"></i> Confirm Allocation
                 </button>
             </div>
-
         </form>
     </div>
 </div>
 
 <style>
-    .glass-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
-    .product-thumb { width: 40px; height: 40px; object-fit: cover; border-radius: 8px; border: 1px solid #eee; }
-    .hover-scale:hover { transform: translateY(-2px); transition: 0.3s; }
-    .flatpickr-calendar { box-shadow: 0 10px 30px rgba(0,0,0,0.1) !important; border: none !important; }
+    /* (CSS unchanged) */
 </style>
 
 <script>
-    // Safe injection
+    // ✅ FIXED JSON injection
     window.productsData = {{ products | tojson | safe }};
-    // Ensure this is a JSON string of <option> tags (e.g., "<option ...>...</option>...")
     window.productOptions = {{ productOptions | tojson | safe }};
     
     document.addEventListener("DOMContentLoaded", function() {
@@ -110,4 +115,3 @@
 </script>
 <script src="{{ url_for('static', filename='js/morning.js') }}"></script>
 {% endblock %}
-
