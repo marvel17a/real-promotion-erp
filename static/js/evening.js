@@ -1,40 +1,46 @@
 document.addEventListener("DOMContentLoaded", () => {
     
+    const getEl = (id) => document.getElementById(id);
     const ui = {
-        employeeSelect: document.getElementById("employee_id"), 
-        dateInput: document.getElementById("date"),
-        fetchButton: document.getElementById("btnFetch"),
-        tableBody: document.getElementById("rowsArea"),
-        fetchMsg: document.getElementById("fetchMsg"),
+        employeeSelect: getEl("employee_id"), // Matched ID
+        dateInput: getEl("date"),
+        fetchButton: getEl("btnFetch"),
+        tableBody: getEl("rowsArea"), // Ensure table has id="rowsArea"
+        fetchMsg: getEl("fetchMsg"),
         
         hidden: {
-            allocationId: document.getElementById('allocation_id'),
-            employee: document.getElementById('h_employee'),
-            date: document.getElementById('h_date'),
+            allocationId: getEl('allocation_id'),
+            employee: getEl('h_employee'),
+            date: getEl('h_date'),
         },
         
         footer: {
-            sold: document.getElementById('totSold'),
-            amount: document.getElementById('totAmount')
+            sold: getEl('totSold'),
+            amount: getEl('totAmount')
         },
         
         payment: {
-            totalAmount: document.getElementById('totalAmount'),
-            discount: document.getElementById('discount'),
-            cash: document.getElementById('cash'),
-            online: document.getElementById('online'),
-            due: document.getElementById('dueAmount')
+            totalAmount: getEl('totalAmount'),
+            discount: getEl('discount'),
+            cash: getEl('cash'),
+            online: getEl('online'),
+            due: getEl('dueAmount')
         }
     };
     
-    const DEFAULT_IMG = "https://via.placeholder.com/40?text=?";
+    if (!ui.fetchButton || !ui.tableBody) {
+        console.error("Evening UI missing elements");
+        return;
+    }
+
+    const DEFAULT_IMG = "https://via.placeholder.com/55?text=Img";
 
     async function fetchMorningAllocation() {
         const employeeId = ui.employeeSelect.value;
         const dateStr = ui.dateInput.value;
 
         ui.tableBody.innerHTML = '<tr><td colspan="7" class="text-center p-4"><div class="spinner-border text-primary" role="status"></div></td></tr>';
-        ui.fetchMsg.textContent = "";
+        if(ui.fetchMsg) ui.fetchMsg.textContent = "";
 
         if (!employeeId || !dateStr) {
             ui.tableBody.innerHTML = '<tr><td colspan="7" class="text-center text-muted p-4">Select Employee and Date.</td></tr>';
@@ -58,12 +64,13 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             renderTable(data.items);
-            ui.fetchMsg.innerHTML = '<span class="text-success"><i class="fa-solid fa-check"></i> Data loaded</span>';
+            if(ui.fetchMsg) {
+                ui.fetchMsg.innerHTML = '<span class="text-success"><i class="fa-solid fa-check"></i> Data loaded</span>';
+            }
 
         } catch (error) {
             ui.tableBody.innerHTML = `<tr><td colspan="7" class="text-center text-danger p-4">${error.message}</td></tr>`;
-            ui.fetchMsg.textContent = error.message;
-            ui.fetchMsg.className = "text-danger";
+            if(ui.fetchMsg) ui.fetchMsg.textContent = error.message;
         }
     }
 
@@ -143,9 +150,9 @@ document.addEventListener("DOMContentLoaded", () => {
             grandTotalAmount += revenue;
         });
 
-        ui.footer.sold.textContent = grandTotalSold;
-        ui.footer.amount.textContent = grandTotalAmount.toFixed(2);
-        ui.payment.totalAmount.value = grandTotalAmount.toFixed(2);
+        if(ui.footer.sold) ui.footer.sold.textContent = grandTotalSold;
+        if(ui.footer.amount) ui.footer.amount.textContent = grandTotalAmount.toFixed(2);
+        if(ui.payment.totalAmount) ui.payment.totalAmount.value = grandTotalAmount.toFixed(2);
         
         calculateDue();
     }
@@ -156,10 +163,14 @@ document.addEventListener("DOMContentLoaded", () => {
         const cash = parseFloat(ui.payment.cash.value) || 0;
         const online = parseFloat(ui.payment.online.value) || 0;
         const due = total - (disc + cash + online);
-        ui.payment.due.textContent = due.toFixed(2);
+        
+        if(ui.payment.due) ui.payment.due.textContent = due.toFixed(2);
     }
 
-    if(ui.fetchButton) ui.fetchButton.addEventListener("click", fetchMorningAllocation);
+    ui.fetchButton.addEventListener("click", (e) => {
+        e.preventDefault();
+        fetchMorningAllocation();
+    });
     
     ui.tableBody.addEventListener('input', e => {
         if (e.target.matches('.sold, .return')) recalculateTotals();
