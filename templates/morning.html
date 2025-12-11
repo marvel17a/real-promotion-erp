@@ -7,6 +7,7 @@
 
 <div class="glass-container fade-in-up">
 
+    <!-- Header -->
     <div class="glass-header d-flex flex-wrap justify-content-between align-items-center mb-4 p-4">
         <div class="address-block text-muted small" style="max-width: 350px; font-size: 0.85rem;">
             <i class="fa-solid fa-location-dot text-primary me-2"></i>
@@ -20,6 +21,7 @@
         </div>
     </div>
 
+    <!-- Main Card -->
     <div class="glass-panel p-4 mb-4">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h4 class="fw-bold text-dark"><i class="fa-solid fa-sun text-warning me-2"></i>Morning Allocation</h4>
@@ -42,7 +44,6 @@
                         </select>
                     </div>
                 </div>
-
                 <div class="col-md-4">
                     <label class="form-label text-uppercase small fw-bold text-secondary">Date</label>
                     <div class="input-group input-group-glass">
@@ -50,12 +51,12 @@
                         <input type="text" name="date" id="date" class="form-control" value="{{ today_date }}" required>
                     </div>
                 </div>
-
                 <div class="col-md-3 d-flex align-items-end">
                     <div id="fetchMsg" class="w-100 text-center small fw-bold"></div>
                 </div>
             </div>
 
+            <!-- Table -->
             <div class="table-responsive glass-table-container mt-4">
                 <table class="table table-borderless align-middle mb-0" id="productTable">
                     <thead class="table-head-glass">
@@ -86,6 +87,7 @@
                 </table>
             </div>
 
+            <!-- Actions -->
             <div class="d-flex justify-content-between align-items-center mt-4">
                 <button type="button" id="addRow" class="btn btn-glass-light text-success fw-bold">
                     <i class="fa-solid fa-plus-circle me-2"></i> Add Item
@@ -101,37 +103,53 @@
 <style>
     body { background: #f0f2f5; font-family: 'Poppins', sans-serif; }
     .glass-container { max-width: 1200px; margin: 2rem auto; padding: 0 15px; }
-    .glass-header { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(12px); border-radius: 20px; border: 1px solid rgba(255, 255, 255, 0.5); box-shadow: 0 8px 32px rgba(31,38,135,0.05); }
-    .text-gradient { background: linear-gradient(45deg,#1a237e,#0d47a1); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-    .letter-spacing-2 { letter-spacing: 2px; font-size: 0.75rem; }
-    .glass-panel { background: rgba(255,255,255,0.85); backdrop-filter: blur(16px); border-radius: 24px; border: 1px solid rgba(255,255,255,0.6); box-shadow: 0 10px 40px rgba(0,0,0,0.06); }
+    
+    .glass-header { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(12px); border-radius: 20px; border: 1px solid rgba(255, 255, 255, 0.5); box-shadow: 0 8px 32px rgba(0,0,0,0.05); }
+    .text-gradient { background: linear-gradient(45deg, #1a237e, #0d47a1); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .glass-panel { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(16px); border-radius: 24px; border: 1px solid rgba(255, 255, 255, 0.6); box-shadow: 0 10px 40px rgba(0,0,0,0.06); }
 
-    .input-group-glass .input-group-text { background: rgba(255,255,255,0.5); border: 1px solid #e0e0e0; border-right: none; border-radius: 12px 0 0 12px; }
-    .input-group-glass .form-control, .input-group-glass .form-select { background: rgba(255,255,255,0.5); border: 1px solid #e0e0e0; border-left: none; border-radius: 0 12px 12px 0; padding: 0.6rem 1rem; }
+    .input-group-glass .input-group-text { background: rgba(255, 255, 255, 0.5); border: 1px solid #e0e0e0; border-right: none; border-radius: 12px 0 0 12px; }
+    .input-group-glass .form-control, .input-group-glass .form-select { background: rgba(255, 255, 255, 0.5); border: 1px solid #e0e0e0; border-left: none; border-radius: 0 12px 12px 0; padding: 0.6rem 1rem; }
+    .input-group-glass .form-control:focus, .input-group-glass .form-select:focus { box-shadow: none; border-color: #0d47a1; background: #fff; }
 
     .glass-table-container { background: #fff; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); overflow: hidden; }
     .table-head-glass { background: #f8f9fa; border-bottom: 2px solid #edf2f7; }
+    .table-head-glass th { font-weight: 600; color: #4a5568; padding: 1rem; font-size: 0.85rem; text-transform: uppercase; }
     .table-body-glass tr { border-bottom: 1px solid #f1f5f9; }
+    
+    .img-box {
+        width: 55px; height: 55px;
+        border-radius: 8px; overflow: hidden;
+        border: 1px solid #e0e0e0; background: #fff;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+    .product-thumb { transition: transform 0.2s ease; cursor: pointer; }
+    .product-thumb:hover { transform: scale(2.0); z-index: 100; position: relative; border-color: #0d47a1; }
 
-    .img-box { width: 50px; height: 50px; border-radius: 8px; overflow: hidden; border: 1px solid #e0e0e0; box-shadow: 0 2px 5px rgba(0,0,0,0.05); background: #fff; }
-
-    .btn-glass-light { background: rgba(255,255,255,0.8); border: 1px solid #e2e8f0; border-radius: 50px; padding: 0.5rem 1.5rem; transition: 0.3s; }
-    .btn-gradient-primary { background: linear-gradient(135deg,#1a237e,#0d47a1); color: white; border: none; transition: 0.3s; }
-
+    .btn-glass-light { background: rgba(255, 255, 255, 0.8); border: 1px solid #e2e8f0; border-radius: 50px; padding: 0.5rem 1.5rem; transition: 0.3s; }
+    .btn-glass-light:hover { background: #fff; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+    .btn-gradient-primary { background: linear-gradient(135deg, #1a237e 0%, #0d47a1 100%); color: white; border: none; transition: 0.3s; }
+    .btn-gradient-primary:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(13, 71, 161, 0.3); color: white; }
+    
     .table input.form-control { background: transparent; border: 1px solid transparent; text-align: center; font-weight: 600; }
+    .table input.form-control:focus { background: white; border: 1px solid #cbd5e0; box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.15); border-radius: 6px; }
     .table input.given { background: #ebf8ff; color: #2b6cb0; border-radius: 6px; }
-
+    
     .flatpickr-calendar { box-shadow: 0 10px 30px rgba(0,0,0,0.1) !important; border: none !important; }
 </style>
 
 <script>
-    window.productsData = {{ products | tojson | safe }};
-    window.productOptions = {{ productOptions | tojson | safe }};
-
+    // Just inject the JSON data. The HTML options are now built in JS.
+    try {
+        window.productsData = {{ products | tojson | safe }};
+    } catch(e) {
+        console.error("Data Injection Error:", e);
+        window.productsData = [];
+    }
+    
     document.addEventListener("DOMContentLoaded", function() {
         flatpickr("#date", { dateFormat: "d-m-Y", defaultDate: "{{ today_date }}", allowInput: true });
     });
 </script>
-
 <script src="{{ url_for('static', filename='js/morning.js') }}"></script>
 {% endblock %}
