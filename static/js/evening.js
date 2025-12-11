@@ -1,24 +1,20 @@
 document.addEventListener("DOMContentLoaded", () => {
-    
     const getEl = (id) => document.getElementById(id);
     const ui = {
-        employeeSelect: getEl("employee_id"), // Matched ID
+        employeeSelect: getEl("employee_id"), 
         dateInput: getEl("date"),
         fetchButton: getEl("btnFetch"),
-        tableBody: getEl("rowsArea"), // Ensure table has id="rowsArea"
+        tableBody: getEl("rowsArea"),
         fetchMsg: getEl("fetchMsg"),
-        
         hidden: {
             allocationId: getEl('allocation_id'),
             employee: getEl('h_employee'),
             date: getEl('h_date'),
         },
-        
         footer: {
             sold: getEl('totSold'),
             amount: getEl('totAmount')
         },
-        
         payment: {
             totalAmount: getEl('totalAmount'),
             discount: getEl('discount'),
@@ -28,12 +24,9 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     };
     
-    if (!ui.fetchButton || !ui.tableBody) {
-        console.error("Evening UI missing elements");
-        return;
-    }
+    if (!ui.fetchButton) return;
 
-    const DEFAULT_IMG = "https://via.placeholder.com/55?text=Img";
+    const DEFAULT_IMG = "https://via.placeholder.com/50?text=Img";
 
     async function fetchMorningAllocation() {
         const employeeId = ui.employeeSelect.value;
@@ -64,9 +57,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             renderTable(data.items);
-            if(ui.fetchMsg) {
-                ui.fetchMsg.innerHTML = '<span class="text-success"><i class="fa-solid fa-check"></i> Data loaded</span>';
-            }
+            if(ui.fetchMsg) ui.fetchMsg.innerHTML = '<span class="text-success"><i class="fa-solid fa-check"></i> Data loaded</span>';
 
         } catch (error) {
             ui.tableBody.innerHTML = `<tr><td colspan="7" class="text-center text-danger p-4">${error.message}</td></tr>`;
@@ -81,15 +72,15 @@ document.addEventListener("DOMContentLoaded", () => {
             const totalQty = parseInt(item.total_qty);
             const price = parseFloat(item.unit_price);
             
-            let imgSrc = DEFAULT_IMG;
-            if(item.image) {
-                imgSrc = item.image.startsWith('http') ? item.image : `/static/uploads/${item.image}`;
-            }
+            // Image handling - use URL from backend or default
+            let imgSrc = item.image || DEFAULT_IMG;
 
             const rowHtml = `
                 <tr class="item-row">
                     <td class="ps-4 text-center">
-                        <img src="${imgSrc}" class="product-thumb" alt="img" onerror="this.src='${DEFAULT_IMG}'">
+                        <div class="img-box">
+                            <img src="${imgSrc}" class="product-thumb" alt="img" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='${DEFAULT_IMG}'">
+                        </div>
                     </td>
                     <td>
                         <div class="fw-bold text-dark text-start">${item.product_name}</div>
@@ -165,6 +156,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const due = total - (disc + cash + online);
         
         if(ui.payment.due) ui.payment.due.textContent = due.toFixed(2);
+        if(document.getElementById('stickyDue')) document.getElementById('stickyDue').innerText = due.toFixed(2);
     }
 
     ui.fetchButton.addEventListener("click", (e) => {
