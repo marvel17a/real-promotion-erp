@@ -1,85 +1,88 @@
 document.addEventListener("DOMContentLoaded", () => {
+    // 1. UI Elements Cache (With Safety Checks)
+    const getEl = (id) => document.getElementById(id);
     const ui = {
-        employeeSelect: document.getElementById("employee_id"),
-        dateInput: document.getElementById("date"),
+        employeeSelect: getEl("employee_id"), // Matched to HTML
+        dateInput: getEl("date"),
         tableBody: document.querySelector("#productTable tbody"),
-        addRowBtn: document.getElementById("addRow"),
-        fetchMsg: document.getElementById("fetchMsg"),
+        addRowBtn: getEl("addRow"),
+        fetchMsg: getEl("fetchMsg"),
         totals: {
-            opening: document.getElementById("totalOpening"),
-            given: document.getElementById("totalGiven"),
-            all: document.getElementById("totalAll"),
-            grand: document.getElementById("grandTotal")
+            opening: getEl("totalOpening"),
+            given: getEl("totalGiven"),
+            all: getEl("totalAll"),
+            grand: getEl("grandTotal")
         }
     };
 
-    let currentStockData = {};
-    const productsMap = new Map((window.productsData || []).map(p => [String(p.id), p]));
-    const DEFAULT_IMG = "https://via.placeholder.com/40?text=?";
+    // 2. Validate Critical Elements exist
+    if (!ui.employeeSelect || !ui.dateInput || !ui.tableBody || !ui.addRowBtn) {
+        console.error("Critical UI elements missing. Check HTML IDs.");
+        return; // Stop execution if UI is broken
+    }
 
+    // 3. State & Data
+    let currentStockData = {};
+    const productsData = window.productsData || [];
+    const productOptionsHtml = window.productOptions || '<option value="">Error loading products</option>';
+    const productsMap = new Map(productsData.map(p => [String(p.id), p]));
+    const DEFAULT_IMG = "https://via.placeholder.com/55?text=Img";
+
+    // 4. Core Functions
     async function fetchStockData() {
         const employeeId = ui.employeeSelect.value;
         const dateStr = ui.dateInput.value;
 
         if (!employeeId || !dateStr) {
-            ui.tableBody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-5"><i class="fa-solid fa-arrow-up me-2"></i>Select Employee & Date to start</td></tr>';
+            // Don't clear table, just stop
             return;
         }
 
-        ui.fetchMsg.innerHTML = '<span class="text-primary"><i class="fas fa-spinner fa-spin"></i> Checking stock...</span>';
+        updateStatus('loading', 'Checking stock...');
 
         try {
             const response = await fetch(`/api/fetch_stock?employee_id=${employeeId}&date=${dateStr}`);
             const data = await response.json();
 
             if (data.error && response.status !== 500) {
+                // Warning logic (e.g. no prev stock)
                 currentStockData = {}; 
-                ui.fetchMsg.innerHTML = '<span class="text-warning"><i class="fa-solid fa-circle-exclamation"></i> New day (No previous stock)</span>';
+                updateStatus('warning', 'New allocation (No previous stock found)');
             } else {
                 currentStockData = data;
-                ui.fetchMsg.innerHTML = '<span class="text-success"><i class="fa-solid fa-check-circle"></i> Opening stock synced</span>';
+                updateStatus('success', 'Stock synced with previous records');
             }
 
-            if (ui.tableBody.rows.length === 1 && ui.tableBody.rows[0].cells.length === 1) {
-                ui.tableBody.innerHTML = '';
-            }
-
+            // Update all existing rows with new stock data
             updateAllRows();
-            setTimeout(() => ui.fetchMsg.innerHTML = '', 3000);
 
         } catch (error) {
-            ui.fetchMsg.innerHTML = '<span class="text-danger">Connection Failed</span>';
+            console.error("Fetch Error:", error);
+            updateStatus('error', 'Connection failed. Please refresh.');
         }
     }
 
     function createRow() {
-        if (ui.tableBody.rows.length === 1 && ui.tableBody.rows[0].cells.length === 1) {
-            ui.tableBody.innerHTML = '';
-        }
-
         const tr = document.createElement("tr");
-
-        let optionsHtml = '<option value="">-- Select --</option>';
-        (window.productOptions || []).forEach(opt => {
-            optionsHtml += `<option value="${opt.id}">${opt.name}</option>`;
-        });
-
         tr.innerHTML = `
-            <td class="row-index ps-4 fw-bold text-muted small"></td>
+            <td class="row-index ps-4 fw-bold text-muted small py-3"></td>
             <td class="text-center">
-                <img src="${DEFAULT_IMG}" class="product-thumb" alt="img">
+                <img src="${DEFAULT_IMG}" class="product-thumb" alt="Product">
             </td>
             <td>
                 <select name="product_id[]" class="form-select product-dropdown" required>
-                    ${optionsHtml}
+                    <option value="">-- Select Product --</option>
+                    ${productOptionsHtml}
                 </select>
             </td>
-            <td><input type="number" name="opening[]" class="form-control opening" value="0" readonly></td>
+            <td><input type="number" name="opening[]" class="form-control opening" value="0" readonly tabindex="-1"></td>
             <td><input type="number" name="given[]" class="form-control given" min="0" placeholder="0" required></td>
-            <td><input type="number" name="total[]" class="form-control total" value="0" readonly></td>
-            <td><input type="number" name="price[]" class="form-control price" step="0.01" value="0.00" readonly></td>
-            <td><input type="number" name="amount[]" class="form-control amount text-end" value="0.00" readonly></td>
-            <td class="text-center"><button type="button" class="btn btn-link text-danger p-0 btn-remove-row"><i class="fa-solid fa-trash-can"></i></button></td>
+            <td><input type="number" name="total[]" class="form-control total" value="0" readonly tabindex="-1"></td>
+            <td><input type="number" name="price[]" class="form-control price" step="0.01" value="0.00" readonly tabindex="-1"></td>
+            <td><input type="number" name="amount[]" class="form-control amount text-end" value="0.00" readonly tabindex="-1"></td>
+            <td class="text-center">
+                <button type="button" class="btn btn-link text-danger p-0 btn-remove-row"><i class="fa-solid fa-trash-can"></i></button>
+            </td>
         `;
         ui.tableBody.appendChild(tr);
         updateRowIndexes();
@@ -100,20 +103,24 @@ document.addEventListener("DOMContentLoaded", () => {
         const priceInput = row.querySelector(".price");
         const img = row.querySelector(".product-thumb");
         
+        // 1. Update Image
         const product = productsMap.get(productId);
         if (product && product.image) {
+            // Handle both full URLs and filenames
             img.src = product.image.startsWith('http') ? product.image : `/static/uploads/${product.image}`;
             img.onerror = () => { img.src = DEFAULT_IMG; };
         } else {
             img.src = DEFAULT_IMG;
         }
 
+        // 2. Update Stock
         let openingQty = 0;
         if (currentStockData[productId]) {
             openingQty = parseInt(currentStockData[productId].remaining) || 0;
         }
         openingInput.value = openingQty;
 
+        // 3. Update Price (API price takes priority over Master price)
         let price = 0;
         if (currentStockData[productId]) {
             price = parseFloat(currentStockData[productId].price);
@@ -141,18 +148,16 @@ document.addEventListener("DOMContentLoaded", () => {
         let tOpening = 0, tGiven = 0, tAll = 0, tGrand = 0;
 
         ui.tableBody.querySelectorAll("tr").forEach(row => {
-            if (!row.querySelector(".total")) return;
-
             tOpening += parseInt(row.querySelector(".opening").value) || 0;
             tGiven += parseInt(row.querySelector(".given").value) || 0;
             tAll += parseInt(row.querySelector(".total").value) || 0;
             tGrand += parseFloat(row.querySelector(".amount").value) || 0;
         });
 
-        ui.totals.opening.textContent = tOpening;
-        ui.totals.given.textContent = tGiven;
-        ui.totals.all.textContent = tAll;
-        ui.totals.grand.textContent = tGrand.toFixed(2);
+        if(ui.totals.opening) ui.totals.opening.textContent = tOpening;
+        if(ui.totals.given) ui.totals.given.textContent = tGiven;
+        if(ui.totals.all) ui.totals.all.textContent = tAll;
+        if(ui.totals.grand) ui.totals.grand.textContent = tGrand.toFixed(2);
     }
 
     function updateRowIndexes() {
@@ -162,14 +167,32 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    function updateStatus(type, msg) {
+        if(!ui.fetchMsg) return;
+        ui.fetchMsg.innerHTML = msg;
+        ui.fetchMsg.className = "w-100 text-center small fw-bold mt-2"; // Reset
+        
+        if(type === 'loading') ui.fetchMsg.classList.add('text-primary');
+        if(type === 'success') {
+            ui.fetchMsg.classList.add('text-success');
+            setTimeout(() => ui.fetchMsg.innerHTML = '', 3000);
+        }
+        if(type === 'error') ui.fetchMsg.classList.add('text-danger');
+        if(type === 'warning') ui.fetchMsg.classList.add('text-warning');
+    }
+
+    // 5. Event Listeners
     ui.employeeSelect.addEventListener("change", fetchStockData);
     ui.dateInput.addEventListener("change", fetchStockData);
     
-    ui.addRowBtn.addEventListener("click", () => {
+    // The Button Fix
+    ui.addRowBtn.addEventListener("click", (e) => {
+        e.preventDefault(); // Prevent form submit
         createRow();
         recalculateTotals();
     });
 
+    // Delegation
     ui.tableBody.addEventListener("click", e => {
         if (e.target.closest(".btn-remove-row")) {
             e.target.closest("tr").remove();
@@ -180,7 +203,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     ui.tableBody.addEventListener("change", e => {
         if (e.target.matches(".product-dropdown")) {
-            updateRowData(e.target.closest("tr"), e.target.value);
+            const row = e.target.closest("tr");
+            updateRowData(row, e.target.value);
             recalculateTotals();
         }
     });
@@ -191,4 +215,7 @@ document.addEventListener("DOMContentLoaded", () => {
             recalculateTotals();
         }
     });
+    
+    // Initial call just in case inputs are pre-filled
+    fetchStockData();
 });
