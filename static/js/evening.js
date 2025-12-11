@@ -1,4 +1,5 @@
 document.addEventListener("DOMContentLoaded", () => {
+    
     const getEl = (id) => document.getElementById(id);
     const ui = {
         employeeSelect: getEl("employee_id"), 
@@ -26,7 +27,7 @@ document.addEventListener("DOMContentLoaded", () => {
     
     if (!ui.fetchButton) return;
 
-    const DEFAULT_IMG = "https://via.placeholder.com/50?text=Img";
+    const DEFAULT_IMG = "https://via.placeholder.com/55?text=Img";
 
     async function fetchMorningAllocation() {
         const employeeId = ui.employeeSelect.value;
@@ -72,14 +73,13 @@ document.addEventListener("DOMContentLoaded", () => {
             const totalQty = parseInt(item.total_qty);
             const price = parseFloat(item.unit_price);
             
-            // Image handling - use URL from backend or default
             let imgSrc = item.image || DEFAULT_IMG;
 
             const rowHtml = `
                 <tr class="item-row">
                     <td class="ps-4 text-center">
                         <div class="img-box">
-                            <img src="${imgSrc}" class="product-thumb" alt="img" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='${DEFAULT_IMG}'">
+                            <img src="${imgSrc}" class="product-thumb" alt="Product" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='${DEFAULT_IMG}'">
                         </div>
                     </td>
                     <td>
