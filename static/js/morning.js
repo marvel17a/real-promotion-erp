@@ -33,7 +33,6 @@ document.addEventListener("DOMContentLoaded", () => {
             const data = await response.json();
 
             if (data.error && response.status !== 500) {
-                console.warn(data.error);
                 currentStockData = {}; 
                 ui.fetchMsg.innerHTML = '<span class="text-warning"><i class="fa-solid fa-circle-exclamation"></i> New day (No previous stock)</span>';
             } else {
@@ -49,7 +48,6 @@ document.addEventListener("DOMContentLoaded", () => {
             setTimeout(() => ui.fetchMsg.innerHTML = '', 3000);
 
         } catch (error) {
-            console.error("Stock Fetch Error:", error);
             ui.fetchMsg.innerHTML = '<span class="text-danger">Connection Failed</span>';
         }
     }
@@ -61,7 +59,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const tr = document.createElement("tr");
 
-        // Build product dropdown dynamically from JSON
         let optionsHtml = '<option value="">-- Select --</option>';
         (window.productOptions || []).forEach(opt => {
             optionsHtml += `<option value="${opt.id}">${opt.name}</option>`;
@@ -77,11 +74,11 @@ document.addEventListener("DOMContentLoaded", () => {
                     ${optionsHtml}
                 </select>
             </td>
-            <td><input type="number" name="opening[]" class="form-control opening" value="0" readonly tabindex="-1"></td>
+            <td><input type="number" name="opening[]" class="form-control opening" value="0" readonly></td>
             <td><input type="number" name="given[]" class="form-control given" min="0" placeholder="0" required></td>
-            <td><input type="number" name="total[]" class="form-control total" value="0" readonly tabindex="-1"></td>
-            <td><input type="number" name="price[]" class="form-control price" step="0.01" value="0.00" readonly tabindex="-1"></td>
-            <td><input type="number" name="amount[]" class="form-control amount text-end" value="0.00" readonly tabindex="-1"></td>
+            <td><input type="number" name="total[]" class="form-control total" value="0" readonly></td>
+            <td><input type="number" name="price[]" class="form-control price" step="0.01" value="0.00" readonly></td>
+            <td><input type="number" name="amount[]" class="form-control amount text-end" value="0.00" readonly></td>
             <td class="text-center"><button type="button" class="btn btn-link text-danger p-0 btn-remove-row"><i class="fa-solid fa-trash-can"></i></button></td>
         `;
         ui.tableBody.appendChild(tr);
@@ -120,8 +117,8 @@ document.addEventListener("DOMContentLoaded", () => {
         let price = 0;
         if (currentStockData[productId]) {
             price = parseFloat(currentStockData[productId].price);
-        } else {
-            if (product) price = parseFloat(product.price);
+        } else if (product) {
+            price = parseFloat(product.price);
         }
         priceInput.value = price.toFixed(2);
         
