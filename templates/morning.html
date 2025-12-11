@@ -7,21 +7,19 @@
 
 <div class="glass-container fade-in-up">
 
-    <!-- Premium Header -->
     <div class="glass-header d-flex flex-wrap justify-content-between align-items-center mb-4 p-4">
-       
-        <div class="brand-block text-end mt-3 mt-md-0">
-            <h1 class="company-name text-gradient fw-bold mb-0">REAL PROMOTION</h1>
-            <p class="since-text text-secondary mb-0 letter-spacing-2">SINCE 2005</p>
-        </div>
-    </div>
- <div class="address-block text-muted small" style="max-width: 350px; font-size: 0.85rem;">
+        <div class="address-block text-muted small" style="max-width: 350px; font-size: 0.85rem;">
             <i class="fa-solid fa-location-dot text-primary me-2"></i>
             <strong>Real Promotion</strong>, G/12, Tulsimangalam Complex,<br>
             B/h. Trimurti Complex, Ghodiya Bazar,<br>
             Nadiad-387001, Gujarat, India
         </div>
-    <!-- Controls Card -->
+        <div class="brand-block text-end mt-3 mt-md-0">
+            <h1 class="company-name text-gradient fw-bold mb-0">REAL PROMOTION</h1>
+            <p class="since-text text-secondary mb-0 letter-spacing-2">SINCE 2005</p>
+        </div>
+    </div>
+
     <div class="glass-panel p-4 mb-4">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h4 class="fw-bold text-dark"><i class="fa-solid fa-sun text-warning me-2"></i>Morning Allocation</h4>
@@ -44,6 +42,7 @@
                         </select>
                     </div>
                 </div>
+
                 <div class="col-md-4">
                     <label class="form-label text-uppercase small fw-bold text-secondary">Date</label>
                     <div class="input-group input-group-glass">
@@ -51,18 +50,18 @@
                         <input type="text" name="date" id="date" class="form-control" value="{{ today_date }}" required>
                     </div>
                 </div>
+
                 <div class="col-md-3 d-flex align-items-end">
                     <div id="fetchMsg" class="w-100 text-center small fw-bold"></div>
                 </div>
             </div>
 
-            <!-- Table Section -->
             <div class="table-responsive glass-table-container mt-4">
                 <table class="table table-borderless align-middle mb-0" id="productTable">
                     <thead class="table-head-glass">
                         <tr>
                             <th class="ps-4" style="width: 50px;">#</th>
-                            <th style="width: 80px;">Img</th>
+                            <th style="width: 70px;">Img</th>
                             <th style="min-width: 200px;">Product</th>
                             <th style="width: 100px;">Opening</th>
                             <th style="width: 100px;">Given</th>
@@ -87,7 +86,6 @@
                 </table>
             </div>
 
-            <!-- Actions -->
             <div class="d-flex justify-content-between align-items-center mt-4">
                 <button type="button" id="addRow" class="btn btn-glass-light text-success fw-bold">
                     <i class="fa-solid fa-plus-circle me-2"></i> Add Item
@@ -101,18 +99,39 @@
 </div>
 
 <style>
-    /* (CSS unchanged) */
+    body { background: #f0f2f5; font-family: 'Poppins', sans-serif; }
+    .glass-container { max-width: 1200px; margin: 2rem auto; padding: 0 15px; }
+    .glass-header { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(12px); border-radius: 20px; border: 1px solid rgba(255, 255, 255, 0.5); box-shadow: 0 8px 32px rgba(31,38,135,0.05); }
+    .text-gradient { background: linear-gradient(45deg,#1a237e,#0d47a1); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .letter-spacing-2 { letter-spacing: 2px; font-size: 0.75rem; }
+    .glass-panel { background: rgba(255,255,255,0.85); backdrop-filter: blur(16px); border-radius: 24px; border: 1px solid rgba(255,255,255,0.6); box-shadow: 0 10px 40px rgba(0,0,0,0.06); }
+
+    .input-group-glass .input-group-text { background: rgba(255,255,255,0.5); border: 1px solid #e0e0e0; border-right: none; border-radius: 12px 0 0 12px; }
+    .input-group-glass .form-control, .input-group-glass .form-select { background: rgba(255,255,255,0.5); border: 1px solid #e0e0e0; border-left: none; border-radius: 0 12px 12px 0; padding: 0.6rem 1rem; }
+
+    .glass-table-container { background: #fff; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); overflow: hidden; }
+    .table-head-glass { background: #f8f9fa; border-bottom: 2px solid #edf2f7; }
+    .table-body-glass tr { border-bottom: 1px solid #f1f5f9; }
+
+    .img-box { width: 50px; height: 50px; border-radius: 8px; overflow: hidden; border: 1px solid #e0e0e0; box-shadow: 0 2px 5px rgba(0,0,0,0.05); background: #fff; }
+
+    .btn-glass-light { background: rgba(255,255,255,0.8); border: 1px solid #e2e8f0; border-radius: 50px; padding: 0.5rem 1.5rem; transition: 0.3s; }
+    .btn-gradient-primary { background: linear-gradient(135deg,#1a237e,#0d47a1); color: white; border: none; transition: 0.3s; }
+
+    .table input.form-control { background: transparent; border: 1px solid transparent; text-align: center; font-weight: 600; }
+    .table input.given { background: #ebf8ff; color: #2b6cb0; border-radius: 6px; }
+
+    .flatpickr-calendar { box-shadow: 0 10px 30px rgba(0,0,0,0.1) !important; border: none !important; }
 </style>
 
 <script>
-    // ✅ FIXED JSON injection
     window.productsData = {{ products | tojson | safe }};
     window.productOptions = {{ productOptions | tojson | safe }};
-    
+
     document.addEventListener("DOMContentLoaded", function() {
         flatpickr("#date", { dateFormat: "d-m-Y", defaultDate: "{{ today_date }}", allowInput: true });
     });
 </script>
+
 <script src="{{ url_for('static', filename='js/morning.js') }}"></script>
 {% endblock %}
-
