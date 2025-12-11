@@ -2650,7 +2650,7 @@ def exp_report():
 
 
 # =============================================================================
-# COPY THIS INTO app.py - REPLACING OLD MORNING & EVENING ROUTES
+# COPY THIS INTO app.py - REPLACES MORNING & EVENING ROUTES
 # =============================================================================
 
 from datetime import datetime, date, timedelta
@@ -2659,19 +2659,18 @@ from datetime import datetime, date, timedelta
 def parse_date(date_str):
     if not date_str: return None
     try:
-        return datetime.strptime(date_str, "%d-%m-%Y").date()
+        return datetime.strptime(date_str, "%Y-%m-%d").date() # Standard HTML date input format
     except ValueError:
         try:
-            return datetime.strptime(date_str, "%Y-%m-%d").date()
+            return datetime.strptime(date_str, "%d-%m-%Y").date() # Fallback
         except ValueError:
             return None
 
-# --- Helper: Image URL Resolver (Matches your fix_image logic) ---
+# --- Helper: Image URL Resolver ---
 def resolve_img(image_path):
-    if not image_path: return url_for('static', filename='img/default-product.png') # Ensure you have a default image or use placeholder
+    if not image_path: return url_for('static', filename='img/default-product.png')
     if image_path.startswith('http'): return image_path
     if '.' in image_path: return url_for('static', filename='uploads/' + image_path)
-    # Cloudinary ID handling
     try:
         import cloudinary.utils
         url, _ = cloudinary.utils.cloudinary_url(image_path, secure=True)
@@ -2729,28 +2728,22 @@ def morning():
         db_cursor.execute("SELECT id, name FROM employees WHERE status='active' ORDER BY name")
         employees = db_cursor.fetchall()
         
-        # FETCH PRODUCTS WITH IMAGES
         db_cursor.execute("SELECT id, name, price, image FROM products ORDER BY name")
         products_raw = db_cursor.fetchall() or []
         
-        # Prepare Data for JS (Resolve Image URL here)
         products_for_js = []
         for p in products_raw:
             products_for_js.append({
                 'id': p['id'], 
                 'name': p['name'], 
                 'price': float(p['price']), 
-                'image': resolve_img(p['image']) # Resolved Full URL
+                'image': resolve_img(p['image']) 
             })
         
-        # Build Dropdown Options
-        productOptions = ''.join(f'<option value="{p["id"]}">{p["name"]}</option>' for p in products_for_js)
-
         return render_template('morning.html',
                                employees=employees,
                                products=products_for_js,
-                               productOptions=productOptions,
-                               today_date=date.today().strftime('%d-%m-%Y'))
+                               today_date=date.today().strftime('%Y-%m-%d'))
 
     except Exception as e:
         if db_cursor: mysql.connection.rollback()
@@ -2808,7 +2801,7 @@ def evening():
                 rem = int(t_qtys[i] or 0) - sold - int(r_qtys[i] or 0)
                 db_cursor.execute(item_sql, (settle_id, pid, t_qtys[i], sold, r_qtys[i], prices[i], rem))
                 
-                # Reduce Stock
+                # Update Stock
                 if sold > 0:
                     db_cursor.execute("UPDATE products SET stock = stock - %s WHERE id = %s", (sold, pid))
 
@@ -2824,16 +2817,17 @@ def evening():
             if db_cursor: db_cursor.close()
 
     # GET Request
+    last_settle_id = request.args.get('last_settle_id')
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     cur.execute("SELECT id, name FROM employees WHERE status='active' ORDER BY name")
     employees = cur.fetchall()
     cur.close()
     
-    return render_template('evening.html', employees=employees, today=date.today().strftime('%d-%m-%Y'))
+    return render_template('evening.html', employees=employees, today=date.today().strftime('%Y-%m-%d'), last_settle_id=last_settle_id)
 
 
 # ---------------------------------------------------------
-# 3. API: FETCH STOCK (For Morning)
+# 3. API: FETCH STOCK (Matches your request to fetch yesterday's stock)
 # ---------------------------------------------------------
 @app.route('/api/fetch_stock')
 def api_fetch_stock():
@@ -2845,9 +2839,13 @@ def api_fetch_stock():
     try:
         current_date = parse_date(date_str)
         if not current_date: return jsonify({"error": "Invalid date"}), 400
+        
+        # Calculate Previous Day
         previous_day = current_date - timedelta(days=1)
 
         cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        
+        # Fetch remaining stock from the EVENING SETTLEMENT of the PREVIOUS DAY
         cur.execute("""
             SELECT ei.product_id, ei.remaining_qty AS remaining, ei.unit_price AS price
             FROM evening_item ei
@@ -2863,7 +2861,7 @@ def api_fetch_stock():
 
 
 # ---------------------------------------------------------
-# 4. API: FETCH ALLOCATION (For Evening) - INCLUDES IMAGE
+# 4. API: FETCH ALLOCATION (For Evening Page)
 # ---------------------------------------------------------
 @app.route('/api/fetch_morning_allocation')
 def api_fetch_morning_allocation():
@@ -2907,7 +2905,7 @@ def api_fetch_morning_allocation():
             clean_items.append({
                 'product_id': i['product_id'],
                 'product_name': i['product_name'],
-                'image': resolve_img(i['image']), # Use helper to get Full URL
+                'image': resolve_img(i['image']),
                 'total_qty': int(i['total_qty']),
                 'unit_price': float(i['unit_price'])
             })
@@ -4333,6 +4331,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
