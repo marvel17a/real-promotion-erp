@@ -2650,7 +2650,7 @@ def exp_report():
 
 
 # =============================================================================
-# COPY THIS INTO app.py - REPLACES MORNING & EVENING ROUTES
+# COPY THIS INTO app.py - REPLACING OLD MORNING & EVENING ROUTES
 # =============================================================================
 
 from datetime import datetime, date, timedelta
@@ -2665,6 +2665,19 @@ def parse_date(date_str):
             return datetime.strptime(date_str, "%Y-%m-%d").date()
         except ValueError:
             return None
+
+# --- Helper: Image URL Resolver (Matches your fix_image logic) ---
+def resolve_img(image_path):
+    if not image_path: return url_for('static', filename='img/default-product.png') # Ensure you have a default image or use placeholder
+    if image_path.startswith('http'): return image_path
+    if '.' in image_path: return url_for('static', filename='uploads/' + image_path)
+    # Cloudinary ID handling
+    try:
+        import cloudinary.utils
+        url, _ = cloudinary.utils.cloudinary_url(image_path, secure=True)
+        return url
+    except:
+        return url_for('static', filename='img/default-product.png')
 
 # ---------------------------------------------------------
 # 1. MORNING ALLOCATION
@@ -2720,16 +2733,15 @@ def morning():
         db_cursor.execute("SELECT id, name, price, image FROM products ORDER BY name")
         products_raw = db_cursor.fetchall() or []
         
-        # Prepare Data for JS (Include Image URL)
-        products_for_js = [
-            {
+        # Prepare Data for JS (Resolve Image URL here)
+        products_for_js = []
+        for p in products_raw:
+            products_for_js.append({
                 'id': p['id'], 
                 'name': p['name'], 
                 'price': float(p['price']), 
-                'image': p['image'] if p['image'] else '' 
-            }
-            for p in products_raw
-        ]
+                'image': resolve_img(p['image']) # Resolved Full URL
+            })
         
         # Build Dropdown Options
         productOptions = ''.join(f'<option value="{p["id"]}">{p["name"]}</option>' for p in products_for_js)
@@ -2812,13 +2824,12 @@ def evening():
             if db_cursor: db_cursor.close()
 
     # GET Request
-    last_settle_id = request.args.get('last_settle_id')
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     cur.execute("SELECT id, name FROM employees WHERE status='active' ORDER BY name")
     employees = cur.fetchall()
     cur.close()
     
-    return render_template('evening.html', employees=employees, today=date.today().strftime('%d-%m-%Y'), last_settle_id=last_settle_id)
+    return render_template('evening.html', employees=employees, today=date.today().strftime('%d-%m-%Y'))
 
 
 # ---------------------------------------------------------
@@ -2891,13 +2902,15 @@ def api_fetch_morning_allocation():
         items = cur.fetchall()
         cur.close()
         
-        clean_items = [{
-            'product_id': i['product_id'],
-            'product_name': i['product_name'],
-            'image': i['image'] if i['image'] else '', # Pass image URL
-            'total_qty': int(i['total_qty']),
-            'unit_price': float(i['unit_price'])
-        } for i in items]
+        clean_items = []
+        for i in items:
+            clean_items.append({
+                'product_id': i['product_id'],
+                'product_name': i['product_name'],
+                'image': resolve_img(i['image']), # Use helper to get Full URL
+                'total_qty': int(i['total_qty']),
+                'unit_price': float(i['unit_price'])
+            })
             
         return jsonify({"allocation_id": alloc['id'], "items": clean_items})
 
@@ -4320,6 +4333,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
