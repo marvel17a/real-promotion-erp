@@ -2655,18 +2655,16 @@ def exp_report():
 
 from datetime import datetime, date, timedelta
 
-# --- Helper: Robust Date Parsing ---
 def parse_date(date_str):
     if not date_str: return None
     try:
-        return datetime.strptime(date_str, "%Y-%m-%d").date() # Standard HTML date input format
+        return datetime.strptime(date_str, "%Y-%m-%d").date()
     except ValueError:
         try:
-            return datetime.strptime(date_str, "%d-%m-%Y").date() # Fallback
+            return datetime.strptime(date_str, "%d-%m-%Y").date()
         except ValueError:
             return None
 
-# --- Helper: Image URL Resolver ---
 def resolve_img(image_path):
     if not image_path: return url_for('static', filename='img/default-product.png')
     if image_path.startswith('http'): return image_path
@@ -2684,7 +2682,7 @@ def resolve_img(image_path):
 @app.route('/morning', methods=['GET', 'POST'])
 def morning():
     if "loggedin" not in session: return redirect(url_for("login"))
-        
+    
     db_cursor = None
     try:
         db_cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
@@ -2704,17 +2702,15 @@ def morning():
 
             formatted_date = date_obj.strftime('%Y-%m-%d')
 
-            # Check Duplication
+            # Prevent duplicate allocation for same day
             db_cursor.execute("SELECT id FROM morning_allocations WHERE employee_id=%s AND date=%s", (employee_id, formatted_date))
             if db_cursor.fetchone():
                 flash("Allocation already exists for this date.", "warning")
                 return redirect(url_for('morning'))
 
-            # Insert Header
             db_cursor.execute("INSERT INTO morning_allocations (employee_id, date) VALUES (%s, %s)", (employee_id, formatted_date))
             alloc_id = db_cursor.lastrowid
             
-            # Insert Items
             insert_sql = "INSERT INTO morning_allocation_items (allocation_id, product_id, opening_qty, given_qty, unit_price) VALUES (%s, %s, %s, %s, %s)"
             for idx, pid in enumerate(product_ids):
                 if not pid: continue
@@ -2737,7 +2733,7 @@ def morning():
                 'id': p['id'], 
                 'name': p['name'], 
                 'price': float(p['price']), 
-                'image': resolve_img(p['image']) 
+                'image': resolve_img(p['image'])
             })
         
         return render_template('morning.html',
@@ -2751,7 +2747,6 @@ def morning():
         return redirect(url_for('morning'))
     finally:
         if db_cursor: db_cursor.close()
-
 
 # ---------------------------------------------------------
 # 2. EVENING SETTLEMENT
@@ -2770,13 +2765,11 @@ def evening():
             date_obj = parse_date(date_str)
             formatted_date = date_obj.strftime('%Y-%m-%d') if date_obj else date_str
 
-            # Payments
             total_amount = request.form.get('totalAmount') or 0
             online = request.form.get('online') or 0
             cash = request.form.get('cash') or 0
             discount = request.form.get('discount') or 0
 
-            # Arrays
             p_ids = request.form.getlist('product_id[]')
             t_qtys = request.form.getlist('total_qty[]')
             s_qtys = request.form.getlist('sold[]')
@@ -2785,23 +2778,25 @@ def evening():
 
             db_cursor = mysql.connection.cursor()
 
-            # Insert Header
             db_cursor.execute("""
                 INSERT INTO evening_settle (allocation_id, employee_id, date, total_amount, online_money, cash_money, discount)
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
             """, (allocation_id, employee_id, formatted_date, total_amount, online, cash, discount))
             settle_id = db_cursor.lastrowid
 
-            # Insert Items
             item_sql = "INSERT INTO evening_item (settle_id, product_id, total_qty, sold_qty, return_qty, unit_price, remaining_qty) VALUES (%s, %s, %s, %s, %s, %s, %s)"
             
             for i, pid in enumerate(p_ids):
                 if not pid: continue
                 sold = int(s_qtys[i] or 0)
+                # Remaining = Total - Sold - Return
+                # This remaining value is what becomes "Opening Stock" for next time
                 rem = int(t_qtys[i] or 0) - sold - int(r_qtys[i] or 0)
+                if rem < 0: rem = 0
+
                 db_cursor.execute(item_sql, (settle_id, pid, t_qtys[i], sold, r_qtys[i], prices[i], rem))
                 
-                # Update Stock
+                # Reduce MAIN INVENTORY only by what was sold
                 if sold > 0:
                     db_cursor.execute("UPDATE products SET stock = stock - %s WHERE id = %s", (sold, pid))
 
@@ -2825,40 +2820,58 @@ def evening():
     
     return render_template('evening.html', employees=employees, today=date.today().strftime('%Y-%m-%d'), last_settle_id=last_settle_id)
 
-
 # ---------------------------------------------------------
-# 3. API: FETCH STOCK (Matches your request to fetch yesterday's stock)
+# 3. API: FETCH STOCK (SMART VERSION)
 # ---------------------------------------------------------
 @app.route('/api/fetch_stock')
 def api_fetch_stock():
+    """
+    Fetches the remaining stock from the MOST RECENT evening settlement for this employee.
+    This handles the case where an employee skips a day.
+    """
     if "loggedin" not in session: return jsonify({"error": "Unauthorized"}), 401
     
     employee_id = request.args.get('employee_id')
-    date_str = request.args.get('date')
+    date_str = request.args.get('date') # Current Morning Allocation Date
 
     try:
         current_date = parse_date(date_str)
         if not current_date: return jsonify({"error": "Invalid date"}), 400
         
-        # Calculate Previous Day
-        previous_day = current_date - timedelta(days=1)
-
         cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
         
-        # Fetch remaining stock from the EVENING SETTLEMENT of the PREVIOUS DAY
+        # 1. Find the DATE of the last settlement strictly BEFORE today
+        # This solves the "skipped day" issue. We don't just check yesterday.
         cur.execute("""
-            SELECT ei.product_id, ei.remaining_qty AS remaining, ei.unit_price AS price
-            FROM evening_item ei
-            JOIN evening_settle es ON ei.settle_id = es.id
-            WHERE es.employee_id = %s AND es.date = %s AND ei.remaining_qty > 0
-        """, (employee_id, previous_day))
-        rows = cur.fetchall()
+            SELECT id, date FROM evening_settle 
+            WHERE employee_id = %s AND date < %s 
+            ORDER BY date DESC LIMIT 1
+        """, (employee_id, current_date))
+        
+        last_settlement = cur.fetchone()
+        
+        stock_data = {}
+        
+        if last_settlement:
+            # 2. Fetch items from that specific settlement
+            cur.execute("""
+                SELECT product_id, remaining_qty, unit_price 
+                FROM evening_item 
+                WHERE settle_id = %s AND remaining_qty > 0
+            """, (last_settlement['id'],))
+            rows = cur.fetchall()
+            
+            for r in rows:
+                stock_data[str(r['product_id'])] = {
+                    'remaining': int(r['remaining_qty']),
+                    'price': float(r['unit_price'])
+                }
+        
         cur.close()
+        return jsonify(stock_data)
 
-        return jsonify({str(r['product_id']): {'remaining': int(r['remaining']), 'price': float(r['price'])} for r in rows})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
 
 # ---------------------------------------------------------
 # 4. API: FETCH ALLOCATION (For Evening Page)
@@ -2880,7 +2893,7 @@ def api_fetch_morning_allocation():
         cur.execute("SELECT id FROM evening_settle WHERE employee_id=%s AND date=%s", (employee_id, formatted_date))
         if cur.fetchone():
             cur.close()
-            return jsonify({"error": "Already settled."}), 400
+            return jsonify({"error": "Evening settlement already done for this date."}), 400
 
         # Find Allocation
         cur.execute("SELECT id FROM morning_allocations WHERE employee_id=%s AND date=%s", (employee_id, formatted_date))
@@ -2888,7 +2901,7 @@ def api_fetch_morning_allocation():
         
         if not alloc:
             cur.close()
-            return jsonify({"error": "No allocation found."}), 404
+            return jsonify({"error": "No morning allocation found for this date."}), 404
             
         # Get Items + IMAGES
         cur.execute("""
@@ -4331,6 +4344,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
