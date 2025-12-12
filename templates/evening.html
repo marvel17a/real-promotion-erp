@@ -5,11 +5,11 @@
 
 <div class="glass-container fade-in-up mb-5">
 
-    <!-- Premium Header -->
+    <!-- Header -->
     <div class="glass-header text-center mb-4 p-4">
         <h1 class="company-name text-gradient fw-bold mb-1">REAL PROMOTION</h1>
-        <p class="since-text text-secondary mb-2 small letter-spacing-2">SINCE 2005</p>
-        <div class="address-block text-muted small mx-auto" style="max-width: 600px;">
+        <p class="since-text text-secondary mb-3 small letter-spacing-2">SINCE 2005</p>
+        <div class="address-block text-muted small mx-auto bg-white bg-opacity-50 p-2 rounded-3" style="max-width: 600px;">
             <i class="fa-solid fa-location-dot text-primary me-1"></i>
             Real Promotion, G/12, Tulsimangalam Complex, B/h. Trimurti Complex, Ghodiya Bazar, Nadiad-387001, Gujarat, India
         </div>
@@ -178,8 +178,8 @@
     .bg-gradient-primary { background: linear-gradient(135deg, #1a237e 0%, #0d47a1 100%); }
 
     /* Inputs */
-    .input-group-glass .input-group-text { background: #fff; border: 1px solid #e0e0e0; border-right: none; border-radius: 12px 0 0 12px; }
-    .input-group-glass .form-control, .input-group-glass .form-select { background: #fff; border: 1px solid #e0e0e0; border-left: none; border-radius: 0 12px 12px 0; padding: 0.6rem; }
+    .input-group-glass .input-group-text { background: #f8f9fa; border: 1px solid #e0e0e0; border-right: none; border-radius: 12px 0 0 12px; }
+    .input-group-glass .form-control, .input-group-glass .form-select { background: #fff; border: 1px solid #e0e0e0; border-left: none; border-radius: 0 12px 12px 0; padding: 0.6rem 1rem; }
     .input-group-glass .form-control:focus, .input-group-glass .form-select:focus { border-color: #0d47a1; box-shadow: none; }
 
     /* Image Box */
@@ -197,6 +197,7 @@
 
 <script>
     document.addEventListener("DOMContentLoaded", function() {
+        flatpickr("#date", { dateFormat: "Y-m-d", defaultDate: "{{ today }}", allowInput: true });
         const dueEl = document.getElementById('dueAmount');
         const stickyEl = document.getElementById('stickyDue');
         const observer = new MutationObserver(() => { stickyEl.innerText = dueEl.innerText; });
