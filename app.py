@@ -2649,7 +2649,7 @@ def exp_report():
     )
 
 # =============================================================================
-# REPLACE MORNING & EVENING ROUTES IN app.py
+# COPY THIS INTO app.py - REPLACES MORNING, EVENING & API ROUTES
 # =============================================================================
 
 from datetime import datetime, date, timedelta
@@ -2668,11 +2668,17 @@ def parse_date(date_str):
         except ValueError:
             return None
 
-# --- Helper: Image URL Resolver ---
+# --- Helper: Image URL Resolver (Matches your app.py fix_image logic) ---
 def resolve_img(image_path):
     if not image_path: return url_for('static', filename='img/default-product.png')
+    
+    # Case 1: Already a full URL (Cloudinary or other)
     if image_path.startswith('http'): return image_path
+    
+    # Case 2: Local file (contains extension like .jpg)
     if '.' in image_path: return url_for('static', filename='uploads/' + image_path)
+    
+    # Case 3: Cloudinary Public ID (no extension, no http)
     try:
         import cloudinary.utils
         url, _ = cloudinary.utils.cloudinary_url(image_path, secure=True)
@@ -2704,52 +2710,60 @@ def morning():
                 flash("All fields are required.", "danger")
                 return redirect(url_for('morning'))
 
+            # Convert to DB standard YYYY-MM-DD for storage
             formatted_date = date_obj.strftime('%Y-%m-%d')
 
-            # Check duplication
+            # Check if allocation exists
             db_cursor.execute("SELECT id FROM morning_allocations WHERE employee_id=%s AND date=%s", (employee_id, formatted_date))
-            existing = db_cursor.fetchone()
-            
-            if existing:
-                flash("Allocation already exists for this date. Please edit it instead.", "warning")
-                return redirect(url_for('morning'))
+            existing_alloc = db_cursor.fetchone()
 
-            # Insert Header
-            db_cursor.execute("INSERT INTO morning_allocations (employee_id, date) VALUES (%s, %s)", (employee_id, formatted_date))
-            alloc_id = db_cursor.lastrowid
+            if existing_alloc:
+                # Append Mode
+                alloc_id = existing_alloc['id']
+                flash_msg = "Stock added to existing allocation."
+            else:
+                # Create New
+                db_cursor.execute("INSERT INTO morning_allocations (employee_id, date) VALUES (%s, %s)", (employee_id, formatted_date))
+                alloc_id = db_cursor.lastrowid
+                flash_msg = "Morning allocation saved."
             
             # Insert Items
             insert_sql = "INSERT INTO morning_allocation_items (allocation_id, product_id, opening_qty, given_qty, unit_price) VALUES (%s, %s, %s, %s, %s)"
+            
             for idx, pid in enumerate(product_ids):
                 if not pid: continue
-                db_cursor.execute(insert_sql, (alloc_id, pid, opening_list[idx], given_list[idx], price_list[idx]))
+                # Ensure values are numbers
+                op_q = int(opening_list[idx] or 0)
+                gv_q = int(given_list[idx] or 0)
+                pr_c = float(price_list[idx] or 0.0)
+                
+                db_cursor.execute(insert_sql, (alloc_id, pid, op_q, gv_q, pr_c))
 
             mysql.connection.commit()
-            flash("Morning allocation saved successfully.", "success")
+            flash(flash_msg, "success")
             return redirect(url_for('morning'))
 
         # GET Request
         db_cursor.execute("SELECT id, name FROM employees WHERE status='active' ORDER BY name")
         employees = db_cursor.fetchall()
         
-        # Pass Raw Products (JSON conversion happens in template safely)
         db_cursor.execute("SELECT id, name, price, image FROM products ORDER BY name")
         products_raw = db_cursor.fetchall() or []
         
-        # Prepare list for JS
+        # Resolve images HERE so JS gets perfect URLs
         products_for_js = []
         for p in products_raw:
             products_for_js.append({
                 'id': p['id'], 
                 'name': p['name'], 
                 'price': float(p['price']), 
-                'image': resolve_img(p['image'])
+                'image': resolve_img(p['image']) 
             })
         
         return render_template('morning.html',
                                employees=employees,
                                products=products_for_js,
-                               today_date=date.today().strftime('%d-%m-%Y')) # Send DD-MM-YYYY
+                               today_date=date.today().strftime('%d-%m-%Y'))
 
     except Exception as e:
         if db_cursor: mysql.connection.rollback()
@@ -2773,13 +2787,16 @@ def evening():
             date_str = request.form.get('h_date')
             
             date_obj = parse_date(date_str)
-            formatted_date = date_obj.strftime('%Y-%m-%d') if date_obj else date_str
+            if not date_obj: raise ValueError("Invalid Date Format")
+            formatted_date = date_obj.strftime('%Y-%m-%d')
 
+            # Payments
             total_amount = request.form.get('totalAmount') or 0
             online = request.form.get('online') or 0
             cash = request.form.get('cash') or 0
             discount = request.form.get('discount') or 0
 
+            # Items
             p_ids = request.form.getlist('product_id[]')
             t_qtys = request.form.getlist('total_qty[]')
             s_qtys = request.form.getlist('sold[]')
@@ -2788,6 +2805,7 @@ def evening():
 
             db_cursor = mysql.connection.cursor()
 
+            # Create Header
             db_cursor.execute("""
                 INSERT INTO evening_settle (allocation_id, employee_id, date, total_amount, online_money, cash_money, discount)
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
@@ -2800,10 +2818,11 @@ def evening():
                 if not pid: continue
                 sold = int(s_qtys[i] or 0)
                 rem = int(t_qtys[i] or 0) - sold - int(r_qtys[i] or 0)
-                if rem < 0: rem = 0
+                if rem < 0: rem = 0 # Safety check
 
                 db_cursor.execute(item_sql, (settle_id, pid, t_qtys[i], sold, r_qtys[i], prices[i], rem))
                 
+                # Reduce Main Inventory Stock
                 if sold > 0:
                     db_cursor.execute("UPDATE products SET stock = stock - %s WHERE id = %s", (sold, pid))
 
@@ -2828,7 +2847,7 @@ def evening():
     return render_template('evening.html', employees=employees, today=date.today().strftime('%d-%m-%Y'), last_settle_id=last_settle_id)
 
 # ---------------------------------------------------------
-# 3. API: FETCH STOCK (SMART VERSION)
+# 3. API: FETCH STOCK (Latest Remaining Stock)
 # ---------------------------------------------------------
 @app.route('/api/fetch_stock')
 def api_fetch_stock():
@@ -2843,7 +2862,7 @@ def api_fetch_stock():
         
         cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
         
-        # Logic: Find the latest settlement BEFORE today to get remaining stock
+        # 1. Find LATEST settlement strictly BEFORE today
         cur.execute("""
             SELECT id FROM evening_settle 
             WHERE employee_id = %s AND date < %s 
@@ -2866,8 +2885,12 @@ def api_fetch_stock():
                     'price': float(r['unit_price'])
                 }
         
+        # Check if already added stock today (Restock mode)
+        cur.execute("SELECT id FROM morning_allocations WHERE employee_id=%s AND date=%s", (employee_id, current_date))
+        is_restock = cur.fetchone() is not None
+
         cur.close()
-        return jsonify(stock_data)
+        return jsonify({"stock": stock_data, "mode": "restock" if is_restock else "normal"})
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -2884,7 +2907,8 @@ def api_fetch_morning_allocation():
 
     try:
         date_obj = parse_date(date_str)
-        formatted_date = date_obj.strftime('%Y-%m-%d') if date_obj else date_str
+        if not date_obj: return jsonify({"error": "Invalid Date"}), 400
+        formatted_date = date_obj.strftime('%Y-%m-%d')
 
         cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
         
@@ -2892,17 +2916,18 @@ def api_fetch_morning_allocation():
         cur.execute("SELECT id FROM evening_settle WHERE employee_id=%s AND date=%s", (employee_id, formatted_date))
         if cur.fetchone():
             cur.close()
-            return jsonify({"error": "Evening settlement already done for this date."}), 400
+            return jsonify({"error": "Settlement already done for this date."}), 400
 
-        # Find Morning Allocation
+        # Find Allocation
         cur.execute("SELECT id FROM morning_allocations WHERE employee_id=%s AND date=%s", (employee_id, formatted_date))
         alloc = cur.fetchone()
         
         if not alloc:
             cur.close()
-            return jsonify({"error": "No morning allocation found."}), 404
+            return jsonify({"error": "No allocation found."}), 404
             
-        # Get Items + IMAGES (Aggregated if multiple rows)
+        # Get Items + IMAGES (Aggregated by Product ID)
+        # We sum opening+given because 'given' might be split across multiple rows if restocked
         cur.execute("""
             SELECT mai.product_id, p.name AS product_name, p.image, 
                    SUM(mai.opening_qty + mai.given_qty) as total_qty, 
@@ -2920,7 +2945,7 @@ def api_fetch_morning_allocation():
             clean_items.append({
                 'product_id': i['product_id'],
                 'product_name': i['product_name'],
-                'image': resolve_img(i['image']),
+                'image': resolve_img(i['image']), # Use backend resolved URL
                 'total_qty': int(i['total_qty']),
                 'unit_price': float(i['unit_price'])
             })
@@ -2955,43 +2980,57 @@ def generate_pdf(settle_id):
         """, (settle_id,))
         items = db_cursor.fetchall()
 
-        # Simple PDF generation
+        # PDF Setup (Fallback to Arial if DejaVu missing)
         pdf = PDF()
         pdf.add_page()
+        # Use Standard Core Font to avoid errors
         pdf.set_font("Arial", 'B', 16)
-        pdf.cell(0, 10, "REAL PROMOTION - SETTLEMENT RECEIPT", 0, 1, 'C')
+        pdf.cell(0, 10, "REAL PROMOTION", 0, 1, 'C')
         pdf.set_font("Arial", '', 10)
-        pdf.cell(0, 6, "Since 2005", 0, 1, 'C')
-        pdf.ln(5)
+        pdf.cell(0, 6, "Evening Settlement Receipt", 0, 1, 'C')
+        pdf.ln(10)
         
-        pdf.set_font("Arial", 'B', 12)
+        pdf.set_font("Arial", 'B', 11)
         pdf.cell(0, 8, f"Employee: {settlement['employee_name']}", 0, 1, 'L')
+        # Format date back to DD-MM-YYYY for PDF
         pdf.cell(0, 8, f"Date: {settlement['date'].strftime('%d-%m-%Y')}", 0, 1, 'L')
         pdf.ln(5)
 
         # Table Header
-        pdf.set_fill_color(240, 240, 240)
-        pdf.cell(80, 8, "Product", 1, 0, 'L', 1)
-        pdf.cell(30, 8, "Total", 1, 0, 'C', 1)
-        pdf.cell(30, 8, "Sold", 1, 0, 'C', 1)
-        pdf.cell(30, 8, "Return", 1, 0, 'C', 1)
-        pdf.cell(20, 8, "Remaining", 1, 1, 'C', 1)
+        pdf.set_fill_color(230, 230, 230)
+        pdf.cell(70, 8, "Product", 1, 0, 'L', 1)
+        pdf.cell(20, 8, "Total", 1, 0, 'C', 1)
+        pdf.cell(20, 8, "Sold", 1, 0, 'C', 1)
+        pdf.cell(20, 8, "Return", 1, 0, 'C', 1)
+        pdf.cell(25, 8, "Price", 1, 0, 'R', 1)
+        pdf.cell(35, 8, "Amount", 1, 1, 'R', 1)
 
         # Table Body
         pdf.set_font("Arial", '', 10)
         for item in items:
-            pdf.cell(80, 8, str(item['product_name']), 1)
-            pdf.cell(30, 8, str(item['total_qty']), 1, 0, 'C')
-            pdf.cell(30, 8, str(item['sold_qty']), 1, 0, 'C')
-            pdf.cell(30, 8, str(item['return_qty']), 1, 0, 'C')
-            pdf.cell(20, 8, str(item['remaining_qty']), 1, 1, 'C')
+            amount = float(item['sold_qty']) * float(item['unit_price'])
+            # Safe text for Arial
+            p_name = str(item['product_name']).encode('latin-1', 'replace').decode('latin-1')
+            
+            pdf.cell(70, 8, p_name, 1)
+            pdf.cell(20, 8, str(item['total_qty']), 1, 0, 'C')
+            pdf.cell(20, 8, str(item['sold_qty']), 1, 0, 'C')
+            pdf.cell(20, 8, str(item['return_qty']), 1, 0, 'C')
+            pdf.cell(25, 8, f"{item['unit_price']:.2f}", 1, 0, 'R')
+            pdf.cell(35, 8, f"{amount:.2f}", 1, 1, 'R')
 
-        pdf.ln(5)
+        pdf.ln(10)
         pdf.set_font("Arial", 'B', 12)
-        pdf.cell(0, 8, f"Total Amount: Rs. {settlement['total_amount']:.2f}", 0, 1, 'R')
-        pdf.cell(0, 8, f"Cash: Rs. {settlement['cash_money']:.2f}", 0, 1, 'R')
-        pdf.cell(0, 8, f"Online: Rs. {settlement['online_money']:.2f}", 0, 1, 'R')
+        pdf.cell(155, 8, "Grand Total:", 0, 0, 'R')
+        pdf.cell(35, 8, f"{float(settlement['total_amount']):.2f}", 0, 1, 'R')
         
+        pdf.set_font("Arial", '', 11)
+        pdf.cell(155, 8, "Cash:", 0, 0, 'R')
+        pdf.cell(35, 8, f"{float(settlement['cash_money']):.2f}", 0, 1, 'R')
+        
+        pdf.cell(155, 8, "Online:", 0, 0, 'R')
+        pdf.cell(35, 8, f"{float(settlement['online_money']):.2f}", 0, 1, 'R')
+
         response = make_response(pdf.output(dest='S').encode('latin1'))
         response.headers['Content-Type'] = 'application/pdf'
         response.headers['Content-Disposition'] = f'attachment; filename=Settlement_{settle_id}.pdf'
@@ -4335,6 +4374,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
