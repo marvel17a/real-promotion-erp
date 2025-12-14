@@ -2649,21 +2649,26 @@ def exp_report():
     )
 
 # =============================================================================
-# COPY THIS INTO app.py - REPLACES MORNING & EVENING ROUTES
+# REPLACE MORNING & EVENING ROUTES IN app.py
 # =============================================================================
 
 from datetime import datetime, date, timedelta
+from flask import make_response
 
+# --- Helper: Robust Date Parsing (Prioritizes DD-MM-YYYY) ---
 def parse_date(date_str):
     if not date_str: return None
     try:
-        return datetime.strptime(date_str, "%Y-%m-%d").date()
+        # Frontend sends DD-MM-YYYY
+        return datetime.strptime(date_str, "%d-%m-%Y").date()
     except ValueError:
         try:
-            return datetime.strptime(date_str, "%d-%m-%Y").date()
+            # Fallback for YYYY-MM-DD
+            return datetime.strptime(date_str, "%Y-%m-%d").date()
         except ValueError:
             return None
 
+# --- Helper: Image URL Resolver ---
 def resolve_img(image_path):
     if not image_path: return url_for('static', filename='img/default-product.png')
     if image_path.startswith('http'): return image_path
@@ -2676,7 +2681,7 @@ def resolve_img(image_path):
         return url_for('static', filename='img/default-product.png')
 
 # ---------------------------------------------------------
-# 1. MORNING ALLOCATION (Supports Mid-Day Restock)
+# 1. MORNING ALLOCATION
 # ---------------------------------------------------------
 @app.route('/morning', methods=['GET', 'POST'])
 def morning():
@@ -2701,70 +2706,37 @@ def morning():
 
             formatted_date = date_obj.strftime('%Y-%m-%d')
 
-            # 1. Check if Allocation exists
+            # Check duplication
             db_cursor.execute("SELECT id FROM morning_allocations WHERE employee_id=%s AND date=%s", (employee_id, formatted_date))
-            existing_alloc = db_cursor.fetchone()
+            existing = db_cursor.fetchone()
+            
+            if existing:
+                flash("Allocation already exists for this date. Please edit it instead.", "warning")
+                return redirect(url_for('morning'))
 
-            if existing_alloc:
-                # ALLOCATION EXISTS -> MODE: RESTOCK (Append items)
-                alloc_id = existing_alloc['id']
-                flash_msg = "Additional stock added to existing allocation."
-            else:
-                # NEW ALLOCATION -> Create Header
-                db_cursor.execute("INSERT INTO morning_allocations (employee_id, date) VALUES (%s, %s)", (employee_id, formatted_date))
-                alloc_id = db_cursor.lastrowid
-                flash_msg = "Morning allocation created."
+            # Insert Header
+            db_cursor.execute("INSERT INTO morning_allocations (employee_id, date) VALUES (%s, %s)", (employee_id, formatted_date))
+            alloc_id = db_cursor.lastrowid
             
-            # 2. Insert Items (Append logic)
-            # We use ON DUPLICATE KEY UPDATE to merge quantities if the same product is added again
-            # Logic: If row exists for this alloc_id + product_id, increase given_qty
-            
-            # Since standard MySQL doesn't support easy "Append Row vs Merge" without unique constraints,
-            # we will simply INSERT new rows. The Evening logic will SUM them up.
-            
-            insert_sql = """
-                INSERT INTO morning_allocation_items (allocation_id, product_id, opening_qty, given_qty, unit_price) 
-                VALUES (%s, %s, %s, %s, %s)
-            """
-            
-            update_sql = """
-                UPDATE morning_allocation_items 
-                SET given_qty = given_qty + %s 
-                WHERE allocation_id = %s AND product_id = %s
-            """
-
-            check_item_sql = "SELECT id FROM morning_allocation_items WHERE allocation_id=%s AND product_id=%s"
-
+            # Insert Items
+            insert_sql = "INSERT INTO morning_allocation_items (allocation_id, product_id, opening_qty, given_qty, unit_price) VALUES (%s, %s, %s, %s, %s)"
             for idx, pid in enumerate(product_ids):
                 if not pid: continue
-                # opening_list is ignored for RESTOCK (only valid for first alloc)
-                # But here we just save what is sent. Frontend handles displaying 0 opening for restock rows.
-                op_q = opening_list[idx]
-                gv_q = given_list[idx]
-                pr_c = price_list[idx]
-
-                # Check if item already in this allocation
-                db_cursor.execute(check_item_sql, (alloc_id, pid))
-                existing_item = db_cursor.fetchone()
-
-                if existing_item:
-                    # Item exists: Update the quantity (Add new given to old given)
-                    db_cursor.execute(update_sql, (gv_q, alloc_id, pid))
-                else:
-                    # New Item for this day: Insert
-                    db_cursor.execute(insert_sql, (alloc_id, pid, op_q, gv_q, pr_c))
+                db_cursor.execute(insert_sql, (alloc_id, pid, opening_list[idx], given_list[idx], price_list[idx]))
 
             mysql.connection.commit()
-            flash(flash_msg, "success")
+            flash("Morning allocation saved successfully.", "success")
             return redirect(url_for('morning'))
 
         # GET Request
         db_cursor.execute("SELECT id, name FROM employees WHERE status='active' ORDER BY name")
         employees = db_cursor.fetchall()
         
+        # Pass Raw Products (JSON conversion happens in template safely)
         db_cursor.execute("SELECT id, name, price, image FROM products ORDER BY name")
         products_raw = db_cursor.fetchall() or []
         
+        # Prepare list for JS
         products_for_js = []
         for p in products_raw:
             products_for_js.append({
@@ -2777,7 +2749,7 @@ def morning():
         return render_template('morning.html',
                                employees=employees,
                                products=products_for_js,
-                               today_date=date.today().strftime('%Y-%m-%d'))
+                               today_date=date.today().strftime('%d-%m-%Y')) # Send DD-MM-YYYY
 
     except Exception as e:
         if db_cursor: mysql.connection.rollback()
@@ -2787,7 +2759,7 @@ def morning():
         if db_cursor: db_cursor.close()
 
 # ---------------------------------------------------------
-# 2. EVENING SETTLEMENT (Aggregates Multiple Entries)
+# 2. EVENING SETTLEMENT
 # ---------------------------------------------------------
 @app.route('/evening', methods=['GET', 'POST'])
 def evening():
@@ -2803,7 +2775,6 @@ def evening():
             date_obj = parse_date(date_str)
             formatted_date = date_obj.strftime('%Y-%m-%d') if date_obj else date_str
 
-            # Payments
             total_amount = request.form.get('totalAmount') or 0
             online = request.form.get('online') or 0
             cash = request.form.get('cash') or 0
@@ -2854,10 +2825,10 @@ def evening():
     employees = cur.fetchall()
     cur.close()
     
-    return render_template('evening.html', employees=employees, today=date.today().strftime('%Y-%m-%d'), last_settle_id=last_settle_id)
+    return render_template('evening.html', employees=employees, today=date.today().strftime('%d-%m-%Y'), last_settle_id=last_settle_id)
 
 # ---------------------------------------------------------
-# 3. API: FETCH STOCK
+# 3. API: FETCH STOCK (SMART VERSION)
 # ---------------------------------------------------------
 @app.route('/api/fetch_stock')
 def api_fetch_stock():
@@ -2872,26 +2843,13 @@ def api_fetch_stock():
         
         cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
         
-        # 1. Check if Allocation ALREADY EXISTS for Today (Restock Mode)
-        cur.execute("""
-            SELECT id FROM morning_allocations 
-            WHERE employee_id = %s AND date = %s
-        """, (employee_id, current_date))
-        today_alloc = cur.fetchone()
-        
-        status_msg = "Stock Synced"
-        mode = "normal"
-
-        if today_alloc:
-            status_msg = "Adding to existing allocation (Restock Mode)"
-            mode = "restock"
-
-        # 2. Fetch Remaining Stock from LAST SETTLEMENT (Yesterday or before)
+        # Logic: Find the latest settlement BEFORE today to get remaining stock
         cur.execute("""
             SELECT id FROM evening_settle 
             WHERE employee_id = %s AND date < %s 
             ORDER BY date DESC LIMIT 1
         """, (employee_id, current_date))
+        
         last_settlement = cur.fetchone()
         
         stock_data = {}
@@ -2909,13 +2867,13 @@ def api_fetch_stock():
                 }
         
         cur.close()
-        return jsonify({"stock": stock_data, "msg": status_msg, "mode": mode})
+        return jsonify(stock_data)
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 # ---------------------------------------------------------
-# 4. API: FETCH ALLOCATION (Evening - AGGREGATED)
+# 4. API: FETCH ALLOCATION (For Evening Page)
 # ---------------------------------------------------------
 @app.route('/api/fetch_morning_allocation')
 def api_fetch_morning_allocation():
@@ -2930,27 +2888,24 @@ def api_fetch_morning_allocation():
 
         cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
         
+        # Check if already settled
         cur.execute("SELECT id FROM evening_settle WHERE employee_id=%s AND date=%s", (employee_id, formatted_date))
         if cur.fetchone():
             cur.close()
-            return jsonify({"error": "Already settled."}), 400
+            return jsonify({"error": "Evening settlement already done for this date."}), 400
 
+        # Find Morning Allocation
         cur.execute("SELECT id FROM morning_allocations WHERE employee_id=%s AND date=%s", (employee_id, formatted_date))
         alloc = cur.fetchone()
         
         if not alloc:
             cur.close()
-            return jsonify({"error": "No allocation found."}), 404
+            return jsonify({"error": "No morning allocation found."}), 404
             
-        # IMPORTANT: SUM() quantities because of Restock feature
-        # If I took 10, then 12 more, DB has 22 total.
-        # But if we used multiple rows (Insert method), we need to GROUP BY product_id.
-        # The backend logic above updates the row if exists, so simple Select is fine.
-        # Just in case you have duplicate rows from manual edits:
+        # Get Items + IMAGES (Aggregated if multiple rows)
         cur.execute("""
             SELECT mai.product_id, p.name AS product_name, p.image, 
-                   SUM(mai.opening_qty) as total_opening, 
-                   SUM(mai.given_qty) as total_given,
+                   SUM(mai.opening_qty + mai.given_qty) as total_qty, 
                    mai.unit_price
             FROM morning_allocation_items mai
             JOIN products p ON mai.product_id = p.id
@@ -2962,12 +2917,11 @@ def api_fetch_morning_allocation():
         
         clean_items = []
         for i in items:
-            total_stock = int(i['total_opening']) + int(i['total_given'])
             clean_items.append({
                 'product_id': i['product_id'],
                 'product_name': i['product_name'],
                 'image': resolve_img(i['image']),
-                'total_qty': total_stock,
+                'total_qty': int(i['total_qty']),
                 'unit_price': float(i['unit_price'])
             })
             
@@ -2977,7 +2931,7 @@ def api_fetch_morning_allocation():
         return jsonify({"error": str(e)}), 500
 
 # ---------------------------------------------------------
-# 5. GENERATE PDF (Evening Settlement Receipt)
+# 5. GENERATE PDF (Evening Receipt)
 # ---------------------------------------------------------
 @app.route('/evening/pdf/<int:settle_id>')
 def generate_pdf(settle_id):
@@ -2991,8 +2945,8 @@ def generate_pdf(settle_id):
             WHERE es.id = %s
         """, (settle_id,))
         settlement = db_cursor.fetchone()
-        if not settlement:
-            return "Settlement not found", 404
+        if not settlement: return "Not found", 404
+
         db_cursor.execute("""
             SELECT ei.*, p.name as product_name
             FROM evening_item ei
@@ -3001,65 +2955,54 @@ def generate_pdf(settle_id):
         """, (settle_id,))
         items = db_cursor.fetchall()
 
-        pdf = PDF() 
+        # Simple PDF generation
+        pdf = PDF()
         pdf.add_page()
-        pdf.set_font(pdf.font_family, 'B', 12)
-        pdf.cell(0, 10, pdf.safe_text(f"Employee: {settlement['employee_name']}"), 0, 0, 'L')
-        pdf.cell(0, 10, f"Date: {settlement['date'].strftime('%d-%m-%Y')}", 0, 1, 'R')
+        pdf.set_font("Arial", 'B', 16)
+        pdf.cell(0, 10, "REAL PROMOTION - SETTLEMENT RECEIPT", 0, 1, 'C')
+        pdf.set_font("Arial", '', 10)
+        pdf.cell(0, 6, "Since 2005", 0, 1, 'C')
         pdf.ln(5)
-        pdf.set_font(pdf.font_family, 'B', 10)
-        pdf.set_fill_color(230, 230, 230)
-        headers = [('#', 10), ('Product', 60), ('Total', 15), ('Sold', 15),
-                   ('Return', 15), ('Remaining', 20), ('Price', 20), ('Amount', 25)]
-        for header, width in headers:
-            pdf.cell(width, 8, header, 1, 0, 'C' if header != 'Product' else 'L', 1)
-        pdf.ln()
-        pdf.set_font(pdf.font_family, '', 10)
-        for i, item in enumerate(items):
-            amount = (item.get('sold_qty') or 0) * (item.get('unit_price') or 0)
-            remaining = (item.get('total_qty', 0) - item.get('sold_qty', 0))
-            pdf.cell(10, 8, str(i + 1), 1, 0, 'C')
-            pdf.cell(60, 8, pdf.safe_text(item.get('product_name', '')), 1, 0, 'L')
-            pdf.cell(15, 8, str(item.get('total_qty', 0)), 1, 0, 'C')
-            pdf.cell(15, 8, str(item.get('sold_qty', 0)), 1, 0, 'C')
-            pdf.cell(15, 8, str(item.get('return_qty', 0)), 1, 0, 'C')
-            pdf.cell(20, 8, str(remaining), 1, 0, 'C')
-            pdf.cell(20, 8, f"{float(item.get('unit_price', 0)):.2f}", 1, 0, 'R')
-            pdf.cell(25, 8, f"{float(amount):.2f}", 1, 1, 'R')
-        pdf.ln(10)
-        pdf.set_font(pdf.font_family, 'B', 12)
-        pdf.cell(0, 10, 'Financial Summary', 0, 1, 'L')
-        pdf.set_font(pdf.font_family, '', 10)
-        total_amount = settlement.get('total_amount', 0)
-        online_money = settlement.get('online_money', 0)
-        cash_money = settlement.get('cash_money', 0)
-        discount = settlement.get('discount', 0)
-        due_amount = total_amount - (online_money + cash_money + discount)
-        summary_data = [
-            ("Total Sales Amount:", total_amount),
-            ("Online Received:", online_money),
-            ("Cash Received:", cash_money),
-            ("Discount Given:", discount),
-        ]
-        for label, value in summary_data:
-            pdf.cell(50, 8, label, 0, 0, 'R')
-            pdf.cell(30, 8, f"{float(value):.2f}", 0, 1, 'R')
-        pdf.set_font(pdf.font_family, 'B', 10)
-        pdf.cell(50, 8, 'Balance Due:', 0, 0, 'R')
-        pdf.cell(30, 8, f"{float(due_amount):.2f}", 0, 1, 'R')
-        pdf_output = pdf.output(dest='S').encode('latin1')
-        filename = f"Settlement_{settlement['employee_name']}_{settlement['date']}.pdf"
-        response = make_response(pdf_output)
-        response.headers.set('Content-Type', 'application/pdf')
-        response.headers.set('Content-Disposition', 'attachment', filename=filename)
+        
+        pdf.set_font("Arial", 'B', 12)
+        pdf.cell(0, 8, f"Employee: {settlement['employee_name']}", 0, 1, 'L')
+        pdf.cell(0, 8, f"Date: {settlement['date'].strftime('%d-%m-%Y')}", 0, 1, 'L')
+        pdf.ln(5)
+
+        # Table Header
+        pdf.set_fill_color(240, 240, 240)
+        pdf.cell(80, 8, "Product", 1, 0, 'L', 1)
+        pdf.cell(30, 8, "Total", 1, 0, 'C', 1)
+        pdf.cell(30, 8, "Sold", 1, 0, 'C', 1)
+        pdf.cell(30, 8, "Return", 1, 0, 'C', 1)
+        pdf.cell(20, 8, "Remaining", 1, 1, 'C', 1)
+
+        # Table Body
+        pdf.set_font("Arial", '', 10)
+        for item in items:
+            pdf.cell(80, 8, str(item['product_name']), 1)
+            pdf.cell(30, 8, str(item['total_qty']), 1, 0, 'C')
+            pdf.cell(30, 8, str(item['sold_qty']), 1, 0, 'C')
+            pdf.cell(30, 8, str(item['return_qty']), 1, 0, 'C')
+            pdf.cell(20, 8, str(item['remaining_qty']), 1, 1, 'C')
+
+        pdf.ln(5)
+        pdf.set_font("Arial", 'B', 12)
+        pdf.cell(0, 8, f"Total Amount: Rs. {settlement['total_amount']:.2f}", 0, 1, 'R')
+        pdf.cell(0, 8, f"Cash: Rs. {settlement['cash_money']:.2f}", 0, 1, 'R')
+        pdf.cell(0, 8, f"Online: Rs. {settlement['online_money']:.2f}", 0, 1, 'R')
+        
+        response = make_response(pdf.output(dest='S').encode('latin1'))
+        response.headers['Content-Type'] = 'application/pdf'
+        response.headers['Content-Disposition'] = f'attachment; filename=Settlement_{settle_id}.pdf'
         return response
+
     except Exception as e:
-        app.logger.error(f"!!! PDF GENERATION FAILED: {type(e).__name__}: {e} !!!")
-        flash(f"Could not generate PDF. Server error: {e}", "danger")
+        app.logger.error(f"PDF Error: {e}")
+        flash("Error generating PDF", "danger")
         return redirect(url_for('evening'))
     finally:
-        if db_cursor:
-            db_cursor.close()
+        if db_cursor: db_cursor.close()
 
 
 # =====================================================================
@@ -4392,6 +4335,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
