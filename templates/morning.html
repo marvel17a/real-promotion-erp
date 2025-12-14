@@ -83,7 +83,7 @@
     </div>
 </div>
 
-<!-- SAFE JSON STORAGE -->
+<!-- SAFE JSON BLOCK (NO JS EXECUTION) -->
 <script type="application/json" id="products-json">
 {{ products | tojson }}
 </script>
@@ -101,7 +101,7 @@ document.addEventListener("DOMContentLoaded", function () {
         const raw = document.getElementById("products-json").textContent;
         window.productsData = raw ? JSON.parse(raw) : [];
     } catch (e) {
-        console.error("Invalid products JSON", e);
+        console.error("Products JSON error", e);
         window.productsData = [];
     }
 
