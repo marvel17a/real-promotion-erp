@@ -1,5 +1,4 @@
 document.addEventListener("DOMContentLoaded", () => {
-    
     const getEl = (id) => document.getElementById(id);
     const ui = {
         employeeSelect: getEl("employee_id"), 
@@ -25,8 +24,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     };
     
-    if (!ui.fetchButton || !ui.tableBody) return;
-
+    if (!ui.fetchButton) return;
 
     const DEFAULT_IMG = "https://via.placeholder.com/55?text=Img";
 
@@ -144,8 +142,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if(ui.footer.sold) ui.footer.sold.textContent = grandTotalSold;
         if(ui.footer.amount) ui.footer.amount.textContent = grandTotalAmount.toFixed(2);
-        
-        // SAFE CHECK to prevent null error
         if(ui.payment.totalAmount) ui.payment.totalAmount.value = grandTotalAmount.toFixed(2);
         
         calculateDue();
@@ -179,7 +175,6 @@ document.addEventListener("DOMContentLoaded", () => {
         if(el) el.addEventListener('input', calculateDue);
     });
 
-    // Enter Key Nav
     document.addEventListener("keydown", function (e) {
         if (e.key === "Enter" && e.target.tagName !== "BUTTON") {
             e.preventDefault();
@@ -191,4 +186,3 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 });
-
