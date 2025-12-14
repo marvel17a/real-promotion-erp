@@ -3222,20 +3222,18 @@ def edit_morning_allocation(allocation_id):
 # =========================================================
 #  PHASE 2: ADMIN EVENING SETTLEMENT MANAGER
 # =========================================================
-
 @app.route('/admin/evening_master')
 def admin_evening_master():
-    if "loggedin" not in session:
-        return redirect(url_for("login"))
+    if "loggedin" not in session: return redirect(url_for("login"))
     
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
-    # 1. Filters
+    # Filters
     start_date = request.args.get('start_date', date.today().isoformat())
     end_date = request.args.get('end_date', date.today().isoformat())
     emp_id = request.args.get('employee_id')
 
-    # 2. Build Query
+    # Main Query
     query = """
         SELECT es.*, e.name as emp_name 
         FROM evening_settle es
@@ -3253,12 +3251,12 @@ def admin_evening_master():
     cur.execute(query, tuple(params))
     settlements = cur.fetchall()
 
-    # 3. Stats for Summary Cards
+    # Summary Stats
     total_sales = sum(s['total_amount'] for s in settlements)
     total_cash = sum(s['cash_money'] for s in settlements)
     total_online = sum(s['online_money'] for s in settlements)
 
-    # 4. Fetch Employees for Filter
+    # Employee List for Filter
     cur.execute("SELECT id, name FROM employees ORDER BY name")
     employees = cur.fetchall()
     
@@ -3271,62 +3269,62 @@ def admin_evening_master():
                            filters={'start': start_date, 'end': end_date, 'emp': emp_id})
 
 
+# --- 2. EDIT SETTLEMENT (Logic Critical) ---
 @app.route('/admin/evening/edit/<int:settle_id>', methods=['GET', 'POST'])
 def admin_edit_evening(settle_id):
-    if "loggedin" not in session:
-        return redirect(url_for("login"))
+    if "loggedin" not in session: return redirect(url_for("login"))
 
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
     if request.method == 'POST':
         try:
-            # 1. Fetch OLD Data (to calculate stock difference)
+            # 1. Fetch OLD Items (To calculate stock difference)
             cur.execute("SELECT * FROM evening_item WHERE settle_id = %s", (settle_id,))
             old_items = {item['product_id']: item for item in cur.fetchall()}
 
-            # 2. Get New Form Data
-            product_ids = request.form.getlist('product_id[]')
-            sold_qtys = request.form.getlist('sold[]')
-            return_qtys = request.form.getlist('return[]')
-            
-            # Payment Data
+            # 2. Get Form Data
             total_amt = request.form.get('totalAmount')
             cash = request.form.get('cash')
             online = request.form.get('online')
             discount = request.form.get('discount')
+            
+            p_ids = request.form.getlist('product_id[]')
+            sold_qtys = request.form.getlist('sold[]')
+            return_qtys = request.form.getlist('return[]')
+            # 'total_qty' is read-only from Allocation, usually doesn't change here
+            # But we need it to recalc 'remaining'
 
-            # 3. Update Inventory (The Delta Logic)
-            for i, pid in enumerate(product_ids):
+            # 3. Update Inventory (Delta Logic) & Evening Items
+            for i, pid in enumerate(p_ids):
                 pid = int(pid)
                 new_sold = int(sold_qtys[i] or 0)
                 new_ret = int(return_qtys[i] or 0)
                 
                 old_item = old_items.get(pid)
+                
                 if old_item:
-                    old_sold = old_item['sold_qty']
-                    old_ret = old_item['return_qty']
+                    # Calculate Stock Adjustment
+                    # If I sold MORE now than before -> Stock decreases
+                    # If I sold LESS -> Stock increases (returns to inventory)
+                    diff_sold = new_sold - old_item['sold_qty']
+                    
+                    # Update Main Stock
+                    if diff_sold != 0:
+                        cur.execute("UPDATE products SET stock = stock - %s WHERE id = %s", (diff_sold, pid))
 
-                    # Calculate Difference
-                    diff_sold = new_sold - old_sold      # If +2, we sold 2 more -> Reduce Stock
-                    diff_ret = new_ret - old_ret         # If +2, we returned 2 more -> Increase Stock
+                    # Recalculate Remaining for this specific allocation day
+                    # remaining = total - new_sold - new_ret
+                    new_remain = old_item['total_qty'] - new_sold - new_ret
+                    if new_remain < 0: new_remain = 0
 
-                    # Apply to Product Stock
-                    # Logic: Stock = Stock - (Change in Sales) + (Change in Returns)
-                    if diff_sold != 0 or diff_ret != 0:
-                        cur.execute("""
-                            UPDATE products 
-                            SET stock = stock - %s + %s 
-                            WHERE id = %s
-                        """, (diff_sold, diff_ret, pid))
-
-                    # Update the Evening Item Row
+                    # Update Row
                     cur.execute("""
                         UPDATE evening_item 
-                        SET sold_qty=%s, return_qty=%s 
+                        SET sold_qty=%s, return_qty=%s, remaining_qty=%s 
                         WHERE id=%s
-                    """, (new_sold, new_ret, old_item['id']))
+                    """, (new_sold, new_ret, new_remain, old_item['id']))
 
-            # 4. Update Main Settlement Record
+            # 4. Update Header
             cur.execute("""
                 UPDATE evening_settle 
                 SET total_amount=%s, cash_money=%s, online_money=%s, discount=%s 
@@ -3334,15 +3332,15 @@ def admin_edit_evening(settle_id):
             """, (total_amt, cash, online, discount, settle_id))
 
             mysql.connection.commit()
-            flash("Settlement Updated & Stock Adjusted Successfully!", "success")
+            flash("Settlement Updated Successfully!", "success")
             return redirect(url_for('admin_evening_master'))
 
         except Exception as e:
             mysql.connection.rollback()
-            flash(f"Error updating: {e}", "danger")
+            flash(f"Update Error: {e}", "danger")
             return redirect(url_for('admin_evening_master'))
 
-    # GET Request: Show Edit Form
+    # GET Request: Load Data
     cur.execute("""
         SELECT es.*, e.name as emp_name 
         FROM evening_settle es 
@@ -3351,42 +3349,43 @@ def admin_edit_evening(settle_id):
     """, (settle_id,))
     settlement = cur.fetchone()
 
+    # Join with Products to get Image/Name
     cur.execute("""
-        SELECT ei.*, p.name as product_name 
+        SELECT ei.*, p.name as product_name, p.image 
         FROM evening_item ei 
         JOIN products p ON ei.product_id = p.id 
         WHERE ei.settle_id = %s
     """, (settle_id,))
-    items = cur.fetchall()
+    items = []
+    for row in cur.fetchall():
+        row['image'] = resolve_img(row['image']) # Use existing helper
+        items.append(row)
     
     cur.close()
     return render_template('admin/edit_evening_settle.html', settlement=settlement, items=items)
 
 
+
+# --- 3. DELETE SETTLEMENT ---
 @app.route('/admin/evening/delete/<int:settle_id>', methods=['POST'])
 def admin_delete_evening(settle_id):
-    # This deletes the settlement AND reverts the stock sales
+    # Deleting a settlement should REVERT the sales (add items back to stock)
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     try:
-        # 1. Get items to revert stock
-        cur.execute("SELECT product_id, sold_qty, return_qty FROM evening_item WHERE settle_id = %s", (settle_id,))
+        # 1. Get sold quantities
+        cur.execute("SELECT product_id, sold_qty FROM evening_item WHERE settle_id = %s", (settle_id,))
         items = cur.fetchall()
 
-        # 2. Revert Stock (Add back sold items, Remove returned items??)
-        # Actually: We deducted stock when sold. So we ADD it back.
-        # We added stock when returned. So we DEDUCT it back (if it was added to main stock).
+        # 2. Add back to Main Inventory
         for item in items:
-            cur.execute("""
-                UPDATE products 
-                SET stock = stock + %s - %s 
-                WHERE id = %s
-            """, (item['sold_qty'], item['return_qty'], item['product_id']))
+            if item['sold_qty'] > 0:
+                cur.execute("UPDATE products SET stock = stock + %s WHERE id = %s", (item['sold_qty'], item['product_id']))
 
-        # 3. Delete Records (Cascade will handle items)
+        # 3. Delete Record (Cascade deletes items)
         cur.execute("DELETE FROM evening_settle WHERE id = %s", (settle_id,))
         
         mysql.connection.commit()
-        flash("Settlement Deleted & Stock Reverted!", "success")
+        flash("Settlement Deleted & Inventory Restored.", "success")
     except Exception as e:
         mysql.connection.rollback()
         flash(f"Delete Error: {e}", "danger")
@@ -3394,11 +3393,9 @@ def admin_delete_evening(settle_id):
         cur.close()
     return redirect(url_for('admin_evening_master'))
 
-
-# --- BULK PDF EXPORT ROUTE ---
-@app.route('/admin/evening/export_summary_pdf')
+# --- 4. BULK PDF EXPORT ---
+@app.route('/admin/evening/export_pdf')
 def admin_evening_export_pdf():
-    # Fetch same data as dashboard
     start = request.args.get('start_date')
     end = request.args.get('end_date')
     emp_id = request.args.get('employee_id')
@@ -3424,38 +3421,37 @@ def admin_evening_export_pdf():
     pdf = PDF()
     pdf.add_page()
     pdf.set_font("Arial", 'B', 14)
-    pdf.cell(0, 10, f"Settlement Summary Report ({start} to {end})", 0, 1, 'C')
+    pdf.cell(0, 10, f"Settlement Report ({start} to {end})", 0, 1, 'C')
     pdf.ln(5)
 
-    # Table Header
     pdf.set_font("Arial", 'B', 10)
     pdf.set_fill_color(240, 240, 240)
     pdf.cell(30, 8, "Date", 1, 0, 'C', 1)
-    pdf.cell(50, 8, "Employee", 1, 0, 'L', 1)
+    pdf.cell(60, 8, "Employee", 1, 0, 'L', 1)
     pdf.cell(30, 8, "Sales", 1, 0, 'R', 1)
     pdf.cell(30, 8, "Cash", 1, 0, 'R', 1)
-    pdf.cell(30, 8, "Online", 1, 0, 'R', 1)
-    pdf.cell(20, 8, "Due", 1, 1, 'R', 1)
+    pdf.cell(30, 8, "Due", 1, 1, 'R', 1)
 
-    # Table Body
     pdf.set_font("Arial", '', 9)
-    total_sales = 0
+    total = 0
     for row in data:
-        pdf.cell(30, 7, str(row['date']), 1)
-        pdf.cell(50, 7, pdf.safe_text(row['name']), 1)
+        # Date Format Fix
+        d_str = row['date'].strftime('%d-%m-%Y') if isinstance(row['date'], date) else str(row['date'])
+        
+        pdf.cell(30, 7, d_str, 1)
+        pdf.cell(60, 7, pdf.safe_text(row['name']), 1)
         pdf.cell(30, 7, f"{row['total_amount']:.2f}", 1, 0, 'R')
         pdf.cell(30, 7, f"{row['cash_money']:.2f}", 1, 0, 'R')
-        pdf.cell(30, 7, f"{row['online_money']:.2f}", 1, 0, 'R')
-        pdf.cell(20, 7, f"{row['due_amount']:.2f}", 1, 1, 'R')
-        total_sales += row['total_amount']
+        pdf.cell(30, 7, f"{row['due_amount']:.2f}", 1, 1, 'R')
+        total += row['total_amount']
 
     pdf.ln(5)
     pdf.set_font("Arial", 'B', 11)
-    pdf.cell(0, 10, f"Total Sales Period: {total_sales:.2f}", 0, 1, 'R')
+    pdf.cell(0, 10, f"Total Period Sales: {total:.2f}", 0, 1, 'R')
 
     response = make_response(pdf.output(dest='S').encode('latin1'))
     response.headers['Content-Type'] = 'application/pdf'
-    response.headers['Content-Disposition'] = f'attachment; filename=Settlement_Summary.pdf'
+    response.headers['Content-Disposition'] = 'attachment; filename=Summary_Report.pdf'
     return response
 
 # --- ALL OTHER ROUTES (REPORTS, EMPLOYEE FINANCE, etc.) ---
@@ -4377,6 +4373,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
