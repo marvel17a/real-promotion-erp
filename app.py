@@ -3368,18 +3368,16 @@ def admin_edit_evening(settle_id):
     return render_template('admin/edit_evening_settle.html', settlement=settlement, items=items)
 
 
-
-# --- 3. DELETE SETTLEMENT ---
+# --- THE REQUESTED FIX: DELETE & REVERT STOCK ---
 @app.route('/admin/evening/delete/<int:settle_id>', methods=['POST'])
 def admin_delete_evening(settle_id):
-    # Deleting a settlement should REVERT the sales (add items back to stock)
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     try:
-        # 1. Get sold quantities
+        # 1. Get sold quantities to REVERT
         cur.execute("SELECT product_id, sold_qty FROM evening_item WHERE settle_id = %s", (settle_id,))
         items = cur.fetchall()
 
-        # 2. Add back to Main Inventory
+        # 2. Add back sold items to inventory
         for item in items:
             if item['sold_qty'] > 0:
                 cur.execute("UPDATE products SET stock = stock + %s WHERE id = %s", (item['sold_qty'], item['product_id']))
@@ -3388,13 +3386,14 @@ def admin_delete_evening(settle_id):
         cur.execute("DELETE FROM evening_settle WHERE id = %s", (settle_id,))
         
         mysql.connection.commit()
-        flash("Settlement Deleted & Inventory Restored.", "success")
+        flash("Settlement Deleted & Stock Restored.", "success")
     except Exception as e:
         mysql.connection.rollback()
         flash(f"Delete Error: {e}", "danger")
     finally:
         cur.close()
     return redirect(url_for('admin_evening_master'))
+
 
 # --- 4. BULK PDF EXPORT ---
 @app.route('/admin/evening/export_pdf')
@@ -4376,6 +4375,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
