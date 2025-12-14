@@ -1,8 +1,6 @@
 document.addEventListener("DOMContentLoaded", () => {
     
-    // 1. Safe Getter
     const getEl = (id) => document.getElementById(id);
-    
     const ui = {
         employeeSelect: getEl("employee_id"), 
         dateInput: getEl("date"),
@@ -27,10 +25,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     };
     
-    if (!ui.fetchButton || !ui.tableBody) {
-        console.error("Evening UI Elements Missing");
-        return; 
-    }
+    if (!ui.fetchButton) return;
 
     const DEFAULT_IMG = "https://via.placeholder.com/55?text=Img";
 
@@ -148,13 +143,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if(ui.footer.sold) ui.footer.sold.textContent = grandTotalSold;
         if(ui.footer.amount) ui.footer.amount.textContent = grandTotalAmount.toFixed(2);
+        
+        // SAFE CHECK to prevent null error
         if(ui.payment.totalAmount) ui.payment.totalAmount.value = grandTotalAmount.toFixed(2);
         
         calculateDue();
     }
 
     function calculateDue() {
-        const total = parseFloat(ui.payment.totalAmount?.value) || 0;
+        if(!ui.payment.totalAmount) return;
+
+        const total = parseFloat(ui.payment.totalAmount.value) || 0;
         const disc = parseFloat(ui.payment.discount?.value) || 0;
         const cash = parseFloat(ui.payment.cash?.value) || 0;
         const online = parseFloat(ui.payment.online?.value) || 0;
@@ -162,7 +161,6 @@ document.addEventListener("DOMContentLoaded", () => {
         
         if(ui.payment.due) ui.payment.due.textContent = due.toFixed(2);
         
-        // Update sticky footer if it exists
         const sticky = document.getElementById('stickyDue');
         if(sticky) sticky.innerText = due.toFixed(2);
     }
@@ -180,7 +178,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if(el) el.addEventListener('input', calculateDue);
     });
 
-    // Enter Key Navigation
+    // Enter Key Nav
     document.addEventListener("keydown", function (e) {
         if (e.key === "Enter" && e.target.tagName !== "BUTTON") {
             e.preventDefault();
