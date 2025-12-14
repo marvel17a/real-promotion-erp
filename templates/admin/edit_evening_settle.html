@@ -16,12 +16,14 @@
     <form method="POST">
         <div class="row g-4">
             
+            <!-- Table Section -->
             <div class="col-lg-8">
                 <div class="card glass-card border-0 p-0 overflow-hidden shadow-sm">
                     <table class="table table-hover align-middle mb-0" id="editTable">
                         <thead class="bg-light text-secondary small text-uppercase">
                             <tr>
-                                <th class="ps-4">Product</th>
+                                <th class="ps-4" style="width: 70px;">Img</th>
+                                <th>Product</th>
                                 <th class="text-center" style="width: 80px;">Total</th>
                                 <th style="width: 100px;">Sold</th>
                                 <th style="width: 100px;">Return</th>
@@ -32,12 +34,17 @@
                         <tbody>
                             {% for item in items %}
                             <tr class="item-row">
-                                <td class="ps-4 fw-bold">
+                                <td class="ps-4">
+                                    <div class="img-box" style="width:40px;height:40px;overflow:hidden;border-radius:6px;border:1px solid #eee;">
+                                        <img src="{{ item.image }}" style="width:100%;height:100%;object-fit:cover;">
+                                    </div>
+                                </td>
+                                <td class="fw-bold">
                                     {{ item.product_name }}
                                     <input type="hidden" name="product_id[]" value="{{ item.product_id }}">
                                 </td>
                                 <td class="text-center">
-                                    <input type="text" class="form-control-plaintext text-center total-qty" value="{{ item.total_qty }}" readonly>
+                                    <input type="text" name="total_qty[]" class="form-control-plaintext text-center total-qty" value="{{ item.total_qty }}" readonly>
                                 </td>
                                 <td>
                                     <input type="number" name="sold[]" class="form-control sold-input" value="{{ item.sold_qty }}" min="0">
@@ -50,7 +57,7 @@
                                 </td>
                                 <td class="text-end pe-4 fw-bold">
                                     <span class="row-amount">0.00</span>
-                                    <input type="hidden" class="unit-price" value="{{ item.unit_price }}">
+                                    <input type="hidden" name="price[]" class="unit-price" value="{{ item.unit_price }}">
                                 </td>
                             </tr>
                             {% endfor %}
@@ -59,6 +66,7 @@
                 </div>
             </div>
 
+            <!-- Payment Section -->
             <div class="col-lg-4">
                 <div class="card glass-card border-0 p-4 shadow-sm sticky-top" style="top: 20px;">
                     <h5 class="fw-bold mb-3">Payment Correction</h5>
@@ -117,7 +125,6 @@
                 let sold = parseInt(soldInput.value) || 0;
                 let ret = parseInt(returnInput.value) || 0;
 
-                // Auto-adjust return if sold+return > total
                 if (sold + ret > total) {
                     ret = total - sold;
                     if(ret < 0) ret = 0;
@@ -134,7 +141,6 @@
 
             totalAmountEl.value = grandTotal.toFixed(2);
             
-            // Calc Due
             const cash = parseFloat(document.getElementById('cash').value) || 0;
             const online = parseFloat(document.getElementById('online').value) || 0;
             const discount = parseFloat(document.getElementById('discount').value) || 0;
@@ -143,11 +149,9 @@
             dueEl.innerText = due.toFixed(2);
         }
 
-        // Listeners
         table.addEventListener('input', calculate);
         inputs.forEach(i => i.addEventListener('input', calculate));
         
-        // Initial Run
         calculate();
     });
 </script>
