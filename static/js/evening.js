@@ -25,7 +25,8 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     };
     
-    if (!ui.fetchButton) return;
+    if (!ui.fetchButton || !ui.tableBody) return;
+
 
     const DEFAULT_IMG = "https://via.placeholder.com/55?text=Img";
 
@@ -190,3 +191,4 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 });
+
