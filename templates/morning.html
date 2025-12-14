@@ -1,89 +1,125 @@
 {% extends "base.html" %}
-{% block content %}
 
+{% block content %}
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
 
 <div class="glass-container fade-in-up mb-5">
 
+    <!-- Header -->
     <div class="glass-header text-center mb-4 p-4">
         <h1 class="company-name text-gradient fw-bold mb-1">REAL PROMOTION</h1>
-        <p class="since-text text-secondary mb-3 small">SINCE 2005</p>
+        <p class="since-text text-secondary mb-3 small letter-spacing-2">SINCE 2005</p>
+        <div class="address-block text-muted small mx-auto bg-white bg-opacity-50 p-2 rounded-3" style="max-width: 600px;">
+            <i class="fa-solid fa-location-dot text-primary me-1"></i>
+            Real Promotion, G/12, Tulsimangalam Complex, B/h. Trimurti Complex, Ghodiya Bazar, Nadiad-387001, Gujarat, India
+        </div>
     </div>
 
+    <!-- Main Card -->
     <div class="glass-panel p-4 mb-4">
-        <h4 class="fw-bold mb-3">
-            <i class="fa-solid fa-sun text-warning me-2"></i> Morning Allocation
-        </h4>
+        <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+            <h4 class="fw-bold text-dark mb-0">
+                <i class="fa-solid fa-sun text-warning me-2"></i>Morning Allocation
+            </h4>
+            <a href="{{ url_for('allocation_list') }}" class="btn btn-outline-dark rounded-pill px-4 btn-sm">
+                <i class="fa-solid fa-clock-rotate-left me-2"></i> History
+            </a>
+        </div>
 
         <form id="morningForm" method="POST" action="{{ url_for('morning') }}">
             <div class="row g-3 align-items-end">
-
                 <div class="col-md-5">
-                    <label class="form-label fw-bold">Sales Representative</label>
-                    <select name="employee_id" id="employee_id" class="form-select" required>
-                        <option value="">-- Select Staff --</option>
-                        {% for emp in employees %}
-                        <option value="{{ emp.id }}">{{ emp.name }}</option>
-                        {% endfor %}
-                    </select>
+                    <label class="form-label text-uppercase small fw-bold text-secondary">Sales Representative</label>
+                    <div class="input-group input-group-glass">
+                        <span class="input-group-text"><i class="fa-solid fa-user-tie"></i></span>
+                        <select name="employee_id" id="employee_id" class="form-select" required>
+                            <option value="">-- Select Staff --</option>
+                            {% for emp in employees %}
+                            <option value="{{ emp.id }}">{{ emp.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
                 </div>
 
                 <div class="col-md-4">
-                    <label class="form-label fw-bold">Date</label>
-                    <input type="text" name="date" id="date" class="form-control" value="{{ today_date }}" required>
+                    <label class="form-label text-uppercase small fw-bold text-secondary">Date</label>
+                    <div class="input-group input-group-glass">
+                        <span class="input-group-text"><i class="fa-solid fa-calendar"></i></span>
+                        <input type="text" name="date" id="date" class="form-control" value="{{ today_date }}" required>
+                    </div>
                 </div>
 
                 <div class="col-md-3">
-                    <div id="fetchMsg" class="fw-bold small text-center"></div>
+                    <div id="fetchMsg" class="w-100 text-center small fw-bold mt-2"></div>
                 </div>
-
             </div>
 
-            <div class="table-responsive mt-4">
-                <table class="table table-hover" id="productTable">
+            <!-- Table -->
+            <div class="table-responsive glass-table-container mt-4">
+                <table class="table table-hover align-middle mb-0" id="productTable">
                     <thead class="bg-gradient-primary text-white">
                         <tr>
-                            <th>#</th>
-                            <th>Img</th>
-                            <th>Product</th>
-                            <th>Opening</th>
-                            <th>Given</th>
-                            <th>Total</th>
-                            <th>Price</th>
-                            <th>Amount</th>
-                            <th></th>
+                            <th class="ps-3" style="width: 50px;">#</th>
+                            <th style="width: 80px;">Img</th>
+                            <th style="min-width: 200px;">Product</th>
+                            <th style="width: 90px;">Opening</th>
+                            <th style="width: 90px;">Given</th>
+                            <th style="width: 90px;">Total</th>
+                            <th style="width: 100px;">Price</th>
+                            <th style="width: 110px;">Amount</th>
+                            <th class="text-center" style="width: 60px;">
+                                <i class="fa-solid fa-trash"></i>
+                            </th>
                         </tr>
                     </thead>
-                    <tbody></tbody>
-                    <tfoot class="fw-bold">
+                    <tbody class="bg-white"></tbody>
+                    <tfoot class="bg-light fw-bold text-dark">
                         <tr>
-                            <td colspan="3" class="text-end">Totals:</td>
-                            <td id="totalOpening">0</td>
-                            <td id="totalGiven">0</td>
-                            <td id="totalAll">0</td>
+                            <td colspan="4" class="text-end text-uppercase text-secondary small fw-bold pe-3">
+                                Totals:
+                            </td>
+                            <td id="totalOpening" class="fw-bold">0</td>
+                            <td id="totalGiven" class="text-primary fw-bold">0</td>
+                            <td id="totalAll" class="fw-bold">0</td>
                             <td>-</td>
-                            <td id="grandTotal">0.00</td>
+                            <td id="grandTotal" class="text-dark fw-bold">0.00</td>
                             <td>-</td>
                         </tr>
                     </tfoot>
                 </table>
             </div>
 
-            <div class="d-flex justify-content-between mt-4">
-                <button type="button" id="addRow" class="btn btn-outline-success">
-                    + Add Item
+            <!-- Buttons -->
+            <div class="d-flex justify-content-between align-items-center mt-4">
+                <button type="button" id="addRow" class="btn btn-glass-light text-success fw-bold">
+                    <i class="fa-solid fa-plus-circle me-2"></i> Add Item
                 </button>
-                <button type="submit" class="btn btn-gradient-primary px-5">
-                    Confirm Allocation
+                <button type="submit" class="btn btn-gradient-primary px-5 rounded-pill shadow-lg hover-lift">
+                    <i class="fa-solid fa-check me-2"></i> Confirm Allocation
                 </button>
             </div>
         </form>
     </div>
 </div>
 
-<!-- SAFE JSON BLOCK (NO JS EXECUTION) -->
+<style>
+    body { background: #f0f2f5; font-family: 'Poppins', sans-serif; }
+    .glass-container { max-width: 1200px; margin: 2rem auto; padding: 0 15px; }
+    .glass-header { background: rgba(255,255,255,0.85); backdrop-filter: blur(12px); border-radius: 20px; box-shadow: 0 8px 32px rgba(0,0,0,0.05); border: 1px solid #fff; }
+    .glass-panel { background: rgba(255,255,255,0.9); backdrop-filter: blur(16px); border-radius: 24px; box-shadow: 0 10px 40px rgba(0,0,0,0.06); border: 1px solid rgba(255,255,255,0.6); }
+    .text-gradient { background: linear-gradient(45deg,#1a237e,#0d47a1); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .bg-gradient-primary { background: linear-gradient(135deg,#1a237e 0%,#0d47a1 100%); }
+    .input-group-glass .input-group-text { background: #f8f9fa; border: 1px solid #e0e0e0; }
+    .input-group-glass .form-control, .input-group-glass .form-select { background: #fff; border: 1px solid #e0e0e0; }
+    .glass-table-container { border-radius: 16px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.03); border: 1px solid #eee; }
+    .img-box { width: 55px; height: 55px; border-radius: 8px; overflow: hidden; border: 1px solid #e0e0e0; background: #fff; margin: 0 auto; }
+    .table input.form-control { background: transparent; border: 1px solid transparent; text-align: center; font-weight: 600; }
+    .table input.given { background: #ebf8ff; color: #2b6cb0; border-radius: 6px; }
+</style>
+
+<!-- ✅ SAFE PRODUCTS JSON -->
 <script type="application/json" id="products-json">
 {{ products | tojson }}
 </script>
@@ -101,10 +137,9 @@ document.addEventListener("DOMContentLoaded", function () {
         const raw = document.getElementById("products-json").textContent;
         window.productsData = raw ? JSON.parse(raw) : [];
     } catch (e) {
-        console.error("Products JSON error", e);
+        console.error("productsData parse error", e);
         window.productsData = [];
     }
-
 });
 </script>
 
