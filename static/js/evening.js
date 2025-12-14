@@ -1,6 +1,8 @@
 document.addEventListener("DOMContentLoaded", () => {
     
+    // 1. Safe Getter
     const getEl = (id) => document.getElementById(id);
+    
     const ui = {
         employeeSelect: getEl("employee_id"), 
         dateInput: getEl("date"),
@@ -25,7 +27,10 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     };
     
-    if (!ui.fetchButton) return;
+    if (!ui.fetchButton || !ui.tableBody) {
+        console.error("Evening UI Elements Missing");
+        return; 
+    }
 
     const DEFAULT_IMG = "https://via.placeholder.com/55?text=Img";
 
@@ -41,8 +46,8 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        ui.hidden.employee.value = employeeId;
-        ui.hidden.date.value = dateStr;
+        if(ui.hidden.employee) ui.hidden.employee.value = employeeId;
+        if(ui.hidden.date) ui.hidden.date.value = dateStr;
 
         try {
             const response = await fetch(`/api/fetch_morning_allocation?employee_id=${employeeId}&date=${dateStr}`);
@@ -50,7 +55,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             if (!response.ok || data.error) throw new Error(data.error || 'No data.');
 
-            ui.hidden.allocationId.value = data.allocation_id;
+            if(ui.hidden.allocationId) ui.hidden.allocationId.value = data.allocation_id;
             
             if (!data.items || data.items.length === 0) {
                 ui.tableBody.innerHTML = '<tr><td colspan="7" class="text-center text-warning p-4 fw-bold">No items found.</td></tr>';
@@ -149,14 +154,17 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function calculateDue() {
-        const total = parseFloat(ui.payment.totalAmount.value) || 0;
-        const disc = parseFloat(ui.payment.discount.value) || 0;
-        const cash = parseFloat(ui.payment.cash.value) || 0;
-        const online = parseFloat(ui.payment.online.value) || 0;
+        const total = parseFloat(ui.payment.totalAmount?.value) || 0;
+        const disc = parseFloat(ui.payment.discount?.value) || 0;
+        const cash = parseFloat(ui.payment.cash?.value) || 0;
+        const online = parseFloat(ui.payment.online?.value) || 0;
         const due = total - (disc + cash + online);
         
         if(ui.payment.due) ui.payment.due.textContent = due.toFixed(2);
-        if(document.getElementById('stickyDue')) document.getElementById('stickyDue').innerText = due.toFixed(2);
+        
+        // Update sticky footer if it exists
+        const sticky = document.getElementById('stickyDue');
+        if(sticky) sticky.innerText = due.toFixed(2);
     }
 
     ui.fetchButton.addEventListener("click", (e) => {
@@ -172,7 +180,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if(el) el.addEventListener('input', calculateDue);
     });
 
-    // Enter key navigation
+    // Enter Key Navigation
     document.addEventListener("keydown", function (e) {
         if (e.key === "Enter" && e.target.tagName !== "BUTTON") {
             e.preventDefault();
