@@ -1,66 +1,69 @@
 {% extends "base.html" %}
 
 {% block content %}
+
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
 <div class="glass-container fade-in-up mb-5">
 
     <div class="glass-header text-center mb-4 p-4">
         <h1 class="company-name text-gradient fw-bold mb-1">REAL PROMOTION</h1>
         <p class="since-text text-secondary mb-3 small letter-spacing-2">SINCE 2005</p>
+
         <div class="address-block text-muted small mx-auto bg-white bg-opacity-50 p-2 rounded-3" style="max-width: 600px;">
             <i class="fa-solid fa-location-dot text-primary me-1"></i>
-            Real Promotion, G/12, Tulsimangalam Complex, B/h. Trimurti Complex, Ghodiya Bazar, Nadiad-387001, Gujarat, India
+            Real Promotion, G/12, Tulsimangalam Complex, Ghodiya Bazar, Nadiad-387001, Gujarat, India
         </div>
     </div>
 
     <div class="glass-panel p-4 mb-4">
+
         <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
-            <h4 class="fw-bold text-dark mb-0">
+            <h4 class="fw-bold mb-0">
                 <i class="fa-solid fa-sun text-warning me-2"></i>Morning Allocation
             </h4>
-            <a href="{{ url_for('allocation_list') }}" class="btn btn-outline-dark rounded-pill px-4 btn-sm">
+
+            <a href="{{ url_for('allocation_list') }}" class="btn btn-outline-dark btn-sm rounded-pill px-4">
                 <i class="fa-solid fa-clock-rotate-left me-2"></i>History
             </a>
         </div>
 
         <form id="morningForm" method="POST" action="{{ url_for('morning') }}">
+
             <div class="row g-3 align-items-end">
+
                 <div class="col-md-5">
-                    <label class="form-label text-uppercase small fw-bold text-secondary">Sales Representative</label>
-                    <div class="input-group input-group-glass">
-                        <span class="input-group-text"><i class="fa-solid fa-user-tie"></i></span>
-                        <select name="employee_id" id="employee_id" class="form-select" required>
-                            <option value="">-- Select Staff --</option>
-                            {% for emp in employees %}
+                    <label class="form-label small fw-bold text-secondary">Sales Representative</label>
+                    <select name="employee_id" id="employee_id" class="form-select" required>
+                        <option value="">-- Select Staff --</option>
+                        {% for emp in employees %}
                             <option value="{{ emp.id }}">{{ emp.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
+                        {% endfor %}
+                    </select>
                 </div>
 
                 <div class="col-md-4">
-                    <label class="form-label text-uppercase small fw-bold text-secondary">Date</label>
-                    <div class="input-group input-group-glass">
-                        <span class="input-group-text"><i class="fa-solid fa-calendar"></i></span>
-                        <input type="text" name="date" id="date" class="form-control" value="{{ today_date }}" required>
-                    </div>
+                    <label class="form-label small fw-bold text-secondary">Date</label>
+                    <input type="text" name="date" id="date" class="form-control" value="{{ today_date }}" required>
                 </div>
 
                 <div class="col-md-3">
-                    <div id="fetchMsg" class="w-100 text-center mt-2"></div>
+                    <div id="fetchMsg" class="text-center mt-2"></div>
                 </div>
+
             </div>
 
-            <div id="historyList" class="mb-3"></div>
+            <div id="historyList" class="my-3"></div>
 
             <div class="table-responsive glass-table-container mt-4">
                 <table class="table table-hover align-middle mb-0" id="productTable">
+
                     <thead class="bg-gradient-primary text-white">
                         <tr>
-                            <th class="ps-3">#</th>
+                            <th>#</th>
                             <th>Img</th>
                             <th>Product</th>
                             <th>Opening</th>
@@ -68,13 +71,15 @@
                             <th>Total</th>
                             <th>Price</th>
                             <th>Amount</th>
-                            <th class="text-center"><i class="fa-solid fa-trash"></i></th>
+                            <th class="text-center">🗑</th>
                         </tr>
                     </thead>
-                    <tbody class="bg-white"></tbody>
+
+                    <tbody></tbody>
+
                     <tfoot class="bg-light fw-bold">
                         <tr>
-                            <td colspan="4" class="text-end pe-3">Totals:</td>
+                            <td colspan="3" class="text-end">Totals</td>
                             <td id="totalOpening">0</td>
                             <td id="totalGiven">0</td>
                             <td id="totalAll">0</td>
@@ -83,36 +88,58 @@
                             <td>-</td>
                         </tr>
                     </tfoot>
+
                 </table>
             </div>
 
             <div class="d-flex justify-content-between mt-4">
-                <button type="button" id="addRow" class="btn btn-glass-light text-success fw-bold">
-                    <i class="fa-solid fa-plus-circle me-2"></i>Add Item
+                <button type="button" id="addRow" class="btn btn-outline-success">
+                    ➕ Add Item
                 </button>
-                <button type="submit" class="btn btn-gradient-primary px-5 rounded-pill">
-                    <i class="fa-solid fa-check me-2"></i>Confirm Allocation
+
+                <button type="submit" class="btn btn-primary px-5 rounded-pill">
+                    ✔ Confirm Allocation
                 </button>
             </div>
+
         </form>
+
     </div>
 </div>
 
-<script>
-    try {
-        window.productsData = JSON.parse('{{ products | tojson | safe }}');
-    } catch (e) {
-        window.productsData = [];
-    }
+<style>
+    body { font-family: 'Poppins', sans-serif; background: #f0f2f5; }
+    .glass-container { max-width: 1200px; margin: 2rem auto; }
+    .glass-header, .glass-panel { background: #fff; border-radius: 16px; box-shadow: 0 5px 25px rgba(0,0,0,0.08); }
+    .text-gradient { background: linear-gradient(45deg,#1a237e,#0d47a1); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .bg-gradient-primary { background: linear-gradient(135deg,#1a237e,#0d47a1); }
+</style>
 
+<!-- SAFE JSON INJECTION -->
+<script type="application/json" id="products-data">
+    {{ products | tojson }}
+</script>
+
+<script>
     document.addEventListener("DOMContentLoaded", function () {
+
         flatpickr("#date", {
             dateFormat: "d-m-Y",
             defaultDate: "{{ today_date }}",
             allowInput: true
         });
+
+        try {
+            window.productsData = JSON.parse(
+                document.getElementById("products-data").textContent
+            );
+        } catch (e) {
+            console.error("Invalid products JSON", e);
+            window.productsData = [];
+        }
     });
 </script>
 
 <script src="{{ url_for('static', filename='js/morning.js') }}"></script>
+
 {% endblock %}
