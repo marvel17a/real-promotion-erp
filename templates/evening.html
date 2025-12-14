@@ -7,7 +7,6 @@
 
 <div class="glass-container fade-in-up mb-5">
 
-    <!-- Header -->
     <div class="glass-header text-center mb-4 p-4">
         <h1 class="company-name text-gradient fw-bold mb-1">REAL PROMOTION</h1>
         <p class="since-text text-secondary mb-3 small letter-spacing-2">SINCE 2005</p>
@@ -17,7 +16,6 @@
         </div>
     </div>
 
-    <!-- Filter -->
     <div class="glass-panel p-4 mb-4">
         <div class="row g-3 align-items-end">
             <div class="col-md-5">
@@ -50,7 +48,7 @@
 
     {% if last_settle_id %}
     <div class="glass-panel p-3 mb-4 bg-success-subtle border border-success-subtle d-flex justify-content-between align-items-center">
-        <span class="text-success fw-bold"><i class="fa-solid fa-check-circle me-2"></i>Saved successfully!</span>
+        <span class="text-success fw-bold"><i class="fa-solid fa-check-circle me-2"></i>Saved!</span>
         <a href="{{ url_for('generate_pdf', settle_id=last_settle_id) }}" class="btn btn-sm btn-success shadow-sm px-3 fw-bold" target="_blank">
             <i class="fa-solid fa-file-pdf me-2"></i> PDF Receipt
         </a>
@@ -62,7 +60,6 @@
         <input type="hidden" name="h_employee" id="h_employee">
         <input type="hidden" name="h_date" id="h_date">
 
-        <!-- Table -->
         <div class="glass-panel p-0 overflow-hidden mb-4">
             <div class="p-3 border-bottom bg-light bg-opacity-50">
                 <h5 class="fw-bold mb-0 text-dark"><i class="fa-solid fa-boxes-stacked me-2 text-primary"></i>Stock Reconciliation</h5>
@@ -96,7 +93,6 @@
             </div>
         </div>
 
-        <!-- Payment -->
         <div class="glass-panel p-4 mb-5">
             <h5 class="fw-bold mb-4 text-dark border-bottom pb-2"><i class="fa-solid fa-wallet me-2 text-success"></i>Payment Settlement</h5>
             
