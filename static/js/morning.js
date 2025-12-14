@@ -20,7 +20,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let isRestockMode = false;
     const productsData = window.productsData || [];
     const productsMap = new Map();
-    const DEFAULT_IMG = "https://via.placeholder.com/50?text=Img"; // Small 50px default
+    const DEFAULT_IMG = "https://via.placeholder.com/50?text=Img";
 
     let productOptionsHtml = '<option value="">-- Select --</option>';
     if (Array.isArray(productsData)) {
@@ -51,18 +51,16 @@ document.addEventListener("DOMContentLoaded", () => {
             } else {
                 isRestockMode = (data.mode === 'restock');
                 
-                // 1. Auto-Fill Yesterday's Remaining (Only in Normal Mode)
                 if (data.opening_stock && data.opening_stock.length > 0) {
                     data.opening_stock.forEach(stockItem => {
                         createRow(stockItem); 
                     });
                     ui.fetchMsg.innerHTML = '<span class="text-success small"><i class="fa-solid fa-check"></i> Stock Loaded</span>';
                 } else {
-                    createRow(); // Empty row for user input
+                    createRow();
                     ui.fetchMsg.innerHTML = '<span class="text-secondary small">No pending stock</span>';
                 }
 
-                // 2. Restock Mode History (Visual Update)
                 if (isRestockMode) {
                     ui.fetchMsg.innerHTML = '<span class="badge bg-warning text-dark">Restock Mode</span>';
                     if(data.existing_items && data.existing_items.length > 0) {
@@ -75,15 +73,16 @@ document.addEventListener("DOMContentLoaded", () => {
                         `;
                         
                         data.existing_items.forEach(item => {
-                            // Different color for "Restock" items vs "Morning" items
                             const badgeClass = item.tag === "Morning" ? "bg-primary" : "bg-orange"; 
+                            // Use strict sizing for history images too
                             historyHtml += `
                                 <div class="d-flex align-items-center border rounded p-1 pe-3 bg-white shadow-sm">
-                                    <img src="${item.image}" class="rounded me-2" style="width:35px;height:35px;object-fit:cover;">
+                                    <div style="width:35px;height:35px;border-radius:4px;overflow:hidden;margin-right:8px;">
+                                        <img src="${item.image}" style="width:100%;height:100%;object-fit:cover;">
+                                    </div>
                                     <div>
                                         <div class="fw-bold small text-dark">${item.name}</div>
                                         <span class="badge ${badgeClass} rounded-pill">${item.qty}</span>
-                                        <small class="text-muted" style="font-size:0.7em;">${item.tag}</small>
                                     </div>
                                 </div>
                             `;
@@ -116,15 +115,15 @@ document.addEventListener("DOMContentLoaded", () => {
             if(prefillData.image) imgSrc = prefillData.image;
         }
 
+        // --- UPDATED HTML STRUCTURE ---
         tr.innerHTML = `
             <td class="row-index ps-3 text-muted fw-bold small py-3"></td>
-            <td class="text-center">
-                <!-- SMALL IMAGE BOX (Matches Inventory Master) -->
+            <td class="text-center" style="vertical-align: middle;">
                 <div class="img-box-small">
                     <img src="${imgSrc}" class="product-thumb" alt="img" onerror="this.src='${DEFAULT_IMG}'">
                 </div>
             </td>
-            <td>
+            <td style="vertical-align: middle;">
                 <select name="product_id[]" class="form-select product-dropdown" required>
                     ${productOptionsHtml}
                 </select>
@@ -134,7 +133,7 @@ document.addEventListener("DOMContentLoaded", () => {
             <td><input type="number" name="total[]" class="form-control total" value="${openingVal}" readonly tabindex="-1"></td>
             <td><input type="number" name="price[]" class="form-control price" step="0.01" value="${priceVal.toFixed(2)}" readonly tabindex="-1"></td>
             <td><input type="number" name="amount[]" class="form-control amount text-end" value="0.00" readonly tabindex="-1"></td>
-            <td class="text-center">
+            <td class="text-center" style="vertical-align: middle;">
                 <button type="button" class="btn btn-link text-danger p-0 btn-remove-row"><i class="fa-solid fa-trash-can"></i></button>
             </td>
         `;
