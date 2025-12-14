@@ -1,12 +1,9 @@
 {% extends "base.html" %}
 
 {% block content %}
-
-<!-- Google Font -->
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
-
-<!-- Flatpickr CSS -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
 
 <div class="glass-container fade-in-up mb-5">
 
@@ -30,20 +27,18 @@
                     <select class="form-select" id="employee_id">
                         <option value="">-- Select Staff --</option>
                         {% for emp in employees %}
-                        <option value="{{ emp.id }}">{{ emp.name }}</option>
+                            <option value="{{ emp.id }}">{{ emp.name }}</option>
                         {% endfor %}
                     </select>
                 </div>
             </div>
-
             <div class="col-md-4">
                 <label class="form-label text-uppercase small fw-bold text-secondary">Settlement Date</label>
                 <div class="input-group input-group-glass">
                     <span class="input-group-text"><i class="fa-solid fa-calendar-day"></i></span>
-                    <input type="text" class="form-control" id="date" value="{{ today }}">
+                    <input type="text" class="form-control" id="date" value="{{ today }}" placeholder="DD-MM-YYYY">
                 </div>
             </div>
-
             <div class="col-md-3">
                 <button type="button" id="btnFetch" class="btn btn-gradient-primary w-100 py-2 shadow-sm">
                     <i class="fa-solid fa-sync-alt me-2"></i> Load Allocation
@@ -53,44 +48,46 @@
         <div id="fetchMsg" class="mt-2 text-center fw-bold small"></div>
     </div>
 
+    <!-- Success Message -->
+    {% if last_settle_id %}
+    <div class="glass-panel p-3 mb-4 bg-success-subtle border border-success-subtle d-flex justify-content-between align-items-center">
+        <span class="text-success fw-bold"><i class="fa-solid fa-check-circle me-2"></i>Saved successfully!</span>
+        <a href="{{ url_for('generate_pdf', settle_id=last_settle_id) }}" class="btn btn-sm btn-success shadow-sm px-3 fw-bold" target="_blank">
+            <i class="fa-solid fa-file-pdf me-2"></i> Receipt
+        </a>
+    </div>
+    {% endif %}
+
     <form id="eveningForm" action="{{ url_for('evening') }}" method="POST">
         <input type="hidden" name="allocation_id" id="allocation_id">
         <input type="hidden" name="h_employee" id="h_employee">
         <input type="hidden" name="h_date" id="h_date">
 
-        <!-- Table -->
+        <!-- Stock Table -->
         <div class="glass-panel p-0 overflow-hidden mb-4">
             <div class="p-3 border-bottom bg-light bg-opacity-50">
-                <h5 class="fw-bold mb-0">
-                    <i class="fa-solid fa-boxes-stacked me-2 text-primary"></i>
-                    Stock Reconciliation
-                </h5>
+                <h5 class="fw-bold mb-0 text-dark"><i class="fa-solid fa-boxes-stacked me-2 text-primary"></i>Stock Reconciliation</h5>
             </div>
-
             <div class="table-responsive">
                 <table class="table table-hover align-middle mb-0" id="productsTable">
                     <thead class="bg-gradient-primary text-white">
                         <tr>
-                            <th class="ps-4">Img</th>
+                            <th class="ps-4" style="width: 70px;">Img</th>
                             <th>Product</th>
                             <th class="text-center">Total</th>
-                            <th>Sold</th>
-                            <th>Return</th>
+                            <th style="width: 90px;">Sold</th>
+                            <th style="width: 90px;">Return</th>
                             <th class="text-center">Left</th>
                             <th class="text-end pe-4">Revenue</th>
                         </tr>
                     </thead>
-                    <tbody id="rowsArea">
-                        <tr>
-                            <td colspan="7" class="text-center text-muted py-5">
-                                Load data to begin...
-                            </td>
-                        </tr>
+                    <tbody id="rowsArea" class="bg-white">
+                        <tr><td colspan="7" class="text-center text-muted py-5">Load data to begin...</td></tr>
                     </tbody>
-                    <tfoot class="bg-light fw-bold">
+                    <tfoot class="bg-light fw-bold text-dark">
                         <tr>
-                            <td colspan="3" class="text-end">Totals:</td>
-                            <td id="totSold">0</td>
+                            <td colspan="3" class="text-end pe-3">Totals:</td>
+                            <td id="totSold" class="text-primary">0</td>
                             <td>-</td>
                             <td>-</td>
                             <td id="totAmount" class="text-end pe-4">0.00</td>
@@ -100,42 +97,105 @@
             </div>
         </div>
 
+        <!-- Payment (Below Table) -->
+        <div class="glass-panel p-4 mb-5">
+            <h5 class="fw-bold mb-4 text-dark border-bottom pb-2"><i class="fa-solid fa-wallet me-2 text-success"></i>Payment Settlement</h5>
+            
+            <div class="row g-4">
+                <!-- Total -->
+                <div class="col-md-4 text-center">
+                    <div class="p-4 rounded-4 bg-light shadow-inner h-100 d-flex flex-column justify-content-center">
+                        <small class="text-uppercase text-muted fw-bold d-block mb-1">Total Sales Value</small>
+                        <h2 class="fw-bold text-gradient mb-0">₹ <input type="number" id="totalAmount" name="totalAmount" class="d-inline border-0 bg-transparent text-center fw-bold text-gradient" style="width: 140px;" value="0.00" readonly></h2>
+                    </div>
+                </div>
+
+                <!-- Inputs -->
+                <div class="col-md-4">
+                    <div class="d-flex flex-column gap-3">
+                        <div>
+                            <label class="form-label small fw-bold text-secondary mb-1">Discount</label>
+                            <div class="input-group input-group-glass">
+                                <span class="input-group-text text-warning"><i class="fa-solid fa-tag"></i></span>
+                                <input type="number" name="discount" id="discount" class="form-control" placeholder="0" min="0" step="0.01">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="form-label small fw-bold text-secondary mb-1">Cash Received</label>
+                            <div class="input-group input-group-glass">
+                                <span class="input-group-text text-success"><i class="fa-solid fa-money-bill-wave"></i></span>
+                                <input type="number" name="cash" id="cash" class="form-control" placeholder="0" min="0" step="0.01">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="form-label small fw-bold text-secondary mb-1">Online Received</label>
+                            <div class="input-group input-group-glass">
+                                <span class="input-group-text text-info"><i class="fa-solid fa-qrcode"></i></span>
+                                <input type="number" name="online" id="online" class="form-control" placeholder="0" min="0" step="0.01">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Due -->
+                <div class="col-md-4">
+                    <div class="due-card p-4 rounded-4 text-center bg-danger bg-opacity-10 border border-danger border-opacity-25 h-100 d-flex flex-column justify-content-center">
+                        <small class="text-uppercase fw-bold text-danger mb-2">Outstanding Balance</small>
+                        <h3 class="fw-bold text-danger mb-0 display-6">₹ <span id="dueAmount">0.00</span></h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Sticky Footer -->
-        <nav class="navbar fixed-bottom glass-header border-top py-3">
-            <div class="container d-flex justify-content-between">
-                <span class="fw-bold">Due: ₹ <span id="stickyDue">0.00</span></span>
-                <button type="submit" class="btn btn-dark px-5 fw-bold">
-                    Submit
+        <nav class="navbar fixed-bottom glass-header border-top shadow-lg py-3" style="z-index: 1050;">
+            <div class="container d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center">
+                    <div class="icon-circle bg-dark text-white me-3 rounded-circle d-flex align-items-center justify-content-center shadow-sm" style="width: 45px; height: 45px;">
+                        <i class="fa-solid fa-scale-balanced fs-5"></i>
+                    </div>
+                    <div>
+                        <small class="text-muted d-block lh-1 mb-1">Net Balance</small>
+                        <span class="fw-bold text-dark fs-4">Due: ₹ <span id="stickyDue">0.00</span></span>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-dark rounded-pill px-5 shadow-lg fw-bold hover-lift">
+                    <i class="fa-solid fa-paper-plane me-2"></i> Submit
                 </button>
             </div>
         </nav>
+
     </form>
 </div>
 
-<!-- Flatpickr JS -->
-<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<style>
+    body { background: #f0f2f5; font-family: 'Poppins', sans-serif; padding-bottom: 100px; }
+    .glass-container { max-width: 1200px; margin: 2rem auto; padding: 0 15px; }
+    .glass-header { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); border-radius: 20px; box-shadow: 0 8px 32px rgba(0,0,0,0.05); border: 1px solid #fff; }
+    .glass-panel { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(16px); border-radius: 24px; box-shadow: 0 10px 40px rgba(0,0,0,0.06); border: 1px solid rgba(255, 255, 255, 0.6); }
+    .text-gradient { background: linear-gradient(45deg, #1a237e, #0d47a1); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .bg-gradient-primary { background: linear-gradient(135deg, #1a237e 0%, #0d47a1 100%); }
+    .input-group-glass .input-group-text { background: #f8f9fa; border: 1px solid #e0e0e0; border-right: none; border-radius: 12px 0 0 12px; }
+    .input-group-glass .form-control, .input-group-glass .form-select { background: #fff; border: 1px solid #e0e0e0; border-left: none; border-radius: 0 12px 12px 0; padding: 0.6rem 1rem; }
+    .input-group-glass .form-control:focus, .input-group-glass .form-select:focus { border-color: #0d47a1; box-shadow: none; }
+    .img-box { width: 55px; height: 55px; border-radius: 8px; overflow: hidden; border: 1px solid #e0e0e0; background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin: 0 auto; }
+    .table input.form-control { border: 1px solid transparent; background: transparent; text-align: center; font-weight: 600; }
+    .table input.form-control:focus { background: white; border: 1px solid #ddd; box-shadow: 0 0 0 3px rgba(0,0,0,0.05); border-radius: 6px; }
+    .table input.sold { color: #0d47a1; background: #e3f2fd; border-radius: 6px; }
+    .table input.return { color: #c62828; }
+    .btn-gradient-primary { background: linear-gradient(135deg, #1a237e 0%, #0d47a1 100%); color: white; border: none; transition: 0.3s; }
+    .btn-gradient-primary:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(13, 71, 161, 0.3); color: white; }
+</style>
 
 <script>
-document.addEventListener("DOMContentLoaded", function () {
-
-    flatpickr("#date", {
-        dateFormat: "Y-m-d",
-        defaultDate: "{{ today }}",
-        allowInput: true
+    document.addEventListener("DOMContentLoaded", function() {
+        flatpickr("#date", { dateFormat: "d-m-Y", defaultDate: "{{ today }}", allowInput: true });
+        
+        const dueEl = document.getElementById('dueAmount');
+        const stickyEl = document.getElementById('stickyDue');
+        const observer = new MutationObserver(() => { stickyEl.innerText = dueEl.innerText; });
+        observer.observe(dueEl, { childList: true, characterData: true, subtree: true });
     });
-
-    const dueEl = document.getElementById("dueAmount");
-    const stickyEl = document.getElementById("stickyDue");
-
-    if (dueEl && stickyEl) {
-        const observer = new MutationObserver(() => {
-            stickyEl.textContent = dueEl.textContent;
-        });
-        observer.observe(dueEl, { childList: true, subtree: true });
-    }
-});
 </script>
-
 <script src="{{ url_for('static', filename='js/evening.js') }}"></script>
-
 {% endblock %}
