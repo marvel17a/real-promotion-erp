@@ -171,4 +171,16 @@ document.addEventListener("DOMContentLoaded", () => {
     [ui.payment.discount, ui.payment.cash, ui.payment.online].forEach(el => {
         if(el) el.addEventListener('input', calculateDue);
     });
+
+    // Enter key navigation
+    document.addEventListener("keydown", function (e) {
+        if (e.key === "Enter" && e.target.tagName !== "BUTTON") {
+            e.preventDefault();
+            const inputs = Array.from(document.querySelectorAll("input:not([readonly]), select"));
+            const index = inputs.indexOf(e.target);
+            if (index > -1 && index < inputs.length - 1) {
+                inputs[index + 1].focus();
+            }
+        }
+    });
 });
