@@ -1,12 +1,11 @@
 document.addEventListener("DOMContentLoaded", () => {
-
-    const getEl = id => document.getElementById(id);
+    const getEl = (id) => document.getElementById(id);
 
     const ui = {
-        employee: getEl("employee_id"),
-        date: getEl("date"),
-        body: document.querySelector("#productTable tbody"),
-        addRow: getEl("addRow"),
+        employeeSelect: getEl("employee_id"),
+        dateInput: getEl("date"),
+        tableBody: document.querySelector("#productTable tbody"),
+        addRowBtn: getEl("addRow"),
         fetchMsg: getEl("fetchMsg"),
         totals: {
             opening: getEl("totalOpening"),
@@ -16,129 +15,203 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     };
 
-    if (!ui.employee || !ui.body) return;
+    if (!ui.employeeSelect || !ui.dateInput || !ui.tableBody) return;
 
-    const products = Array.isArray(window.productsData) ? window.productsData : [];
-    const productMap = new Map();
-    const DEFAULT_IMG = "https://via.placeholder.com/55";
+    let currentStockData = {};
+    let isRestockMode = false;
 
-    let productOptions = `<option value="">-- Select --</option>`;
-    products.forEach(p => {
-        productMap.set(String(p.id), p);
-        productOptions += `<option value="${p.id}">${p.name}</option>`;
+    // ✅ Always force array
+    const productsData = Array.isArray(window.productsData) ? window.productsData : [];
+    const productsMap = new Map();
+    const DEFAULT_IMG = "https://via.placeholder.com/55?text=Img";
+
+    // Build Dropdown
+    let productOptionsHtml = '<option value="">-- Select --</option>';
+    productsData.forEach(p => {
+        if (!p || !p.id) return;
+        productsMap.set(String(p.id), p);
+        productOptionsHtml += `<option value="${p.id}">${p.name}</option>`;
     });
 
-    let currentStock = {};
+    async function fetchStockData() {
+        const employeeId = ui.employeeSelect.value;
+        const dateStr = ui.dateInput.value;
 
-    async function fetchStock() {
-        if (!ui.employee.value || !ui.date.value) return;
+        if (!employeeId || !dateStr) return;
 
-        ui.fetchMsg.textContent = "Loading...";
+        if (ui.fetchMsg) {
+            ui.fetchMsg.innerHTML =
+                '<span class="text-primary"><i class="fas fa-spinner fa-spin"></i> Loading...</span>';
+        }
 
         try {
-            const res = await fetch(`/api/fetch_stock?employee_id=${ui.employee.value}&date=${ui.date.value}`);
-            const data = await res.json();
-            currentStock = data.stock || {};
-            ui.fetchMsg.textContent = "Stock loaded";
+            const response = await fetch(
+                `/api/fetch_stock?employee_id=${employeeId}&date=${dateStr}`
+            );
+            const data = await response.json();
+
+            if (data?.error && response.status !== 500) {
+                currentStockData = {};
+                isRestockMode = false;
+                if (ui.fetchMsg) {
+                    ui.fetchMsg.innerHTML = '<span class="text-secondary small">New Day</span>';
+                }
+            } else {
+                currentStockData = data?.stock || {};
+                isRestockMode = data?.mode === "restock";
+                if (ui.fetchMsg) {
+                    ui.fetchMsg.innerHTML = isRestockMode
+                        ? '<span class="text-warning small fw-bold">Restock Mode</span>'
+                        : '<span class="text-success small">Stock Synced</span>';
+                }
+            }
+
             updateAllRows();
-        } catch {
-            ui.fetchMsg.textContent = "Error";
+
+            if (ui.fetchMsg) {
+                setTimeout(() => (ui.fetchMsg.innerHTML = ""), 3000);
+            }
+        } catch (error) {
+            if (ui.fetchMsg) {
+                ui.fetchMsg.innerHTML = '<span class="text-danger small">Error</span>';
+            }
         }
     }
 
     function createRow() {
         const tr = document.createElement("tr");
         tr.innerHTML = `
-            <td class="row-index"></td>
-            <td><img src="${DEFAULT_IMG}" width="45"></td>
+            <td class="row-index ps-3 text-muted fw-bold small py-3"></td>
+            <td class="text-center">
+                <div class="img-box">
+                    <img src="${DEFAULT_IMG}" class="product-thumb" alt="Product"
+                         style="width:100%;height:100%;object-fit:cover;">
+                </div>
+            </td>
             <td>
-                <select class="form-select product">
-                    ${productOptions}
+                <select name="product_id[]" class="form-select product-dropdown" required>
+                    ${productOptionsHtml}
                 </select>
             </td>
-            <td><input class="form-control opening" readonly value="0"></td>
-            <td><input class="form-control given" type="number" min="0"></td>
-            <td><input class="form-control total" readonly value="0"></td>
-            <td><input class="form-control price" readonly value="0.00"></td>
-            <td><input class="form-control amount" readonly value="0.00"></td>
-            <td><button type="button" class="btn btn-sm btn-danger remove">X</button></td>
+            <td><input type="number" name="opening[]" class="form-control opening" value="0" readonly></td>
+            <td><input type="number" name="given[]" class="form-control given" min="0" placeholder="0" required></td>
+            <td><input type="number" name="total[]" class="form-control total" value="0" readonly></td>
+            <td><input type="number" name="price[]" class="form-control price" value="0.00" readonly></td>
+            <td><input type="number" name="amount[]" class="form-control amount text-end" value="0.00" readonly></td>
+            <td class="text-center">
+                <button type="button" class="btn btn-link text-danger p-0 btn-remove-row">
+                    <i class="fa-solid fa-trash-can"></i>
+                </button>
+            </td>
         `;
-        ui.body.appendChild(tr);
-        indexRows();
+        ui.tableBody.appendChild(tr);
+        updateRowIndexes();
     }
 
-    function updateRow(row) {
-        const pid = row.querySelector(".product").value;
-        if (!pid) return;
+    function updateRowData(row, productId) {
+        const openingInput = row.querySelector(".opening");
+        const priceInput = row.querySelector(".price");
+        const img = row.querySelector(".product-thumb");
 
-        const product = productMap.get(pid);
-        const opening = currentStock[pid]?.remaining || 0;
-        const price = currentStock[pid]?.price || product?.price || 0;
+        const product = productsMap.get(productId);
 
-        row.querySelector(".opening").value = opening;
-        row.querySelector(".price").value = price;
+        if (product?.image) {
+            img.src = product.image;
+            img.onerror = () => (img.src = DEFAULT_IMG);
+        } else {
+            img.src = DEFAULT_IMG;
+        }
 
-        recalcRow(row);
+        let openingQty = 0;
+        if (!isRestockMode && currentStockData[productId]) {
+            openingQty = parseInt(currentStockData[productId].remaining) || 0;
+        }
+        openingInput.value = openingQty;
+
+        let price = 0;
+        if (currentStockData[productId]?.price) {
+            price = parseFloat(currentStockData[productId].price);
+        } else if (product?.price) {
+            price = parseFloat(product.price);
+        }
+        priceInput.value = price.toFixed(2);
+
+        recalculateRow(row);
     }
 
-    function recalcRow(row) {
+    function recalculateRow(row) {
         const opening = +row.querySelector(".opening").value || 0;
         const given = +row.querySelector(".given").value || 0;
         const price = +row.querySelector(".price").value || 0;
 
         const total = opening + given;
-        const amount = total * price;
-
         row.querySelector(".total").value = total;
-        row.querySelector(".amount").value = amount.toFixed(2);
-
-        recalcTotals();
+        row.querySelector(".amount").value = (total * price).toFixed(2);
     }
 
-    function recalcTotals() {
-        let o = 0, g = 0, t = 0, a = 0;
-        ui.body.querySelectorAll("tr").forEach(r => {
-            o += +r.querySelector(".opening").value || 0;
-            g += +r.querySelector(".given").value || 0;
-            t += +r.querySelector(".total").value || 0;
-            a += +r.querySelector(".amount").value || 0;
+    function recalculateTotals() {
+        let tOpening = 0,
+            tGiven = 0,
+            tAll = 0,
+            tGrand = 0;
+
+        ui.tableBody.querySelectorAll("tr").forEach(row => {
+            tOpening += +row.querySelector(".opening")?.value || 0;
+            tGiven += +row.querySelector(".given")?.value || 0;
+            tAll += +row.querySelector(".total")?.value || 0;
+            tGrand += +row.querySelector(".amount")?.value || 0;
         });
-        ui.totals.opening.textContent = o;
-        ui.totals.given.textContent = g;
-        ui.totals.all.textContent = t;
-        ui.totals.grand.textContent = a.toFixed(2);
+
+        ui.totals.opening.textContent = tOpening;
+        ui.totals.given.textContent = tGiven;
+        ui.totals.all.textContent = tAll;
+        ui.totals.grand.textContent = tGrand.toFixed(2);
     }
 
     function updateAllRows() {
-        ui.body.querySelectorAll("tr").forEach(updateRow);
+        ui.tableBody.querySelectorAll("tr").forEach(row => {
+            const select = row.querySelector(".product-dropdown");
+            if (select?.value) updateRowData(row, select.value);
+        });
+        recalculateTotals();
     }
 
-    function indexRows() {
-        ui.body.querySelectorAll(".row-index").forEach((c, i) => c.textContent = i + 1);
+    function updateRowIndexes() {
+        ui.tableBody.querySelectorAll(".row-index").forEach((el, i) => {
+            el.textContent = i + 1;
+        });
     }
 
-    ui.addRow.onclick = createRow;
-    ui.employee.onchange = fetchStock;
-    ui.date.onchange = fetchStock;
+    ui.addRowBtn?.addEventListener("click", e => {
+        e.preventDefault();
+        createRow();
+        recalculateTotals();
+    });
 
-    ui.body.addEventListener("input", e => {
-        if (e.target.classList.contains("given")) {
-            recalcRow(e.target.closest("tr"));
+    ui.employeeSelect.addEventListener("change", fetchStockData);
+    ui.dateInput.addEventListener("change", fetchStockData);
+
+    ui.tableBody.addEventListener("click", e => {
+        if (e.target.closest(".btn-remove-row")) {
+            if (confirm("Remove this row?")) {
+                e.target.closest("tr").remove();
+                updateRowIndexes();
+                recalculateTotals();
+            }
         }
     });
 
-    ui.body.addEventListener("change", e => {
-        if (e.target.classList.contains("product")) {
-            updateRow(e.target.closest("tr"));
+    ui.tableBody.addEventListener("change", e => {
+        if (e.target.matches(".product-dropdown")) {
+            updateRowData(e.target.closest("tr"), e.target.value);
+            recalculateTotals();
         }
     });
 
-    ui.body.addEventListener("click", e => {
-        if (e.target.classList.contains("remove")) {
-            e.target.closest("tr").remove();
-            indexRows();
-            recalcTotals();
+    ui.tableBody.addEventListener("input", e => {
+        if (e.target.matches(".given")) {
+            recalculateRow(e.target.closest("tr"));
+            recalculateTotals();
         }
     });
-
 });
