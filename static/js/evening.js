@@ -1,4 +1,5 @@
 document.addEventListener("DOMContentLoaded", () => {
+    
     const getEl = (id) => document.getElementById(id);
     const ui = {
         employeeSelect: getEl("employee_id"), 
@@ -142,6 +143,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if(ui.footer.sold) ui.footer.sold.textContent = grandTotalSold;
         if(ui.footer.amount) ui.footer.amount.textContent = grandTotalAmount.toFixed(2);
+        
         if(ui.payment.totalAmount) ui.payment.totalAmount.value = grandTotalAmount.toFixed(2);
         
         calculateDue();
