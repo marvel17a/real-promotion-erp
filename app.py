@@ -350,8 +350,11 @@ def api_dashboard_charts():
         if db_cursor:
             db_cursor.close()
 
+# Make sure this route exists in your app.py to render the base page if accessed directly
 @app.route('/admin_master')
 def admin_master():
+    if "loggedin" not in session:
+        return redirect(url_for("login"))
     return render_template('admin_master.html')
 
 
@@ -4373,6 +4376,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
