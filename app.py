@@ -2647,6 +2647,8 @@ def exp_report():
         report_rows=report_rows,
         chart_data=chart_data
     )
+
+
 # =============================================================================
 # COPY THIS INTO app.py - REPLACES MORNING, EVENING & API ROUTES
 # =============================================================================
@@ -2703,7 +2705,7 @@ def morning():
 
             formatted_date = date_obj.strftime('%Y-%m-%d')
 
-            # 1. Check if allocation exists (Append vs New)
+            # Check if allocation exists (Append vs New)
             db_cursor.execute("SELECT id FROM morning_allocations WHERE employee_id=%s AND date=%s", (employee_id, formatted_date))
             existing_alloc = db_cursor.fetchone()
 
@@ -2715,7 +2717,7 @@ def morning():
                 alloc_id = db_cursor.lastrowid
                 flash_msg = "Morning allocation saved."
             
-            # 2. Insert Items
+            # Insert Items
             # Note: We insert new rows for every submission. Evening will SUM them.
             insert_sql = """
                 INSERT INTO morning_allocation_items 
@@ -2744,6 +2746,7 @@ def morning():
         db_cursor.execute("SELECT id, name, price, image FROM products ORDER BY name")
         products_raw = db_cursor.fetchall() or []
         
+        # Resolve images HERE so JS gets perfect URLs
         products_for_js = []
         for p in products_raw:
             products_for_js.append({
@@ -2808,11 +2811,11 @@ def evening():
                 if not pid: continue
                 sold = int(s_qtys[i] or 0)
                 rem = int(t_qtys[i] or 0) - sold - int(r_qtys[i] or 0)
-                if rem < 0: rem = 0
+                if rem < 0: rem = 0 # Safety check
 
                 db_cursor.execute(item_sql, (settle_id, pid, t_qtys[i], sold, r_qtys[i], prices[i], rem))
                 
-                # Reduce Stock
+                # Reduce Main Inventory Stock
                 if sold > 0:
                     db_cursor.execute("UPDATE products SET stock = stock - %s WHERE id = %s", (sold, pid))
 
@@ -2941,7 +2944,7 @@ def api_fetch_morning_allocation():
             cur.close()
             return jsonify({"error": "No allocation found."}), 404
             
-        # AGGREGATE: Sum up all rows for the same product
+        # AGGREGATE: Sum up multiple entries for the same product (Mid-day restock logic)
         cur.execute("""
             SELECT mai.product_id, p.name AS product_name, p.image, 
                    SUM(mai.opening_qty + mai.given_qty) as total_qty, 
@@ -4374,6 +4377,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
