@@ -22,7 +22,7 @@
                 <i class="fa-solid fa-sun text-warning me-2"></i>Morning Allocation
             </h4>
             <a href="{{ url_for('allocation_list') }}" class="btn btn-outline-dark rounded-pill px-4 btn-sm">
-                <i class="fa-solid fa-clock-rotate-left me-2"></i> History
+                <i class="fa-solid fa-clock-rotate-left me-2"></i>History
             </a>
         </div>
 
@@ -54,13 +54,13 @@
                 </div>
             </div>
 
-            <div id="historyList"></div>
+            <div id="historyList" class="mb-3"></div>
 
             <div class="table-responsive glass-table-container mt-4">
                 <table class="table table-hover align-middle mb-0" id="productTable">
                     <thead class="bg-gradient-primary text-white">
                         <tr>
-                            <th>#</th>
+                            <th class="ps-3">#</th>
                             <th>Img</th>
                             <th>Product</th>
                             <th>Opening</th>
@@ -68,13 +68,13 @@
                             <th>Total</th>
                             <th>Price</th>
                             <th>Amount</th>
-                            <th></th>
+                            <th class="text-center"><i class="fa-solid fa-trash"></i></th>
                         </tr>
                     </thead>
                     <tbody class="bg-white"></tbody>
                     <tfoot class="bg-light fw-bold">
                         <tr>
-                            <td colspan="3" class="text-end">Totals</td>
+                            <td colspan="4" class="text-end pe-3">Totals:</td>
                             <td id="totalOpening">0</td>
                             <td id="totalGiven">0</td>
                             <td id="totalAll">0</td>
@@ -87,29 +87,22 @@
             </div>
 
             <div class="d-flex justify-content-between mt-4">
-                <button type="button" id="addRow" class="btn btn-outline-success">
-                    <i class="fa-solid fa-plus"></i> Add Item
+                <button type="button" id="addRow" class="btn btn-glass-light text-success fw-bold">
+                    <i class="fa-solid fa-plus-circle me-2"></i>Add Item
                 </button>
-                <button type="submit" class="btn btn-primary px-5">
-                    <i class="fa-solid fa-check"></i> Confirm Allocation
+                <button type="submit" class="btn btn-gradient-primary px-5 rounded-pill">
+                    <i class="fa-solid fa-check me-2"></i>Confirm Allocation
                 </button>
             </div>
         </form>
     </div>
 </div>
 
-<!-- ✅ SAFE JSON TRANSFER -->
-<script type="application/json" id="products-data">
-{{ products | tojson }}
-</script>
-
 <script>
-    window.productsData = [];
     try {
-        const raw = document.getElementById("products-data").textContent;
-        window.productsData = JSON.parse(raw);
+        window.productsData = JSON.parse('{{ products | tojson | safe }}');
     } catch (e) {
-        console.error("Product JSON parse failed", e);
+        window.productsData = [];
     }
 
     document.addEventListener("DOMContentLoaded", function () {
