@@ -33,16 +33,16 @@ document.addEventListener("DOMContentLoaded", () => {
     async function fetchStock() {
         if (!ui.employee.value || !ui.date.value) return;
 
-        ui.fetchMsg.innerHTML = "Loading...";
+        ui.fetchMsg.textContent = "Loading...";
 
         try {
             const res = await fetch(`/api/fetch_stock?employee_id=${ui.employee.value}&date=${ui.date.value}`);
             const data = await res.json();
-            currentStock = data || {};
-            ui.fetchMsg.innerHTML = "Stock loaded";
+            currentStock = data.stock || {};
+            ui.fetchMsg.textContent = "Stock loaded";
             updateAllRows();
         } catch {
-            ui.fetchMsg.innerHTML = "Error loading stock";
+            ui.fetchMsg.textContent = "Error";
         }
     }
 
