@@ -4,213 +4,289 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}REAL PROMOTION ERP{% endblock %}</title>
+    
+    <!-- Bootstrap 5 & FontAwesome -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
-
-     <link rel="stylesheet" href="{{ url_for('static', filename='css/responsive.css') }}">
     
-    <style>
-        /* --- Google Font & General Styles --- */
-        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
+    <style>
         :root {
-            --bg-color: #f0f2f5;
-            --sidebar-bg: #111827; /* Dark Slate */
-            --sidebar-text: #9ca3af;
-            --sidebar-text-hover: #ffffff;
-            --sidebar-hover-bg: #374151;
-            --topbar-bg: #ffffff;
-            --text-color: #1f2937;
-            --card-bg: #ffffff;
-            --accent-gradient: linear-gradient(90deg, #4f46e5, #a855f7);
+            /* Trendy Colors & Gradients */
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --glass-bg: rgba(255, 255, 255, 0.75);
+            --glass-border: 1px solid rgba(255, 255, 255, 0.5);
+            --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+            --sidebar-bg: rgba(17, 24, 39, 0.95); /* Dark Glass */
+            --text-main: #1f2937;
+            --text-muted: #6b7280;
+            --bg-body: #f3f4f6;
+            --hover-color: #8b5cf6;
         }
-        
+
         body {
             font-family: 'Poppins', sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-color);
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            overflow-x: hidden;
         }
 
-        .admin-container {
+        /* --- Glassmorphism Sidebar --- */
+        .sidebar {
+            width: 260px;
+            height: 100vh;
+            background: var(--sidebar-bg);
+            backdrop-filter: blur(10px);
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1000;
+            transition: all 0.3s ease;
+            box-shadow: 4px 0 15px rgba(0,0,0,0.1);
+            overflow-y: auto;
+        }
+
+        .sidebar-header {
+            padding: 2rem 1.5rem;
+            text-align: center;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .brand-text {
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 700;
+            font-size: 1.5rem;
+            letter-spacing: 1px;
+        }
+
+        .nav-links {
+            padding: 1.5rem 1rem;
+            list-style: none;
+        }
+
+        .nav-item {
+            margin-bottom: 0.5rem;
+        }
+
+        .nav-link {
             display: flex;
+            align-items: center;
+            padding: 0.8rem 1.2rem;
+            color: #d1d5db;
+            text-decoration: none;
+            border-radius: 12px;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+
+        .nav-link:hover, .nav-link.active {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            transform: translateX(5px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+
+        .nav-link i {
+            width: 25px;
+            font-size: 1.1rem;
+            margin-right: 10px;
+            color: #a78bfa; /* Soft Purple Icon */
+        }
+
+        /* --- Main Content --- */
+        .main-content {
+            margin-left: 260px;
+            padding: 20px;
+            transition: all 0.3s ease;
             min-height: 100vh;
         }
 
-        /* --- Sidebar --- */
-        .sidebar {
-            width: 260px;
-            background-color: var(--sidebar-bg);
-            color: var(--sidebar-text);
-            transition: width 0.3s ease;
-            display: flex;
-            flex-direction: column;
-            position: fixed;
-            top: 0;
-            bottom: 0;
-            left: 0;
-            z-index: 1000;
-        }
-        .sidebar.collapsed {
-            width: 80px;
-        }
-        .sidebar .sidebar-header {
-            padding: 1.5rem 1rem;
-            text-align: center;
-            border-bottom: 1px solid #374151;
-            white-space: nowrap;
-            overflow: hidden;
-        }
-        .sidebar .logo {
-            font-size: 1.75rem;
-            color: #a5b4fc;
-        }
-        .sidebar .brand {
-            font-weight: 600;
-            color: #fff;
-            transition: opacity 0.2s ease;
-        }
-        .sidebar.collapsed .brand {
-            opacity: 0;
-            display: none;
-        }
-        .sidebar-nav {
-            padding: 1rem;
-            flex-grow: 1;
-            overflow-y: auto;
-        }
-        .sidebar-nav a {
-            color: var(--sidebar-text);
-            text-decoration: none;
-            display: flex;
-            align-items: center;
-            padding: 0.85rem 1rem;
-            border-radius: 0.5rem;
-            margin-bottom: 0.5rem;
-            transition: background-color 0.2s ease, color 0.2s ease;
-            white-space: nowrap;
-            overflow: hidden;
-        }
-        .sidebar-nav a .fa-solid {
-            font-size: 1.1rem;
-            width: 24px;
-            text-align: center;
-            margin-right: 1rem;
-        }
-        .sidebar.collapsed .sidebar-nav a .link-text {
-            display: none;
-            opacity: 0;
-        }
-        .sidebar-nav a:hover, .sidebar-nav a.active {
-            background-color: var(--sidebar-hover-bg);
-            color: var(--sidebar-text-hover);
-            font-weight: 500;
-        }
-        
-        /* --- Main Content Area --- */
-        .main {
-            flex-grow: 1;
-            display: flex;
-            flex-direction: column;
-            margin-left: 260px; /* Same as sidebar width */
-            transition: margin-left 0.3s ease;
-        }
-        .main.collapsed {
-            margin-left: 80px; /* Same as collapsed sidebar width */
-        }
+        /* --- Topbar --- */
         .topbar {
-            background: var(--topbar-bg);
-            padding: 0.75rem 1.5rem;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            border-radius: 16px;
+            padding: 1rem 1.5rem;
             display: flex;
+            justify-content: space-between;
             align-items: center;
+            margin-bottom: 2rem;
+            box-shadow: var(--glass-shadow);
+            border: var(--glass-border);
         }
-        #sidebarToggle {
-            background: none;
+
+        .toggle-btn {
+            background: transparent;
             border: none;
+            color: var(--text-main);
             font-size: 1.5rem;
             cursor: pointer;
-            color: #374151;
         }
-        .content {
-            padding: 2rem;
-            flex-grow: 1;
+
+        /* --- Mobile Responsive --- */
+        @media (max-width: 768px) {
+            .sidebar {
+                left: -260px;
+            }
+            .sidebar.active {
+                left: 0;
+            }
+            .main-content {
+                margin-left: 0;
+            }
+            .overlay {
+                display: none;
+                position: fixed;
+                top: 0; left: 0; right: 0; bottom: 0;
+                background: rgba(0,0,0,0.5);
+                z-index: 999;
+            }
+            .overlay.active {
+                display: block;
+            }
         }
-        .user-img {
-            width: 40px;
-            height: 40px;
-            object-fit: cover;
+
+        /* --- Animations --- */
+        .fade-in-up {
+            animation: fadeInUp 0.6s ease-out forwards;
         }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #1f2937; }
+        ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 3px; }
     </style>
 </head>
 <body>
 
-<div class="admin-container">
+    <!-- Mobile Overlay -->
+    <div class="overlay" id="overlay"></div>
+
     <!-- Sidebar -->
-    <aside id="sidebar" class="sidebar">
+    <nav class="sidebar" id="sidebar">
         <div class="sidebar-header">
-            <span class="logo"></span>
-            <span class="brand">REAL PROMOTION</span>
+            <h4 class="brand-text mb-0">REAL PROMOTION</h4>
+            <small class="text-secondary d-block mt-1">Admin Panel</small>
         </div>
-        <nav class="sidebar-nav">
-            <!-- These links will now work correctly without causing errors -->
-        <a href="{{ url_for('dash') }}"><i class="fa-solid fa-chart-pie"></i> <span class="link-text">Dashboard</span></a>
-            <a href="{{ url_for('inventory_master') }}"><i class="fa-solid fa-box-open"></i> <span class="link-text">Inventory</span></a>
+        
+        <ul class="nav-links p-0">
+            <li class="nav-item">
+                <a href="{{ url_for('dash') }}" class="nav-link">
+                    <i class="fa-solid fa-chart-pie"></i> Dashboard
+                </a>
+            </li>
             
-            <a href="employee_master"><i class="fa-solid fa-users"></i> <span class="link-text">Employees</span></a>
-            
+            <li class="nav-item">
+                <a href="{{ url_for('inventory_master') }}" class="nav-link">
+                    <i class="fa-solid fa-box-open"></i> Inventory
+                </a>
+            </li>
 
-<a href="{{ url_for('emp_list') }}"><i class="fa-solid fa-file-invoice-dollar"></i> <span class="link-text">Employee Finance</span></a>
+            <li class="nav-item">
+                <a href="{{ url_for('admin_evening_master') }}" class="nav-link">
+                    <i class="fa-solid fa-moon"></i> Evening Master
+                </a>
+            </li>
 
-            
-            <a href="{{ url_for('suppliers') }}"><i class="fa-solid fa-truck-fast"></i> <span class="link-text">Suppliers</span></a>
-            <a href="{{ url_for('purchases') }}"><i class="fa-solid fa-dolly"></i> <span class="link-text">Purchases</span></a>
-            <a href="{{ url_for('reports') }}"><i class="fa-solid fa-chart-simple"></i> <span class="link-text">Reports</span></a>
-            <a href="{{ url_for('expenses_list') }}"><i class="fa-solid fa-wallet"></i> <span class="link-text">Expenses</span></a>
-            <hr class="text-secondary">
+            <li class="nav-item">
+                <a href="{{ url_for('employee_master') }}" class="nav-link">
+                    <i class="fa-solid fa-users"></i> Employees
+                </a>
+            </li>
 
-            <a href="{{ url_for('dashboard') }}"><i class="fa-solid fa-house"></i> <span class="link-text">Main Site</span></a>
-            <a href="logout" class="logout"><i class="fa-solid fa-right-from-bracket"></i> <span class="link-text">Logout</span></a>
-        </nav>
-    </aside>
+            <li class="nav-item">
+                <a href="{{ url_for('emp_list') }}" class="nav-link">
+                    <i class="fa-solid fa-file-invoice-dollar"></i> Finance
+                </a>
+            </li>
+
+            <li class="nav-item">
+                <a href="{{ url_for('suppliers') }}" class="nav-link">
+                    <i class="fa-solid fa-truck-fast"></i> Suppliers
+                </a>
+            </li>
+
+            <li class="nav-item">
+                <a href="{{ url_for('purchases') }}" class="nav-link">
+                    <i class="fa-solid fa-dolly"></i> Purchases
+                </a>
+            </li>
+
+            <li class="nav-item">
+                <a href="{{ url_for('reports') }}" class="nav-link">
+                    <i class="fa-solid fa-chart-simple"></i> Reports
+                </a>
+            </li>
+
+            <li class="nav-item">
+                <a href="{{ url_for('expenses_list') }}" class="nav-link">
+                    <i class="fa-solid fa-wallet"></i> Expenses
+                </a>
+            </li>
+
+            <li class="mt-4 border-top border-secondary pt-3">
+                <a href="{{ url_for('dashboard') }}" class="nav-link text-warning">
+                    <i class="fa-solid fa-house"></i> Main Site
+                </a>
+            </li>
+            <li>
+                <a href="{{ url_for('logout') }}" class="nav-link text-danger">
+                    <i class="fa-solid fa-right-from-bracket"></i> Logout
+                </a>
+            </li>
+        </ul>
+    </nav>
 
     <!-- Main Content -->
-    <main id="mainContent" class="main">
-        <header class="topbar">
-            <button id="sidebarToggle" class="btn btn-light"><i class="fa-solid fa-bars"></i></button>
-           
-        </header>
+    <div class="main-content">
+        <!-- Topbar -->
+        <div class="topbar">
+            <button class="toggle-btn" id="sidebarToggle">
+                <i class="fa-solid fa-bars"></i>
+            </button>
+            <div class="user-info d-flex align-items-center">
+                <span class="fw-bold me-2 d-none d-md-block">Admin</span>
+                <div class="bg-gradient p-2 rounded-circle text-white shadow-sm" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; background: var(--primary-gradient);">
+                    <i class="fa-solid fa-user"></i>
+                </div>
+            </div>
+        </div>
 
-        <section class="content">
-            <!-- This is the placeholder where other pages' content will be injected -->
-            {% block page_content %}{% endblock %}
-        </section>
-    </main>
-</div>
+        <!-- Dynamic Content Injection -->
+        {% block page_content %}{% endblock %}
+    </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Sidebar Toggle Logic
         const sidebar = document.getElementById('sidebar');
-        const mainContent = document.getElementById('mainContent');
-        const toggleButton = document.getElementById('sidebarToggle');
+        const overlay = document.getElementById('overlay');
+        const toggleBtn = document.getElementById('sidebarToggle');
 
-        if (toggleButton) {
-            toggleButton.addEventListener('click', () => {
-                sidebar.classList.toggle('collapsed');
-                mainContent.classList.toggle('collapsed');
-            });
+        function toggleSidebar() {
+            sidebar.classList.toggle('active');
+            overlay.classList.toggle('active');
         }
-    });
-</script>
-<!-- This is a placeholder for page-specific scripts -->
-{% block page_scripts %}{% endblock %}
+
+        toggleBtn.addEventListener('click', toggleSidebar);
+        overlay.addEventListener('click', toggleSidebar);
+    </script>
+    {% block page_scripts %}{% endblock %}
 </body>
 </html>
-
-
-
-
-
-
-
