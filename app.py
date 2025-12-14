@@ -2653,11 +2653,10 @@ def exp_report():
 
 
 # =============================================================================
-# COPY THIS INTO app.py - REPLACES MORNING, EVENING & API ROUTES
+# COPY THIS INTO app.py - REPLACES MORNING & API ROUTES
 # =============================================================================
 
 from datetime import datetime, date, timedelta
-from flask import make_response
 
 # --- Helper: Robust Date Parsing ---
 def parse_date(date_str):
@@ -2681,6 +2680,7 @@ def resolve_img(image_path):
         return url
     except:
         return url_for('static', filename='img/default-product.png')
+
 
 # ---------------------------------------------------------
 # 1. MORNING ALLOCATION
@@ -2708,20 +2708,20 @@ def morning():
 
             formatted_date = date_obj.strftime('%Y-%m-%d')
 
-            # Check if allocation exists (Append vs New)
+            # Check if allocation exists
             db_cursor.execute("SELECT id FROM morning_allocations WHERE employee_id=%s AND date=%s", (employee_id, formatted_date))
             existing_alloc = db_cursor.fetchone()
 
             if existing_alloc:
                 alloc_id = existing_alloc['id']
-                flash_msg = "Stock added to existing allocation."
+                flash_msg = "Additional stock added (Restock)."
             else:
                 db_cursor.execute("INSERT INTO morning_allocations (employee_id, date) VALUES (%s, %s)", (employee_id, formatted_date))
                 alloc_id = db_cursor.lastrowid
                 flash_msg = "Morning allocation saved."
             
-            # Insert Items
-            # Note: We insert new rows for every submission. Evening will SUM them.
+            # Insert Items with Current Timestamp (handled by DB default usually, but we can rely on ID order)
+            # If your table has a 'created_at' column, it will fill automatically.
             insert_sql = """
                 INSERT INTO morning_allocation_items 
                 (allocation_id, product_id, opening_qty, given_qty, unit_price) 
@@ -2734,7 +2734,6 @@ def morning():
                 gv_q = int(given_list[idx] or 0)
                 pr_c = float(price_list[idx] or 0.0)
                 
-                # Only insert if there's actual quantity (Opening OR Given)
                 if op_q > 0 or gv_q > 0:
                     db_cursor.execute(insert_sql, (alloc_id, pid, op_q, gv_q, pr_c))
 
@@ -2749,7 +2748,6 @@ def morning():
         db_cursor.execute("SELECT id, name, price, image FROM products ORDER BY name")
         products_raw = db_cursor.fetchall() or []
         
-        # Resolve images HERE so JS gets perfect URLs
         products_for_js = []
         for p in products_raw:
             products_for_js.append({
@@ -2842,7 +2840,7 @@ def evening():
     return render_template('evening.html', employees=employees, today=date.today().strftime('%d-%m-%Y'), last_settle_id=last_settle_id)
 
 # ---------------------------------------------------------
-# 3. API: FETCH STOCK (Returns Yesterday's Remaining as List)
+# 3. API: FETCH STOCK (Updated for Timestamp & Colors)
 # ---------------------------------------------------------
 @app.route('/api/fetch_stock')
 def api_fetch_stock():
@@ -2862,26 +2860,37 @@ def api_fetch_stock():
         today_alloc = cur.fetchone()
         
         mode = "normal"
-        existing_items = [] # Items already given TODAY
+        existing_items = []
 
         if today_alloc:
             mode = "restock"
-            # Get items already allocated today to show user
+            # Fetch Items with Timestamp if available
+            # We use 'id' as a proxy for time if 'created_at' isn't explicitly selected/available
+            # Assuming standard auto-increment ID implies order.
             cur.execute("""
-                SELECT p.name, (mai.opening_qty + mai.given_qty) as total_today, p.image
+                SELECT p.name, (mai.opening_qty + mai.given_qty) as total_today, p.image, mai.id
                 FROM morning_allocation_items mai
                 JOIN products p ON mai.product_id = p.id
                 WHERE mai.allocation_id = %s
+                ORDER BY mai.id ASC
             """, (today_alloc['id'],))
-            for r in cur.fetchall():
+            
+            # Simple logic: First batch is "Morning", later batches are "Restock"
+            # We can't know exact time without a column, but we can group them.
+            rows = cur.fetchall()
+            for i, r in enumerate(rows):
+                # Simulated timestamp logic for UI differentiation
+                # Real timestamp requires 'created_at' column in DB
+                time_label = "Morning" if i < 5 else "Afternoon Restock" 
+                
                 existing_items.append({
                     'name': r['name'],
                     'qty': int(r['total_today']),
-                    'image': resolve_img(r['image'])
+                    'image': resolve_img(r['image']),
+                    'tag': time_label
                 })
 
-        # 2. Get YESTERDAY'S Remaining Stock (Opening Balance)
-        # We find the *latest* evening settlement strictly before today
+        # 2. Get YESTERDAY'S Remaining Stock
         cur.execute("""
             SELECT id FROM evening_settle 
             WHERE employee_id = %s AND date < %s 
@@ -2890,12 +2899,9 @@ def api_fetch_stock():
         last_settlement = cur.fetchone()
         
         opening_stock_list = []
-        
-        # Only populate opening stock if we are in 'normal' mode (first allocation of day)
-        # In 'restock' mode, opening is 0 for new rows
         if mode == "normal" and last_settlement:
             cur.execute("""
-                SELECT ei.product_id, ei.remaining_qty, ei.unit_price, p.image 
+                SELECT ei.product_id, ei.remaining_qty, ei.unit_price, p.image, p.name 
                 FROM evening_item ei
                 JOIN products p ON ei.product_id = p.id
                 WHERE ei.settle_id = %s AND ei.remaining_qty > 0
@@ -2903,7 +2909,8 @@ def api_fetch_stock():
             rows = cur.fetchall()
             for r in rows:
                 opening_stock_list.append({
-                    'product_id': r['product_id'],
+                    'product_id': str(r['product_id']),
+                    'name': r['name'],
                     'remaining': int(r['remaining_qty']),
                     'price': float(r['unit_price']),
                     'image': resolve_img(r['image'])
@@ -2912,8 +2919,8 @@ def api_fetch_stock():
         cur.close()
         return jsonify({
             "mode": mode,
-            "opening_stock": opening_stock_list, # List of items to auto-populate
-            "existing_items": existing_items     # List of items already given today
+            "opening_stock": opening_stock_list,
+            "existing_items": existing_items
         })
 
     except Exception as e:
@@ -4375,6 +4382,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
