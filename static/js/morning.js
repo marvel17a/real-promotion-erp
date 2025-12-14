@@ -20,9 +20,8 @@ document.addEventListener("DOMContentLoaded", () => {
     let isRestockMode = false;
     const productsData = window.productsData || [];
     const productsMap = new Map();
-    const DEFAULT_IMG = "https://via.placeholder.com/55?text=Img";
+    const DEFAULT_IMG = "https://via.placeholder.com/50?text=Img"; // Small 50px default
 
-    // Build Dropdown Options
     let productOptionsHtml = '<option value="">-- Select --</option>';
     if (Array.isArray(productsData)) {
         productsData.forEach(p => {
@@ -39,8 +38,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
         ui.fetchMsg.innerHTML = '<span class="text-primary"><i class="fas fa-spinner fa-spin"></i> Checking...</span>';
         if(ui.historyList) ui.historyList.innerHTML = '';
-        
-        // Clear existing rows before fetching
         ui.tableBody.innerHTML = '';
 
         try {
@@ -49,30 +46,47 @@ document.addEventListener("DOMContentLoaded", () => {
 
             if (data.error && response.status !== 500) {
                 isRestockMode = false;
-                ui.fetchMsg.innerHTML = '<span class="text-secondary small">Start New Allocation</span>';
-                createRow(); // Start with one empty row
+                ui.fetchMsg.innerHTML = '<span class="text-secondary small">New Allocation</span>';
+                createRow(); 
             } else {
                 isRestockMode = (data.mode === 'restock');
                 
-                // 1. Handle "Yesterday's Remaining" (Auto-Fill)
+                // 1. Auto-Fill Yesterday's Remaining (Only in Normal Mode)
                 if (data.opening_stock && data.opening_stock.length > 0) {
                     data.opening_stock.forEach(stockItem => {
-                        createRow(stockItem); // Create row pre-filled with this stock
+                        createRow(stockItem); 
                     });
-                    ui.fetchMsg.innerHTML = '<span class="text-success small"><i class="fa-solid fa-check"></i> Remaining stock loaded</span>';
+                    ui.fetchMsg.innerHTML = '<span class="text-success small"><i class="fa-solid fa-check"></i> Stock Loaded</span>';
                 } else {
-                    // No previous stock found, just empty row
-                    createRow();
+                    createRow(); // Empty row for user input
                     ui.fetchMsg.innerHTML = '<span class="text-secondary small">No pending stock</span>';
                 }
 
-                // 2. Handle "Restock Mode" (Show history)
+                // 2. Restock Mode History (Visual Update)
                 if (isRestockMode) {
                     ui.fetchMsg.innerHTML = '<span class="badge bg-warning text-dark">Restock Mode</span>';
                     if(data.existing_items && data.existing_items.length > 0) {
-                        let historyHtml = '<div class="alert alert-light border mt-3"><small class="fw-bold text-muted">ALREADY GIVEN TODAY:</small><div class="d-flex flex-wrap gap-2 mt-2">';
+                        let historyHtml = `
+                            <div class="card border-warning mb-3 shadow-sm">
+                                <div class="card-header bg-warning bg-opacity-10 text-warning fw-bold small">
+                                    <i class="fa-solid fa-clock-rotate-left"></i> ALREADY ALLOCATED TODAY
+                                </div>
+                                <div class="card-body p-2 d-flex flex-wrap gap-2">
+                        `;
+                        
                         data.existing_items.forEach(item => {
-                            historyHtml += `<span class="badge bg-secondary p-2 d-flex align-items-center gap-2"><img src="${item.image}" style="width:20px;height:20px;border-radius:50%"> ${item.name}: ${item.qty}</span>`;
+                            // Different color for "Restock" items vs "Morning" items
+                            const badgeClass = item.tag === "Morning" ? "bg-primary" : "bg-orange"; 
+                            historyHtml += `
+                                <div class="d-flex align-items-center border rounded p-1 pe-3 bg-white shadow-sm">
+                                    <img src="${item.image}" class="rounded me-2" style="width:35px;height:35px;object-fit:cover;">
+                                    <div>
+                                        <div class="fw-bold small text-dark">${item.name}</div>
+                                        <span class="badge ${badgeClass} rounded-pill">${item.qty}</span>
+                                        <small class="text-muted" style="font-size:0.7em;">${item.tag}</small>
+                                    </div>
+                                </div>
+                            `;
                         });
                         historyHtml += '</div></div>';
                         if(ui.historyList) ui.historyList.innerHTML = historyHtml;
@@ -87,11 +101,9 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // Pass 'prefillData' to auto-populate row
     function createRow(prefillData = null) {
         const tr = document.createElement("tr");
         
-        // Initial values
         let productId = "";
         let openingVal = 0;
         let priceVal = 0.00;
@@ -104,12 +116,12 @@ document.addEventListener("DOMContentLoaded", () => {
             if(prefillData.image) imgSrc = prefillData.image;
         }
 
-        // Build HTML with pre-selected values
         tr.innerHTML = `
             <td class="row-index ps-3 text-muted fw-bold small py-3"></td>
             <td class="text-center">
-                <div class="img-box">
-                    <img src="${imgSrc}" class="product-thumb" alt="Product" style="width: 100%; height: 100%; object-fit: cover;">
+                <!-- SMALL IMAGE BOX (Matches Inventory Master) -->
+                <div class="img-box-small">
+                    <img src="${imgSrc}" class="product-thumb" alt="img" onerror="this.src='${DEFAULT_IMG}'">
                 </div>
             </td>
             <td>
@@ -128,14 +140,9 @@ document.addEventListener("DOMContentLoaded", () => {
         `;
         
         ui.tableBody.appendChild(tr);
-        
-        // Set dropdown value if prefilled
-        if(productId) {
-            tr.querySelector('.product-dropdown').value = productId;
-        }
+        if(productId) tr.querySelector('.product-dropdown').value = productId;
         
         updateRowIndexes();
-        // Recalculate immediately for auto-filled rows
         if(prefillData) recalculateRow(tr);
     }
 
@@ -148,7 +155,6 @@ document.addEventListener("DOMContentLoaded", () => {
             priceInput.value = parseFloat(product.price).toFixed(2);
             if(product.image) {
                 img.src = product.image;
-                img.onerror = () => { img.src = DEFAULT_IMG; };
             } else {
                 img.src = DEFAULT_IMG;
             }
@@ -163,7 +169,6 @@ document.addEventListener("DOMContentLoaded", () => {
         const opening = parseInt(row.querySelector(".opening").value) || 0;
         const given = parseInt(row.querySelector(".given").value) || 0;
         const price = parseFloat(row.querySelector(".price").value) || 0;
-
         const total = opening + given;
         const amount = total * price;
 
@@ -235,6 +240,4 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         }
     });
-
-    fetchStockData();
 });
