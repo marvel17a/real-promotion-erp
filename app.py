@@ -140,26 +140,6 @@ def fix_image(image):
     # fallback
     return url_for('static', filename='img/default-user.png')
 
-# --------------------------
-# Employee document view (redirect to Cloudinary URL)
-# --------------------------
-@app.route("/employee_document/<int:id>")
-def employee_document(id):
-    cur = mysql.connection.cursor(DictCursor)
-    try:
-        cur.execute("SELECT document FROM employees WHERE id=%s", (id,))
-        row = cur.fetchone()
-    finally:
-        cur.close()
-    if not row or not row.get("document"):
-        abort(404)
-    doc_public_id = row["document"]
-    try:
-        url, _ = cloudinary.utils.cloudinary_url(doc_public_id, resource_type='raw')
-        return redirect(url)
-    except Exception:
-        # fallback: try to redirect to constructed URL
-        return redirect(url)
 
 
 @app.route("/")
@@ -4421,6 +4401,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
