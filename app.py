@@ -2510,7 +2510,6 @@ def delete_subcategory(subcategory_id):
     flash('Subcategory has been deleted.', 'danger')
     return redirect(url_for('category_man'))    
 
-
 @app.route("/exp_report", methods=["GET"])
 def exp_report():
     if "loggedin" not in session:
@@ -2524,8 +2523,8 @@ def exp_report():
     report_type = request.args.get("type", "monthly_summary")
 
     filters = {
-        "year": request.args.get("year", ""),
-        "month": request.args.get("month", ""),
+        "year": request.args.get("year", datetime.datetime.now().year),
+        "month": request.args.get("month", f"{datetime.datetime.now().month:02d}"),
         "start_date": request.args.get("start_date", ""),
         "end_date": request.args.get("end_date", "")
     }
@@ -2554,14 +2553,16 @@ def exp_report():
     if report_type == "monthly_summary":
         cursor.execute("""
             SELECT 
-                expense_date,
-                category,
-                subcategory,
-                amount,
-                remark
-            FROM expenses
-            WHERE YEAR(expense_date) = %s AND MONTH(expense_date) = %s
-            ORDER BY expense_date DESC
+                e.expense_date,
+                c.category_name as category,
+                sc.subcategory_name as subcategory,
+                e.amount,
+                e.description as remark
+            FROM expenses e
+            JOIN expensesubcategories sc ON e.subcategory_id = sc.subcategory_id
+            JOIN expensecategories c ON sc.category_id = c.category_id
+            WHERE YEAR(e.expense_date) = %s AND MONTH(e.expense_date) = %s
+            ORDER BY e.expense_date DESC
         """, (filters["year"], filters["month"]))
         report_rows = cursor.fetchall()
 
@@ -2569,24 +2570,28 @@ def exp_report():
     elif report_type == "detailed_log":
         cursor.execute("""
             SELECT 
-                expense_date,
-                category,
-                subcategory,
-                amount,
-                remark
-            FROM expenses
-            WHERE expense_date BETWEEN %s AND %s
-            ORDER BY expense_date DESC
+                e.expense_date,
+                c.category_name as category,
+                sc.subcategory_name as subcategory,
+                e.amount,
+                e.description as remark
+            FROM expenses e
+            JOIN expensesubcategories sc ON e.subcategory_id = sc.subcategory_id
+            JOIN expensecategories c ON sc.category_id = c.category_id
+            WHERE e.expense_date BETWEEN %s AND %s
+            ORDER BY e.expense_date DESC
         """, (filters["start_date"], filters["end_date"]))
         report_rows = cursor.fetchall()
 
     # 3. CATEGORY-WISE REPORT
     elif report_type == "category_wise":
         cursor.execute("""
-            SELECT category, SUM(amount) AS total
-            FROM expenses
-            WHERE expense_date BETWEEN %s AND %s
-            GROUP BY category
+            SELECT c.category_name as category, SUM(e.amount) AS total
+            FROM expenses e
+            JOIN expensesubcategories sc ON e.subcategory_id = sc.subcategory_id
+            JOIN expensecategories c ON sc.category_id = c.category_id
+            WHERE e.expense_date BETWEEN %s AND %s
+            GROUP BY c.category_name
             ORDER BY total DESC
         """, (filters["start_date"], filters["end_date"]))
         rows = cursor.fetchall()
@@ -2597,10 +2602,11 @@ def exp_report():
     # 4. SUBCATEGORY-WISE REPORT
     elif report_type == "subcategory_wise":
         cursor.execute("""
-            SELECT subcategory, SUM(amount) AS total
-            FROM expenses
-            WHERE expense_date BETWEEN %s AND %s
-            GROUP BY subcategory
+            SELECT sc.subcategory_name as subcategory, SUM(e.amount) AS total
+            FROM expenses e
+            JOIN expensesubcategories sc ON e.subcategory_id = sc.subcategory_id
+            WHERE e.expense_date BETWEEN %s AND %s
+            GROUP BY sc.subcategory_name
             ORDER BY total DESC
         """, (filters["start_date"], filters["end_date"]))
         rows = cursor.fetchall()
@@ -2612,12 +2618,12 @@ def exp_report():
     elif report_type == "mom_comparison":
         cursor.execute("""
             SELECT 
-                DATE_FORMAT(expense_date, '%b %Y') AS month_label,
-                SUM(amount) AS total
-            FROM expenses
-            WHERE YEAR(expense_date) = %s
+                DATE_FORMAT(e.expense_date, '%b %Y') AS month_label,
+                SUM(e.amount) AS total
+            FROM expenses e
+            WHERE YEAR(e.expense_date) = %s
             GROUP BY month_label
-            ORDER BY MIN(expense_date)
+            ORDER BY MIN(e.expense_date)
         """, (filters["year"],))
         rows = cursor.fetchall()
         report_rows = rows
@@ -2628,11 +2634,13 @@ def exp_report():
     elif report_type == "annual_summary":
         cursor.execute("""
             SELECT 
-                category,
-                SUM(amount) AS total
-            FROM expenses
-            WHERE YEAR(expense_date) = %s
-            GROUP BY category
+                c.category_name as category,
+                SUM(e.amount) AS total
+            FROM expenses e
+            JOIN expensesubcategories sc ON e.subcategory_id = sc.subcategory_id
+            JOIN expensecategories c ON sc.category_id = c.category_id
+            WHERE YEAR(e.expense_date) = %s
+            GROUP BY c.category_name
             ORDER BY total DESC
         """, (filters["year"],))
         rows = cursor.fetchall()
@@ -4382,6 +4390,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
