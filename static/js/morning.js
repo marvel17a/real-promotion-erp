@@ -74,11 +74,11 @@ document.addEventListener("DOMContentLoaded", () => {
                         
                         data.existing_items.forEach(item => {
                             const badgeClass = item.tag === "Morning" ? "bg-primary" : "bg-orange"; 
-                            // Use strict sizing for history images too
+                            // Using strict inline styles as well to force size
                             historyHtml += `
                                 <div class="d-flex align-items-center border rounded p-1 pe-3 bg-white shadow-sm">
-                                    <div class="img-box-small me-2">
-                                        <img src="${item.image}" class="img-fixed-size" style="width:100%;height:100%;object-fit:cover;">
+                                    <div class="img-box-small me-2" style="width:35px !important; height:35px !important; min-width:35px !important;">
+                                        <img src="${item.image}" style="width:100% !important; height:100% !important; object-fit:cover !important;">
                                     </div>
                                     <div>
                                         <div class="fw-bold small text-dark">${item.name}</div>
@@ -115,13 +115,13 @@ document.addEventListener("DOMContentLoaded", () => {
             if(prefillData.image) imgSrc = prefillData.image;
         }
 
-        // --- UPDATED HTML STRUCTURE TO MATCH CSS ---
-        // Note the class "img-box-small" on the DIV and "product-thumb" on the IMG
+        // --- UPDATED HTML STRUCTURE TO MATCH ROBUST CSS ---
+        // Added inline styles to div and img as a failsafe against CSS specificity issues
         tr.innerHTML = `
             <td class="row-index ps-3 text-muted fw-bold small py-3"></td>
             <td class="text-center" style="vertical-align: middle;">
-                <div class="img-box-small">
-                    <img src="${imgSrc}" class="product-thumb" alt="img" onerror="this.src='${DEFAULT_IMG}'">
+                <div class="img-box-small" style="width: 50px !important; height: 50px !important; margin: 0 auto; overflow: hidden; border-radius: 8px;">
+                    <img src="${imgSrc}" class="product-thumb" alt="img" style="width: 100% !important; height: 100% !important; object-fit: cover !important; display: block;" onerror="this.src='${DEFAULT_IMG}'">
                 </div>
             </td>
             <td>
