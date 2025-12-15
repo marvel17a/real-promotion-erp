@@ -20,7 +20,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let isRestockMode = false;
     const productsData = window.productsData || [];
     const productsMap = new Map();
-    const DEFAULT_IMG = "https://via.placeholder.com/50?text=Img"; 
+    const DEFAULT_IMG = "https://via.placeholder.com/50?text=Img";
 
     let productOptionsHtml = '<option value="">-- Select --</option>';
     if (Array.isArray(productsData)) {
@@ -51,7 +51,6 @@ document.addEventListener("DOMContentLoaded", () => {
             } else {
                 isRestockMode = (data.mode === 'restock');
                 
-                // 1. Auto-Fill Yesterday's Remaining (Only in Normal Mode)
                 if (data.opening_stock && data.opening_stock.length > 0) {
                     data.opening_stock.forEach(stockItem => {
                         createRow(stockItem); 
@@ -62,27 +61,24 @@ document.addEventListener("DOMContentLoaded", () => {
                     ui.fetchMsg.innerHTML = '<span class="text-secondary small">No pending stock</span>';
                 }
 
-                // 2. Restock Mode History
                 if (isRestockMode) {
                     ui.fetchMsg.innerHTML = '<span class="badge bg-warning text-dark">Restock Mode</span>';
                     if(data.existing_items && data.existing_items.length > 0) {
                         let historyHtml = `
                             <div class="card border-warning mb-3 shadow-sm">
                                 <div class="card-header bg-warning bg-opacity-10 text-warning fw-bold small">
-                                    <i class="fa-solid fa-clock-rotate-left"></i> TODAY'S ALLOCATION
+                                    <i class="fa-solid fa-clock-rotate-left"></i> ALREADY ALLOCATED TODAY
                                 </div>
                                 <div class="card-body p-2 d-flex flex-wrap gap-2">
                         `;
                         
                         data.existing_items.forEach(item => {
-                            // Assign distinct colors based on item tag or order (simulated here)
-                            // In a real scenario, you'd use the 'tag' from backend or index
-                            const badgeClass = "bg-info text-dark"; 
-
+                            const badgeClass = item.tag === "Morning" ? "bg-primary" : "bg-orange"; 
+                            // Use strict sizing for history images too
                             historyHtml += `
                                 <div class="d-flex align-items-center border rounded p-1 pe-3 bg-white shadow-sm">
                                     <div class="img-box-small me-2">
-                                        <img src="${item.image}" class="img-fixed-size">
+                                        <img src="${item.image}" class="img-fixed-size" style="width:100%;height:100%;object-fit:cover;">
                                     </div>
                                     <div>
                                         <div class="fw-bold small text-dark">${item.name}</div>
@@ -119,11 +115,13 @@ document.addEventListener("DOMContentLoaded", () => {
             if(prefillData.image) imgSrc = prefillData.image;
         }
 
+        // --- UPDATED HTML STRUCTURE TO MATCH CSS ---
+        // Note the class "img-box-small" on the DIV and "product-thumb" on the IMG
         tr.innerHTML = `
             <td class="row-index ps-3 text-muted fw-bold small py-3"></td>
             <td class="text-center" style="vertical-align: middle;">
                 <div class="img-box-small">
-                    <img src="${imgSrc}" class="product-thumb img-fixed-size" alt="img" onerror="this.src='${DEFAULT_IMG}'">
+                    <img src="${imgSrc}" class="product-thumb" alt="img" onerror="this.src='${DEFAULT_IMG}'">
                 </div>
             </td>
             <td>
@@ -243,4 +241,4 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         }
     });
-});s
+});
