@@ -2113,6 +2113,34 @@ def add_employee():
 
 
 
+@app.route("/employee_document/<int:id>")
+def employee_document(id):
+    cur = mysql.connection.cursor(DictCursor)
+    try:
+        cur.execute("SELECT document FROM employees WHERE id=%s", (id,))
+        row = cur.fetchone()
+    finally:
+        cur.close()
+
+    if not row or not row.get("document"):
+        return "Document not found", 404
+        
+    doc_id = row["document"]
+
+    # 1. If it's already a full URL, redirect directly
+    if doc_id.startswith("http"):
+        return redirect(doc_id)
+
+    # 2. Try generating URL. 
+    # If uploaded without resource_type='raw', it's usually 'image' (includes PDFs).
+    # We try default first.
+    try:
+        url, _ = cloudinary.utils.cloudinary_url(doc_id, secure=True)
+        return redirect(url)
+    except Exception as e:
+        app.logger.error(f"Error generating Cloudinary URL: {e}")
+        return "Error opening document", 500
+
 
 
 
@@ -2313,6 +2341,9 @@ def api_employee_detail(id):
     if not emp:
         return jsonify({"ok": False, "error": "Not found"}), 404
     return jsonify({"ok": True, "employee": emp})
+
+
+
 
 
 #=============================================EXPENSES================================================
@@ -4390,6 +4421,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
