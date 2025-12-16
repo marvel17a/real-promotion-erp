@@ -17,7 +17,7 @@ import cloudinary.api
 import cloudinary.utils
 import re
 import requests
-
+from cloudinary.utils import cloudinary_url
 # --- END NEW IMPORTS ---
 
 from fpdf import FPDF
@@ -2036,13 +2036,16 @@ def add_employee():
             doc_file = request.files.get("document")
 
             image_public_id = None
-            doc_public_id = None
+            doc_url = None
 
             if image_file and image_file.filename:
                 image_public_id = save_file_to_cloudinary(image_file, folder="erp_employees")
 
-            if doc_file and doc_file.filename:
-                doc_public_id = save_file_to_cloudinary(doc_file, folder="erp_employee_docs", resource_type='raw')
+            if doc and doc.filename:
+                # Use resource_type='auto' and STORE FULL URL to prevent 404s in future
+                res = cloudinary.uploader.upload(doc, folder="erp_employee_docs", resource_type="auto")
+                doc_url = res.get('secure_url')
+
 
             sql = """
                 INSERT INTO employees 
@@ -2095,7 +2098,7 @@ def add_employee():
 
 @app.route("/employee_document/<int:id>")
 def employee_document(id):
-    cur = mysql.connection.cursor(DictCursor)
+    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     try:
         cur.execute("SELECT document FROM employees WHERE id=%s", (id,))
         row = cur.fetchone()
@@ -2103,22 +2106,28 @@ def employee_document(id):
         cur.close()
 
     if not row or not row.get("document"):
-        return "Document not found", 404
+        flash("No document attached.", "warning")
+        return redirect(request.referrer or url_for('employees'))
         
-    doc_id = row["document"]
+    doc_val = row["document"]
 
-    # 1. If it's already a full URL, redirect directly
-    if doc_id.startswith("http"):
-        return redirect(doc_id)
+    # 1. Full URL
+    if doc_val.startswith("http"):
+        return redirect(doc_val)
 
-    # 2. Try generating URL. 
-    # If uploaded without resource_type='raw', it's usually 'image' (includes PDFs).
-    # We try default first.
+    # 2. Cloudinary Public ID Fix
     try:
-        url, _ = cloudinary.utils.cloudinary_url(doc_id, secure=True)
+        # FIX: If it is in 'erp_employee_docs' and likely a PDF uploaded as image (no extension)
+        # We MUST append .pdf for the URL to work.
+        if "erp_employee_docs" in doc_val and not any(doc_val.lower().endswith(x) for x in ['.pdf', '.jpg', '.png', '.jpeg']):
+             url, _ = cloudinary.utils.cloudinary_url(doc_val, secure=True, format="pdf")
+             return redirect(url)
+        
+        # Standard generation
+        url, _ = cloudinary.utils.cloudinary_url(doc_val, secure=True)
         return redirect(url)
     except Exception as e:
-        app.logger.error(f"Error generating Cloudinary URL: {e}")
+        app.logger.error(f"Doc URL Error: {e}")
         return "Error opening document", 500
 
 
@@ -4401,6 +4410,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
