@@ -2532,6 +2532,7 @@ def delete_subcategory(subcategory_id):
 
 # ... (existing imports)
 # ... (existing imports)
+# ... (existing imports)
 
 # REPLACE THIS ROUTE IN YOUR app.py
 @app.route("/exp_report", methods=["GET"])
@@ -2566,20 +2567,6 @@ def exp_report():
         ("07", "July"), ("08", "August"), ("09", "September"),
         ("10", "October"), ("11", "November"), ("12", "December")
     ]
-
-    # --- FIX FOR TEMPLATE ERROR: Create report_data object ---
-    # Find month name safely
-    month_name = "Unknown"
-    for m_num, m_name in months:
-        if m_num == str(filters["month"]):
-            month_name = m_name
-            break
-            
-    report_data = {
-        "month_name": month_name,
-        "year": filters["year"]
-    }
-    # ---------------------------------------------------------
 
     # --------------------------
     # REPORT DATA
@@ -2676,6 +2663,28 @@ def exp_report():
     finally:
         cursor.close()
 
+    # --- CALCULATE SUMMARY DATA (Fix for UndefinedError) ---
+    total_amount = sum(float(r['amount']) for r in report_rows if 'amount' in r) if report_rows else 0
+    # For category/subcategory/mom types, the column is often named 'total' instead of 'amount'
+    if not total_amount and report_rows and 'total' in report_rows[0]:
+         total_amount = sum(float(r['total']) for r in report_rows)
+
+    month_name = "Unknown"
+    for m_num, m_name in months:
+        if m_num == str(filters["month"]):
+            month_name = m_name
+            break
+            
+    report_data = {
+        "month_name": month_name,
+        "year": filters["year"],
+        "summary": {
+            "total": total_amount,
+            "count": len(report_rows)
+        }
+    }
+    # -------------------------------------------------------
+
     return render_template(
         "reports/exp_report.html",
         report_type=report_type,
@@ -2683,7 +2692,7 @@ def exp_report():
         months=months,
         report_rows=report_rows,
         chart_data=chart_data,
-        report_data=report_data # <--- Passing the missing variable here
+        report_data=report_data # <--- Passing the variable with 'summary'
     )
 
 
@@ -4417,6 +4426,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
