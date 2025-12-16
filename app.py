@@ -2531,6 +2531,7 @@ def delete_subcategory(subcategory_id):
     return redirect(url_for('category_man'))    
 
 # ... (existing imports)
+# ... (existing imports)
 
 # REPLACE THIS ROUTE IN YOUR app.py
 @app.route("/exp_report", methods=["GET"])
@@ -2565,6 +2566,20 @@ def exp_report():
         ("07", "July"), ("08", "August"), ("09", "September"),
         ("10", "October"), ("11", "November"), ("12", "December")
     ]
+
+    # --- FIX FOR TEMPLATE ERROR: Create report_data object ---
+    # Find month name safely
+    month_name = "Unknown"
+    for m_num, m_name in months:
+        if m_num == str(filters["month"]):
+            month_name = m_name
+            break
+            
+    report_data = {
+        "month_name": month_name,
+        "year": filters["year"]
+    }
+    # ---------------------------------------------------------
 
     # --------------------------
     # REPORT DATA
@@ -2667,7 +2682,8 @@ def exp_report():
         filters=filters,
         months=months,
         report_rows=report_rows,
-        chart_data=chart_data
+        chart_data=chart_data,
+        report_data=report_data # <--- Passing the missing variable here
     )
 
 
@@ -4401,6 +4417,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
