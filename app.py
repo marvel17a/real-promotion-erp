@@ -343,6 +343,9 @@ def admin_master():
 # ============================================================
 #  ANALYTICS DASHBOARD (Updated with Premium Metrics)
 # ============================================================
+# ============================================================
+#  ANALYTICS DASHBOARD (Updated with Premium Metrics)
+# ============================================================
 
 @app.route("/dash")
 def dash():
@@ -352,11 +355,13 @@ def dash():
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
     # 1. KPI: Total Sales (All Time)
-    cursor.execute("SELECT SUM(total_amount) as total FROM sales")
+    # FIX: Changed 'total_amount' to 'amount'
+    cursor.execute("SELECT SUM(amount) as total FROM sales")
     total_sales = cursor.fetchone()['total'] or 0
     
     # 2. KPI: Total Purchases (All Time)
-    cursor.execute("SELECT SUM(total_amount) as total FROM purchases")
+    # FIX: Changed 'total_amount' to 'amount'
+    cursor.execute("SELECT SUM(amount) as total FROM purchases")
     total_purchases = cursor.fetchone()['total'] or 0
     
     # 3. KPI: Total Expenses (All Time)
@@ -369,16 +374,16 @@ def dash():
     
     # 5. KPI: Total Supplier Dues (Pending Payments)
     # Logic: (Total Purchase Value) - (Total Paid via Cashflow)
+    # FIX: Changed 'total_amount' to 'amount'
     cursor.execute("""
         SELECT 
-            (SELECT IFNULL(SUM(total_amount),0) FROM purchases) - 
+            (SELECT IFNULL(SUM(amount),0) FROM purchases) - 
             (SELECT IFNULL(SUM(amount),0) FROM supplier_cashflow WHERE type='payment') 
         AS pending_dues
     """)
     supplier_dues = cursor.fetchone()['pending_dues'] or 0
     
     # 6. CHART: Sales vs Expenses (Last 6 Months)
-    # We need a unified list of months
     chart_months = []
     chart_sales = []
     chart_expenses = []
@@ -388,7 +393,7 @@ def dash():
         # Calculate start/end of each month
         month_date = today - timedelta(days=30*i) 
         start_m = date(month_date.year, month_date.month, 1)
-        # End of month logic
+        
         if month_date.month == 12:
             end_m = date(month_date.year + 1, 1, 1) - timedelta(days=1)
         else:
@@ -398,7 +403,8 @@ def dash():
         chart_months.append(month_name)
         
         # Get Sales for this month
-        cursor.execute("SELECT SUM(total_amount) as s FROM sales WHERE date BETWEEN %s AND %s", (start_m, end_m))
+        # FIX: Changed 'total_amount' to 'amount'
+        cursor.execute("SELECT SUM(amount) as s FROM sales WHERE date BETWEEN %s AND %s", (start_m, end_m))
         s_val = cursor.fetchone()['s'] or 0
         chart_sales.append(float(s_val))
         
@@ -430,12 +436,12 @@ def dash():
         total_purchases=total_purchases,
         total_expenses=total_expenses,
         low_stock=low_stock,
-        supplier_dues=supplier_dues,  # New Metric
+        supplier_dues=supplier_dues,
         chart_months=chart_months,
         chart_sales=chart_sales,
-        chart_expenses=chart_expenses, # New Chart Data
-        top_prod_names=top_prod_names, # New Chart Data
-        top_prod_qty=top_prod_qty      # New Chart Data
+        chart_expenses=chart_expenses,
+        top_prod_names=top_prod_names,
+        top_prod_qty=top_prod_qty
     )
 
 
@@ -4421,6 +4427,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
