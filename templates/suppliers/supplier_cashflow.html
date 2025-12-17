@@ -1,20 +1,38 @@
 {% extends "admin_master.html" %}
-{% block page_content %}
 
-<h2 class="fw-bold mb-4"><i class="fa-solid fa-money-bill-transfer me-2"></i> Supplier Cashflow</h2>
+{% block content %}
+<div class="container-fluid" data-aos="fade-in">
+    
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold mb-0">Supplier Payments</h2>
+        <a href="{{ url_for('supplier_cashflow_add') }}" class="btn btn-primary rounded-pill px-4 shadow-sm">
+            <i class="fa-solid fa-plus me-2"></i>Record Payment
+        </a>
+    </div>
 
-<a href="{{ url_for('supplier_cashflow_add') }}" class="btn btn-primary mb-3">
-    <i class="fa-solid fa-plus"></i> Add Transaction
-</a>
+    <!-- SUMMARY CARD (Payment Only) -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="glass-card p-4 border-start border-4 border-danger">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <p class="text-muted text-uppercase fw-bold mb-1 small">Total Paid Out</p>
+                        <h2 class="fw-bold text-danger mb-0">₹ {{ "{:,.2f}".format(total_payment) }}</h2>
+                    </div>
+                    <div class="bg-danger-subtle text-danger rounded-circle p-3">
+                        <i class="fa-solid fa-money-bill-transfer fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-<!-- FILTERS -->
-<div class="card shadow-sm mb-4">
-    <div class="card-body">
-        <form method="get" class="row g-3">
-
+    <!-- FILTERS -->
+    <div class="glass-card p-4 mb-4">
+        <form method="get" class="row g-3 align-items-end">
             <div class="col-md-3">
-                <label class="form-label fw-bold">Supplier</label>
-                <select name="supplier_id" class="form-select">
+                <label class="form-label small text-muted fw-bold">Supplier</label>
+                <select name="supplier_id" class="form-select bg-transparent">
                     <option value="">All Suppliers</option>
                     {% for s in suppliers %}
                     <option value="{{ s.id }}" {% if selected_supplier == s.id|string %}selected{% endif %}>
@@ -25,86 +43,66 @@
             </div>
 
             <div class="col-md-3">
-                <label class="form-label fw-bold">From Date</label>
-                <input type="date" name="start_date" value="{{ start_date or '' }}" class="form-control">
+                <label class="form-label small text-muted fw-bold">From Date</label>
+                <input type="date" name="start_date" value="{{ start_date or '' }}" class="form-control bg-transparent">
             </div>
 
             <div class="col-md-3">
-                <label class="form-label fw-bold">To Date</label>
-                <input type="date" name="end_date" value="{{ end_date or '' }}" class="form-control">
+                <label class="form-label small text-muted fw-bold">To Date</label>
+                <input type="date" name="end_date" value="{{ end_date or '' }}" class="form-control bg-transparent">
             </div>
 
-            <div class="col-md-3 d-flex align-items-end">
-                <button class="btn btn-primary w-100"><i class="fa-solid fa-filter"></i> Apply</button>
+            <div class="col-md-3">
+                <button class="btn btn-primary w-100"><i class="fa-solid fa-filter me-2"></i>Filter</button>
             </div>
-
         </form>
     </div>
-</div>
 
-<!-- SUMMARY CARDS -->
-<div class="row g-4 mb-4">
-
-    <div class="col-md-6">
-        <div class="card shadow-sm border-start border-danger border-3">
-            <div class="card-body">
-                <h6 class="text-muted mb-1">Total Payment To Suppliers</h6>
-                <h3 class="fw-bold text-danger">₹{{ "%.2f"|format(total_payment) }}</h3>
-            </div>
+    <!-- TABLE -->
+    <div class="glass-card p-0 overflow-hidden">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0" style="background: transparent;">
+                <thead class="bg-light border-bottom">
+                    <tr>
+                        <th class="ps-4 py-3">Date</th>
+                        <th class="py-3">Supplier</th>
+                        <th class="py-3 text-end">Amount Paid</th>
+                        <th class="py-3">Mode</th>
+                        <th class="py-3">Remark</th>
+                        <th class="py-3 text-center">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in transactions %}
+                    <tr>
+                        <td class="ps-4 fw-bold text-muted">{{ t.date.strftime("%d-%b-%Y") }}</td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="bg-white rounded-circle p-2 me-2 shadow-sm d-flex align-items-center justify-content-center" style="width: 35px; height: 35px;">
+                                    <span class="fw-bold text-primary small">{{ t.supplier_name[:1] }}</span>
+                                </div>
+                                {{ t.supplier_name }}
+                            </div>
+                        </td>
+                        <td class="text-end fw-bold text-danger">
+                            ₹ {{ "{:,.2f}".format(t.amount) }}
+                        </td>
+                        <td><span class="badge bg-secondary-subtle text-secondary border">{{ t.mode }}</span></td>
+                        <td class="small text-muted">{{ t.remark }}</td>
+                        <td class="text-center">
+                            <a href="{{ url_for('supplier_cashflow_delete', id=t.id) }}" class="btn btn-sm btn-light text-danger hover-danger" title="Delete">
+                                <i class="fa-solid fa-trash"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center py-5 text-muted">No payment records found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
-
-    <div class="col-md-6">
-        <div class="card shadow-sm border-start border-success border-3">
-            <div class="card-body">
-                <h6 class="text-muted mb-1">Total Received From Suppliers</h6>
-                <h3 class="fw-bold text-success">₹{{ "%.2f"|format(total_receipt) }}</h3>
-            </div>
-        </div>
-    </div>
-
 </div>
-
-<!-- TABLE -->
-<div class="card shadow-sm">
-    <div class="card-body p-0">
-        <table class="table table-striped table-hover mb-0">
-            <thead class="table-light">
-                <tr>
-                    <th>Date</th>
-                    <th>Supplier</th>
-                    <th>Type</th>
-                    <th class="text-end">Amount</th>
-                    <th>Mode</th>
-                    <th>Remark</th>
-                    <th class="text-center">Action</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for t in transactions %}
-                <tr>
-                    <td>{{ t.date.strftime("%d-%b-%Y %I:%M %p") }}</td>
-                    <td>{{ t.supplier_name }}</td>
-                    <td>
-                        {% if t.type == 'payment' %}
-                            <span class="badge bg-danger">Payment</span>
-                        {% else %}
-                            <span class="badge bg-success">Receive</span>
-                        {% endif %}
-                    </td>
-                    <td class="text-end fw-bold">₹{{ "%.2f"|format(t.amount) }}</td>
-                    <td>{{ t.mode }}</td>
-                    <td>{{ t.remark }}</td>
-                    <td class="text-center">
-                        <a href="{{ url_for('supplier_cashflow_delete', id=t.id) }}" class="btn btn-sm btn-outline-danger">
-                            <i class="fa-solid fa-trash"></i>
-                        </a>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
-
 {% endblock %}
