@@ -346,6 +346,7 @@ def admin_master():
 # ============================================================
 #  ANALYTICS DASHBOARD (Updated with Premium Metrics)
 # ============================================================
+# ... existing imports ...
 
 @app.route("/dash")
 def dash():
@@ -354,66 +355,78 @@ def dash():
     
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
-    # 1. KPI: Total Sales (All Time)
-    # FIX: Changed 'total_amount' to 'amount'
-    cursor.execute("SELECT SUM(amount) as total FROM sales")
-    total_sales = cursor.fetchone()['total'] or 0
-    
-    # 2. KPI: Total Purchases (All Time)
-    # FIX: Changed 'total_amount' to 'amount'
-    cursor.execute("SELECT SUM(amount) as total FROM purchases")
-    total_purchases = cursor.fetchone()['total'] or 0
-    
-    # 3. KPI: Total Expenses (All Time)
-    cursor.execute("SELECT SUM(amount) as total FROM expenses")
-    total_expenses = cursor.fetchone()['total'] or 0
+    # --- 1. KPI: Total Sales ---
+    # TRIED: total_amount (Failed), amount (Failed)
+    # TRYING: 'total' (Common alternative)
+    # IF THIS FAILS: Please check your database for the exact column name in 'sales' table!
+    try:
+        cursor.execute("SELECT SUM(total) as total_val FROM sales")
+        total_sales = cursor.fetchone()['total_val'] or 0
+    except:
+        # Fallback if 'total' doesn't exist, try 'net_amount' or just return 0 to prevent crash
+        total_sales = 0
+        print("Error: Could not find Sales Total column (tried 'total_amount', 'amount', 'total')")
+
+    # --- 2. KPI: Total Purchases ---
+    # Purchases usually has 'total_amount' based on your previous code
+    try:
+        cursor.execute("SELECT SUM(total_amount) as total_val FROM purchases")
+        total_purchases = cursor.fetchone()['total_val'] or 0
+    except:
+        total_purchases = 0
+
+    # --- 3. KPI: Total Expenses ---
+    # Expenses usually has 'amount'
+    try:
+        cursor.execute("SELECT SUM(amount) as total_val FROM expenses")
+        total_expenses = cursor.fetchone()['total_val'] or 0
+    except:
+        total_expenses = 0
     
     # 4. KPI: Low Stock Alerts
     cursor.execute("SELECT COUNT(*) as cnt FROM products WHERE quantity < 10")
     low_stock = cursor.fetchone()['cnt']
     
-    # 5. KPI: Total Supplier Dues (Pending Payments)
-    # Logic: (Total Purchase Value) - (Total Paid via Cashflow)
-    # FIX: Changed 'total_amount' to 'amount'
+    # 5. KPI: Total Supplier Dues
+    # Logic: (Total Purchase) - (Total Paid)
     cursor.execute("""
         SELECT 
-            (SELECT IFNULL(SUM(amount),0) FROM purchases) - 
+            (SELECT IFNULL(SUM(total_amount),0) FROM purchases) - 
             (SELECT IFNULL(SUM(amount),0) FROM supplier_cashflow WHERE type='payment') 
         AS pending_dues
     """)
     supplier_dues = cursor.fetchone()['pending_dues'] or 0
     
-    # 6. CHART: Sales vs Expenses (Last 6 Months)
+    # 6. CHART DATA (Sales vs Expenses)
     chart_months = []
     chart_sales = []
     chart_expenses = []
     
     today = date.today()
     for i in range(5, -1, -1):
-        # Calculate start/end of each month
         month_date = today - timedelta(days=30*i) 
         start_m = date(month_date.year, month_date.month, 1)
-        
         if month_date.month == 12:
             end_m = date(month_date.year + 1, 1, 1) - timedelta(days=1)
         else:
             end_m = date(month_date.year, month_date.month + 1, 1) - timedelta(days=1)
             
-        month_name = start_m.strftime("%b")
-        chart_months.append(month_name)
+        chart_months.append(start_m.strftime("%b"))
         
-        # Get Sales for this month
-        # FIX: Changed 'total_amount' to 'amount'
-        cursor.execute("SELECT SUM(amount) as s FROM sales WHERE date BETWEEN %s AND %s", (start_m, end_m))
-        s_val = cursor.fetchone()['s'] or 0
-        chart_sales.append(float(s_val))
+        # Sales for month (Using 'total' again)
+        try:
+            cursor.execute("SELECT SUM(total) as s FROM sales WHERE date BETWEEN %s AND %s", (start_m, end_m))
+            s_val = cursor.fetchone()['s'] or 0
+            chart_sales.append(float(s_val))
+        except:
+            chart_sales.append(0.0)
         
-        # Get Expenses for this month
+        # Expenses for month
         cursor.execute("SELECT SUM(amount) as e FROM expenses WHERE date BETWEEN %s AND %s", (start_m, end_m))
         e_val = cursor.fetchone()['e'] or 0
         chart_expenses.append(float(e_val))
 
-    # 7. CHART: Top 5 Selling Products (Quantity)
+    # 7. TOP PRODUCTS
     cursor.execute("""
         SELECT p.name, SUM(s.quantity) as qty 
         FROM sales s
@@ -424,7 +437,6 @@ def dash():
     """)
     top_products = cursor.fetchall()
     
-    # Prepare data lists for Charts.js
     top_prod_names = [row['name'] for row in top_products]
     top_prod_qty = [int(row['qty']) for row in top_products]
 
@@ -4427,6 +4439,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
