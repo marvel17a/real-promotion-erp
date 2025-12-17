@@ -347,6 +347,28 @@ def admin_master():
 #  ANALYTICS DASHBOARD (Updated with Premium Metrics)
 # ============================================================
 # ... existing imports ...
+# ... existing imports ...
+
+# --- HELPER FUNCTION: Find correct column name automatically ---
+def get_db_column(cursor, table_name, candidates):
+    """
+    Checks the database table for existence of candidate columns.
+    Returns the first match found.
+    """
+    try:
+        cursor.execute(f"SHOW COLUMNS FROM {table_name}")
+        # Extract column names from the result
+        existing_columns = [row['Field'] for row in cursor.fetchall()]
+        
+        for cand in candidates:
+            if cand in existing_columns:
+                return cand
+        
+        # If no match, return the first candidate as default (might fail, but best guess)
+        return candidates[0]
+    except Exception as e:
+        print(f"Error checking columns for {table_name}: {e}")
+        return candidates[0]
 
 @app.route("/dash")
 def dash():
@@ -355,49 +377,58 @@ def dash():
     
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
+    # --- DYNAMICALLY RESOLVE COLUMN NAMES ---
+    # We check for common variations to avoid "Unknown column" errors
+    sales_col = get_db_column(cursor, 'sales', ['total_amount', 'amount', 'total', 'grand_total', 'final_total', 'net_amount'])
+    purch_col = get_db_column(cursor, 'purchases', ['total_amount', 'amount', 'total', 'grand_total'])
+    exp_col   = get_db_column(cursor, 'expenses', ['amount', 'cost', 'total', 'value'])
+    stock_col = get_db_column(cursor, 'products', ['quantity', 'qty', 'stock', 'stock_quantity', 'inventory', 'count'])
+
+    print(f"DEBUG: Using columns -> Sales: {sales_col}, Products: {stock_col}")
+
     # --- 1. KPI: Total Sales ---
-    # TRIED: total_amount (Failed), amount (Failed)
-    # TRYING: 'total' (Common alternative)
-    # IF THIS FAILS: Please check your database for the exact column name in 'sales' table!
     try:
-        cursor.execute("SELECT SUM(total) as total_val FROM sales")
-        total_sales = cursor.fetchone()['total_val'] or 0
+        cursor.execute(f"SELECT SUM({sales_col}) as total FROM sales")
+        total_sales = cursor.fetchone()['total'] or 0
     except:
-        # Fallback if 'total' doesn't exist, try 'net_amount' or just return 0 to prevent crash
         total_sales = 0
-        print("Error: Could not find Sales Total column (tried 'total_amount', 'amount', 'total')")
 
     # --- 2. KPI: Total Purchases ---
-    # Purchases usually has 'total_amount' based on your previous code
     try:
-        cursor.execute("SELECT SUM(total_amount) as total_val FROM purchases")
-        total_purchases = cursor.fetchone()['total_val'] or 0
+        cursor.execute(f"SELECT SUM({purch_col}) as total FROM purchases")
+        total_purchases = cursor.fetchone()['total'] or 0
     except:
         total_purchases = 0
 
     # --- 3. KPI: Total Expenses ---
-    # Expenses usually has 'amount'
     try:
-        cursor.execute("SELECT SUM(amount) as total_val FROM expenses")
-        total_expenses = cursor.fetchone()['total_val'] or 0
+        cursor.execute(f"SELECT SUM({exp_col}) as total FROM expenses")
+        total_expenses = cursor.fetchone()['total'] or 0
     except:
         total_expenses = 0
     
-    # 4. KPI: Low Stock Alerts
-    cursor.execute("SELECT COUNT(*) as cnt FROM products WHERE quantity < 10")
-    low_stock = cursor.fetchone()['cnt']
+    # --- 4. KPI: Low Stock Alerts ---
+    try:
+        cursor.execute(f"SELECT COUNT(*) as cnt FROM products WHERE {stock_col} < 10")
+        low_stock = cursor.fetchone()['cnt']
+    except:
+        low_stock = 0
     
-    # 5. KPI: Total Supplier Dues
-    # Logic: (Total Purchase) - (Total Paid)
-    cursor.execute("""
-        SELECT 
-            (SELECT IFNULL(SUM(total_amount),0) FROM purchases) - 
-            (SELECT IFNULL(SUM(amount),0) FROM supplier_cashflow WHERE type='payment') 
-        AS pending_dues
-    """)
-    supplier_dues = cursor.fetchone()['pending_dues'] or 0
+    # --- 5. KPI: Supplier Dues ---
+    # Logic: (Total Purchase) - (Total Paid in Cashflow)
+    # Note: supplier_cashflow usually has 'amount'
+    try:
+        cursor.execute(f"""
+            SELECT 
+                (SELECT IFNULL(SUM({purch_col}),0) FROM purchases) - 
+                (SELECT IFNULL(SUM(amount),0) FROM supplier_cashflow WHERE type='payment') 
+            AS pending_dues
+        """)
+        supplier_dues = cursor.fetchone()['pending_dues'] or 0
+    except:
+        supplier_dues = 0
     
-    # 6. CHART DATA (Sales vs Expenses)
+    # --- 6. CHART DATA (Sales vs Expenses) ---
     chart_months = []
     chart_sales = []
     chart_expenses = []
@@ -413,32 +444,39 @@ def dash():
             
         chart_months.append(start_m.strftime("%b"))
         
-        # Sales for month (Using 'total' again)
+        # Sales for month
         try:
-            cursor.execute("SELECT SUM(total) as s FROM sales WHERE date BETWEEN %s AND %s", (start_m, end_m))
+            cursor.execute(f"SELECT SUM({sales_col}) as s FROM sales WHERE date BETWEEN %s AND %s", (start_m, end_m))
             s_val = cursor.fetchone()['s'] or 0
             chart_sales.append(float(s_val))
         except:
             chart_sales.append(0.0)
         
         # Expenses for month
-        cursor.execute("SELECT SUM(amount) as e FROM expenses WHERE date BETWEEN %s AND %s", (start_m, end_m))
-        e_val = cursor.fetchone()['e'] or 0
-        chart_expenses.append(float(e_val))
+        try:
+            cursor.execute(f"SELECT SUM({exp_col}) as e FROM expenses WHERE date BETWEEN %s AND %s", (start_m, end_m))
+            e_val = cursor.fetchone()['e'] or 0
+            chart_expenses.append(float(e_val))
+        except:
+            chart_expenses.append(0.0)
 
-    # 7. TOP PRODUCTS
-    cursor.execute("""
-        SELECT p.name, SUM(s.quantity) as qty 
-        FROM sales s
-        JOIN products p ON s.product_id = p.id
-        GROUP BY p.name
-        ORDER BY qty DESC
-        LIMIT 5
-    """)
-    top_products = cursor.fetchall()
-    
-    top_prod_names = [row['name'] for row in top_products]
-    top_prod_qty = [int(row['qty']) for row in top_products]
+    # --- 7. TOP PRODUCTS ---
+    # Uses sales and products tables
+    try:
+        cursor.execute(f"""
+            SELECT p.name, SUM(s.quantity) as qty 
+            FROM sales s
+            JOIN products p ON s.product_id = p.id
+            GROUP BY p.name
+            ORDER BY qty DESC
+            LIMIT 5
+        """)
+        top_products = cursor.fetchall()
+        top_prod_names = [row['name'] for row in top_products]
+        top_prod_qty = [int(row['qty']) for row in top_products]
+    except:
+        top_prod_names = []
+        top_prod_qty = []
 
     cursor.close()
     
@@ -454,7 +492,7 @@ def dash():
         chart_expenses=chart_expenses,
         top_prod_names=top_prod_names,
         top_prod_qty=top_prod_qty
-    )
+        )
 
 
 
@@ -4439,6 +4477,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
