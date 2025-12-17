@@ -2002,14 +2002,13 @@ def employee_department_delete(id):
 
 # ... existing imports ...
 
-# REPLACE THE add_employee ROUTE WITH THIS CORRECTED VERSION
 @app.route("/add_employee", methods=["GET", "POST"])
 def add_employee():
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     if request.method == "POST":
         d = request.form
         
-        # 1. Get Files Safely
+        # 1. Get Files
         img_file = request.files.get("image")
         doc_file = request.files.get("document")
         
@@ -2022,16 +2021,16 @@ def add_employee():
                 res = cloudinary.uploader.upload(img_file, folder="erp_employees")
                 img_url = res.get('secure_url')
             
-            # 3. Upload Document (Fix for PDF 404)
+            # 3. Upload Document
             if doc_file and doc_file.filename != '':
-                # resource_type="auto" handles PDF/Docs correctly
+                # resource_type="auto" prevents 404s by correctly identifying PDFs vs Images
                 res = cloudinary.uploader.upload(doc_file, folder="erp_employee_docs", resource_type="auto")
-                doc_url = res.get('secure_url') # Store Full URL
+                doc_url = res.get('secure_url') # Store full URL
         except Exception as e:
             app.logger.error(f"Upload error: {e}")
-            flash(f"Upload failed: {e}", "danger")
+            flash(f"Upload warning: {e}", "warning")
 
-        # 4. Insert into DB (Using correct variables img_url and doc_url)
+        # 4. Insert
         try:
             cur.execute("""
                 INSERT INTO employees (name, email, phone, aadhar_no, emergency_contact, dob, position_id, department_id, address_line1, address_line2, pincode, city, district, state, image, document, status)
@@ -2042,7 +2041,7 @@ def add_employee():
                 d.get("phone"), 
                 d.get("aadhar_no"), 
                 d.get("emergency_contact"), 
-                d.get("dob") if d.get("dob") else None, # Handle empty date
+                d.get("dob") if d.get("dob") else None,
                 d.get("position_id"), 
                 d.get("department_id"), 
                 d.get("address_line1"), 
@@ -2051,11 +2050,11 @@ def add_employee():
                 d.get("city"), 
                 d.get("district"), 
                 d.get("state"), 
-                img_url,  # Correct variable
-                doc_url   # Correct variable (was likely 'doc' causing error)
+                img_url, 
+                doc_url
             ))
             mysql.connection.commit()
-            flash("Employee Added Successfully!", "success")
+            flash("Employee Added!", "success")
             return redirect(url_for("employees"))
         except Exception as e:
             mysql.connection.rollback()
@@ -2064,7 +2063,6 @@ def add_employee():
         finally:
             cur.close()
 
-    # GET Request
     cur.execute("SELECT * FROM employee_positions")
     pos = cur.fetchall()
     cur.execute("SELECT * FROM employee_departments")
@@ -2073,9 +2071,14 @@ def add_employee():
     return render_template("employees/add_employee.html", positions=pos, departments=dept)
 
 
-# ENSURE THIS VIEW ROUTE IS ALSO PRESENT TO HANDLE VIEWING
+# =========================================================
+#  EMPLOYEE Document route 
+# =========================================================
+
 @app.route("/employee_document/<int:id>")
 def employee_document(id):
+    if "loggedin" not in session: return redirect(url_for("login"))
+    
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     try:
         cur.execute("SELECT document FROM employees WHERE id=%s", (id,))
@@ -2089,29 +2092,25 @@ def employee_document(id):
         
     doc_val = row["document"]
 
-    # If it's a full URL (which new uploads will be), redirect directly
+    # 1. Full URL
     if doc_val.startswith("http"):
+        # Fix for PDF 404s (Append .pdf if missing in docs folder)
+        if "erp_employee_docs" in doc_val and not any(doc_val.lower().endswith(x) for x in ['.pdf', '.jpg', '.png', '.jpeg', '.doc', '.docx']):
+            return redirect(doc_val + ".pdf")
         return redirect(doc_val)
 
-    # Legacy fix for old uploads (Public IDs)
+    # 2. Cloudinary Public ID
     try:
-        # If it looks like a PDF in the docs folder but has no extension in the ID, force PDF format
-        if "erp_employee_docs" in doc_val and not any(doc_val.lower().endswith(x) for x in ['.pdf', '.jpg', '.png']):
+        # Heuristic: Force PDF format if likely a doc without extension
+        if "erp_employee_docs" in doc_val and not any(doc_val.lower().endswith(x) for x in ['.pdf', '.jpg', '.png', '.jpeg']):
              url, _ = cloudinary.utils.cloudinary_url(doc_val, secure=True, format="pdf")
              return redirect(url)
         
         url, _ = cloudinary.utils.cloudinary_url(doc_val, secure=True)
         return redirect(url)
-    except Exception:
+    except Exception as e:
+        app.logger.error(f"Doc URL Error: {e}")
         return "Error opening document", 500
-
-
-
-
-
-
-
-
 
 
 # ---------- ADMIN SIDE: EDIT EMPLOYEE (admin_master.html) ----------
@@ -4402,6 +4401,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
