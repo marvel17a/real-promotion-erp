@@ -626,10 +626,11 @@ def delete_supplier(supplier_id):
 
     return redirect(url_for('suppliers'))
 
+# ... existing imports ...
 
-#============================================================#
-#SUPPLIER CASHFLOW MODULE
-#============================================================#
+# ============================================================
+# SUPPLIER CASHFLOW MODULE (Updated: Payment Only)
+# ============================================================
 
 @app.route("/supplier_cashflow")
 def supplier_cashflow():
@@ -672,11 +673,10 @@ def supplier_cashflow():
     cursor.execute(sql, params)
     transactions = cursor.fetchall()
 
-    # Summary totals
+    # Summary totals (Only Payment is relevant now, but keeping query safe)
     cursor.execute("""
         SELECT 
-            SUM(CASE WHEN type='payment' THEN amount ELSE 0 END) AS total_payment,
-            SUM(CASE WHEN type='receipt' THEN amount ELSE 0 END) AS total_receipt
+            SUM(CASE WHEN type='payment' THEN amount ELSE 0 END) AS total_payment
         FROM supplier_cashflow
     """)
     summary = cursor.fetchone()
@@ -688,7 +688,6 @@ def supplier_cashflow():
         transactions=transactions,
         suppliers=suppliers,
         total_payment=summary["total_payment"] or 0,
-        total_receipt=summary["total_receipt"] or 0,
         start_date=start,
         end_date=end,
         selected_supplier=sup
@@ -704,7 +703,8 @@ def supplier_cashflow_add():
 
     if request.method == "POST":
         supplier_id = request.form["supplier_id"]
-        trans_type = request.form["type"]
+        # MODIFICATION: Hardcoded to 'payment' (Removed Receipt feature)
+        trans_type = "payment" 
         amount = request.form["amount"]
         mode = request.form["mode"]
         remark = request.form["remark"]
@@ -715,13 +715,15 @@ def supplier_cashflow_add():
         """, (supplier_id, trans_type, amount, mode, remark))
 
         mysql.connection.commit()
-        flash("Transaction added successfully!", "success")
+        flash("Payment recorded successfully!", "success")
         return redirect(url_for("supplier_cashflow"))
 
     cursor.execute("SELECT id, name FROM suppliers ORDER BY name")
     suppliers = cursor.fetchall()
 
     return render_template("suppliers/supplier_cashflow_add.html", suppliers=suppliers)
+
+# ... (keep supplier_cashflow_delete as is) ...
 
 @app.route("/supplier_cashflow/delete/<int:id>")
 def supplier_cashflow_delete(id):
@@ -4401,6 +4403,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
