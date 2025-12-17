@@ -1,155 +1,185 @@
 {% extends "admin_master.html" %}
 
 {% block page_content %}
+<div class="container-fluid" data-aos="fade-in">
 
-<!-- DASHBOARD CSS -->
-<style>
-    .dash-card {
-        border-radius: 14px;
-        box-shadow: 0 6px 18px rgba(0,0,0,0.08);
-        transition: 0.2s;
-    }
-
-    .dash-card:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 12px 28px rgba(0,0,0,0.12);
-    }
-
-    .dash-icon {
-        font-size: 28px;
-        opacity: 0.8;
-    }
-
-    .chart-container {
-        padding: 20px;
-        border-radius: 12px;
-        background: #fff;
-        box-shadow: 0 6px 18px rgba(0,0,0,0.08);
-    }
-</style>
-
-<h2 class="fw-bold mb-4">
-    <i class="fa-solid fa-chart-line me-2"></i> Dashboard
-</h2>
-
-<div class="row g-4">
-
-    <!-- TOTAL SALES -->
-    <div class="col-md-6 col-lg-3">
-        <div class="card dash-card p-3 border-start border-primary border-4">
-            <div class="d-flex justify-content-between">
-                <div>
-                    <p class="text-muted mb-1">Total Sales</p>
-                    <h3 class="fw-bold text-primary">₹{{ "%.2f"|format(total_sales) }}</h3>
-                </div>
-                <i class="fa-solid fa-coins dash-icon text-primary"></i>
-            </div>
+    <!-- HEADER -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold mb-0">Executive Overview</h2>
+            <p class="text-muted small">Real-time business intelligence</p>
+        </div>
+        <div class="d-flex gap-2">
+            <span class="badge bg-glass text-dark d-flex align-items-center px-3">
+                <i class="fa-regular fa-clock me-2"></i> {{ today_date }}
+            </span>
+            <button class="btn btn-sm btn-outline-primary rounded-circle" onclick="location.reload()">
+                <i class="fa-solid fa-sync"></i>
+            </button>
         </div>
     </div>
 
-    <!-- TOTAL PURCHASES -->
-    <div class="col-md-6 col-lg-3">
-        <div class="card dash-card p-3 border-start border-warning border-4">
-            <div class="d-flex justify-content-between">
-                <div>
-                    <p class="text-muted mb-1">Total Purchases</p>
-                    <h3 class="fw-bold text-warning">₹{{ "%.2f"|format(total_purchases) }}</h3>
-                </div>
-                <i class="fa-solid fa-cart-shopping dash-icon text-warning"></i>
+    <!-- KPI ROW -->
+    <div class="row g-4 mb-4">
+
+        <div class="col-xl-3 col-md-6">
+            <div class="glass-card p-4 h-100">
+                <p class="text-muted text-uppercase fw-bold small mb-1">Total Revenue</p>
+                <h3 class="fw-bold text-primary mb-0">
+                    ₹{{ "{:,.0f}".format(total_sales) }}
+                </h3>
             </div>
         </div>
+
+        <div class="col-xl-3 col-md-6">
+            <div class="glass-card p-4 h-100 border-start border-4 border-warning">
+                <p class="text-muted text-uppercase fw-bold small mb-1">Supplier Dues</p>
+                <h3 class="fw-bold text-warning mb-0">
+                    ₹{{ "{:,.0f}".format(supplier_dues) }}
+                </h3>
+                <small class="text-danger">Pending</small>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6">
+            <div class="glass-card p-4 h-100">
+                <p class="text-muted text-uppercase fw-bold small mb-1">Op. Expenses</p>
+                <h3 class="fw-bold text-danger mb-0">
+                    ₹{{ "{:,.0f}".format(total_expenses) }}
+                </h3>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6">
+            <div class="glass-card p-4 h-100">
+                <p class="text-muted text-uppercase fw-bold small mb-1">Inventory Alert</p>
+                <h3 class="fw-bold text-dark mb-0">{{ low_stock }}</h3>
+            </div>
+        </div>
+
     </div>
 
-    <!-- TOTAL EXPENSES -->
-    <div class="col-md-6 col-lg-3">
-        <div class="card dash-card p-3 border-start border-danger border-4">
-            <div class="d-flex justify-content-between">
-                <div>
-                    <p class="text-muted mb-1">Total Expenses</p>
-                    <h3 class="fw-bold text-danger">₹{{ "%.2f"|format(total_expenses) }}</h3>
-                </div>
-                <i class="fa-solid fa-money-bill-wave dash-icon text-danger"></i>
-            </div>
-        </div>
-    </div>
+    <!-- CHART ROW -->
+    <div class="row g-4 mb-4">
 
-    <!-- TOTAL PROFIT -->
-    <div class="col-md-6 col-lg-3">
-        <div class="card dash-card p-3 border-start border-success border-4">
-            <div class="d-flex justify-content-between">
-                <div>
-                    <p class="text-muted mb-1">Net Profit</p>
-                    <h3 class="fw-bold text-success">₹{{ "%.2f"|format(total_profit) }}</h3>
+        <div class="col-lg-8">
+            <div class="glass-card p-4 h-100">
+                <h5 class="fw-bold mb-3">Financial Performance</h5>
+                <div style="height:300px">
+                    <canvas id="financeChart"></canvas>
                 </div>
-                <i class="fa-solid fa-indian-rupee-sign dash-icon text-success"></i>
             </div>
         </div>
+
+        <div class="col-lg-4">
+            <div class="glass-card p-4 h-100">
+                <h5 class="fw-bold mb-3">Top Selling Items</h5>
+                <div style="height:250px">
+                    <canvas id="productChart"></canvas>
+                </div>
+            </div>
+        </div>
+
     </div>
 </div>
 
-<!-- LOW STOCK -->
-<div class="row mt-4">
-    <div class="col-lg-3 col-md-6">
-        <div class="card dash-card p-3 border-start border-dark border-4">
-            <div class="d-flex justify-content-between">
-                <div>
-                    <p class="text-muted mb-1">Low Stock Products</p>
-                    <h3 class="fw-bold">{{ low_stock }}</h3>
-                </div>
-                <i class="fa-solid fa-boxes-stacked dash-icon"></i>
-            </div>
-        </div>
-    </div>
-</div>
+<!-- ✅ SAFE JSON DATA INJECTION -->
+<script id="chart-months" type="application/json">
+{{ chart_months | default([]) | tojson }}
+</script>
 
-<!-- SALES CHART -->
-<div class="row mt-4">
-    <div class="col-lg-8">
-        <div class="chart-container">
-            <h5 class="fw-bold mb-3">
-                <i class="fa-solid fa-chart-simple me-2"></i> Sales Overview (Last 6 Months)
-            </h5>
-            <canvas id="salesChart" height="100"></canvas>
-        </div>
-    </div>
-</div>
+<script id="chart-sales" type="application/json">
+{{ chart_sales | default([]) | tojson }}
+</script>
 
-<!-- CHART.JS -->
+<script id="chart-expenses" type="application/json">
+{{ chart_expenses | default([]) | tojson }}
+</script>
+
+<script id="prod-names" type="application/json">
+{{ top_prod_names | default([]) | tojson }}
+</script>
+
+<script id="prod-qty" type="application/json">
+{{ top_prod_qty | default([]) | tojson }}
+</script>
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
-    const monthLabels = {{ chart_months|tojson }};
-    const salesValues = {{ chart_sales|tojson }};
+document.addEventListener("DOMContentLoaded", function () {
 
-    const ctx = document.getElementById('salesChart').getContext('2d');
+    const months = JSON.parse(
+        document.getElementById("chart-months").textContent.trim()
+    );
+    const salesData = JSON.parse(
+        document.getElementById("chart-sales").textContent.trim()
+    );
+    const expenseData = JSON.parse(
+        document.getElementById("chart-expenses").textContent.trim()
+    );
 
-    new Chart(ctx, {
-        type: 'line',
+    new Chart(document.getElementById("financeChart"), {
+        type: "bar",
         data: {
-            labels: monthLabels,
+            labels: months,
+            datasets: [
+                {
+                    label: "Sales",
+                    data: salesData,
+                    backgroundColor: "rgba(52,152,219,0.8)",
+                    borderRadius: 5
+                },
+                {
+                    label: "Expenses",
+                    data: expenseData,
+                    backgroundColor: "rgba(231,76,60,0.8)",
+                    borderRadius: 5
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: { y: { beginAtZero: true } }
+        }
+    });
+
+    const prodNames = JSON.parse(
+        document.getElementById("prod-names").textContent.trim()
+    );
+    const prodQty = JSON.parse(
+        document.getElementById("prod-qty").textContent.trim()
+    );
+
+    new Chart(document.getElementById("productChart"), {
+        type: "doughnut",
+        data: {
+            labels: prodNames,
             datasets: [{
-                label: 'Sales (₹)',
-                data: salesValues,
-                borderWidth: 3,
-                tension: 0.3,
-                borderColor: "#0d6efd",
-                backgroundColor: "rgba(13,110,253,0.15)",
-                pointRadius: 5,
-                pointBackgroundColor: "#0d6efd",
-                pointBorderColor: "#fff",
-                fill: true,
+                data: prodQty,
+                backgroundColor: [
+                    "#3498db", "#9b59b6", "#2ecc71", "#f1c40f", "#e67e22"
+                ],
+                borderWidth: 0
             }]
         },
         options: {
             responsive: true,
-            plugins: {
-                legend: { display: false }
-            },
-            scales: {
-                y: { beginAtZero: true }
-            }
+            maintainAspectRatio: false,
+            cutout: "70%"
         }
     });
+
+});
 </script>
 
+<style>
+.bg-glass {
+    background: rgba(255,255,255,0.5);
+    backdrop-filter: blur(5px);
+    border: 1px solid rgba(255,255,255,0.4);
+    border-radius: 20px;
+}
+</style>
 {% endblock %}
