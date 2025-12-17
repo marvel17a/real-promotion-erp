@@ -338,15 +338,9 @@ def admin_master():
         return redirect(url_for("login"))
     # Redirect dashboard page 
     return redirect(url_for('dash'))
+)
 
 
-# ============================================================
-#  ANALYTICS DASHBOARD (Updated with Premium Metrics)
-# ============================================================
-# ============================================================
-#  ANALYTICS DASHBOARD (Updated with Premium Metrics)
-# ============================================================
-# ... existing imports ...
 # ... existing imports ...
 
 # --- HELPER FUNCTION: Find correct column name automatically ---
@@ -386,7 +380,26 @@ def dash():
 
     print(f"DEBUG: Using columns -> Sales: {sales_col}, Products: {stock_col}")
 
-    # --- 1. KPI: Total Sales ---
+    # --- 0. NEW KPIS: Sales Today & Monthly ---
+    today = date.today()
+    try:
+        cursor.execute(f"SELECT SUM({sales_col}) as total FROM sales WHERE date = %s", (today,))
+        sales_today = cursor.fetchone()['total'] or 0
+    except:
+        sales_today = 0
+
+    try:
+        start_m = date(today.year, today.month, 1)
+        if today.month == 12:
+             end_m = date(today.year + 1, 1, 1) - timedelta(days=1)
+        else:
+             end_m = date(today.year, today.month + 1, 1) - timedelta(days=1)
+        cursor.execute(f"SELECT SUM({sales_col}) as total FROM sales WHERE date BETWEEN %s AND %s", (start_m, end_m))
+        sales_this_month = cursor.fetchone()['total'] or 0
+    except:
+        sales_this_month = 0
+
+    # --- 1. KPI: Total Sales (Lifetime) ---
     try:
         cursor.execute(f"SELECT SUM({sales_col}) as total FROM sales")
         total_sales = cursor.fetchone()['total'] or 0
@@ -433,7 +446,7 @@ def dash():
     chart_sales = []
     chart_expenses = []
     
-    today = date.today()
+    # Using today from above
     for i in range(5, -1, -1):
         month_date = today - timedelta(days=30*i) 
         start_m = date(month_date.year, month_date.month, 1)
@@ -482,6 +495,8 @@ def dash():
     
     return render_template(
         "dash.html",
+        sales_today=sales_today,
+        sales_this_month=sales_this_month,
         total_sales=total_sales,
         total_purchases=total_purchases,
         total_expenses=total_expenses,
@@ -492,8 +507,7 @@ def dash():
         chart_expenses=chart_expenses,
         top_prod_names=top_prod_names,
         top_prod_qty=top_prod_qty
-        )
-
+    )
 
 
 # =====================================================================
@@ -4477,6 +4491,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
