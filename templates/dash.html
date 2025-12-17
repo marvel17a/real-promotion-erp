@@ -2,7 +2,7 @@
 
 {% block page_content %}
 <div class="container-fluid" data-aos="fade-in">
-
+    
     <!-- HEADER -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
@@ -11,7 +11,7 @@
         </div>
         <div class="d-flex gap-2">
             <span class="badge bg-glass text-dark d-flex align-items-center px-3">
-                <i class="fa-regular fa-clock me-2"></i> {{ today_date }}
+                <i class="fa-regular fa-clock me-2"></i> Today
             </span>
             <button class="btn btn-sm btn-outline-primary rounded-circle" onclick="location.reload()">
                 <i class="fa-solid fa-sync"></i>
@@ -19,164 +19,192 @@
         </div>
     </div>
 
-    <!-- KPI ROW -->
+    <!-- KPI ROW 1: FINANCIALS -->
     <div class="row g-4 mb-4">
-
+        <!-- Total Sales -->
         <div class="col-xl-3 col-md-6">
-            <div class="glass-card p-4 h-100">
-                <p class="text-muted text-uppercase fw-bold small mb-1">Total Revenue</p>
-                <h3 class="fw-bold text-primary mb-0">
-                    ₹{{ "{:,.0f}".format(total_sales) }}
-                </h3>
+            <div class="glass-card p-4 h-100 position-relative overflow-hidden">
+                <div class="d-flex justify-content-between align-items-start z-1 position-relative">
+                    <div>
+                        <p class="text-muted text-uppercase fw-bold small mb-1">Total Revenue</p>
+                        <h3 class="fw-bold text-primary mb-0">₹{{ "{:,.0f}".format(total_sales | default(0)) }}</h3>
+                    </div>
+                    <div class="bg-primary-subtle text-primary rounded-circle p-3">
+                        <i class="fa-solid fa-chart-line fa-lg"></i>
+                    </div>
+                </div>
+                <!-- Decorative BG Icon -->
+                <i class="fa-solid fa-chart-line position-absolute bottom-0 end-0 text-primary opacity-10" style="font-size: 5rem; transform: translate(20%, 20%);"></i>
             </div>
         </div>
 
+        <!-- Supplier Dues -->
         <div class="col-xl-3 col-md-6">
-            <div class="glass-card p-4 h-100 border-start border-4 border-warning">
-                <p class="text-muted text-uppercase fw-bold small mb-1">Supplier Dues</p>
-                <h3 class="fw-bold text-warning mb-0">
-                    ₹{{ "{:,.0f}".format(supplier_dues) }}
-                </h3>
-                <small class="text-danger">Pending</small>
+            <div class="glass-card p-4 h-100 position-relative overflow-hidden border-start border-4 border-warning">
+                <div class="d-flex justify-content-between align-items-start z-1 position-relative">
+                    <div>
+                        <p class="text-muted text-uppercase fw-bold small mb-1">Supplier Dues</p>
+                        <h3 class="fw-bold text-warning mb-0">₹{{ "{:,.0f}".format(supplier_dues | default(0)) }}</h3>
+                        <small class="text-danger"><i class="fa-solid fa-arrow-up me-1"></i>Pending</small>
+                    </div>
+                    <div class="bg-warning-subtle text-warning rounded-circle p-3">
+                        <i class="fa-solid fa-file-invoice-dollar fa-lg"></i>
+                    </div>
+                </div>
             </div>
         </div>
 
+        <!-- Expenses -->
         <div class="col-xl-3 col-md-6">
-            <div class="glass-card p-4 h-100">
-                <p class="text-muted text-uppercase fw-bold small mb-1">Op. Expenses</p>
-                <h3 class="fw-bold text-danger mb-0">
-                    ₹{{ "{:,.0f}".format(total_expenses) }}
-                </h3>
+            <div class="glass-card p-4 h-100 position-relative overflow-hidden">
+                <div class="d-flex justify-content-between align-items-start z-1 position-relative">
+                    <div>
+                        <p class="text-muted text-uppercase fw-bold small mb-1">Op. Expenses</p>
+                        <h3 class="fw-bold text-danger mb-0">₹{{ "{:,.0f}".format(total_expenses | default(0)) }}</h3>
+                    </div>
+                    <div class="bg-danger-subtle text-danger rounded-circle p-3">
+                        <i class="fa-solid fa-receipt fa-lg"></i>
+                    </div>
+                </div>
             </div>
         </div>
 
+        <!-- Low Stock -->
         <div class="col-xl-3 col-md-6">
-            <div class="glass-card p-4 h-100">
-                <p class="text-muted text-uppercase fw-bold small mb-1">Inventory Alert</p>
-                <h3 class="fw-bold text-dark mb-0">{{ low_stock }}</h3>
+            <div class="glass-card p-4 h-100 position-relative overflow-hidden">
+                <div class="d-flex justify-content-between align-items-start z-1 position-relative">
+                    <div>
+                        <p class="text-muted text-uppercase fw-bold small mb-1">Inventory Alert</p>
+                        <h3 class="fw-bold text-dark mb-0">{{ low_stock | default(0) }}</h3>
+                        <small class="text-muted">Items below threshold</small>
+                    </div>
+                    <div class="bg-dark-subtle text-dark rounded-circle p-3">
+                        <i class="fa-solid fa-box-open fa-lg"></i>
+                    </div>
+                </div>
             </div>
         </div>
-
     </div>
 
     <!-- CHART ROW -->
     <div class="row g-4 mb-4">
-
+        <!-- Main Comparison Chart -->
         <div class="col-lg-8">
             <div class="glass-card p-4 h-100">
-                <h5 class="fw-bold mb-3">Financial Performance</h5>
-                <div style="height:300px">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h5 class="fw-bold m-0">Financial Performance</h5>
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-primary active">6 Months</button>
+                    </div>
+                </div>
+                <div style="height: 300px;">
                     <canvas id="financeChart"></canvas>
                 </div>
             </div>
         </div>
 
+        <!-- Top Products Doughnut -->
         <div class="col-lg-4">
             <div class="glass-card p-4 h-100">
-                <h5 class="fw-bold mb-3">Top Selling Items</h5>
-                <div style="height:250px">
+                <h5 class="fw-bold mb-4">Top Selling Items</h5>
+                <div style="height: 250px; position: relative;">
                     <canvas id="productChart"></canvas>
+                </div>
+                <div class="mt-4 text-center">
+                    <small class="text-muted d-block">Based on total quantity sold</small>
                 </div>
             </div>
         </div>
-
     </div>
 </div>
 
-<!-- ✅ SAFE JSON DATA INJECTION -->
-<script id="chart-months" type="application/json">
-{{ chart_months | default([]) | tojson }}
-</script>
-
-<script id="chart-sales" type="application/json">
-{{ chart_sales | default([]) | tojson }}
-</script>
-
-<script id="chart-expenses" type="application/json">
-{{ chart_expenses | default([]) | tojson }}
-</script>
-
-<script id="prod-names" type="application/json">
-{{ top_prod_names | default([]) | tojson }}
-</script>
-
-<script id="prod-qty" type="application/json">
-{{ top_prod_qty | default([]) | tojson }}
-</script>
+<!-- DATA INJECTION FOR JS (Safe defaults) -->
+<script id="chart-months" type="application/json">{{ chart_months | tojson | default('[]') }}</script>
+<script id="chart-sales" type="application/json">{{ chart_sales | tojson | default('[]') }}</script>
+<script id="chart-expenses" type="application/json">{{ chart_expenses | tojson | default('[]') }}</script>
+<script id="prod-names" type="application/json">{{ top_prod_names | tojson | default('[]') }}</script>
+<script id="prod-qty" type="application/json">{{ top_prod_qty | tojson | default('[]') }}</script>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
 <script>
-document.addEventListener("DOMContentLoaded", function () {
+document.addEventListener('DOMContentLoaded', function() {
+    
+    // --- 1. FINANCE CHART (Bar: Sales vs Expenses) ---
+    const ctxFinance = document.getElementById('financeChart').getContext('2d');
+    
+    // Safe JSON Parsing
+    let months = [], salesData = [], expenseData = [], prodNames = [], prodQty = [];
+    try {
+        months = JSON.parse(document.getElementById('chart-months').textContent);
+        salesData = JSON.parse(document.getElementById('chart-sales').textContent);
+        expenseData = JSON.parse(document.getElementById('chart-expenses').textContent);
+        prodNames = JSON.parse(document.getElementById('prod-names').textContent);
+        prodQty = JSON.parse(document.getElementById('prod-qty').textContent);
+    } catch(e) { console.log("Chart data missing"); }
 
-    const months = JSON.parse(
-        document.getElementById("chart-months").textContent.trim()
-    );
-    const salesData = JSON.parse(
-        document.getElementById("chart-sales").textContent.trim()
-    );
-    const expenseData = JSON.parse(
-        document.getElementById("chart-expenses").textContent.trim()
-    );
-
-    new Chart(document.getElementById("financeChart"), {
-        type: "bar",
+    new Chart(ctxFinance, {
+        type: 'bar',
         data: {
             labels: months,
             datasets: [
                 {
-                    label: "Sales",
+                    label: 'Sales',
                     data: salesData,
-                    backgroundColor: "rgba(52,152,219,0.8)",
-                    borderRadius: 5
+                    backgroundColor: 'rgba(52, 152, 219, 0.8)',
+                    borderRadius: 5,
                 },
                 {
-                    label: "Expenses",
+                    label: 'Expenses',
                     data: expenseData,
-                    backgroundColor: "rgba(231,76,60,0.8)",
-                    borderRadius: 5
+                    backgroundColor: 'rgba(231, 76, 60, 0.8)',
+                    borderRadius: 5,
                 }
             ]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            scales: { y: { beginAtZero: true } }
+            plugins: {
+                legend: { position: 'top' },
+            },
+            scales: {
+                y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } },
+                x: { grid: { display: false } }
+            }
         }
     });
 
-    const prodNames = JSON.parse(
-        document.getElementById("prod-names").textContent.trim()
-    );
-    const prodQty = JSON.parse(
-        document.getElementById("prod-qty").textContent.trim()
-    );
+    // --- 2. PRODUCT CHART (Doughnut) ---
+    const ctxProduct = document.getElementById('productChart').getContext('2d');
 
-    new Chart(document.getElementById("productChart"), {
-        type: "doughnut",
+    new Chart(ctxProduct, {
+        type: 'doughnut',
         data: {
-            labels: prodNames,
+            labels: prodNames.length ? prodNames : ['No Data'],
             datasets: [{
-                data: prodQty,
+                data: prodQty.length ? prodQty : [1],
                 backgroundColor: [
-                    "#3498db", "#9b59b6", "#2ecc71", "#f1c40f", "#e67e22"
+                    '#3498db', '#9b59b6', '#2ecc71', '#f1c40f', '#e67e22', '#e0e0e0'
                 ],
-                borderWidth: 0
+                borderWidth: 0,
+                hoverOffset: 10
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            cutout: "70%"
+            plugins: {
+                legend: { position: 'right', labels: { boxWidth: 12 } }
+            },
+            cutout: '70%'
         }
     });
-
 });
 </script>
 
 <style>
 .bg-glass {
-    background: rgba(255,255,255,0.5);
+    background: rgba(255, 255, 255, 0.5);
     backdrop-filter: blur(5px);
     border: 1px solid rgba(255,255,255,0.4);
     border-radius: 20px;
