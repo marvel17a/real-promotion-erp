@@ -340,84 +340,102 @@ def admin_master():
     return redirect(url_for('dash'))
 
 
+# ============================================================
+#  ANALYTICS DASHBOARD (Updated with Premium Metrics)
+# ============================================================
+
 @app.route("/dash")
 def dash():
-    if "loggedin" not in session:
+    if "loggedin" not in session: 
         return redirect(url_for("login"))
-
+    
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-
-    # -----------------------------
-    # 1. TOTAL SALES = SUM(price * quantity - discount)
-    # -----------------------------
+    
+    # 1. KPI: Total Sales (All Time)
+    cursor.execute("SELECT SUM(total_amount) as total FROM sales")
+    total_sales = cursor.fetchone()['total'] or 0
+    
+    # 2. KPI: Total Purchases (All Time)
+    cursor.execute("SELECT SUM(total_amount) as total FROM purchases")
+    total_purchases = cursor.fetchone()['total'] or 0
+    
+    # 3. KPI: Total Expenses (All Time)
+    cursor.execute("SELECT SUM(amount) as total FROM expenses")
+    total_expenses = cursor.fetchone()['total'] or 0
+    
+    # 4. KPI: Low Stock Alerts
+    cursor.execute("SELECT COUNT(*) as cnt FROM products WHERE quantity < 10")
+    low_stock = cursor.fetchone()['cnt']
+    
+    # 5. KPI: Total Supplier Dues (Pending Payments)
+    # Logic: (Total Purchase Value) - (Total Paid via Cashflow)
     cursor.execute("""
         SELECT 
-            IFNULL(SUM((price * quantity) - discount), 0) AS total_sales
-        FROM sales
+            (SELECT IFNULL(SUM(total_amount),0) FROM purchases) - 
+            (SELECT IFNULL(SUM(amount),0) FROM supplier_cashflow WHERE type='payment') 
+        AS pending_dues
     """)
-    total_sales = cursor.fetchone()["total_sales"]
+    supplier_dues = cursor.fetchone()['pending_dues'] or 0
+    
+    # 6. CHART: Sales vs Expenses (Last 6 Months)
+    # We need a unified list of months
+    chart_months = []
+    chart_sales = []
+    chart_expenses = []
+    
+    today = date.today()
+    for i in range(5, -1, -1):
+        # Calculate start/end of each month
+        month_date = today - timedelta(days=30*i) 
+        start_m = date(month_date.year, month_date.month, 1)
+        # End of month logic
+        if month_date.month == 12:
+            end_m = date(month_date.year + 1, 1, 1) - timedelta(days=1)
+        else:
+            end_m = date(month_date.year, month_date.month + 1, 1) - timedelta(days=1)
+            
+        month_name = start_m.strftime("%b")
+        chart_months.append(month_name)
+        
+        # Get Sales for this month
+        cursor.execute("SELECT SUM(total_amount) as s FROM sales WHERE date BETWEEN %s AND %s", (start_m, end_m))
+        s_val = cursor.fetchone()['s'] or 0
+        chart_sales.append(float(s_val))
+        
+        # Get Expenses for this month
+        cursor.execute("SELECT SUM(amount) as e FROM expenses WHERE date BETWEEN %s AND %s", (start_m, end_m))
+        e_val = cursor.fetchone()['e'] or 0
+        chart_expenses.append(float(e_val))
 
-    # -----------------------------
-    # 2. TOTAL PURCHASES = SUM(total_amount)
-    # -----------------------------
+    # 7. CHART: Top 5 Selling Products (Quantity)
     cursor.execute("""
-        SELECT IFNULL(SUM(total_amount), 0) AS total_purchases
-        FROM purchases
+        SELECT p.name, SUM(s.quantity) as qty 
+        FROM sales s
+        JOIN products p ON s.product_id = p.id
+        GROUP BY p.name
+        ORDER BY qty DESC
+        LIMIT 5
     """)
-    total_purchases = cursor.fetchone()["total_purchases"]
-
-    # -----------------------------
-    # 3. TOTAL EXPENSES = SUM(amount)
-    # -----------------------------
-    cursor.execute("""
-        SELECT IFNULL(SUM(amount), 0) AS total_expenses
-        FROM expenses
-    """)
-    total_expenses = cursor.fetchone()["total_expenses"]
-
-    # -----------------------------
-    # 4. PROFIT = SALES - (PURCHASES + EXPENSES)
-    # -----------------------------
-    total_profit = total_sales - (total_purchases + total_expenses)
-
-    # -----------------------------
-    # 5. LOW STOCK = stock <= low_stock_threshold
-    # -----------------------------
-    cursor.execute("""
-        SELECT COUNT(*) AS low_stock
-        FROM products
-        WHERE stock <= low_stock_threshold
-    """)
-    low_stock = cursor.fetchone()["low_stock"]
-
-    # -----------------------------
-    # 6. SALES CHART LAST 6 MONTHS
-    # -----------------------------
-    cursor.execute("""
-        SELECT 
-            DATE_FORMAT(sale_date, '%%b %%Y') AS month_label,
-            IFNULL(SUM((price * quantity) - discount), 0) AS monthly_total
-        FROM sales
-        GROUP BY 1
-        ORDER BY MIN(sale_date) DESC
-        LIMIT 6
-    """)
-    rows = cursor.fetchall()
-
-    months = [row["month_label"] for row in reversed(rows)]
-    chart_sales = [row["monthly_total"] for row in reversed(rows)]
+    top_products = cursor.fetchall()
+    
+    # Prepare data lists for Charts.js
+    top_prod_names = [row['name'] for row in top_products]
+    top_prod_qty = [int(row['qty']) for row in top_products]
 
     cursor.close()
-
+    
     return render_template(
         "dash.html",
         total_sales=total_sales,
         total_purchases=total_purchases,
         total_expenses=total_expenses,
-        total_profit=total_profit,
         low_stock=low_stock,
-        chart_months=months,
-        chart_sales=chart_sales
+        supplier_dues=supplier_dues,  # New Metric
+        chart_months=chart_months,
+        chart_sales=chart_sales,
+        chart_expenses=chart_expenses, # New Chart Data
+        top_prod_names=top_prod_names, # New Chart Data
+        top_prod_qty=top_prod_qty      # New Chart Data
     )
 
 
@@ -4403,6 +4421,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
