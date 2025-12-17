@@ -331,12 +331,12 @@ def api_dashboard_charts():
             db_cursor.close()
 
 
-# Option 1: If your button links to '/admin_master'
+# Admin Page 
 @app.route('/admin_master')
 def admin_master():
     if "loggedin" not in session: 
         return redirect(url_for("login"))
-    # Redirect to the 'dash' route which renders dash.html inside admin_master layout
+    # Redirect dashboard page 
     return redirect(url_for('dash'))
 
 
@@ -2113,14 +2113,18 @@ def employee_document(id):
         
     doc_val = row["document"]
 
-    # 1. Full URL
+    # --- FIX START ---
+    # 1. Full URL Check
     if doc_val.startswith("http"):
+        # Fix for broken PDF links stored as full URLs without extension
+        if "erp_employee_docs" in doc_val and not any(doc_val.lower().endswith(x) for x in ['.pdf', '.jpg', '.png', '.jpeg', '.doc', '.docx']):
+            return redirect(doc_val + ".pdf")
         return redirect(doc_val)
 
     # 2. Cloudinary Public ID Fix
     try:
-        # FIX: If it is in 'erp_employee_docs' and likely a PDF uploaded as image (no extension)
-        # We MUST append .pdf for the URL to work.
+        # Heuristic: If it is in 'erp_employee_docs' and looks like a hash (no extension)
+        # We append .pdf via format parameter to fix the 404 for PDFs uploaded as images
         if "erp_employee_docs" in doc_val and not any(doc_val.lower().endswith(x) for x in ['.pdf', '.jpg', '.png', '.jpeg']):
              url, _ = cloudinary.utils.cloudinary_url(doc_val, secure=True, format="pdf")
              return redirect(url)
@@ -4428,6 +4432,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
