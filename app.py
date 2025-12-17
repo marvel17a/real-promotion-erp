@@ -2097,7 +2097,7 @@ def add_employee():
         cur.close()
 
 
-
+# REPLACE THE ENTIRE employee_document ROUTE WITH THIS:
 @app.route("/employee_document/<int:id>")
 def employee_document(id):
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
@@ -2113,23 +2113,27 @@ def employee_document(id):
         
     doc_val = row["document"]
 
-    # --- FIX START ---
-    # 1. Full URL Check
+    # --- SCENARIO 1: Database contains a full URL (Legacy Data) ---
     if doc_val.startswith("http"):
-        # Fix for broken PDF links stored as full URLs without extension
-        if "erp_employee_docs" in doc_val and not any(doc_val.lower().endswith(x) for x in ['.pdf', '.jpg', '.png', '.jpeg', '.doc', '.docx']):
+        # Problem: Old uploads might be missing the .pdf extension if treated as images
+        # Check if it looks like a document upload without an extension
+        # We explicitly check for 'erp_employee_docs' because that's where your PDFs are
+        if "erp_employee_docs" in doc_val and not any(doc_val.lower().endswith(ext) for ext in ['.pdf', '.jpg', '.png', '.jpeg', '.doc', '.docx']):
+            # Append .pdf to fix the 404 error
             return redirect(doc_val + ".pdf")
+        
         return redirect(doc_val)
 
-    # 2. Cloudinary Public ID Fix
+    # --- SCENARIO 2: Database contains Cloudinary Public ID ---
     try:
-        # Heuristic: If it is in 'erp_employee_docs' and looks like a hash (no extension)
-        # We append .pdf via format parameter to fix the 404 for PDFs uploaded as images
-        if "erp_employee_docs" in doc_val and not any(doc_val.lower().endswith(x) for x in ['.pdf', '.jpg', '.png', '.jpeg']):
+        # Heuristic: If it's in the docs folder and has no extension, assume it's a PDF
+        # uploaded as an image type (which requires .pdf suffix to view)
+        if "erp_employee_docs" in doc_val and not any(doc_val.lower().endswith(ext) for ext in ['.pdf', '.jpg', '.png', '.jpeg']):
+             # Force PDF format generation
              url, _ = cloudinary.utils.cloudinary_url(doc_val, secure=True, format="pdf")
              return redirect(url)
         
-        # Standard generation
+        # Standard generation for everything else (images, or IDs with extensions)
         url, _ = cloudinary.utils.cloudinary_url(doc_val, secure=True)
         return redirect(url)
     except Exception as e:
@@ -4432,6 +4436,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
