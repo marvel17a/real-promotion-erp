@@ -1,117 +1,150 @@
 {% extends "admin_master.html" %}
 
-{% block page_content %}
-<div class="container-fluid" data-aos="fade-in">
+{% block content %}
+<!-- Link to Separate Dashboard CSS -->
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+
+<div class="container-fluid dashboard-container" data-aos="fade-in">
     
-    <!-- HEADER -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <!-- HEADER SECTION -->
+    <div class="d-flex justify-content-between align-items-center mb-5">
         <div>
-            <h2 class="fw-bold mb-0">Executive Overview</h2>
-            <p class="text-muted small">Real-time business intelligence</p>
+            <h2 class="fw-bold mb-1" style="font-family: 'Outfit', sans-serif;">Dashboard</h2>
+            <div class="header-welcome">
+                <i class="fa-solid fa-calendar-day text-primary"></i>
+                <span class="fw-bold text-muted">{{ date.today().strftime('%B %d, %Y') }}</span>
+            </div>
         </div>
-        <div class="d-flex gap-2">
-            <span class="badge bg-glass text-dark d-flex align-items-center px-3">
-                <i class="fa-regular fa-clock me-2"></i> Today
-            </span>
-            <button class="btn btn-sm btn-outline-primary rounded-circle" onclick="location.reload()">
-                <i class="fa-solid fa-sync"></i>
+        <div>
+            <button class="btn btn-dark rounded-pill px-4 shadow-sm" onclick="location.reload()">
+                <i class="fa-solid fa-rotate-right me-2"></i> Refresh Data
             </button>
         </div>
     </div>
 
-    <!-- KPI ROW 1: FINANCIALS -->
+    <!-- ROW 1: SALES PERFORMANCE (New & Restored Elements) -->
     <div class="row g-4 mb-4">
-        <!-- Total Sales -->
+        
+        <!-- 1. TODAY'S SALES -->
         <div class="col-xl-3 col-md-6">
-            <div class="glass-card p-4 h-100 position-relative overflow-hidden">
-                <div class="d-flex justify-content-between align-items-start z-1 position-relative">
+            <div class="glass-stat-card theme-blue">
+                <div class="d-flex justify-content-between align-items-start position-relative z-2">
                     <div>
-                        <p class="text-muted text-uppercase fw-bold small mb-1">Total Revenue</p>
-                        <h3 class="fw-bold text-primary mb-0">₹{{ "{:,.0f}".format(total_sales | default(0)) }}</h3>
-                    </div>
-                    <div class="bg-primary-subtle text-primary rounded-circle p-3">
-                        <i class="fa-solid fa-chart-line fa-lg"></i>
+                        <div class="stat-icon">
+                            <i class="fa-solid fa-cash-register"></i>
+                        </div>
+                        <div class="stat-label">Sales Today</div>
+                        <div class="stat-value">₹{{ "{:,.0f}".format(sales_today | default(0)) }}</div>
                     </div>
                 </div>
-                <!-- Decorative BG Icon -->
-                <i class="fa-solid fa-chart-line position-absolute bottom-0 end-0 text-primary opacity-10" style="font-size: 5rem; transform: translate(20%, 20%);"></i>
+                <!-- Decoration -->
+                <i class="fa-solid fa-coins bg-decoration-icon"></i>
             </div>
         </div>
 
-        <!-- Supplier Dues -->
+        <!-- 2. MONTHLY SALES -->
         <div class="col-xl-3 col-md-6">
-            <div class="glass-card p-4 h-100 position-relative overflow-hidden border-start border-4 border-warning">
-                <div class="d-flex justify-content-between align-items-start z-1 position-relative">
+            <div class="glass-stat-card theme-purple">
+                <div class="d-flex justify-content-between align-items-start position-relative z-2">
                     <div>
-                        <p class="text-muted text-uppercase fw-bold small mb-1">Supplier Dues</p>
-                        <h3 class="fw-bold text-warning mb-0">₹{{ "{:,.0f}".format(supplier_dues | default(0)) }}</h3>
-                        <small class="text-danger"><i class="fa-solid fa-arrow-up me-1"></i>Pending</small>
-                    </div>
-                    <div class="bg-warning-subtle text-warning rounded-circle p-3">
-                        <i class="fa-solid fa-file-invoice-dollar fa-lg"></i>
+                        <div class="stat-icon">
+                            <i class="fa-solid fa-calendar-check"></i>
+                        </div>
+                        <div class="stat-label">This Month</div>
+                        <div class="stat-value">₹{{ "{:,.0f}".format(sales_this_month | default(0)) }}</div>
                     </div>
                 </div>
+                <i class="fa-solid fa-chart-area bg-decoration-icon"></i>
             </div>
         </div>
 
-        <!-- Expenses -->
+        <!-- 3. SUPPLIER DUES -->
         <div class="col-xl-3 col-md-6">
-            <div class="glass-card p-4 h-100 position-relative overflow-hidden">
-                <div class="d-flex justify-content-between align-items-start z-1 position-relative">
+            <div class="glass-stat-card theme-orange">
+                <div class="d-flex justify-content-between align-items-start position-relative z-2">
                     <div>
-                        <p class="text-muted text-uppercase fw-bold small mb-1">Op. Expenses</p>
-                        <h3 class="fw-bold text-danger mb-0">₹{{ "{:,.0f}".format(total_expenses | default(0)) }}</h3>
-                    </div>
-                    <div class="bg-danger-subtle text-danger rounded-circle p-3">
-                        <i class="fa-solid fa-receipt fa-lg"></i>
+                        <div class="stat-icon">
+                            <i class="fa-solid fa-file-invoice-dollar"></i>
+                        </div>
+                        <div class="stat-label">Supplier Dues</div>
+                        <div class="stat-value">₹{{ "{:,.0f}".format(supplier_dues | default(0)) }}</div>
                     </div>
                 </div>
+                <i class="fa-solid fa-hand-holding-dollar bg-decoration-icon"></i>
             </div>
         </div>
 
-        <!-- Low Stock -->
+        <!-- 4. LOW STOCK -->
         <div class="col-xl-3 col-md-6">
-            <div class="glass-card p-4 h-100 position-relative overflow-hidden">
-                <div class="d-flex justify-content-between align-items-start z-1 position-relative">
+            <div class="glass-stat-card theme-red">
+                <div class="d-flex justify-content-between align-items-start position-relative z-2">
                     <div>
-                        <p class="text-muted text-uppercase fw-bold small mb-1">Inventory Alert</p>
-                        <h3 class="fw-bold text-dark mb-0">{{ low_stock | default(0) }}</h3>
-                        <small class="text-muted">Items below threshold</small>
-                    </div>
-                    <div class="bg-dark-subtle text-dark rounded-circle p-3">
-                        <i class="fa-solid fa-box-open fa-lg"></i>
+                        <div class="stat-icon">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                        </div>
+                        <div class="stat-label">Low Stock</div>
+                        <div class="stat-value">{{ low_stock | default(0) }} <span style="font-size: 1rem; color: #aaa;">Items</span></div>
                     </div>
                 </div>
+                <i class="fa-solid fa-boxes-stacked bg-decoration-icon"></i>
             </div>
         </div>
     </div>
 
-    <!-- CHART ROW -->
+    <!-- ROW 2: SECONDARY STATS (Lifetime) -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-4">
+            <div class="glass-stat-card py-3 px-4 d-flex align-items-center justify-content-between" style="min-height: auto;">
+                <div>
+                    <span class="text-muted small fw-bold d-block">LIFETIME SALES</span>
+                    <span class="fs-4 fw-bold text-dark">₹{{ "{:,.0f}".format(total_sales | default(0)) }}</span>
+                </div>
+                <i class="fa-solid fa-chart-line text-success fs-3 opacity-50"></i>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="glass-stat-card py-3 px-4 d-flex align-items-center justify-content-between" style="min-height: auto;">
+                <div>
+                    <span class="text-muted small fw-bold d-block">TOTAL EXPENSES</span>
+                    <span class="fs-4 fw-bold text-dark">₹{{ "{:,.0f}".format(total_expenses | default(0)) }}</span>
+                </div>
+                <i class="fa-solid fa-wallet text-danger fs-3 opacity-50"></i>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="glass-stat-card py-3 px-4 d-flex align-items-center justify-content-between" style="min-height: auto;">
+                <div>
+                    <span class="text-muted small fw-bold d-block">NET PROFIT (Est.)</span>
+                    <span class="fs-4 fw-bold text-primary">₹{{ "{:,.0f}".format((total_sales|default(0) - total_purchases|default(0) - total_expenses|default(0))) }}</span>
+                </div>
+                <i class="fa-solid fa-piggy-bank text-primary fs-3 opacity-50"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- ROW 3: CHARTS -->
     <div class="row g-4 mb-4">
         <!-- Main Comparison Chart -->
         <div class="col-lg-8">
-            <div class="glass-card p-4 h-100">
+            <div class="glass-chart-card">
                 <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h5 class="fw-bold m-0">Financial Performance</h5>
-                    <div class="btn-group btn-group-sm">
-                        <button class="btn btn-outline-primary active">6 Months</button>
-                    </div>
+                    <h5 class="fw-bold m-0"><i class="fa-solid fa-chart-column me-2 text-primary"></i>Revenue vs Expenses</h5>
                 </div>
-                <div style="height: 300px;">
+                <div style="height: 320px;">
                     <canvas id="financeChart"></canvas>
                 </div>
             </div>
         </div>
 
-        <!-- Top Products Doughnut -->
+        <!-- Top Products -->
         <div class="col-lg-4">
-            <div class="glass-card p-4 h-100">
-                <h5 class="fw-bold mb-4">Top Selling Items</h5>
+            <div class="glass-chart-card">
+                <h5 class="fw-bold mb-4"><i class="fa-solid fa-crown me-2 text-warning"></i>Top Movers</h5>
                 <div style="height: 250px; position: relative;">
                     <canvas id="productChart"></canvas>
                 </div>
                 <div class="mt-4 text-center">
-                    <small class="text-muted d-block">Based on total quantity sold</small>
+                    <small class="text-muted fst-italic">Based on quantity sold</small>
                 </div>
             </div>
         </div>
@@ -129,18 +162,26 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     
-    // --- 1. FINANCE CHART (Bar: Sales vs Expenses) ---
+    // 1. FINANCE CHART
     const ctxFinance = document.getElementById('financeChart').getContext('2d');
-    
-    // Safe JSON Parsing
     let months = [], salesData = [], expenseData = [], prodNames = [], prodQty = [];
+    
     try {
         months = JSON.parse(document.getElementById('chart-months').textContent);
         salesData = JSON.parse(document.getElementById('chart-sales').textContent);
         expenseData = JSON.parse(document.getElementById('chart-expenses').textContent);
         prodNames = JSON.parse(document.getElementById('prod-names').textContent);
         prodQty = JSON.parse(document.getElementById('prod-qty').textContent);
-    } catch(e) { console.log("Chart data missing"); }
+    } catch(e) { console.log("Chart data parsing error"); }
+
+    // Gradient for bars
+    let gradientSales = ctxFinance.createLinearGradient(0, 0, 0, 400);
+    gradientSales.addColorStop(0, '#3498db');
+    gradientSales.addColorStop(1, '#2980b9');
+
+    let gradientExp = ctxFinance.createLinearGradient(0, 0, 0, 400);
+    gradientExp.addColorStop(0, '#e74c3c');
+    gradientExp.addColorStop(1, '#c0392b');
 
     new Chart(ctxFinance, {
         type: 'bar',
@@ -150,14 +191,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 {
                     label: 'Sales',
                     data: salesData,
-                    backgroundColor: 'rgba(52, 152, 219, 0.8)',
-                    borderRadius: 5,
+                    backgroundColor: gradientSales,
+                    borderRadius: 8,
+                    barPercentage: 0.6,
                 },
                 {
                     label: 'Expenses',
                     data: expenseData,
-                    backgroundColor: 'rgba(231, 76, 60, 0.8)',
-                    borderRadius: 5,
+                    backgroundColor: gradientExp,
+                    borderRadius: 8,
+                    barPercentage: 0.6,
                 }
             ]
         },
@@ -165,16 +208,28 @@ document.addEventListener('DOMContentLoaded', function() {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                legend: { position: 'top' },
+                legend: { position: 'top', align: 'end' },
+                tooltip: {
+                    backgroundColor: 'rgba(0,0,0,0.8)',
+                    padding: 12,
+                    cornerRadius: 10,
+                }
             },
             scales: {
-                y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } },
-                x: { grid: { display: false } }
+                y: { 
+                    beginAtZero: true, 
+                    grid: { color: 'rgba(0,0,0,0.05)', borderDash: [5, 5] },
+                    border: { display: false }
+                },
+                x: { 
+                    grid: { display: false },
+                    border: { display: false }
+                }
             }
         }
     });
 
-    // --- 2. PRODUCT CHART (Doughnut) ---
+    // 2. PRODUCT CHART
     const ctxProduct = document.getElementById('productChart').getContext('2d');
 
     new Chart(ctxProduct, {
@@ -184,30 +239,22 @@ document.addEventListener('DOMContentLoaded', function() {
             datasets: [{
                 data: prodQty.length ? prodQty : [1],
                 backgroundColor: [
-                    '#3498db', '#9b59b6', '#2ecc71', '#f1c40f', '#e67e22', '#e0e0e0'
+                    '#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b'
                 ],
                 borderWidth: 0,
-                hoverOffset: 10
+                hoverOffset: 15
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                legend: { position: 'right', labels: { boxWidth: 12 } }
+                legend: { position: 'bottom', labels: { usePointStyle: true, padding: 20 } }
             },
-            cutout: '70%'
+            cutout: '75%',
+            layout: { padding: 10 }
         }
     });
 });
 </script>
-
-<style>
-.bg-glass {
-    background: rgba(255, 255, 255, 0.5);
-    backdrop-filter: blur(5px);
-    border: 1px solid rgba(255,255,255,0.4);
-    border-radius: 20px;
-}
-</style>
 {% endblock %}
