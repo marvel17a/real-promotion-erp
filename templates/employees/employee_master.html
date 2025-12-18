@@ -1,6 +1,6 @@
 {% extends "admin_master.html" %}
 
-{% block page_content %}
+{% block content %}
 <!-- Link to New CSS -->
 <link rel="stylesheet" href="{{ url_for('static', filename='css/employee.css') }}">
 
@@ -36,7 +36,7 @@
                     <li class="management-item">
                         <span class="fw-semibold text-dark">{{ d.name }}</span>
                         <!-- Form Action: Delete Department -->
-                        <form action="{{ url_for('employee_department_delete', id=d.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this department?');">
+                        <form action="{{ url_for('delete_department', id=d.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this department?');">
                             <button class="btn btn-sm text-danger border-0 p-0 ms-2" title="Remove"><i class="fa-solid fa-trash-can"></i></button>
                         </form>
                     </li>
@@ -67,7 +67,7 @@
                         <div class="d-flex justify-content-between w-100">
                             <span class="fw-bold text-dark">{{ p.position_name }}</span>
                             <!-- Form Action: Delete Position -->
-                            <form action="{{ url_for('employee_position_delete', id=p.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this position?');">
+                            <form action="{{ url_for('delete_position', id=p.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this position?');">
                                 <button class="btn btn-sm text-danger border-0 p-0" title="Remove"><i class="fa-solid fa-trash-can"></i></button>
                             </form>
                         </div>
@@ -199,7 +199,4 @@
         </div>
     </div>
 </div>
-
-
-<script src="{{ url_for('static', filename='js/emp.js') }}"></script>
 {% endblock %}
