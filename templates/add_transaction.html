@@ -18,6 +18,7 @@
             </div>
         </div>
 
+        <!-- Form Action matches your route: /add-transaction/<int:employee_id> -->
         <form method="POST" action="{{ url_for('add_transaction', employee_id=employee.id) }}">
             
             <!-- Type Selection (Visual Cards) -->
@@ -49,8 +50,8 @@
                 </div>
                 <div class="col-md-6">
                     <label class="form-label fw-bold text-muted small text-uppercase">Date</label>
-                    <!-- Standard HTML5 date input is best for cross-browser compatibility -->
-                    <input type="date" name="date" id="datePicker" class="form-control input-glass" required>
+                    <!-- KEY FIX: name="transaction_date" matches app.py -->
+                    <input type="date" name="transaction_date" id="datePicker" class="form-control input-glass" required>
                 </div>
                 <div class="col-12">
                     <label class="form-label fw-bold text-muted small text-uppercase">Description</label>
