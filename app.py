@@ -341,8 +341,6 @@ def admin_master():
 )
 
 
-# ... existing imports ...
-
 # --- HELPER FUNCTION: Find correct column name automatically ---
 def get_db_column(cursor, table_name, candidates):
     """
@@ -4491,6 +4489,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
