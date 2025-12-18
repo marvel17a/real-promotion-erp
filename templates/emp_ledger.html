@@ -3,68 +3,58 @@
 {% block title %}{{ employee.name }}'s Ledger{% endblock %}
 
 {% block page_content %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/employee.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/employee_finance.css') }}">
 
-<div class="container-fluid employee-container fade-in-up">
+<div class="container-fluid py-4 fade-in-up">
 
-    <!-- PAGE HEADER / BREADCRUMB LIKE NAV -->
     <div class="mb-4">
-        <a href="{{ url_for('emp_list') }}" class="text-decoration-none text-muted small fw-bold">
+        <a href="{{ url_for('emp_list') }}" class="text-muted text-decoration-none fw-bold small">
             <i class="fa-solid fa-arrow-left me-1"></i> Back to List
         </a>
     </div>
 
-    <!-- PROFILE & BALANCE SECTION -->
     <div class="row g-4 mb-4">
-        <!-- Profile Info -->
-        <div class="col-lg-8">
-            <div class="glass-panel h-100 d-flex align-items-center p-4">
-                <div class="avatar-frame me-4" style="width: 80px; height: 80px;">
-                    <img src="{{ url_for('static', filename=employee.image or 'images/default-avatar.png') }}" 
-                         onerror="this.src='https://ui-avatars.com/api/?name={{ employee.name }}&background=random&size=128'"
-                         alt="{{ employee.name }}" class="avatar-img">
-                </div>
-                <div>
-                    <h2 class="fw-bold mb-1 text-dark">{{ employee.name }}</h2>
-                    <div class="d-flex gap-3 text-muted small">
-                        <span><i class="fa-solid fa-briefcase me-1"></i> {{ employee.position }}</span>
-                        <span><i class="fa-solid fa-envelope me-1"></i> {{ employee.email }}</span>
+        <!-- Profile & Balance Card -->
+        <div class="col-12">
+            <div class="glass-container d-flex align-items-center justify-content-between flex-wrap gap-4">
+                <div class="d-flex align-items-center gap-4">
+                    <div class="avatar-wrapper avatar-lg">
+                        {% if employee.image %}
+                            <img src="{{ cloudinary_url(employee.image)[0] }}" class="table-thumb" alt="{{ employee.name }}">
+                        {% else %}
+                            <div class="table-thumb bg-secondary d-flex align-items-center justify-content-center text-white h-100 w-100 fs-2">
+                                <i class="fas fa-user"></i>
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <h2 class="mb-1 fw-bold">{{ employee.name }}</h2>
+                        <p class="text-muted mb-0"><i class="fa-solid fa-briefcase me-2"></i>{{ employee.position }} | {{ employee.email }}</p>
                     </div>
                 </div>
-            </div>
-        </div>
-
-        <!-- Balance Card -->
-        <div class="col-lg-4">
-            <div class="glass-panel h-100 d-flex flex-column justify-content-center align-items-center text-center p-4 position-relative overflow-hidden" 
-                 style="background: {% if final_balance > 0 %}rgba(254, 226, 226, 0.6){% else %}rgba(220, 252, 231, 0.6){% endif %};">
                 
-                <h6 class="text-uppercase fw-bold text-secondary mb-2" style="font-size: 0.75rem; letter-spacing: 1px;">Current Balance</h6>
-                
-                <h1 class="display-5 fw-bold mb-0 {% if final_balance > 0 %}text-danger{% else %}text-success{% endif %}">
-                    {{ (final_balance|abs)|inr }}
-                </h1>
-                
-                <span class="badge rounded-pill mt-2 {% if final_balance > 0 %}bg-danger text-white{% else %}bg-success text-white{% endif %}">
-                    {% if final_balance > 0 %}Due from Employee{% else %}Paid / Clear{% endif %}
-                </span>
-
-                <!-- Decorative BG Icon -->
-                <i class="fa-solid fa-wallet position-absolute" style="font-size: 6rem; opacity: 0.05; right: -10px; bottom: -10px;"></i>
+                <div class="text-end">
+                    <small class="text-uppercase text-muted fw-bold ls-1">Current Balance</small>
+                    <h1 class="display-5 fw-bold mb-0 {% if final_balance > 0 %}text-danger{% else %}text-success{% endif %}">
+                        {{ final_balance|inr }}
+                    </h1>
+                    <span class="badge {% if final_balance > 0 %}bg-danger{% else %}bg-success{% endif %} rounded-pill">
+                        {% if final_balance > 0 %}Due Payment{% else %}Clear / Advance{% endif %}
+                    </span>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- ACTIONS & TABLE -->
-    <div class="glass-panel p-0 overflow-hidden">
-        <div class="p-4 border-bottom d-flex justify-content-between align-items-center bg-white bg-opacity-40">
-            <h5 class="fw-bold m-0"><i class="fa-solid fa-list-check me-2 text-dark"></i>Transaction History</h5>
-            <a href="{{ url_for('add_transaction', employee_id=employee.id) }}" class="btn btn-dark rounded-pill px-4 shadow-sm">
-                <i class="fa-solid fa-plus me-2"></i>New Entry
+    <!-- Transactions List -->
+    <div class="glass-container p-0">
+        <div class="p-4 border-bottom d-flex justify-content-between align-items-center">
+            <h5 class="mb-0 fw-bold">Transaction History</h5>
+            <a href="{{ url_for('add_transaction', employee_id=employee.id) }}" class="btn-gradient text-decoration-none">
+                <i class="fa-solid fa-plus me-2"></i>New Transaction
             </a>
         </div>
-
-        <div class="table-responsive">
+        <div class="table-responsive p-3">
             <table class="table-glass">
                 <thead>
                     <tr>
@@ -78,121 +68,54 @@
                 <tbody>
                     {% for t in transactions %}
                     <tr>
-                        <td class="ps-4 text-muted fw-medium">{{ t.date }}</td>
+                        <td class="ps-4 fw-medium text-dark">{{ t.date }}</td>
                         <td>
                             {% if t.type == 'credit' %}
-                            <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-3 py-2 rounded-pill">
-                                <i class="fa-solid fa-arrow-down me-1"></i> Credit
-                            </span>
+                                <span class="badge-soft badge-soft-success"><i class="fa-solid fa-arrow-down me-1"></i>Credit</span>
                             {% else %}
-                            <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle px-3 py-2 rounded-pill">
-                                <i class="fa-solid fa-arrow-up me-1"></i> Debit
-                            </span>
+                                <span class="badge-soft badge-soft-danger"><i class="fa-solid fa-arrow-up me-1"></i>Debit</span>
                             {% endif %}
                         </td>
-                        <td><span class="text-dark">{{ t.description }}</span></td>
-                        <td class="text-end fw-bold text-dark">{{ t.amount|inr }}</td>
+                        <td class="text-muted">{{ t.description }}</td>
+                        <td class="text-end fw-bold">{{ t.amount|inr }}</td>
                         <td class="text-center pe-4">
-                            <div class="btn-group">
-                                <!-- View Button -->
-                                <button type="button" class="action-btn btn-view" data-bs-toggle="modal" data-bs-target="#viewTransactionModal"
-                                    data-id="{{ t.id }}" data-date="{{ t.date }}" data-type="{{ t.type }}" 
-                                    data-amount="{{ t.amount|inr }}" data-description="{{ t.description }}" 
-                                    data-created="{{ t.created_at }}">
-                                    <i class="fa-regular fa-eye"></i>
-                                </button>
-                                
-                                <!-- Edit Button -->
-                                <a href="{{ url_for('edit_transaction', transaction_id=t.id) }}" class="action-btn btn-edit">
+                            <div class="d-flex justify-content-center gap-2">
+                                <a href="{{ url_for('edit_transaction', transaction_id=t.id) }}" class="btn-icon text-warning" title="Edit">
                                     <i class="fa-solid fa-pen"></i>
                                 </a>
-
-                                <!-- Delete Button -->
-                                <button type="button" class="action-btn btn-delete" data-bs-toggle="modal" data-bs-target="#deleteModal" data-id="{{ t.id }}">
-                                    <i class="fa-regular fa-trash-can"></i>
+                                <!-- Using existing backend logic for delete via modal or direct link if available -->
+                                <button type="button" class="btn-icon text-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ t.id }}">
+                                    <i class="fa-solid fa-trash"></i>
                                 </button>
+                            </div>
+
+                            <!-- Delete Modal -->
+                            <div class="modal fade" id="deleteModal{{ t.id }}" tabindex="-1">
+                                <div class="modal-dialog modal-dialog-centered">
+                                    <div class="modal-content border-0 shadow-lg rounded-4">
+                                        <div class="modal-body text-center p-5">
+                                            <div class="text-danger mb-3"><i class="fa-solid fa-circle-exclamation fa-3x"></i></div>
+                                            <h4 class="mb-3">Delete Transaction?</h4>
+                                            <p class="text-muted mb-4">Are you sure you want to remove this record of {{ t.amount|inr }}?</p>
+                                            <div class="d-flex justify-content-center gap-3">
+                                                <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
+                                                <!-- Assuming form action logic from your previous files -->
+                                                <form action="/delete-transaction/{{ t.id }}" method="POST"> 
+                                                    <button type="submit" class="btn btn-danger rounded-pill px-4">Yes, Delete</button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </td>
                     </tr>
                     {% else %}
-                    <tr>
-                        <td colspan="5" class="text-center py-5 text-muted fst-italic">No transactions recorded yet.</td>
-                    </tr>
+                    <tr><td colspan="5" class="text-center py-5 text-muted">No transactions yet.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
     </div>
 </div>
-
-<!-- VIEW MODAL -->
-<div class="modal fade" id="viewTransactionModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
-            <div class="modal-header border-0 pb-0">
-                <h5 class="modal-title fw-bold">Transaction Details</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body p-4">
-                <div class="d-flex justify-content-between align-items-center mb-4 p-3 bg-light rounded-3">
-                    <span class="text-muted text-uppercase small fw-bold">Amount</span>
-                    <span class="fs-4 fw-bold text-dark" id="view-amount"></span>
-                </div>
-                <div class="row g-3">
-                    <div class="col-6"><small class="text-muted d-block">ID</small><strong id="view-id"></strong></div>
-                    <div class="col-6"><small class="text-muted d-block">Date</small><strong id="view-date"></strong></div>
-                    <div class="col-6"><small class="text-muted d-block">Type</small><strong id="view-type" class="text-uppercase"></strong></div>
-                    <div class="col-6"><small class="text-muted d-block">Created</small><small id="view-created"></small></div>
-                    <div class="col-12"><small class="text-muted d-block">Description</small><p class="mb-0 fw-medium" id="view-description"></p></div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- DELETE MODAL -->
-<div class="modal fade" id="deleteModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
-            <div class="modal-body p-5 text-center">
-                <div class="bg-danger bg-opacity-10 text-danger rounded-circle d-inline-flex align-items-center justify-content-center mb-4" style="width: 70px; height: 70px;">
-                    <i class="fa-solid fa-triangle-exclamation fa-2x"></i>
-                </div>
-                <h4 class="fw-bold">Delete Transaction?</h4>
-                <p class="text-muted mb-4">This action cannot be undone. Are you sure you want to remove this record?</p>
-                <div class="d-flex justify-content-center gap-3">
-                    <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
-                    <form id="deleteForm" method="POST">
-                        <button type="submit" class="btn btn-danger rounded-pill px-4">Yes, Delete</button>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-{% endblock %}
-
-{% block page_scripts %}
-<script>
-// Populates View Modal
-const viewModal = document.getElementById('viewTransactionModal');
-viewModal.addEventListener('show.bs.modal', event => {
-  const button = event.relatedTarget;
-  document.getElementById('view-id').textContent = button.dataset.id;
-  document.getElementById('view-date').textContent = button.dataset.date;
-  document.getElementById('view-type').textContent = button.dataset.type;
-  document.getElementById('view-amount').textContent = button.dataset.amount;
-  document.getElementById('view-description').textContent = button.dataset.description || 'N/A';
-  document.getElementById('view-created').textContent = button.dataset.created;
-});
-
-// Populates Delete Modal
-const deleteModal = document.getElementById('deleteModal');
-deleteModal.addEventListener('show.bs.modal', event => {
-    const button = event.relatedTarget;
-    const transactionId = button.dataset.id;
-    // Assuming route: /delete-transaction/<id> based on your original file
-    document.getElementById('deleteForm').action = `/delete-transaction/${transactionId}`; 
-});
-</script>
 {% endblock %}
