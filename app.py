@@ -343,25 +343,15 @@ def admin_master():
 
 # --- HELPER FUNCTION: Find correct column name automatically ---
 def get_db_column(cursor, table_name, candidates):
-    """
-    Checks the database table for existence of candidate columns.
-    Returns the first match found.
-    """
+    """Finds which column name actually exists in the table."""
     try:
         cursor.execute(f"SHOW COLUMNS FROM {table_name}")
-        # Extract column names from the result
         existing_columns = [row['Field'] for row in cursor.fetchall()]
-        
         for cand in candidates:
-            if cand in existing_columns:
-                return cand
-        
-        # If no match, return the first candidate as default (might fail, but best guess)
+            if cand in existing_columns: return cand
         return candidates[0]
-    except Exception as e:
-        print(f"Error checking columns for {table_name}: {e}")
+    except:
         return candidates[0]
-
 
 @app.route("/dash")
 def dash():
@@ -370,6 +360,7 @@ def dash():
     
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     today = date.today()
+    current_year = today.year
     
     # --- DYNAMIC COLUMN DETECTION ---
     sales_col = get_db_column(cursor, 'sales', ['total_amount', 'amount', 'total', 'grand_total', 'final_total'])
@@ -377,46 +368,42 @@ def dash():
     exp_col   = get_db_column(cursor, 'expenses', ['amount', 'cost', 'total'])
     stock_col = get_db_column(cursor, 'products', ['quantity', 'qty', 'stock'])
 
-    # --- KPIS ---
-    
-    # 1. Sales Today
+    # --- 1. Sales Today ---
     try:
         cursor.execute(f"SELECT SUM({sales_col}) as total FROM sales WHERE date = %s", (today,))
         sales_today = cursor.fetchone()['total'] or 0
     except: sales_today = 0
 
-    # 2. Sales This Month
+    # --- 2. Sales This Month ---
     try:
         start_m = date(today.year, today.month, 1)
+        # Logic to find end of month
         if today.month == 12: end_m = date(today.year + 1, 1, 1) - timedelta(days=1)
         else: end_m = date(today.year, today.month + 1, 1) - timedelta(days=1)
+        
         cursor.execute(f"SELECT SUM({sales_col}) as total FROM sales WHERE date BETWEEN %s AND %s", (start_m, end_m))
         sales_this_month = cursor.fetchone()['total'] or 0
     except: sales_this_month = 0
 
-    # 3. Total Stats (Lifetime)
+    # --- 3. Yearly Sales (New) ---
     try:
-        cursor.execute(f"SELECT SUM({sales_col}) as total FROM sales")
-        total_sales = cursor.fetchone()['total'] or 0
-    except: total_sales = 0
-    
+        cursor.execute(f"SELECT SUM({sales_col}) as total FROM sales WHERE YEAR(date) = %s", (current_year,))
+        yearly_sales = cursor.fetchone()['total'] or 0
+    except: yearly_sales = 0
+
+    # --- 4. Yearly Expenses (New) ---
     try:
-        cursor.execute(f"SELECT SUM({purch_col}) as total FROM purchases")
-        total_purchases = cursor.fetchone()['total'] or 0
-    except: total_purchases = 0
+        cursor.execute(f"SELECT SUM({exp_col}) as total FROM expenses WHERE YEAR(date) = %s", (current_year,))
+        yearly_expenses = cursor.fetchone()['total'] or 0
+    except: yearly_expenses = 0
     
-    try:
-        cursor.execute(f"SELECT SUM({exp_col}) as total FROM expenses")
-        total_expenses = cursor.fetchone()['total'] or 0
-    except: total_expenses = 0
-    
-    # 4. Low Stock
+    # --- 5. Low Stock ---
     try:
         cursor.execute(f"SELECT COUNT(*) as cnt FROM products WHERE {stock_col} < 10")
         low_stock = cursor.fetchone()['cnt'] or 0
     except: low_stock = 0
     
-    # 5. Supplier Dues
+    # --- 6. Supplier Dues ---
     try:
         cursor.execute(f"""
             SELECT 
@@ -427,28 +414,38 @@ def dash():
         supplier_dues = cursor.fetchone()['pending_dues'] or 0
     except: supplier_dues = 0
     
-    # --- CHARTS ---
-    chart_months, chart_sales, chart_expenses = [], [], []
+    # --- 7. CHART DATA (Jan - Dec for Current Year) ---
+    chart_months = []
+    chart_sales = []
+    chart_expenses = []
     
-    for i in range(5, -1, -1):
-        m_date = today - timedelta(days=30*i) 
-        start_m = date(m_date.year, m_date.month, 1)
-        if m_date.month == 12: end_m = date(m_date.year + 1, 1, 1) - timedelta(days=1)
-        else: end_m = date(m_date.year, m_date.month + 1, 1) - timedelta(days=1)
-            
-        chart_months.append(start_m.strftime("%b"))
+    # Loop 1 to 12 for January to December
+    for m in range(1, 13):
+        month_name = calendar.month_abbr[m]
+        chart_months.append(month_name)
         
+        # Calculate start and end date for month 'm' in 'current_year'
+        start_date = date(current_year, m, 1)
+        if m == 12:
+            end_date = date(current_year + 1, 1, 1) - timedelta(days=1)
+        else:
+            end_date = date(current_year, m + 1, 1) - timedelta(days=1)
+            
+        # Sales Query
         try:
-            cursor.execute(f"SELECT SUM({sales_col}) as s FROM sales WHERE date BETWEEN %s AND %s", (start_m, end_m))
-            chart_sales.append(float(cursor.fetchone()['s'] or 0))
+            cursor.execute(f"SELECT SUM({sales_col}) as s FROM sales WHERE date BETWEEN %s AND %s", (start_date, end_date))
+            val = cursor.fetchone()['s'] or 0
+            chart_sales.append(float(val))
         except: chart_sales.append(0.0)
         
+        # Expenses Query
         try:
-            cursor.execute(f"SELECT SUM({exp_col}) as e FROM expenses WHERE date BETWEEN %s AND %s", (start_m, end_m))
-            chart_expenses.append(float(cursor.fetchone()['e'] or 0))
+            cursor.execute(f"SELECT SUM({exp_col}) as e FROM expenses WHERE date BETWEEN %s AND %s", (start_date, end_date))
+            val = cursor.fetchone()['e'] or 0
+            chart_expenses.append(float(val))
         except: chart_expenses.append(0.0)
 
-    # --- TOP PRODUCTS ---
+    # --- 8. TOP PRODUCTS ---
     top_prod_names, top_prod_qty = [], []
     try:
         cursor.execute("""
@@ -468,9 +465,8 @@ def dash():
         "dash.html",
         sales_today=sales_today,
         sales_this_month=sales_this_month,
-        total_sales=total_sales,
-        total_purchases=total_purchases,
-        total_expenses=total_expenses,
+        yearly_sales=yearly_sales,         # New
+        yearly_expenses=yearly_expenses,   # New
         low_stock=low_stock,
         supplier_dues=supplier_dues,
         chart_months=chart_months,
@@ -478,8 +474,11 @@ def dash():
         chart_expenses=chart_expenses,
         top_prod_names=top_prod_names,
         top_prod_qty=top_prod_qty,
-        date=date # <--- Pass date object to template
+        date=date,
+        current_year=current_year
     )
+
+# ... (rest of your app.py remains unchanged) ...
 
 
 # =====================================================================
@@ -4463,6 +4462,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
