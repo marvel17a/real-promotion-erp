@@ -3,41 +3,72 @@
 {% block title %}Edit Transaction{% endblock %}
 
 {% block page_content %}
-<div class="row justify-content-center">
-    <div class="col-md-8">
-        <div class="card shadow-sm">
-            <div class="card-header bg-white">
-                <h4 class="mb-0">Edit Transaction for {{ transaction.name }}</h4>
-            </div>
-            <div class="card-body">
-                <form method="POST" action="{{ url_for('edit_transaction', transaction_id=transaction.id) }}">
-                    <div class="mb-3">
-                        <label for="transaction_date" class="form-label">Transaction Date</label>
-                        <input type="date" class="form-control" id="transaction_date" name="transaction_date" value="{{ transaction.transaction_date.strftime('%Y-%m-%d') }}" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="type" class="form-label">Transaction Type</label>
-                        <select class="form-select" id="type" name="type" required>
-                            <option value="credit" {% if transaction.type == 'credit' %}selected{% endif %}>Credit (Give loan/advance to Employee)</option>
-                            <option value="debit" {% if transaction.type == 'debit' %}selected{% endif %}>Debit (Receive payment from Employee)</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="amount" class="form-label">Amount ($)</label>
-                        <input type="number" class="form-control" id="amount" name="amount" step="0.01" min="0.01" value="{{ transaction.amount }}" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="description" class="form-label">Description</label>
-                        <textarea class="form-control" id="description" name="description" rows="3">{{ transaction.description }}</textarea>
-                    </div>
-                    <hr>
-                    <div class="d-flex justify-content-end">
-                        <a href="{{ url_for('emp_ledger', employee_id=transaction.employee_id) }}" class="btn btn-secondary me-2">Cancel</a>
-                        <button type="submit" class="btn btn-primary">Update Transaction</button>
-                    </div>
-                </form>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/employee_finance.css') }}">
+
+<div class="container py-5 fade-in-up" style="max-width: 800px;">
+    
+    <div class="glass-container p-5">
+        <div class="d-flex align-items-center mb-4 pb-3 border-bottom">
+            <!-- Back button logic: needs employee_id, which comes from transaction object -->
+            <a href="{{ url_for('emp_ledger', employee_id=transaction.employee_id) }}" class="btn-icon me-3 text-dark text-decoration-none">
+                <i class="fa-solid fa-arrow-left"></i>
+            </a>
+            <div>
+                <h3 class="mb-0 fw-bold">Edit Transaction</h3>
+                <p class="text-muted mb-0 small">Updating record for <span class="text-primary fw-bold">{{ transaction.name }}</span></p>
             </div>
         </div>
+
+        <form method="POST" action="{{ url_for('edit_transaction', transaction_id=transaction.id) }}">
+            
+            <!-- Type Selection (Visual Cards) -->
+            <label class="form-label fw-bold mb-3">Transaction Type</label>
+            <div class="row g-3 mb-4">
+                <div class="col-6">
+                    <input type="radio" class="trans-card-radio" name="type" id="credit" value="credit" required 
+                           {% if transaction.type == 'credit' %}checked{% endif %}>
+                    <label class="trans-card-label credit" for="credit">
+                        <i class="fa-solid fa-circle-arrow-down fa-2x text-success mb-2"></i>
+                        <span class="fw-bold text-dark">Credit</span>
+                        <small class="text-muted">Money In (Receive)</small>
+                    </label>
+                </div>
+                <div class="col-6">
+                    <input type="radio" class="trans-card-radio" name="type" id="debit" value="debit"
+                           {% if transaction.type == 'debit' %}checked{% endif %}>
+                    <label class="trans-card-label debit" for="debit">
+                        <i class="fa-solid fa-circle-arrow-up fa-2x text-danger mb-2"></i>
+                        <span class="fw-bold text-dark">Debit</span>
+                        <small class="text-muted">Money Out (Give)</small>
+                    </label>
+                </div>
+            </div>
+
+            <div class="row g-4">
+                <div class="col-md-6">
+                    <label class="form-label fw-bold text-muted small text-uppercase">Amount (₹)</label>
+                    <input type="number" step="0.01" name="amount" class="form-control input-glass fs-5 fw-bold" 
+                           value="{{ transaction.amount }}" placeholder="0.00" required>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-bold text-muted small text-uppercase">Date</label>
+                    <!-- Formatting date for input value -->
+                    <input type="date" name="transaction_date" class="form-control input-glass" 
+                           value="{{ transaction.transaction_date }}" required>
+                </div>
+                <div class="col-12">
+                    <label class="form-label fw-bold text-muted small text-uppercase">Description</label>
+                    <textarea name="description" class="form-control input-glass" rows="3" 
+                              placeholder="Reason for transaction...">{{ transaction.description }}</textarea>
+                </div>
+            </div>
+
+            <div class="mt-5 text-end">
+                <button type="submit" class="btn-gradient shadow-lg px-5 py-3">
+                    <i class="fa-solid fa-check-double me-2"></i>Update Record
+                </button>
+            </div>
+        </form>
     </div>
 </div>
 {% endblock %}
