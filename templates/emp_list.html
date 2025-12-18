@@ -37,8 +37,8 @@
                             <div class="d-flex align-items-center gap-3">
                                 <!-- Profile Picture Logic (Matches your requested snippet) -->
                                 <div class="avatar-wrapper">
-                                    {% if emp.image %}
-                                        <img src="{{ cloudinary_url(emp.image)[0] }}" class="table-thumb" alt="{{ emp.name }}">
+                                    {% if employee.image %}
+                                        <img src="{{ cloudinary_url(employee.image)[0] }}" class="table-thumb" alt="{{ employee.name }}">
                                     {% else %}
                                         <div class="table-thumb bg-secondary d-flex align-items-center justify-content-center text-white h-100 w-100">
                                             <i class="fas fa-user"></i>
@@ -78,3 +78,4 @@
     });
 </script>
 {% endblock %}
+
