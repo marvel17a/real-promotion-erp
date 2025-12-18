@@ -1970,76 +1970,100 @@ def employee_master():
 
 # ---------- ADMIN SIDE: POSITION MASTER ----------
 
-@app.route('/employee/position/add', methods=['POST'])
-def employee_position_add():
-    if 'loggedin' not in session: return redirect(url_for('login'))
-    if request.method == 'POST':
-        name = request.form['position_name']
-        dept_id = request.form['department_id']
-        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-        cursor.execute("INSERT INTO positions (position_name, department_id) VALUES (%s, %s)", (name, dept_id))
-        mysql.connection.commit()
-        cursor.close()
-        flash('Position added successfully!', 'success')
-    return redirect(url_for('employee_master'))
-
-@app.route('/employee/position/delete/<int:id>', methods=['POST'])
-def delete_position(id):
-    if 'loggedin' not in session: return redirect(url_for('login'))
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    try:
-        cursor.execute("DELETE FROM positions WHERE id=%s", (id,))
-        mysql.connection.commit()
-        flash('Position deleted!', 'info')
-    except Exception as e:
-        flash('Error deleting position. It may be in use.', 'danger')
-    cursor.close()
-    return redirect(url_for('employee_master'))
-
-def get_db_column(cursor, table_name, candidates):
-    """Finds which column name actually exists in the table."""
-    try:
-        cursor.execute(f"SHOW COLUMNS FROM {table_name}")
-        existing_columns = [row['Field'] for row in cursor.fetchall()]
-        for cand in candidates:
-            if cand in existing_columns: return cand
-        return candidates[0]
-    except:
-        return candidates[0]
-
-
-
-# ---------- ADMIN SIDE: DEPARTMENT MASTER ----------
-
-# --- EMPLOYEE DEPARTMENT & POSITION ROUTES (Add these to app.py) ---
-
-@app.route('/employee/department/add', methods=['POST'])
+# ---------- ADMIN SIDE: DEPARTMENT MASTER ----------#############################################################################################################
+@app.route("/employee_department_add", methods=["POST"])
 def employee_department_add():
-    if 'loggedin' not in session: return redirect(url_for('login'))
-    if request.method == 'POST':
-        name = request.form['department_name']
-        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-        cursor.execute("INSERT INTO departments (name) VALUES (%s)", (name,))
-        mysql.connection.commit()
-        cursor.close()
-        flash('Department added successfully!', 'success')
-    return redirect(url_for('employee_master'))
+    if "loggedin" not in session:
+        return redirect(url_for("login"))
 
-@app.route('/employee/department/delete/<int:id>', methods=['POST'])
-def delete_department(id):
-    if 'loggedin' not in session: return redirect(url_for('login'))
+    department_name = request.form.get("department_name", "").strip()
+    if not department_name:
+        flash("Department name is required.", "danger")
+        return redirect(url_for("employee_master"))
+
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    try:
-        cursor.execute("DELETE FROM departments WHERE id=%s", (id,))
-        mysql.connection.commit()
-        flash('Department deleted!', 'info')
-    except Exception as e:
-        flash('Error deleting department. It may be in use.', 'danger')
+    cursor.execute(
+        "INSERT INTO employee_departments (department_name) VALUES (%s)",
+        (department_name,)
+    )
+    mysql.connection.commit()
     cursor.close()
-    return redirect(url_for('employee_master'))
 
-# ... existing imports ...
+    flash("Department added successfully!", "success")
+    return redirect(url_for("employee_master"))
 
+
+@app.route("/employee_department_delete/<int:id>")
+def employee_department_delete(id):
+    cursor = mysql.connection.cursor()
+
+    # Check if any employee is using this department
+    cursor.execute("SELECT COUNT(*) AS cnt FROM employees WHERE department_id=%s", (id,))
+    count = cursor.fetchone()['cnt']
+
+    if count > 0:
+        flash("Cannot delete this department because employees are using it.", "danger")
+        cursor.close()
+        return redirect(url_for("employee_master"))
+
+    # Safe delete
+    cursor.execute("DELETE FROM employee_departments WHERE id=%s", (id,))
+    mysql.connection.commit()
+    cursor.close()
+
+    flash("Department deleted successfully!", "success")
+    return redirect(url_for("employee_master"))
+
+
+
+
+@app.route("/employee_position_add", methods=["POST"])
+def employee_position_add():
+    if "loggedin" not in session:
+        return redirect(url_for("login"))
+
+    position_name = request.form.get("position_name", "").strip()
+    if not position_name:
+        flash("Position name is required.", "danger")
+        return redirect(url_for("employee_master"))
+
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    cursor.execute(
+        "INSERT INTO employee_positions (position_name) VALUES (%s)",
+        (position_name,)
+    )
+    mysql.connection.commit()
+    cursor.close()
+
+    flash("Position added successfully!", "success")
+    return redirect(url_for("employee_master"))
+
+
+@app.route("/employee_position_delete/<int:id>")
+def employee_position_delete(id):
+    cursor = mysql.connection.cursor()
+
+    # Check if any employee is using this position
+    cursor.execute("SELECT COUNT(*) AS cnt FROM employees WHERE position_id=%s", (id,))
+    count = cursor.fetchone()['cnt']
+
+    if count > 0:
+        flash("Cannot delete this position because employees are using it.", "danger")
+        cursor.close()
+        return redirect(url_for("employee_master"))
+
+    # Safe delete
+    cursor.execute("DELETE FROM employee_positions WHERE id=%s", (id,))
+    mysql.connection.commit()
+    cursor.close()
+
+    flash("Position deleted successfully!", "success")
+    return redirect(url_for("employee_master"))
+
+
+
+# ... existing imports ...##
+####################################################################
 @app.route("/add_employee", methods=["GET", "POST"])
 def add_employee():
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
@@ -4439,6 +4463,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
