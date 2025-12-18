@@ -34,6 +34,7 @@
                     {% for d in departments %}
                     <li class="management-item">
                         <span class="fw-medium text-dark">{{ d.name }}</span>
+                        <!-- FIX: Ensure 'delete_department' exists in app.py -->
                         <form action="{{ url_for('delete_department', id=d.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete department?');">
                             <button class="btn btn-icon-circle btn-light text-danger shadow-sm">
                                 <i class="fa-solid fa-xmark"></i>
@@ -69,6 +70,7 @@
                             <span class="fw-medium text-dark d-block">{{ p.position_name }}</span>
                             <small class="item-badge">{{ p.department_name }}</small>
                         </div>
+                        <!-- FIX: Ensure 'delete_position' exists in app.py -->
                         <form action="{{ url_for('delete_position', id=p.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete position?');">
                             <button class="btn btn-icon-circle btn-light text-danger shadow-sm">
                                 <i class="fa-solid fa-xmark"></i>
@@ -106,7 +108,7 @@
                 <div class="p-4 border-bottom border-white-50 d-flex justify-content-between align-items-center bg-white bg-opacity-25">
                     <h5 class="fw-bold m-0">All Employees</h5>
                     
-                    <!-- Search/Filter Placeholder (Frontend Visual Only) -->
+                    <!-- Search/Filter Placeholder -->
                     <div class="input-group" style="max-width: 250px;">
                         <span class="input-group-text bg-white border-0"><i class="fa-solid fa-search text-muted"></i></span>
                         <input type="text" class="form-control bg-white border-0" placeholder="Search...">
@@ -199,7 +201,6 @@
             </div>
         </div>
     </div>
-
     <script src="{{ url_for('static', filename='js/emp.js') }}"></script>
 </div>
 {% endblock %}
