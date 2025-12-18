@@ -78,6 +78,11 @@ def allowed_file(filename):
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
+# In app.py
+from cloudinary.utils import cloudinary_url
+app.jinja_env.globals.update(cloudinary_url=cloudinary_url)
+
+
 # Helpers
 def parse_ddmmyyyy_to_date(s):
     if not s:
@@ -4463,6 +4468,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
