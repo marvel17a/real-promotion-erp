@@ -115,10 +115,17 @@
                                 <td>
                                     <div class="profile-cell">
                                         <div class="avatar-frame">
-                                            <!-- Logic for Profile Picture -->
-                                            <img src="{{ url_for('static', filename='uploads/' + emp.image_file) if emp.image_file else 'https://ui-avatars.com/api/?name=' + emp.name + '&background=random&color=fff&size=128' }}" 
-                                                 alt="{{ emp.name }}" 
-                                                 class="avatar-img">
+                                            <!-- Explicitly handle profile picture logic -->
+                                            {% if emp.image_file and emp.image_file != '' %}
+                                                <img src="{{ url_for('static', filename='uploads/' + emp.image_file) }}" 
+                                                     alt="{{ emp.name }}" 
+                                                     class="avatar-img"
+                                                     onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name={{ emp.name }}&background=random&color=fff&size=128';">
+                                            {% else %}
+                                                <img src="https://ui-avatars.com/api/?name={{ emp.name }}&background=random&color=fff&size=128" 
+                                                     alt="{{ emp.name }}" 
+                                                     class="avatar-img">
+                                            {% endif %}
                                             <span class="status-dot {{ 'active' if emp.status == 'active' else 'inactive' }}"></span>
                                         </div>
                                         <div>
@@ -174,7 +181,6 @@
             </div>
         </div>
     </div>
-</div
+</div>
 <script src="{{ url_for('static', filename='js/emp.js') }}"></script>
-    
 {% endblock %}
