@@ -338,7 +338,7 @@ def admin_master():
         return redirect(url_for("login"))
     # Redirect dashboard page 
     return redirect(url_for('dash'))
-)
+
 
 
 # --- HELPER FUNCTION: Find correct column name automatically ---
@@ -4489,6 +4489,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
