@@ -1,193 +1,169 @@
 {% extends "admin_master.html" %}
 
 {% block page_content %}
-<!-- Link to New CSS -->
+<!-- Custom CSS -->
 <link rel="stylesheet" href="{{ url_for('static', filename='css/employee.css') }}">
 
-<div class="container-fluid employee-container py-4" data-aos="fade-in">
+<div class="container-fluid employee-container fade-in-up">
 
-    <!-- PAGE HEADER -->
-    <div class="d-flex flex-wrap justify-content-between align-items-center mb-5 gap-3">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h2 class="fw-bold mb-1 display-6">Employee Master</h2>
-            <p class="text-muted mb-0">Manage your workforce, departments, and roles efficiently.</p>
+            <h2 class="fw-bold mb-1">Employee Directory</h2>
+            <p class="text-muted mb-0">Manage workforce, roles, and departments.</p>
         </div>
-        <div>
-            <a href="{{ url_for('add_employee') }}" class="btn btn-primary btn-lg rounded-pill px-4 shadow-sm fw-bold">
-                <i class="fa-solid fa-user-plus me-2"></i>New Employee
-            </a>
-        </div>
+        <a href="{{ url_for('add_employee') }}" class="btn btn-primary rounded-pill px-4 shadow-sm fw-bold">
+            <i class="fa-solid fa-plus me-2"></i>Add Employee
+        </a>
     </div>
 
     <div class="row g-4">
         
-        <!-- LEFT COLUMN: SETTINGS (Departments & Positions) -->
-        <div class="col-xl-3 col-lg-4">
+        <!-- LEFT COLUMN: Configurations -->
+        <div class="col-lg-4 col-xl-3">
             
-            <!-- DEPARTMENTS CARD -->
-            <div class="glass-panel mb-4 p-4">
-                <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
-                    <h5 class="fw-bold m-0 text-dark"><i class="fa-solid fa-layer-group me-2 text-primary"></i>Departments</h5>
-                    <span class="badge bg-dark rounded-pill">{{ departments|length }}</span>
+            <!-- DEPARTMENTS WIDGET -->
+            <div class="glass-panel mb-4">
+                <div class="section-header">
+                    <h5 class="section-title"><i class="fa-solid fa-layer-group text-primary"></i> Departments</h5>
+                    <span class="count-badge">{{ departments|length }}</span>
                 </div>
                 
-                <ul class="management-list mb-4">
+                <ul class="management-list">
                     {% for d in departments %}
                     <li class="management-item">
-                        <span class="fw-semibold text-dark">{{ d.name }}</span>
-                        <!-- Form Action: Delete Department -->
+                        <span class="item-name">{{ d.name }}</span>
                         <form action="{{ url_for('delete_department', id=d.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this department?');">
-                            <button class="btn btn-sm text-danger border-0 p-0 ms-2" title="Remove"><i class="fa-solid fa-trash-can"></i></button>
+                            <button class="btn btn-sm text-danger border-0 p-0"><i class="fa-regular fa-trash-can"></i></button>
                         </form>
                     </li>
                     {% else %}
-                    <li class="text-center text-muted fst-italic py-2">No departments yet.</li>
+                    <li class="text-center text-muted small py-2 fst-italic">No departments found.</li>
                     {% endfor %}
                 </ul>
 
-                <!-- Add Department Form -->
-                <form action="{{ url_for('employee_department_add') }}" method="POST" class="d-flex gap-2">
-                    <input name="department_name" class="form-control input-glass" placeholder="Add Dept..." required>
-                    <button class="btn btn-dark rounded-circle shadow-sm" style="width: 42px; height: 42px; flex-shrink: 0;">
-                        <i class="fa-solid fa-plus"></i>
-                    </button>
+                <form action="{{ url_for('employee_department_add') }}" method="POST" class="mini-form">
+                    <input name="department_name" class="input-glass" placeholder="New Dept..." required>
+                    <button class="btn-circle-add"><i class="fa-solid fa-plus"></i></button>
                 </form>
             </div>
 
-            <!-- POSITIONS CARD -->
-            <div class="glass-panel p-4">
-                <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
-                    <h5 class="fw-bold m-0 text-dark"><i class="fa-solid fa-briefcase me-2 text-warning"></i>Job Roles</h5>
-                    <span class="badge bg-dark rounded-pill">{{ positions|length }}</span>
+            <!-- POSITIONS WIDGET -->
+            <div class="glass-panel">
+                <div class="section-header">
+                    <h5 class="section-title"><i class="fa-solid fa-briefcase text-warning"></i> Job Roles</h5>
+                    <span class="count-badge">{{ positions|length }}</span>
                 </div>
 
-                <ul class="management-list mb-4">
+                <ul class="management-list">
                     {% for p in positions %}
-                    <li class="management-item flex-column align-items-start gap-1">
-                        <div class="d-flex justify-content-between w-100">
-                            <span class="fw-bold text-dark">{{ p.position_name }}</span>
-                            <!-- Form Action: Delete Position -->
-                            <form action="{{ url_for('delete_position', id=p.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this position?');">
-                                <button class="btn btn-sm text-danger border-0 p-0" title="Remove"><i class="fa-solid fa-trash-can"></i></button>
-                            </form>
+                    <li class="management-item">
+                        <div>
+                            <div class="item-name">{{ p.position_name }}</div>
+                            <span class="item-meta">{{ p.department_name }}</span>
                         </div>
-                        <small class="text-muted" style="font-size: 0.75rem;"><i class="fa-solid fa-turn-up me-1"></i>{{ p.department_name }}</small>
+                        <form action="{{ url_for('delete_position', id=p.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this role?');">
+                            <button class="btn btn-sm text-danger border-0 p-0"><i class="fa-regular fa-trash-can"></i></button>
+                        </form>
                     </li>
                     {% else %}
-                    <li class="text-center text-muted fst-italic py-2">No positions yet.</li>
+                    <li class="text-center text-muted small py-2 fst-italic">No roles found.</li>
                     {% endfor %}
                 </ul>
 
-                <!-- Add Position Form -->
-                <form action="{{ url_for('employee_position_add') }}" method="POST" class="row g-2">
-                    <div class="col-12">
-                        <select name="department_id" class="form-select input-glass" required>
-                            <option value="" disabled selected>Select Dept</option>
+                <form action="{{ url_for('employee_position_add') }}" method="POST" class="mt-3">
+                    <div class="mb-2">
+                        <select name="department_id" class="input-glass w-100" required>
+                            <option value="" disabled selected>Select Department</option>
                             {% for d in departments %}
                             <option value="{{ d.id }}">{{ d.name }}</option>
                             {% endfor %}
                         </select>
                     </div>
-                    <div class="col-12 d-flex gap-2">
-                        <input name="position_name" class="form-control input-glass" placeholder="Role Title" required>
-                        <button class="btn btn-dark rounded-circle shadow-sm" style="width: 42px; height: 42px; flex-shrink: 0;">
-                            <i class="fa-solid fa-plus"></i>
-                        </button>
+                    <div class="mini-form mt-0">
+                        <input name="position_name" class="input-glass" placeholder="New Role..." required>
+                        <button class="btn-circle-add"><i class="fa-solid fa-plus"></i></button>
                     </div>
                 </form>
             </div>
         </div>
 
         <!-- RIGHT COLUMN: EMPLOYEE LIST -->
-        <div class="col-xl-9 col-lg-8">
-            <div class="glass-panel p-0 overflow-hidden h-100 border-0 shadow-lg">
-                <!-- Toolbar -->
-                <div class="p-4 bg-white border-bottom d-flex justify-content-between align-items-center flex-wrap gap-3">
-                    <h5 class="fw-bold m-0 text-secondary">Staff List</h5>
-                    <div class="input-group" style="max-width: 300px;">
-                        <span class="input-group-text bg-light border-0"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
-                        <input type="text" class="form-control bg-light border-0" placeholder="Search employees...">
+        <div class="col-lg-8 col-xl-9">
+            <div class="glass-panel p-0">
+                <div class="p-3 border-bottom d-flex justify-content-between align-items-center bg-white bg-opacity-50">
+                    <h5 class="mb-0 fw-bold px-2">All Staff Members</h5>
+                    <div class="d-none d-md-block">
+                        <input type="text" class="input-glass py-1" placeholder="Search..." style="width: 200px;">
                     </div>
                 </div>
 
-                <!-- Table -->
-                <div class="table-responsive">
-                    <table class="table table-glass mb-0">
+                <div class="table-wrapper">
+                    <table class="table-glass">
                         <thead>
                             <tr>
-                                <th class="ps-4">Employee</th>
+                                <th>Profile</th>
                                 <th>Role / Dept</th>
                                 <th>Contact</th>
                                 <th>Status</th>
-                                <th class="text-end pe-4">Actions</th>
+                                <th class="text-end">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for emp in employees %}
                             <tr>
-                                <!-- Avatar & Name -->
-                                <td class="ps-4">
-                                    <div class="d-flex align-items-center">
-                                        <div class="avatar-wrapper me-3">
-                                            <!-- Profile Picture Logic -->
-                                            <img src="{{ url_for('static', filename='uploads/' + emp.image_file) if emp.image_file else 'https://ui-avatars.com/api/?name=' + emp.name + '&background=random&color=fff' }}" 
-                                                 alt="{{ emp.name }}" class="emp-avatar">
-                                            <span class="status-indicator {{ 'active' if emp.status == 'active' else 'inactive' }}"></span>
+                                <td>
+                                    <div class="profile-cell">
+                                        <div class="avatar-frame">
+                                            <!-- Logic for Profile Picture -->
+                                            <img src="{{ url_for('static', filename='uploads/' + emp.image_file) if emp.image_file else 'https://ui-avatars.com/api/?name=' + emp.name + '&background=random&color=fff&size=128' }}" 
+                                                 alt="{{ emp.name }}" 
+                                                 class="avatar-img">
+                                            <span class="status-dot {{ 'active' if emp.status == 'active' else 'inactive' }}"></span>
                                         </div>
                                         <div>
-                                            <div class="fw-bold text-dark mb-0">{{ emp.name }}</div>
-                                            <small class="text-muted">{{ emp.email }}</small>
+                                            <span class="emp-name">{{ emp.name }}</span>
+                                            <span class="emp-email">{{ emp.email }}</span>
                                         </div>
                                     </div>
                                 </td>
-
-                                <!-- Role -->
                                 <td>
-                                    <div class="badge-role d-inline-block mb-1">{{ emp.position_name or 'N/A' }}</div>
-                                    <div class="small text-muted">{{ emp.department_name or 'No Dept' }}</div>
+                                    <span class="role-badge">{{ emp.position_name or 'No Role' }}</span>
+                                    <div class="dept-text">{{ emp.department_name or 'Unassigned' }}</div>
                                 </td>
-
-                                <!-- Contact -->
                                 <td>
                                     <div class="d-flex flex-column gap-1">
-                                        <span class="small text-dark fw-medium"><i class="fa-solid fa-phone me-2 text-secondary"></i>{{ emp.phone }}</span>
-                                        <span class="small text-muted"><i class="fa-solid fa-location-dot me-2 text-secondary"></i>{{ emp.city }}</span>
+                                        <small class="text-dark fw-semibold"><i class="fa-solid fa-phone me-1 text-muted"></i>{{ emp.phone }}</small>
+                                        <small class="text-muted"><i class="fa-solid fa-location-dot me-1"></i>{{ emp.city }}</small>
                                     </div>
                                 </td>
-
-                                <!-- Status -->
                                 <td>
                                     {% if emp.status == 'active' %}
-                                        <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 rounded-pill">Active</span>
+                                        <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 rounded-pill px-3">Active</span>
                                     {% else %}
-                                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-3 py-2 rounded-pill">Inactive</span>
+                                        <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 rounded-pill px-3">Inactive</span>
                                     {% endif %}
                                 </td>
-
-                                <!-- Actions -->
-                                <td class="text-end pe-4">
-                                    <div class="d-flex justify-content-end">
-                                        <a href="{{ url_for('employee_details', id=emp.id) }}" class="btn-glass-action view" title="View Profile">
-                                            <i class="fa-regular fa-eye"></i>
-                                        </a>
-                                        <a href="{{ url_for('edit_employee', id=emp.id) }}" class="btn-glass-action edit" title="Edit Employee">
-                                            <i class="fa-solid fa-pencil"></i>
-                                        </a>
-                                        <form action="{{ url_for('delete_employee', id=emp.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Permanently delete {{ emp.name }}?');">
-                                            <button class="btn-glass-action delete" title="Delete">
-                                                <i class="fa-regular fa-trash-can"></i>
-                                            </button>
-                                        </form>
-                                    </div>
+                                <td class="text-end">
+                                    <a href="{{ url_for('employee_details', id=emp.id) }}" class="action-btn btn-view" title="View Profile">
+                                        <i class="fa-regular fa-eye"></i>
+                                    </a>
+                                    <a href="{{ url_for('edit_employee', id=emp.id) }}" class="action-btn btn-edit" title="Edit Info">
+                                        <i class="fa-solid fa-pen"></i>
+                                    </a>
+                                    <form action="{{ url_for('delete_employee', id=emp.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Remove this employee?');">
+                                        <button class="action-btn btn-delete" title="Delete">
+                                            <i class="fa-regular fa-trash-can"></i>
+                                        </button>
+                                    </form>
                                 </td>
                             </tr>
                             {% else %}
                             <tr>
                                 <td colspan="5" class="text-center py-5">
                                     <div class="opacity-50">
-                                        <i class="fa-solid fa-user-group fa-4x mb-3 text-secondary"></i>
-                                        <h5 class="text-muted">No employees found</h5>
-                                        <p class="small text-secondary">Get started by adding a new employee.</p>
+                                        <i class="fa-solid fa-users-slash fa-3x mb-3 text-secondary"></i>
+                                        <h6>No employees found</h6>
                                     </div>
                                 </td>
                             </tr>
@@ -198,6 +174,7 @@
             </div>
         </div>
     </div>
-</div>
+</div
+<script src="{{ url_for('static', filename='js/emp.js') }}"></script>
+    
 {% endblock %}
-
