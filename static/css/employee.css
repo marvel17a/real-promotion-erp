@@ -1,113 +1,152 @@
-/* Global Reset override for Glass Theme */
-:root {
-    --glass-bg: rgba(255, 255, 255, 0.25);
-    --glass-border: 1px solid rgba(255, 255, 255, 0.18);
-    --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
-    --glass-blur: blur(10px);
-    --text-color: #2d3748;
-    --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+
+/* --- LAYOUT & TYPOGRAPHY --- */
+.employee-container {
+    font-family: 'Outfit', sans-serif;
 }
 
-body {
-    /* Optional: If you want a full gradient background for the whole page */
-    /* background: var(--primary-gradient); */
-    /* min-height: 100vh; */
-}
-
-/* --- GLASS CARD --- */
-.glass-card {
-    background: var(--glass-bg);
-    box-shadow: var(--glass-shadow);
-    backdrop-filter: var(--glass-blur);
-    -webkit-backdrop-filter: var(--glass-blur);
-    border-radius: 16px;
-    border: var(--glass-border);
-    padding: 2rem;
-    color: var(--text-color);
+/* --- GLASS CARDS (Inherits/Overrides Base) --- */
+.glass-panel {
+    background: rgba(255, 255, 255, 0.35);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    border-radius: 20px;
+    padding: 1.5rem;
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05);
     transition: transform 0.3s ease;
 }
 
-.glass-card:hover {
-    transform: translateY(-5px);
+.glass-panel:hover {
+    box-shadow: 0 12px 40px rgba(31, 38, 135, 0.1);
+    background: rgba(255, 255, 255, 0.45);
 }
 
-/* --- GLASS INPUTS --- */
-.glass-card .form-control, 
-.glass-card .form-select {
-    background: rgba(255, 255, 255, 0.5);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 10px;
-    backdrop-filter: blur(5px);
-    color: #333;
-    transition: all 0.3s;
+/* --- SIDEBAR LISTS (Departments & Positions) --- */
+.management-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    max-height: 250px;
+    overflow-y: auto;
 }
 
-.glass-card .form-control:focus, 
-.glass-card .form-select:focus {
-    background: rgba(255, 255, 255, 0.8);
-    box-shadow: 0 0 0 0.25rem rgba(118, 75, 162, 0.25);
-    border-color: #764ba2;
-}
-
-.glass-card label {
-    font-weight: 600;
-    color: #4a5568;
-    margin-bottom: 0.5rem;
-}
-
-/* --- GLASS TABLE --- */
-.glass-table-container {
-    border-radius: 16px;
-    overflow: hidden;
-    box-shadow: var(--glass-shadow);
-}
-
-.glass-table {
-    width: 100%;
+.management-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 15px;
+    margin-bottom: 8px;
     background: rgba(255, 255, 255, 0.4);
-    backdrop-filter: blur(10px);
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    transition: all 0.2s ease;
+}
+
+.management-item:hover {
+    background: #fff;
+    transform: translateX(5px);
+    border-color: rgba(59, 130, 246, 0.3);
+}
+
+.item-badge {
+    font-size: 0.75rem;
+    background: rgba(30, 41, 59, 0.05);
+    color: #64748b;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-left: 5px;
+}
+
+/* --- EMPLOYEE TABLE --- */
+.table-glass {
+    width: 100%;
     border-collapse: separate;
-    border-spacing: 0;
+    border-spacing: 0 8px; /* Spacing between rows */
 }
 
-.glass-table thead {
-    background: rgba(118, 75, 162, 0.1);
-}
-
-.glass-table th {
-    padding: 15px;
-    color: #4a5568;
-    font-weight: 700;
+.table-glass thead th {
+    background: transparent;
+    border: none;
+    font-weight: 600;
     text-transform: uppercase;
-    font-size: 0.85rem;
-    border-bottom: 1px solid rgba(0,0,0,0.05);
+    font-size: 0.75rem;
+    letter-spacing: 1px;
+    color: #64748b;
+    padding: 10px 15px;
 }
 
-.glass-table td {
+.table-glass tbody tr {
+    background: rgba(255, 255, 255, 0.3);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+    transition: all 0.2s ease;
+}
+
+.table-glass tbody tr td {
+    border: none;
     padding: 15px;
-    background: rgba(255, 255, 255, 0.2);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.3);
-    color: #2d3748;
     vertical-align: middle;
 }
 
-.glass-table tr:hover td {
-    background: rgba(255, 255, 255, 0.6);
+.table-glass tbody tr td:first-child { border-top-left-radius: 15px; border-bottom-left-radius: 15px; }
+.table-glass tbody tr td:last-child { border-top-right-radius: 15px; border-bottom-right-radius: 15px; }
+
+.table-glass tbody tr:hover {
+    background: rgba(255, 255, 255, 0.85);
+    transform: scale(1.01);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.05);
 }
 
-/* --- BUTTONS --- */
-.btn-glass-primary {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+/* --- AVATAR & STATUS --- */
+.emp-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid rgba(255,255,255,0.8);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+
+.status-badge {
+    padding: 6px 12px;
+    border-radius: 30px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.status-active { background: rgba(16, 185, 129, 0.15); color: #059669; }
+.status-active::before { content: ''; width: 6px; height: 6px; background: #059669; border-radius: 50%; }
+
+.status-inactive { background: rgba(239, 68, 68, 0.15); color: #dc2626; }
+.status-inactive::before { content: ''; width: 6px; height: 6px; background: #dc2626; border-radius: 50%; }
+
+/* --- FORMS & BUTTONS --- */
+.input-glass {
+    background: rgba(255, 255, 255, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    border-radius: 10px;
+}
+.input-glass:focus {
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+    border-color: #3b82f6;
+}
+
+.btn-icon-circle {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: 0.2s;
     border: none;
-    color: white;
-    border-radius: 50px;
-    padding: 10px 30px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-    transition: all 0.3s;
 }
+.btn-icon-circle:hover { transform: rotate(15deg); }
 
-.btn-glass-primary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(0,0,0,0.2);
-    color: white;
-}
+/* Scrollbar for lists */
+.management-list::-webkit-scrollbar { width: 4px; }
+.management-list::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 4px; }
