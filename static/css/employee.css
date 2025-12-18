@@ -107,9 +107,9 @@ body {
 }
 
 .item-name {
-    font-weight: 600;
-    font-size: 0.9rem;
-    color: #334155;
+    font-weight: 700 !important; /* Force bold weight */
+    font-size: 0.95rem;
+    color: #000000 !important; /* Force black color as requested */
 }
 
 .item-meta {
@@ -217,6 +217,7 @@ body {
     padding: 2px;
     background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
     position: relative;
+    flex-shrink: 0; /* Prevent shrinking */
 }
 
 .avatar-img {
@@ -226,6 +227,7 @@ body {
     object-fit: cover;
     border: 2px solid #fff;
     background: #fff;
+    display: block; /* Ensure block display */
 }
 
 .status-dot {
@@ -236,6 +238,7 @@ body {
     height: 12px;
     border-radius: 50%;
     border: 2px solid #fff;
+    z-index: 2;
 }
 
 .status-dot.active { background-color: var(--success-color); }
