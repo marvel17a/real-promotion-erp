@@ -35,7 +35,7 @@
                     <li class="management-item">
                         <span class="fw-medium text-dark">{{ d.name }}</span>
                         <!-- FIX: Ensure 'delete_department' exists in app.py -->
-                        <form action="{{ url_for('delete_department', id=d.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete department?');">
+                        <form action="{{ url_for('employee_department_delete', id=d.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete department?');">
                             <button class="btn btn-icon-circle btn-light text-danger shadow-sm">
                                 <i class="fa-solid fa-xmark"></i>
                             </button>
@@ -71,7 +71,7 @@
                             <small class="item-badge">{{ p.department_name }}</small>
                         </div>
                         <!-- FIX: Ensure 'delete_position' exists in app.py -->
-                        <form action="{{ url_for('delete_position', id=p.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete position?');">
+                        <form action="{{ url_for('employee_position_delete', id=p.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete position?');">
                             <button class="btn btn-icon-circle btn-light text-danger shadow-sm">
                                 <i class="fa-solid fa-xmark"></i>
                             </button>
