@@ -1,106 +1,153 @@
-/* --- PREMIUM DASHBOARD STYLES --- */
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
 
-.dashboard-container {
-    font-family: 'Outfit', sans-serif;
+:root {
+    --glass-bg: rgba(255, 255, 255, 0.25);
+    --glass-border: rgba(255, 255, 255, 0.4);
+    --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+    --hover-transform: translateY(-5px);
+    --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --card-radius: 24px;
 }
 
-/* Glass Card Base */
-.glass-stat-card {
-    background: rgba(255, 255, 255, 0.35); /* More transparent */
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.5);
-    border-radius: 20px;
-    padding: 1.5rem;
-    position: relative;
-    overflow: hidden;
-    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Bouncy effect */
-    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+body {
+    font-family: 'Outfit', sans-serif !important;
 }
 
-.glass-stat-card:hover {
-    transform: translateY(-8px) scale(1.02);
-    box-shadow: 0 15px 45px rgba(31, 38, 135, 0.15);
-    border-color: rgba(255, 255, 255, 0.9);
-    background: rgba(255, 255, 255, 0.5);
-}
-
-/* Icon Styling */
-.stat-icon {
-    width: 60px;
-    height: 60px;
-    border-radius: 16px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.8rem;
-    margin-bottom: 1rem;
-    transition: transform 0.3s ease;
-}
-
-.glass-stat-card:hover .stat-icon {
-    transform: rotate(10deg) scale(1.1);
-}
-
-/* Text Gradients & Typography */
-.stat-value {
-    font-size: 2.2rem;
+/* --- DASHBOARD HEADER --- */
+.dashboard-header h2 {
     font-weight: 800;
-    line-height: 1.2;
-    background: linear-gradient(45deg, #2c3e50, #000000);
+    background: -webkit-linear-gradient(45deg, #1e293b, #334155);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
 }
 
+.date-pill {
+    background: rgba(255,255,255,0.4);
+    backdrop-filter: blur(5px);
+    border: 1px solid rgba(255,255,255,0.6);
+    padding: 8px 16px;
+    border-radius: 50px;
+    font-weight: 600;
+    color: #475569;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+}
+
+/* --- GLASS CARDS --- */
+.glass-stat-card {
+    background: var(--glass-bg);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--card-radius);
+    padding: 1.8rem;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: var(--glass-shadow);
+}
+
+.glass-stat-card:hover {
+    transform: var(--hover-transform);
+    background: rgba(255, 255, 255, 0.45);
+    border-color: #fff;
+    box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+}
+
+/* ICONS */
+.icon-box {
+    width: 55px;
+    height: 55px;
+    border-radius: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+    transition: transform 0.4s ease;
+}
+
+.glass-stat-card:hover .icon-box {
+    transform: scale(1.1) rotate(5deg);
+}
+
+/* Theme Colors for Icons */
+.theme-blue { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
+.theme-purple { background: rgba(139, 92, 246, 0.15); color: #8b5cf6; }
+.theme-orange { background: rgba(249, 115, 22, 0.15); color: #f97316; }
+.theme-green { background: rgba(16, 185, 129, 0.15); color: #10b981; }
+.theme-red { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+
+/* TEXT */
 .stat-label {
     font-size: 0.85rem;
-    text-transform: uppercase;
-    letter-spacing: 1.5px;
     font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
     color: #64748b;
+    margin-bottom: 0.2rem;
 }
 
-/* Color Themes */
-.theme-blue .stat-icon { background: rgba(52, 152, 219, 0.15); color: #3498db; }
-.theme-green .stat-icon { background: rgba(46, 204, 113, 0.15); color: #2ecc71; }
-.theme-purple .stat-icon { background: rgba(155, 89, 182, 0.15); color: #9b59b6; }
-.theme-orange .stat-icon { background: rgba(230, 126, 34, 0.15); color: #e67e22; }
-.theme-red .stat-icon { background: rgba(231, 76, 60, 0.15); color: #e74c3c; }
-
-/* Chart Containers */
-.glass-chart-card {
-    background: rgba(255, 255, 255, 0.4);
-    backdrop-filter: blur(15px);
-    border-radius: 20px;
-    border: 1px solid rgba(255, 255, 255, 0.6);
-    padding: 1.5rem;
-    height: 100%;
-    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05);
+.stat-value {
+    font-size: 2rem;
+    font-weight: 800;
+    color: #1e293b;
+    line-height: 1.2;
 }
 
-/* Floating Elements for Decoration */
-.bg-decoration-icon {
+/* Background Decoration Icon */
+.bg-icon {
     position: absolute;
-    bottom: -20px;
     right: -20px;
-    font-size: 6rem;
+    bottom: -20px;
+    font-size: 7rem;
     opacity: 0.05;
     transform: rotate(-15deg);
     transition: all 0.5s ease;
+    z-index: 0;
 }
 
-.glass-stat-card:hover .bg-decoration-icon {
-    transform: rotate(0deg) scale(1.2);
-    opacity: 0.1;
+.glass-stat-card:hover .bg-icon {
+    transform: rotate(0deg) scale(1.1);
+    opacity: 0.08;
+    right: -10px;
 }
 
-.header-welcome {
-    background: rgba(255,255,255,0.3);
-    border-radius: 15px;
-    padding: 10px 20px;
-    display: inline-flex;
+/* --- CHARTS SECTION --- */
+.chart-card {
+    background: rgba(255, 255, 255, 0.4);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    border-radius: var(--card-radius);
+    padding: 1.5rem;
+    height: 100%;
+    box-shadow: var(--glass-shadow);
+    transition: transform 0.3s ease;
+}
+
+.chart-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 30px rgba(0,0,0,0.08);
+}
+
+.chart-header h5 {
+    font-weight: 700;
+    color: #334155;
+}
+
+/* YEARLY SUMMARY CARDS (Bottom Row) */
+.summary-mini-card {
+    background: linear-gradient(135deg, rgba(255,255,255,0.7), rgba(255,255,255,0.3));
+    border: 1px solid rgba(255,255,255,0.5);
+    border-radius: 20px;
+    padding: 1.5rem;
+    display: flex;
+    justify-content: space-between;
     align-items: center;
-    gap: 10px;
-    backdrop-filter: blur(5px);
+    transition: 0.3s;
+}
+
+.summary-mini-card:hover {
+    background: #fff;
+    transform: scale(1.02);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.05);
 }
