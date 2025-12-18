@@ -362,72 +362,61 @@ def get_db_column(cursor, table_name, candidates):
         print(f"Error checking columns for {table_name}: {e}")
         return candidates[0]
 
+
 @app.route("/dash")
 def dash():
-    if "loggedin" not in session: 
-        return redirect(url_for("login"))
+    """Admin Analytics Dashboard (Premium)"""
+    if "loggedin" not in session: return redirect(url_for("login"))
     
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    
-    # --- DYNAMICALLY RESOLVE COLUMN NAMES ---
-    # We check for common variations to avoid "Unknown column" errors
-    sales_col = get_db_column(cursor, 'sales', ['total_amount', 'amount', 'total', 'grand_total', 'final_total', 'net_amount'])
-    purch_col = get_db_column(cursor, 'purchases', ['total_amount', 'amount', 'total', 'grand_total'])
-    exp_col   = get_db_column(cursor, 'expenses', ['amount', 'cost', 'total', 'value'])
-    stock_col = get_db_column(cursor, 'products', ['quantity', 'qty', 'stock', 'stock_quantity', 'inventory', 'count'])
-
-    print(f"DEBUG: Using columns -> Sales: {sales_col}, Products: {stock_col}")
-
-    # --- 0. NEW KPIS: Sales Today & Monthly ---
     today = date.today()
+    
+    # --- DYNAMIC COLUMN DETECTION ---
+    sales_col = get_db_column(cursor, 'sales', ['total_amount', 'amount', 'total', 'grand_total', 'final_total'])
+    purch_col = get_db_column(cursor, 'purchases', ['total_amount', 'amount', 'total'])
+    exp_col   = get_db_column(cursor, 'expenses', ['amount', 'cost', 'total'])
+    stock_col = get_db_column(cursor, 'products', ['quantity', 'qty', 'stock'])
+
+    # --- KPIS ---
+    
+    # 1. Sales Today
     try:
         cursor.execute(f"SELECT SUM({sales_col}) as total FROM sales WHERE date = %s", (today,))
         sales_today = cursor.fetchone()['total'] or 0
-    except:
-        sales_today = 0
+    except: sales_today = 0
 
+    # 2. Sales This Month
     try:
         start_m = date(today.year, today.month, 1)
-        if today.month == 12:
-             end_m = date(today.year + 1, 1, 1) - timedelta(days=1)
-        else:
-             end_m = date(today.year, today.month + 1, 1) - timedelta(days=1)
+        if today.month == 12: end_m = date(today.year + 1, 1, 1) - timedelta(days=1)
+        else: end_m = date(today.year, today.month + 1, 1) - timedelta(days=1)
         cursor.execute(f"SELECT SUM({sales_col}) as total FROM sales WHERE date BETWEEN %s AND %s", (start_m, end_m))
         sales_this_month = cursor.fetchone()['total'] or 0
-    except:
-        sales_this_month = 0
+    except: sales_this_month = 0
 
-    # --- 1. KPI: Total Sales (Lifetime) ---
+    # 3. Total Stats (Lifetime)
     try:
         cursor.execute(f"SELECT SUM({sales_col}) as total FROM sales")
         total_sales = cursor.fetchone()['total'] or 0
-    except:
-        total_sales = 0
-
-    # --- 2. KPI: Total Purchases ---
+    except: total_sales = 0
+    
     try:
         cursor.execute(f"SELECT SUM({purch_col}) as total FROM purchases")
         total_purchases = cursor.fetchone()['total'] or 0
-    except:
-        total_purchases = 0
-
-    # --- 3. KPI: Total Expenses ---
+    except: total_purchases = 0
+    
     try:
         cursor.execute(f"SELECT SUM({exp_col}) as total FROM expenses")
         total_expenses = cursor.fetchone()['total'] or 0
-    except:
-        total_expenses = 0
+    except: total_expenses = 0
     
-    # --- 4. KPI: Low Stock Alerts ---
+    # 4. Low Stock
     try:
         cursor.execute(f"SELECT COUNT(*) as cnt FROM products WHERE {stock_col} < 10")
-        low_stock = cursor.fetchone()['cnt']
-    except:
-        low_stock = 0
+        low_stock = cursor.fetchone()['cnt'] or 0
+    except: low_stock = 0
     
-    # --- 5. KPI: Supplier Dues ---
-    # Logic: (Total Purchase) - (Total Paid in Cashflow)
-    # Note: supplier_cashflow usually has 'amount'
+    # 5. Supplier Dues
     try:
         cursor.execute(f"""
             SELECT 
@@ -436,58 +425,42 @@ def dash():
             AS pending_dues
         """)
         supplier_dues = cursor.fetchone()['pending_dues'] or 0
-    except:
-        supplier_dues = 0
+    except: supplier_dues = 0
     
-    # --- 6. CHART DATA (Sales vs Expenses) ---
-    chart_months = []
-    chart_sales = []
-    chart_expenses = []
+    # --- CHARTS ---
+    chart_months, chart_sales, chart_expenses = [], [], []
     
-    # Using today from above
     for i in range(5, -1, -1):
-        month_date = today - timedelta(days=30*i) 
-        start_m = date(month_date.year, month_date.month, 1)
-        if month_date.month == 12:
-            end_m = date(month_date.year + 1, 1, 1) - timedelta(days=1)
-        else:
-            end_m = date(month_date.year, month_date.month + 1, 1) - timedelta(days=1)
+        m_date = today - timedelta(days=30*i) 
+        start_m = date(m_date.year, m_date.month, 1)
+        if m_date.month == 12: end_m = date(m_date.year + 1, 1, 1) - timedelta(days=1)
+        else: end_m = date(m_date.year, m_date.month + 1, 1) - timedelta(days=1)
             
         chart_months.append(start_m.strftime("%b"))
         
-        # Sales for month
         try:
             cursor.execute(f"SELECT SUM({sales_col}) as s FROM sales WHERE date BETWEEN %s AND %s", (start_m, end_m))
-            s_val = cursor.fetchone()['s'] or 0
-            chart_sales.append(float(s_val))
-        except:
-            chart_sales.append(0.0)
+            chart_sales.append(float(cursor.fetchone()['s'] or 0))
+        except: chart_sales.append(0.0)
         
-        # Expenses for month
         try:
             cursor.execute(f"SELECT SUM({exp_col}) as e FROM expenses WHERE date BETWEEN %s AND %s", (start_m, end_m))
-            e_val = cursor.fetchone()['e'] or 0
-            chart_expenses.append(float(e_val))
-        except:
-            chart_expenses.append(0.0)
+            chart_expenses.append(float(cursor.fetchone()['e'] or 0))
+        except: chart_expenses.append(0.0)
 
-    # --- 7. TOP PRODUCTS ---
-    # Uses sales and products tables
+    # --- TOP PRODUCTS ---
+    top_prod_names, top_prod_qty = [], []
     try:
-        cursor.execute(f"""
+        cursor.execute("""
             SELECT p.name, SUM(s.quantity) as qty 
             FROM sales s
             JOIN products p ON s.product_id = p.id
-            GROUP BY p.name
-            ORDER BY qty DESC
-            LIMIT 5
+            GROUP BY p.name ORDER BY qty DESC LIMIT 5
         """)
-        top_products = cursor.fetchall()
-        top_prod_names = [row['name'] for row in top_products]
-        top_prod_qty = [int(row['qty']) for row in top_products]
-    except:
-        top_prod_names = []
-        top_prod_qty = []
+        for row in cursor.fetchall():
+            top_prod_names.append(row['name'])
+            top_prod_qty.append(int(row['qty']))
+    except: pass
 
     cursor.close()
     
@@ -504,7 +477,8 @@ def dash():
         chart_sales=chart_sales,
         chart_expenses=chart_expenses,
         top_prod_names=top_prod_names,
-        top_prod_qty=top_prod_qty
+        top_prod_qty=top_prod_qty,
+        date=date # <--- Pass date object to template
     )
 
 
@@ -4489,6 +4463,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
