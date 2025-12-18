@@ -38,13 +38,16 @@
                                 <!-- Profile Picture Logic -->
                                 <div class="avatar-wrapper">
                                     {% if emp.image_file %}
-                                        <img src="{{ cloudinary_url(emp.image_file)[0] }}" class="table-thumb" alt="{{ emp.name }}">
+                                        <!-- Try accessing image_file property if it exists -->
+                                        <img src="{{ cloudinary_url(emp.image_file)[0] }}" class="table-thumb" alt="{{ emp.name }}"
+                                             onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name={{ emp.name }}&background=random&color=fff';">
                                     {% elif emp.image %}
-                                         <img src="{{ cloudinary_url(emp.image)[0] }}" class="table-thumb" alt="{{ emp.name }}">
+                                        <!-- Try accessing image property if it exists -->
+                                        <img src="{{ cloudinary_url(emp.image)[0] }}" class="table-thumb" alt="{{ emp.name }}"
+                                             onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name={{ emp.name }}&background=random&color=fff';">
                                     {% else %}
-                                        <div class="table-thumb bg-secondary d-flex align-items-center justify-content-center text-white h-100 w-100">
-                                            <i class="fas fa-user"></i>
-                                        </div>
+                                        <!-- Fallback to UI Avatars immediately if no image data -->
+                                        <img src="https://ui-avatars.com/api/?name={{ emp.name }}&background=random&color=fff" class="table-thumb" alt="{{ emp.name }}">
                                     {% endif %}
                                 </div>
                                 <span class="fw-bold text-dark">{{ emp.name }}</span>
