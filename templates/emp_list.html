@@ -35,18 +35,13 @@
                     <tr>
                         <td class="ps-4">
                             <div class="d-flex align-items-center gap-3">
-                                <!-- Profile Picture Logic -->
+                                <!-- Profile Picture Logic: Direct URL from Database -->
                                 <div class="avatar-wrapper">
-                                    {% if emp.image_file %}
-                                        <!-- Try accessing image_file property if it exists -->
-                                        <img src="{{ cloudinary_url(emp.image_file)[0] }}" class="table-thumb" alt="{{ emp.name }}"
-                                             onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name={{ emp.name }}&background=random&color=fff';">
-                                    {% elif emp.image %}
-                                        <!-- Try accessing image property if it exists -->
-                                        <img src="{{ cloudinary_url(emp.image)[0] }}" class="table-thumb" alt="{{ emp.name }}"
+                                    {% if emp.image %}
+                                        <img src="{{ emp.image }}" class="table-thumb" alt="{{ emp.name }}"
                                              onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name={{ emp.name }}&background=random&color=fff';">
                                     {% else %}
-                                        <!-- Fallback to UI Avatars immediately if no image data -->
+                                        <!-- Fallback to UI Avatars if image is NULL -->
                                         <img src="https://ui-avatars.com/api/?name={{ emp.name }}&background=random&color=fff" class="table-thumb" alt="{{ emp.name }}">
                                     {% endif %}
                                 </div>
