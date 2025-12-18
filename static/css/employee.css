@@ -1,25 +1,27 @@
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
 
 .employee-container {
-    font-family: 'Outfit', sans-serif;
+    font-family: 'Plus Jakarta Sans', sans-serif;
     color: #1e293b;
+    background-color: #f8fafc; /* Light background for contrast */
 }
 
 /* --- PREMIUM GLASS PANEL --- */
 .glass-panel {
-    background: rgba(255, 255, 255, 0.65); /* Less transparent for readability */
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid rgba(255, 255, 255, 0.8);
+    background: rgba(255, 255, 255, 0.75); /* More opaque for cleaner look */
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.9);
     border-radius: 24px;
     padding: 2rem;
-    box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.05);
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.04);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s ease;
 }
 
 .glass-panel:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.1);
+    transform: translateY(-4px);
+    box-shadow: 0 20px 40px -5px rgba(0, 0, 0, 0.08);
 }
 
 /* --- SIDEBAR LIST STYLES --- */
@@ -27,37 +29,43 @@
     list-style: none;
     padding: 0;
     margin: 0;
-    max-height: 280px;
+    max-height: 300px;
     overflow-y: auto;
     scrollbar-width: thin;
-    scrollbar-color: rgba(0,0,0,0.1) transparent;
+    scrollbar-color: #cbd5e1 transparent;
 }
 
 .management-item {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 12px 16px;
-    margin-bottom: 10px;
-    background: #fff;
-    border-radius: 12px;
-    border: 1px solid rgba(0, 0, 0, 0.03);
+    padding: 14px 18px;
+    margin-bottom: 12px;
+    background: #ffffff;
+    border-radius: 16px;
+    border: 1px solid #f1f5f9;
     transition: all 0.2s ease;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.02);
 }
 
 .management-item:hover {
-    background: #f8fafc;
-    border-color: #3b82f6;
+    background: #f0f9ff;
+    border-color: #bae6fd;
     transform: translateX(4px);
+}
+
+.management-item span {
+    font-weight: 600;
+    color: #334155;
 }
 
 /* --- EMPLOYEE TABLE --- */
 .table-container {
-    border-radius: 20px;
+    border-radius: 24px;
     overflow: hidden;
-    background: rgba(255,255,255,0.4);
-    backdrop-filter: blur(10px);
+    background: #ffffff;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    border: 1px solid #e2e8f0;
 }
 
 .table-glass {
@@ -67,100 +75,168 @@
 }
 
 .table-glass thead th {
-    background: rgba(255, 255, 255, 0.8);
+    background: #f8fafc;
     font-weight: 700;
     text-transform: uppercase;
-    font-size: 0.75rem;
-    letter-spacing: 1.2px;
+    font-size: 0.7rem;
+    letter-spacing: 0.05em;
     color: #64748b;
-    padding: 18px 24px;
-    border-bottom: 2px solid rgba(0,0,0,0.03);
+    padding: 20px 24px;
+    border-bottom: 1px solid #e2e8f0;
 }
 
 .table-glass tbody tr {
     transition: background 0.2s ease;
-    border-bottom: 1px solid rgba(0,0,0,0.02);
+    border-bottom: 1px solid #f1f5f9;
 }
 
 .table-glass tbody tr:last-child { border-bottom: none; }
 
 .table-glass tbody tr:hover {
-    background: rgba(255, 255, 255, 0.8);
+    background: #f8fafc;
 }
 
 .table-glass tbody td {
-    padding: 16px 24px;
+    padding: 20px 24px;
     vertical-align: middle;
-    color: #334155;
-    border-bottom: 1px solid rgba(0,0,0,0.03);
+    color: #475569;
+    border-bottom: 1px solid #f1f5f9;
 }
 
-/* --- AVATAR --- */
+/* --- AVATAR (Redesigned) --- */
 .avatar-wrapper {
     position: relative;
-    width: 50px;
-    height: 50px;
+    width: 56px;
+    height: 56px;
+    margin-right: 16px;
 }
 
 .emp-avatar {
     width: 100%;
     height: 100%;
-    border-radius: 50%;
+    border-radius: 16px; /* Squircle shape */
     object-fit: cover;
-    border: 3px solid #fff;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    border: 2px solid #ffffff;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    transition: transform 0.2s ease;
+}
+
+.table-glass tbody tr:hover .emp-avatar {
+    transform: scale(1.05);
 }
 
 .status-indicator {
     position: absolute;
-    bottom: 2px;
-    right: 2px;
-    width: 12px;
-    height: 12px;
+    bottom: -2px;
+    right: -2px;
+    width: 14px;
+    height: 14px;
     border-radius: 50%;
-    border: 2px solid #fff;
+    border: 2px solid #ffffff;
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.05);
 }
 .status-indicator.active { background: #10b981; }
 .status-indicator.inactive { background: #ef4444; }
 
 /* --- INPUTS & BUTTONS --- */
 .input-glass {
-    background: rgba(255, 255, 255, 0.8);
-    border: 1px solid rgba(0,0,0,0.08);
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
     border-radius: 12px;
-    padding: 10px 16px;
+    padding: 12px 16px;
     transition: all 0.2s;
+    font-size: 0.95rem;
+    color: #334155;
 }
 .input-glass:focus {
-    background: #fff;
+    background: #ffffff;
     border-color: #3b82f6;
-    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+    outline: none;
 }
 
 .btn-glass-action {
-    width: 36px;
-    height: 36px;
-    border-radius: 10px;
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
     border: none;
-    transition: all 0.2s;
-    margin-left: 4px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    margin-left: 6px;
+    cursor: pointer;
 }
 
-.btn-glass-action.view { background: rgba(59, 130, 246, 0.1); color: #3b82f6; }
-.btn-glass-action.edit { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
-.btn-glass-action.delete { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+.btn-glass-action.view { background: #eff6ff; color: #3b82f6; }
+.btn-glass-action.view:hover { background: #3b82f6; color: #ffffff; }
 
-.btn-glass-action:hover { transform: scale(1.1); filter: brightness(0.95); }
+.btn-glass-action.edit { background: #fffbeb; color: #f59e0b; }
+.btn-glass-action.edit:hover { background: #f59e0b; color: #ffffff; }
+
+.btn-glass-action.delete { background: #fef2f2; color: #ef4444; }
+.btn-glass-action.delete:hover { background: #ef4444; color: #ffffff; }
+
 
 /* --- BADGES --- */
 .badge-role {
-    background: rgba(99, 102, 241, 0.1);
-    color: #6366f1;
+    background: #e0e7ff;
+    color: #4338ca;
     padding: 6px 12px;
     border-radius: 8px;
     font-weight: 600;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+    display: inline-block;
+}
+
+/* --- Page Header --- */
+.page-header-title {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 700;
+    color: #0f172a;
+    letter-spacing: -0.025em;
+}
+
+/* --- Add Button --- */
+.btn-add-circle {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    background: #1e293b;
+    color: #fff;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+.btn-add-circle:hover {
+    background: #334155;
+    transform: rotate(90deg);
+}
+
+/* --- Search Bar --- */
+.search-wrapper {
+    position: relative;
+    max-width: 300px;
+    width: 100%;
+}
+.search-icon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+}
+.search-input {
+    padding-left: 42px;
+    background: #f1f5f9;
+    border: 1px solid transparent;
+}
+.search-input:focus {
+    background: #ffffff;
+    border-color: #cbd5e1;
+    box-shadow: 0 0 0 3px rgba(226, 232, 240, 0.5);
 }
