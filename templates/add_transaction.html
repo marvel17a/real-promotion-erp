@@ -3,84 +3,77 @@
 {% block title %}Add Transaction{% endblock %}
 
 {% block page_content %}
-<div class="row justify-content-center">
-    <div class="col-lg-8">
-        <div class="card shadow-sm border-0">
-            <div class="card-header bg-light p-3">
-                <h4 class="mb-0">Add New Transaction for {{ employee.name }}</h4>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/employee.css') }}">
+
+<div class="container fade-in-up py-4" style="max-width: 800px;">
+    
+    <!-- HEADER -->
+    <div class="mb-4 d-flex align-items-center">
+        <a href="{{ url_for('emp_ledger', employee_id=employee.id) }}" class="btn btn-light rounded-circle shadow-sm me-3" style="width: 40px; height: 40px;">
+            <i class="fa-solid fa-arrow-left"></i>
+        </a>
+        <h3 class="fw-bold mb-0">New Transaction</h3>
+    </div>
+
+    <div class="glass-panel p-5">
+        <h5 class="text-muted fw-bold mb-4">Record for: <span class="text-dark">{{ employee.name }}</span></h5>
+
+        <form method="POST" action="{{ url_for('add_transaction', employee_id=employee.id) }}">
+            
+            <!-- Type Selection (Big Cards) -->
+            <label class="form-label fw-bold mb-3">Transaction Type</label>
+            <div class="row g-3 mb-4">
+                <div class="col-6">
+                    <input type="radio" class="btn-check" name="type" id="credit-option" value="credit" autocomplete="off" required>
+                    <label class="btn btn-outline-success w-100 p-4 border-2 rounded-4 h-100 d-flex flex-column align-items-center justify-content-center gap-2" for="credit-option">
+                        <i class="fa-solid fa-circle-arrow-down fa-2x"></i>
+                        <span class="fw-bold fs-5">Credit</span>
+                        <small class="opacity-75">Incoming / Add</small>
+                    </label>
+                </div>
+                <div class="col-6">
+                    <input type="radio" class="btn-check" name="type" id="debit-option" value="debit" autocomplete="off">
+                    <label class="btn btn-outline-danger w-100 p-4 border-2 rounded-4 h-100 d-flex flex-column align-items-center justify-content-center gap-2" for="debit-option">
+                        <i class="fa-solid fa-circle-arrow-up fa-2x"></i>
+                        <span class="fw-bold fs-5">Debit</span>
+                        <small class="opacity-75">Outgoing / Deduct</small>
+                    </label>
+                </div>
             </div>
-            <div class="card-body p-4">
-                <form method="POST" action="{{ url_for('add_transaction', employee_id=employee.id) }}">
-                    
-                    <!-- Transaction Type -->
-                    <div class="mb-4">
-                        <label class="form-label fs-5">Transaction Type</label>
-                        <div class="d-flex gap-3">
-                            <!-- Credit first (left side) -->
-                            <input type="radio" class="btn-check" name="type" id="credit-option" value="credit" autocomplete="off" required>
-                            <label class="btn btn-outline-success w-100 p-3" for="credit-option">
-                                <i class="fa-solid fa-hand-holding-dollar fa-2x mb-2"></i><br>
-                                <strong>Credit</strong><br><small>(Receive)</small>
-                            </label>
 
-                            <!-- Debit second (right side) -->
-                            <input type="radio" class="btn-check" name="type" id="debit-option" value="debit" autocomplete="off" required>
-                            <label class="btn btn-outline-danger w-100 p-3" for="debit-option">
-                                <i class="fa-solid fa-arrow-up-from-bracket fa-2x mb-2"></i><br>
-                                <strong>Debit</strong><br><small>(Give)</small>
-                            </label>
-                        </div>
-                    </div>
-
-                    <!-- Transaction Date & Amount -->
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="transaction_date" class="form-label">Transaction Date</label>
-                            <input type="date" class="form-control custom-date" id="transaction_date" name="transaction_date" required>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label for="amount" class="form-label">Amount (₹)</label>
-                            <input type="number" class="form-control" id="amount" name="amount" step="0.01" min="0.01" required placeholder="e.g., 5000.00">
-                        </div>
-                    </div>
-
-                    <!-- Description -->
-                    <div class="mb-3">
-                        <label for="description" class="form-label">Description / Reason</label>
-                        <textarea class="form-control" id="description" name="description" rows="3" placeholder="e.g., Advance for office supplies"></textarea>
-                    </div>
-
-                    <hr class="my-4">
-                    <div class="d-flex justify-content-end gap-2">
-                        <a href="{{ url_for('emp_ledger', employee_id=employee.id) }}" class="btn btn-secondary">Cancel</a>
-                        <button type="submit" class="btn btn-primary">Save Transaction</button>
-                    </div>
-                </form>
+            <!-- Inputs -->
+            <div class="row g-4">
+                <div class="col-md-6">
+                    <label class="form-label fw-bold small text-uppercase text-muted">Amount (₹)</label>
+                    <input type="number" step="0.01" class="form-control input-glass fs-5 fw-bold" name="amount" placeholder="0.00" required>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-bold small text-uppercase text-muted">Date</label>
+                    <input type="date" class="form-control input-glass" name="date" id="datePicker" required>
+                </div>
+                <div class="col-12">
+                    <label class="form-label fw-bold small text-uppercase text-muted">Description</label>
+                    <textarea class="form-control input-glass" name="description" rows="3" placeholder="e.g. Salary Advance, Petrol Allowance..."></textarea>
+                </div>
             </div>
-        </div>
+
+            <div class="mt-5">
+                <button type="submit" class="btn btn-dark w-100 py-3 rounded-pill fw-bold shadow-lg">
+                    <i class="fa-solid fa-check me-2"></i> Save Transaction
+                </button>
+            </div>
+        </form>
     </div>
 </div>
 
-<!-- Custom CSS for Date Picker -->
-<style>
-    .custom-date {
-        border: 2px solid #0d6efd;   /* Bootstrap primary color */
-        border-radius: 8px;
-        padding: 10px;
-        font-size: 16px;
-        transition: all 0.3s ease;
-    }
-    .custom-date:focus {
-        border-color: #198754;       /* Bootstrap success color */
-        box-shadow: 0 0 5px rgba(25, 135, 84, 0.5);
-    }
-</style>
-
-<!-- Auto-fill today's date -->
 <script>
+    // Auto-fill today's date
     document.addEventListener("DOMContentLoaded", function() {
-        const today = new Date().toISOString().split('T')[0];
-        document.getElementById("transaction_date").value = today;
+        const dateInput = document.getElementById("datePicker");
+        if (!dateInput.value) {
+            const today = new Date().toISOString().split("T")[0];
+            dateInput.value = today;
+        }
     });
 </script>
 {% endblock %}
