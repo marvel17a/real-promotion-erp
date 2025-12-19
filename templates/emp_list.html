@@ -35,7 +35,7 @@
                     <tr>
                         <td class="ps-4">
                             <div class="d-flex align-items-center gap-3">
-                                <!-- AVATAR LOGIC: Direct URL from DB -->
+                                <!-- AVATAR LOGIC: Matching employee_master -->
                                 <div class="avatar-wrapper">
                                     {% if emp.image %}
                                         <img src="{{ emp.image }}" class="table-thumb" alt="{{ emp.name }}"
@@ -57,7 +57,7 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="4" class="text-center py-5 text-muted">No employees found.</td>
+                        <td colspan="4" class="text-center py-5 text-muted">No active employees found.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
