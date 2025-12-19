@@ -35,14 +35,12 @@
                     <tr>
                         <td class="ps-4">
                             <div class="d-flex align-items-center gap-3">
-                                <!-- AVATAR LOGIC: Matching employee_master -->
+                                <!-- AVATAR LOGIC: Direct URL from Database (Matches employee_master) -->
                                 <div class="avatar-wrapper">
-                                    {% if emp.image %}
-                                        <img src="{{ emp.image }}" class="table-thumb" alt="{{ emp.name }}"
-                                             onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name={{ emp.name }}&background=random&color=fff';">
-                                    {% else %}
-                                        <img src="https://ui-avatars.com/api/?name={{ emp.name }}&background=random&color=fff" class="table-thumb" alt="{{ emp.name }}">
-                                    {% endif %}
+                                    <img src="{{ emp.image }}" 
+                                         class="table-thumb" 
+                                         alt="{{ emp.name }}"
+                                         onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name={{ emp.name }}&background=random&color=fff';">
                                 </div>
                                 <span class="fw-bold text-dark">{{ emp.name }}</span>
                             </div>
@@ -57,7 +55,7 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="4" class="text-center py-5 text-muted">No active employees found.</td>
+                        <td colspan="4" class="text-center py-5 text-muted">No employees found.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
