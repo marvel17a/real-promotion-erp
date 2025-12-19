@@ -34,7 +34,7 @@
                     <div class="input-group input-group-glass">
                         <span class="input-group-text"><i class="fa-solid fa-user-tie"></i></span>
                         <select name="employee_id" id="employee_id" class="form-select" required>
-                            <option value="">-- Select Staff --</option>
+                            <option value="">-- Select Employee --</option>
                             {% for emp in employees %}
                             <option value="{{ emp.id }}">{{ emp.name }}</option>
                             {% endfor %}
@@ -141,4 +141,5 @@ document.addEventListener("DOMContentLoaded", function () {
 
 <script src="{{ url_for('static', filename='js/morning.js') }}"></script>
 {% endblock %}
+
 
