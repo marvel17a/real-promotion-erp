@@ -4136,15 +4136,13 @@ def product_sales():
 
 # ================================================  Employee Ledger Routes =======================================================
 
-
 @app.route('/emp_list')
 def emp_list():
     if 'loggedin' not in session: return redirect(url_for('login'))
     
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
-    # CRITICAL FIX: Ensure 'image' is in the SELECT list
-    # Fetch all active employees for the finance list
+    # CRITICAL: We must select 'image' to show the profile picture
     cursor.execute("""
         SELECT id, name, position, email, image 
         FROM employees 
@@ -4156,6 +4154,29 @@ def emp_list():
     cursor.close()
     
     return render_template('emp_list.html', employees=employees)
+
+
+
+# --- HELPER: Get Cloudinary Public ID from URL (Fixed) ---
+def get_public_id_from_url(url):
+    """Extracts public_id from a full Cloudinary URL if present."""
+    if url and "res.cloudinary.com" in url:
+        try:
+            # Example: https://res.cloudinary.com/cloudname/image/upload/v1234/folder/myimage.jpg
+            parts = url.split("/upload/")
+            if len(parts) > 1:
+                version_and_id = parts[1].split("/")
+                # Remove version (v1234) if present
+                if version_and_id[0].startswith("v"):
+                    public_id_with_ext = "/".join(version_and_id[1:])
+                else:
+                    public_id_with_ext = "/".join(version_and_id)
+                # Remove extension (.jpg)
+                return public_id_with_ext.rsplit(".", 1)[0]
+        except Exception:
+            # If parsing fails, return the original URL as a fallback
+            return url
+    return url 
 
 
 
@@ -4484,6 +4505,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
