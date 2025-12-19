@@ -61,7 +61,7 @@ body {
     overflow: hidden;
     box-shadow: 0 4px 10px rgba(0,0,0,0.1);
     border: 2px solid #fff;
-    background-color: #e2e8f0; /* Fallback color */
+    background-color: #e2e8f0;
 }
 
 .avatar-lg {
