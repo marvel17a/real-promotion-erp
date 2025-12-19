@@ -1,126 +1,86 @@
 {% extends "admin_master.html" %}
 
-{% block page_content %}
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/supplier.css') }}">
 
-<style>
-    .ledger-card {
-        border-radius: 12px;
-        transition: 0.25s ease;
-    }
-    .ledger-card:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 10px 24px rgba(0,0,0,0.12);
-    }
-    .due-amount-card {
-        background: linear-gradient(135deg, #fff3cd, #ffe8a1);
-        border-left: 6px solid #ffc107;
-        border-radius: 10px;
-    }
-    .table thead th {
-        background-color: #f7f7f7;
-        font-weight: 600;
-    }
-</style>
+<div class="container-fluid py-4 fade-in-up">
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h2 class="mb-0"><i class="fa-solid fa-book-open me-2"></i> Supplier Ledger</h2>
-        <p class="text-muted mb-0">Financial history for: <strong>{{ supplier.name }}</strong></p>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="page-title mb-0">Supplier Ledger</h2>
+            <p class="text-muted mb-0">History for: <span class="text-primary fw-bold">{{ supplier.name }}</span></p>
+        </div>
+        <a href="{{ url_for('suppliers') }}" class="btn btn-light rounded-pill shadow-sm px-4">
+            <i class="fa-solid fa-arrow-left me-2"></i>Back
+        </a>
     </div>
 
-    <a href="{{ url_for('suppliers') }}" class="btn btn-sm btn-outline-secondary">
-        <i class="fa-solid fa-arrow-left me-1"></i> Back to All Suppliers
-    </a>
-</div>
-
-<!-- Supplier Summary -->
-<div class="card shadow-sm ledger-card mb-4">
-    <div class="card-body p-4">
-        <div class="row align-items-center">
-            <div class="col-md-8">
-                <h4 class="fw-bold mb-1">{{ supplier.name }}</h4>
-                <p class="mb-1 text-muted"><i class="fa-solid fa-phone me-2"></i> {{ supplier.phone or 'N/A' }}</p>
-                <p class="mb-0 text-muted"><i class="fa-solid fa-location-dot me-2"></i> {{ supplier.address or 'N/A' }}</p>
-            </div>
-
-            <div class="col-md-4 text-md-end mt-3 mt-md-0">
-                <div class="due-amount-card p-3">
-                    <h6 class="text-uppercase text-muted small mb-1">Current Amount Due</h6>
-                    <h2 class="fw-bold mb-0">₹{{ "%.2f"|format(supplier.current_due) }}</h2>
+    <div class="row g-4 mb-4">
+        <!-- Profile & Due Card -->
+        <div class="col-md-12">
+            <div class="glass-panel d-flex justify-content-between align-items-center p-4">
+                <div class="d-flex align-items-center gap-4">
+                    <div class="icon-box bg-primary bg-opacity-10 text-primary" style="width: 70px; height: 70px; font-size: 2rem;">
+                        <i class="fa-solid fa-building-user"></i>
+                    </div>
+                    <div>
+                        <h3 class="mb-1 fw-bold">{{ supplier.name }}</h3>
+                        <p class="text-muted mb-0"><i class="fa-solid fa-phone me-2"></i>{{ supplier.phone }} | {{ supplier.address }}</p>
+                    </div>
+                </div>
+                <div class="text-end">
+                    <small class="text-uppercase fw-bold text-muted ls-1">Current Due Balance</small>
+                    <h1 class="display-5 fw-bold mb-0 {% if final_balance > 0 %}text-danger{% else %}text-success{% endif %}">
+                        {{ (final_balance|abs)|inr }}
+                    </h1>
+                    <span class="badge rounded-pill {% if final_balance > 0 %}bg-danger{% else %}bg-success{% endif %}">
+                        {% if final_balance > 0 %}To Pay{% else %}Cleared{% endif %}
+                    </span>
                 </div>
             </div>
         </div>
     </div>
-</div>
 
-<!-- Add Payment Button -->
-<a href="{{ url_for('record_payment', supplier_id=supplier.id) }}" 
-   class="btn btn-success mb-4 w-100 fs-5 py-2">
-    <i class="fa-solid fa-plus-circle me-1"></i> Record a New Payment to this Supplier
-</a>
-
-<div class="row g-4">
-    <!-- Purchases -->
-    <div class="col-md-6">
-        <div class="card shadow-sm ledger-card h-100">
-            <div class="card-header bg-light">
-                <h5 class="mb-0 text-danger">
-                    <i class="fa-solid fa-cart-shopping me-2"></i> Purchases (Debits)
-                </h5>
-            </div>
-
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-striped mb-0 align-middle">
+    <div class="row g-4">
+        <!-- PURCHASES TABLE -->
+        <div class="col-lg-6">
+            <div class="glass-panel p-0 overflow-hidden h-100">
+                <div class="p-3 border-bottom bg-light bg-opacity-50">
+                    <h5 class="mb-0 fw-bold text-dark"><i class="fa-solid fa-cart-shopping me-2 text-primary"></i>Purchases (Debits)</h5>
+                </div>
+                <div class="table-responsive p-3">
+                    <table class="table-glass">
                         <thead>
                             <tr>
                                 <th>Date</th>
-                                <th>Bill #</th>
+                                <th>Bill No</th>
                                 <th class="text-end">Amount</th>
-                                <th></th>
                             </tr>
                         </thead>
                         <tbody>
-
-                            {% for p in purchases %}
+                            {% for pur in purchases %}
                             <tr>
-                                <td>{{ p.date.strftime('%d-%b-%Y') }}</td>
-                                <td>{{ p.bill_number or 'N/A' }}</td>
-                                <td class="text-end fw-bold text-danger">+ ₹{{ "%.2f"|format(p.amount) }}</td>
-                                <td class="text-end">
-                                    <a href="{{ url_for('view_purchase', purchase_id=p.id) }}" 
-                                       class="btn btn-sm btn-primary">
-                                        View
-                                    </a>
-                                </td>
+                                <td>{{ pur.purchase_date.strftime('%d-%b-%Y') }}</td>
+                                <td><span class="badge bg-light text-dark border">{{ pur.bill_number }}</span></td>
+                                <td class="text-end fw-bold text-danger">₹{{ "%.2f"|format(pur.total_amount) }}</td>
                             </tr>
                             {% else %}
-                            <tr>
-                                <td colspan="4" class="text-center p-3 text-muted">
-                                    No purchases recorded.
-                                </td>
-                            </tr>
+                            <tr><td colspan="3" class="text-center text-muted py-4">No purchases found.</td></tr>
                             {% endfor %}
-
                         </tbody>
                     </table>
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- Payments -->
-    <div class="col-md-6">
-        <div class="card shadow-sm ledger-card h-100">
-            <div class="card-header bg-light">
-                <h5 class="mb-0 text-success">
-                    <i class="fa-solid fa-money-bill-transfer me-2"></i> Payments (Credits)
-                </h5>
-            </div>
-
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-striped mb-0 align-middle">
+        <!-- PAYMENTS TABLE -->
+        <div class="col-lg-6">
+            <div class="glass-panel p-0 overflow-hidden h-100">
+                <div class="p-3 border-bottom bg-light bg-opacity-50">
+                    <h5 class="mb-0 fw-bold text-dark"><i class="fa-solid fa-money-bill-wave me-2 text-success"></i>Payments (Credits)</h5>
+                </div>
+                <div class="table-responsive p-3">
+                    <table class="table-glass">
                         <thead>
                             <tr>
                                 <th>Date</th>
@@ -129,21 +89,15 @@
                             </tr>
                         </thead>
                         <tbody>
-
                             {% for pay in payments %}
                             <tr>
                                 <td>{{ pay.date.strftime('%d-%b-%Y') }}</td>
-                                <td>{{ pay.mode }}</td>
+                                <td><span class="badge bg-success bg-opacity-10 text-success border border-success-subtle">{{ pay.mode }}</span></td>
                                 <td class="text-end fw-bold text-success">- ₹{{ "%.2f"|format(pay.amount) }}</td>
                             </tr>
                             {% else %}
-                            <tr>
-                                <td colspan="3" class="text-center p-3 text-muted">
-                                    No payments recorded.
-                                </td>
-                            </tr>
+                            <tr><td colspan="3" class="text-center text-muted py-4">No payments found.</td></tr>
                             {% endfor %}
-
                         </tbody>
                     </table>
                 </div>
@@ -151,5 +105,4 @@
         </div>
     </div>
 </div>
-
 {% endblock %}
