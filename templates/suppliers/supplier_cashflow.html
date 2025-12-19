@@ -1,38 +1,42 @@
 {% extends "admin_master.html" %}
 
-{% block page_content %}
-<div class="container-fluid" data-aos="fade-in">
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/supplier.css') }}">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+
+<div class="container-fluid py-4 fade-in-up">
     
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="fw-bold mb-0">Supplier Payments</h2>
-        <a href="{{ url_for('supplier_cashflow_add') }}" class="btn btn-primary rounded-pill px-4 shadow-sm">
-            <i class="fa-solid fa-plus me-2"></i>Record Payment
+        <div>
+            <h2 class="page-title mb-0">Supplier Cashflow</h2>
+            <p class="text-muted small">Track all incoming and outgoing payments.</p>
+        </div>
+        <a href="{{ url_for('supplier_cashflow_add') }}" class="btn-glass-primary text-decoration-none">
+            <i class="fa-solid fa-plus me-2"></i>New Transaction
         </a>
     </div>
 
-    <!-- SUMMARY CARD (Payment Only) -->
+    <!-- Summary Card -->
     <div class="row mb-4">
         <div class="col-md-4">
-            <div class="glass-card p-4 border-start border-4 border-danger">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <p class="text-muted text-uppercase fw-bold mb-1 small">Total Paid Out</p>
-                        <h2 class="fw-bold text-danger mb-0">₹ {{ "{:,.2f}".format(total_payment) }}</h2>
-                    </div>
-                    <div class="bg-danger-subtle text-danger rounded-circle p-3">
-                        <i class="fa-solid fa-money-bill-transfer fa-2x"></i>
-                    </div>
+            <div class="glass-panel p-4 d-flex align-items-center justify-content-between border-start border-4 border-danger">
+                <div>
+                    <p class="text-muted small fw-bold text-uppercase mb-1">Total Paid Out</p>
+                    <h2 class="text-danger fw-bold mb-0">₹ {{ "{:,.2f}".format(total_payment) }}</h2>
+                </div>
+                <div class="icon-box bg-danger bg-opacity-10 text-danger rounded-circle">
+                    <i class="fa-solid fa-money-bill-transfer"></i>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- FILTERS -->
-    <div class="glass-card p-4 mb-4">
+    <!-- Filter Bar -->
+    <div class="glass-panel p-4 mb-4">
         <form method="get" class="row g-3 align-items-end">
             <div class="col-md-3">
-                <label class="form-label small text-muted fw-bold">Supplier</label>
-                <select name="supplier_id" class="form-select bg-transparent">
+                <label class="form-label fw-bold text-muted small">Supplier</label>
+                <select name="supplier_id" class="form-select input-glass">
                     <option value="">All Suppliers</option>
                     {% for s in suppliers %}
                     <option value="{{ s.id }}" {% if selected_supplier == s.id|string %}selected{% endif %}>
@@ -41,68 +45,69 @@
                     {% endfor %}
                 </select>
             </div>
-
             <div class="col-md-3">
-                <label class="form-label small text-muted fw-bold">From Date</label>
-                <input type="date" name="start_date" value="{{ start_date or '' }}" class="form-control bg-transparent">
+                <label class="form-label fw-bold text-muted small">From Date</label>
+                <input type="text" class="form-control input-glass datepicker" name="start_date" value="{{ start_date or '' }}" placeholder="Select Date">
             </div>
-
             <div class="col-md-3">
-                <label class="form-label small text-muted fw-bold">To Date</label>
-                <input type="date" name="end_date" value="{{ end_date or '' }}" class="form-control bg-transparent">
+                <label class="form-label fw-bold text-muted small">To Date</label>
+                <input type="text" class="form-control input-glass datepicker" name="end_date" value="{{ end_date or '' }}" placeholder="Select Date">
             </div>
-
             <div class="col-md-3">
-                <button class="btn btn-primary w-100"><i class="fa-solid fa-filter me-2"></i>Filter</button>
+                <button class="btn btn-dark w-100 py-2 rounded-pill"><i class="fa-solid fa-filter me-2"></i>Apply Filter</button>
             </div>
         </form>
     </div>
 
-    <!-- TABLE -->
-    <div class="glass-card p-0 overflow-hidden">
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0" style="background: transparent;">
-                <thead class="bg-light border-bottom">
+    <!-- Transactions Table -->
+    <div class="glass-panel p-0 overflow-hidden">
+        <div class="table-responsive p-3">
+            <table class="table-glass">
+                <thead>
                     <tr>
-                        <th class="ps-4 py-3">Date</th>
-                        <th class="py-3">Supplier</th>
-                        <th class="py-3 text-end">Amount Paid</th>
-                        <th class="py-3">Mode</th>
-                        <th class="py-3">Remark</th>
-                        <th class="py-3 text-center">Action</th>
+                        <th class="ps-4">Date</th>
+                        <th>Supplier</th>
+                        <th>Type</th>
+                        <th class="text-end">Amount</th>
+                        <th>Mode</th>
+                        <th>Remark</th>
+                        <th class="text-center pe-4">Action</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for t in transactions %}
                     <tr>
-                        <td class="ps-4 fw-bold text-muted">{{ t.date.strftime("%d-%b-%Y") }}</td>
+                        <td class="ps-4 fw-medium text-dark">{{ t.date.strftime("%d-%b-%Y") }}<br><small class="text-muted">{{ t.date.strftime("%I:%M %p") }}</small></td>
                         <td>
-                            <div class="d-flex align-items-center">
-                                <div class="bg-white rounded-circle p-2 me-2 shadow-sm d-flex align-items-center justify-content-center" style="width: 35px; height: 35px;">
-                                    <span class="fw-bold text-primary small">{{ t.supplier_name[:1] }}</span>
-                                </div>
-                                {{ t.supplier_name }}
-                            </div>
+                            <span class="fw-bold text-dark">{{ t.supplier_name }}</span>
                         </td>
-                        <td class="text-end fw-bold text-danger">
-                            ₹ {{ "{:,.2f}".format(t.amount) }}
+                        <td>
+                            {% if t.type == 'payment' %}
+                                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle px-3 py-1 rounded-pill">Payment</span>
+                            {% else %}
+                                <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle px-3 py-1 rounded-pill">Received</span>
+                            {% endif %}
                         </td>
-                        <td><span class="badge bg-secondary-subtle text-secondary border">{{ t.mode }}</span></td>
-                        <td class="small text-muted">{{ t.remark }}</td>
-                        <td class="text-center">
-                            <a href="{{ url_for('supplier_cashflow_delete', id=t.id) }}" class="btn btn-sm btn-light text-danger hover-danger" title="Delete">
+                        <td class="text-end fw-bold text-dark">₹{{ "%.2f"|format(t.amount) }}</td>
+                        <td><span class="badge bg-secondary bg-opacity-10 text-dark border">{{ t.mode }}</span></td>
+                        <td class="text-muted small">{{ t.remark }}</td>
+                        <td class="text-center pe-4">
+                            <a href="{{ url_for('supplier_cashflow_delete', id=t.id) }}" class="action-btn btn-delete" title="Delete" onclick="return confirm('Delete this transaction?')">
                                 <i class="fa-solid fa-trash"></i>
                             </a>
                         </td>
                     </tr>
                     {% else %}
-                    <tr>
-                        <td colspan="6" class="text-center py-5 text-muted">No payment records found.</td>
-                    </tr>
+                    <tr><td colspan="7" class="text-center py-5 text-muted">No transactions found.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
     </div>
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script>
+    flatpickr(".datepicker", { dateFormat: "Y-m-d", allowInput: true });
+</script>
 {% endblock %}
