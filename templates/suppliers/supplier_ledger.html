@@ -1,6 +1,6 @@
 {% extends "admin_master.html" %}
 
-{% block page_content %}
+{% block content %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/supplier.css') }}">
 
 <div class="container-fluid py-4 fade-in-up">
@@ -34,7 +34,7 @@
                     {% set balance = final_balance if final_balance is defined else (supplier.current_due if supplier.current_due is defined else 0) %}
                     
                     <h1 class="display-5 fw-bold mb-0 {% if balance > 0 %}text-danger{% else %}text-success{% endif %}">
-                        {{ (balance|abs)|format("%.2f") }}
+                        {{ "%.2f"|format(balance|abs) }}
                     </h1>
                     <span class="badge rounded-pill {% if balance > 0 %}bg-danger{% else %}bg-success{% endif %}">
                         {% if balance > 0 %}To Pay{% else %}Cleared{% endif %}
