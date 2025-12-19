@@ -8,7 +8,7 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h2 class="page-title mb-0">Supplier Ledger</h2>
-            <p class="text-muted mb-0">History for: <span class="text-primary fw-bold">{{ supplier.name }}</span></p>
+            <p class="text-muted mb-0">Financial history for: <span class="text-primary fw-bold">{{ supplier.name }}</span></p>
         </div>
         <a href="{{ url_for('suppliers') }}" class="btn btn-light rounded-pill shadow-sm px-4">
             <i class="fa-solid fa-arrow-left me-2"></i>Back
@@ -30,11 +30,14 @@
                 </div>
                 <div class="text-end">
                     <small class="text-uppercase fw-bold text-muted ls-1">Current Due Balance</small>
-                    <h1 class="display-5 fw-bold mb-0 {% if final_balance > 0 %}text-danger{% else %}text-success{% endif %}">
-                        {{ (final_balance|abs)|inr }}
+                    <!-- FIX: Handle missing 'final_balance' by falling back to supplier.current_due or 0 -->
+                    {% set balance = final_balance if final_balance is defined else (supplier.current_due if supplier.current_due is defined else 0) %}
+                    
+                    <h1 class="display-5 fw-bold mb-0 {% if balance > 0 %}text-danger{% else %}text-success{% endif %}">
+                        {{ (balance|abs)|format("%.2f") }}
                     </h1>
-                    <span class="badge rounded-pill {% if final_balance > 0 %}bg-danger{% else %}bg-success{% endif %}">
-                        {% if final_balance > 0 %}To Pay{% else %}Cleared{% endif %}
+                    <span class="badge rounded-pill {% if balance > 0 %}bg-danger{% else %}bg-success{% endif %}">
+                        {% if balance > 0 %}To Pay{% else %}Cleared{% endif %}
                     </span>
                 </div>
             </div>
@@ -106,4 +109,3 @@
     </div>
 </div>
 {% endblock %}
-
