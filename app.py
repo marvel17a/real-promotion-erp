@@ -4143,14 +4143,40 @@ def emp_list():
     
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
-    # FIX: Ensure 'image' is included in the SELECT statement
-    # We use 'SELECT *' to be safe, or list columns: id, name, position, email, image
-    cursor.execute("SELECT * FROM employees ORDER BY name")
+    # CRITICAL FIX: Ensure 'image' is in the SELECT list
+    # Fetch all active employees for the finance list
+    cursor.execute("""
+        SELECT id, name, position, email, image 
+        FROM employees 
+        WHERE status = 'active' 
+        ORDER BY name
+    """)
     
     employees = cursor.fetchall()
     cursor.close()
     
     return render_template('emp_list.html', employees=employees)
+
+
+# --- HELPER: Get Cloudinary Public ID from URL (for legacy support) ---
+def get_public_id_from_url(url):
+    """Extracts public_id from a full Cloudinary URL if present."""
+    if not url: return None
+    if "res.cloudinary.com" in url:
+        try:
+            # Example: https://res.cloudinary.com/cloudname/image/upload/v1234/folder/myimage.jpg
+            # We want: folder/myimage
+            parts = url.split("/upload/")
+            if len(parts) > 1:
+                version_and_id = parts[1].split("/")
+                # Remove version (v1234) if present
+                if version_and_id[0].startswith("v"):
+                    public_id_with_ext = "/".join(version_and_id[1:])
+                else:
+                    public_id_with_ext = "/".join(version_and_id)
+                # Remove extension (.jpg)
+                return public_id_with_ext.rsplit(".", 1)[0]
+    return url # Return as is if it's already a public_id or unknown format
 
 @app.route('/employee-ledger/<int:employee_id>')
 def emp_ledger(employee_id):
@@ -4477,6 +4503,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
