@@ -1,70 +1,64 @@
 {% extends "admin_master.html" %}
 
-{% block page_content %}
-<div class="container" data-aos="fade-up" style="max-width: 800px;">
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/supplier.css') }}">
+
+<div class="container py-5 fade-in-up" style="max-width: 800px;">
     
     <div class="d-flex align-items-center mb-4">
-        <a href="{{ url_for('supplier_cashflow') }}" class="btn btn-glass-primary btn-sm me-3 rounded-circle" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+        <a href="{{ url_for('supplier_cashflow') }}" class="btn btn-light rounded-circle shadow-sm me-3" style="width: 40px; height: 40px; display:flex; align-items:center; justify-content:center;">
             <i class="fa-solid fa-arrow-left"></i>
         </a>
-        <h2 class="fw-bold mb-0">Record Payment</h2>
+        <h2 class="mb-0 fw-bold page-title">Add Cashflow</h2>
     </div>
 
-    <div class="glass-card p-5">
+    <div class="glass-panel p-5">
         <form method="post" class="needs-validation" novalidate>
-            
-            <!-- Hidden Type Field (Always Payment) -->
-            <input type="hidden" name="type" value="payment">
-
             <div class="row g-4">
                 
-                <!-- Supplier Select -->
-                <div class="col-md-12">
-                    <label class="form-label fw-bold text-muted">Select Supplier</label>
-                    <div class="input-group">
-                        <span class="input-group-text bg-transparent border-end-0"><i class="fa-solid fa-truck"></i></span>
-                        <select name="supplier_id" class="form-select bg-transparent border-start-0" required>
-                            <option value="" selected disabled>Choose Supplier...</option>
-                            {% for s in suppliers %}
-                            <option value="{{ s.id }}">{{ s.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                </div>
-
-                <!-- Amount -->
                 <div class="col-md-6">
-                    <label class="form-label fw-bold text-muted">Amount Paid (₹)</label>
-                    <div class="input-group">
-                        <span class="input-group-text bg-transparent border-end-0 fw-bold">₹</span>
-                        <input type="number" step="0.01" name="amount" class="form-control bg-transparent border-start-0" placeholder="0.00" required>
-                    </div>
-                </div>
-
-                <!-- Mode -->
-                <div class="col-md-6">
-                    <label class="form-label fw-bold text-muted">Payment Mode</label>
-                    <select name="mode" class="form-select bg-transparent">
-                        <option value="Cash">Cash</option>
-                        <option value="UPI">UPI</option>
-                        <option value="Bank Transfer">Bank Transfer</option>
-                        <option value="Cheque">Cheque</option>
+                    <label class="form-label fw-bold text-muted small text-uppercase">Supplier</label>
+                    <select name="supplier_id" class="form-select input-glass" required>
+                        <option value="" selected disabled>Select...</option>
+                        {% for s in suppliers %}
+                        <option value="{{ s.id }}">{{ s.name }}</option>
+                        {% endfor %}
                     </select>
                 </div>
 
-                <!-- Remark -->
+                <div class="col-md-6">
+                    <label class="form-label fw-bold text-muted small text-uppercase">Transaction Type</label>
+                    <select name="type" class="form-select input-glass" required>
+                        <option value="payment">Payment To Supplier</option>
+                        <option value="receipt">Amount Received From Supplier</option>
+                    </select>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label fw-bold text-muted small text-uppercase">Amount (₹)</label>
+                    <input type="number" step="0.01" name="amount" class="form-control input-glass fs-5 fw-bold" placeholder="0.00" required>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label fw-bold text-muted small text-uppercase">Mode</label>
+                    <select name="mode" class="form-select input-glass">
+                        <option>Cash</option>
+                        <option>UPI</option>
+                        <option>Bank Transfer</option>
+                        <option>Cheque</option>
+                    </select>
+                </div>
+
                 <div class="col-12">
-                    <label class="form-label fw-bold text-muted">Notes / Remarks</label>
-                    <textarea name="remark" class="form-control bg-transparent" rows="3" placeholder="e.g. Advance payment for raw material"></textarea>
+                    <label class="form-label fw-bold text-muted small text-uppercase">Reason / Remark</label>
+                    <textarea name="remark" class="form-control input-glass" rows="3" placeholder="Description of transaction..."></textarea>
                 </div>
+            </div>
 
-                <!-- Submit -->
-                <div class="col-12 mt-4">
-                    <button class="btn btn-primary w-100 py-3 rounded-pill fw-bold shadow-sm">
-                        <i class="fa-solid fa-check-circle me-2"></i> Save Payment Record
-                    </button>
-                </div>
-
+            <div class="mt-5 text-end">
+                <button type="submit" class="btn-glass-primary px-5 py-3 shadow-lg">
+                    <i class="fa-solid fa-check me-2"></i>Save Record
+                </button>
             </div>
         </form>
     </div>
