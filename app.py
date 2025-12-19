@@ -4135,12 +4135,21 @@ def product_sales():
 
 
 # ================================================  Employee Ledger Routes =======================================================
+
+
 @app.route('/emp_list')
 def emp_list():
-    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    cur.execute("SELECT id, name, position, email FROM employees WHERE status = 'active' ORDER BY name ASC")
-    employees = cur.fetchall()
-    cur.close()
+    if 'loggedin' not in session: return redirect(url_for('login'))
+    
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    
+    # FIX: Ensure 'image' is included in the SELECT statement
+    # We use 'SELECT *' to be safe, or list columns: id, name, position, email, image
+    cursor.execute("SELECT * FROM employees ORDER BY name")
+    
+    employees = cursor.fetchall()
+    cursor.close()
+    
     return render_template('emp_list.html', employees=employees)
 
 @app.route('/employee-ledger/<int:employee_id>')
@@ -4468,6 +4477,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
