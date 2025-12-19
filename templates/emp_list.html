@@ -35,13 +35,14 @@
                     <tr>
                         <td class="ps-4">
                             <div class="d-flex align-items-center gap-3">
-                                <!-- CORRECTED IMAGE LOGIC: Use direct URL -->
+                                <!-- AVATAR LOGIC -->
                                 <div class="avatar-wrapper">
                                     {% if emp.image %}
+                                        <!-- Direct URL from database -->
                                         <img src="{{ emp.image }}" class="table-thumb" alt="{{ emp.name }}"
                                              onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name={{ emp.name }}&background=random&color=fff';">
                                     {% else %}
-                                        <!-- Fallback to UI Avatars if image is NULL -->
+                                        <!-- Fallback if database field is empty -->
                                         <img src="https://ui-avatars.com/api/?name={{ emp.name }}&background=random&color=fff" class="table-thumb" alt="{{ emp.name }}">
                                     {% endif %}
                                 </div>
