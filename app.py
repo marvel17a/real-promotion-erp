@@ -4135,6 +4135,11 @@ def product_sales():
 
 
 # ================================================  Employee Ledger Routes =======================================================
+# ... existing imports ...
+
+# ============================================================
+#  EMPLOYEE FINANCE LIST ROUTE (Update this in app.py)
+# ============================================================
 
 @app.route('/emp_list')
 def emp_list():
@@ -4142,18 +4147,20 @@ def emp_list():
     
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
-    # CRITICAL: We must select 'image' to show the profile picture
-    cursor.execute("""
-        SELECT id, name, position, email, image 
-        FROM employees 
-        WHERE status = 'active' 
-        ORDER BY name
-    """)
+    # CRITICAL FIX: Explicitly selecting 'image' column so it's not None
+    # Also joining with positions table to get position name if needed, 
+    # but 'employees' table usually has a 'position' string column based on your SQL.
+    # Based on your SQL dump, 'employees' table has 'position' (varchar) AND 'position_id'.
+    # We will select everything to be safe.
+    
+    cursor.execute("SELECT * FROM employees WHERE status = 'active' ORDER BY name")
     
     employees = cursor.fetchall()
     cursor.close()
     
     return render_template('emp_list.html', employees=employees)
+
+# ... rest of app.py ...
 
 
 
@@ -4505,6 +4512,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
