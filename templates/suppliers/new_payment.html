@@ -1,51 +1,73 @@
 {% extends "admin_master.html" %}
 
-{% block page_content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h2 class="mb-0"><i class="fa-solid fa-hand-holding-dollar me-2"></i> Record Payment</h2>
-        <p class="text-muted mb-0">For Supplier: <strong>{{ supplier.name }}</strong></p>
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/supplier.css') }}">
+<!-- Flatpickr CSS -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+
+<div class="container py-5 fade-in-up" style="max-width: 800px;">
+    
+    <div class="d-flex align-items-center mb-4">
+        <a href="{{ url_for('supplier_ledger', supplier_id=supplier.id) }}" class="btn btn-light rounded-circle shadow-sm me-3" style="width: 40px; height: 40px; display:flex; align-items:center; justify-content:center;">
+            <i class="fa-solid fa-arrow-left"></i>
+        </a>
+        <div>
+            <h2 class="mb-0 fw-bold page-title">Record Payment</h2>
+            <p class="text-muted mb-0 small">Paying to: <span class="text-primary fw-bold">{{ supplier.name }}</span></p>
+        </div>
     </div>
-    <a href="{{ url_for('supplier_ledger', supplier_id=supplier.id) }}" class="btn btn-sm btn-outline-secondary">
-        <i class="fa-solid fa-arrow-left me-1"></i> Back to Ledger
-    </a>
-</div>
 
-<div class="card shadow-sm">
-    <div class="card-body p-4">
+    <div class="glass-panel p-5">
         <form method="POST" class="needs-validation" novalidate>
-            
+            <div class="row g-4">
+                
+                <!-- Date with Flatpickr -->
+                <div class="col-md-6">
+                    <label class="form-label fw-bold text-muted small text-uppercase">Payment Date <span class="text-danger">*</span></label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-white border-end-0"><i class="fa-regular fa-calendar"></i></span>
+                        <input type="text" class="form-control input-glass border-start-0 ps-0" id="payment_date" name="payment_date" value="{{ today_date }}" required>
+                    </div>
+                </div>
 
-            <div class="row g-3">
                 <div class="col-md-6">
-                    <label for="payment_date" class="form-label">Payment Date <span class="text-danger">*</span></label>
-                    <input type="date" class="form-control" id="payment_date" name="payment_date" value="{{ today_date }}" required>
+                    <label class="form-label fw-bold text-muted small text-uppercase">Amount Paid (₹) <span class="text-danger">*</span></label>
+                    <input type="number" class="form-control input-glass fs-5 fw-bold" id="amount_paid" name="amount_paid" step="0.01" min="0.01" max="{{ supplier.current_due }}" required placeholder="0.00">
+                    <div class="form-text text-danger">Max payable: ₹{{ "%.2f"|format(supplier.current_due) }}</div>
                 </div>
+
                 <div class="col-md-6">
-                    <label for="amount_paid" class="form-label">Amount Paid <span class="text-danger">*</span></label>
-                    <input type="number" class="form-control" id="amount_paid" name="amount_paid" step="0.01" min="0.01" max="{{ supplier.current_due }}" required>
-                    <div class="invalid-feedback">Please enter a valid amount.</div>
-                </div>
-                <div class="col-md-6">
-                    <label for="payment_mode" class="form-label">Payment Mode</label>
-                    <select class="form-select" id="payment_mode" name="payment_mode">
+                    <label class="form-label fw-bold text-muted small text-uppercase">Payment Mode</label>
+                    <select class="form-select input-glass" id="payment_mode" name="payment_mode">
                         <option>Cash</option>
                         <option>Bank Transfer</option>
                         <option>UPI</option>
                         <option>Cheque</option>
                     </select>
                 </div>
+
                 <div class="col-12">
-                    <label for="notes" class="form-label">Notes (e.g., Cheque No., Transaction ID)</label>
-                    <textarea class="form-control" id="notes" name="notes" rows="2"></textarea>
+                    <label class="form-label fw-bold text-muted small text-uppercase">Notes</label>
+                    <textarea class="form-control input-glass" id="notes" name="notes" rows="2" placeholder="Transaction ID, Cheque No, etc."></textarea>
                 </div>
             </div>
-            <div class="d-flex justify-content-end mt-4">
-                <button type="submit" class="btn btn-success px-4">Save Payment</button>
+
+            <div class="mt-5 text-end">
+                <button type="submit" class="btn-glass-primary px-5 py-3 shadow-lg">
+                    <i class="fa-solid fa-check me-2"></i>Save Payment
+                </button>
             </div>
         </form>
     </div>
 </div>
 
-
+<!-- Flatpickr JS -->
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script>
+    flatpickr("#payment_date", {
+        dateFormat: "Y-m-d",
+        defaultDate: "today",
+        allowInput: true
+    });
+</script>
 {% endblock %}
