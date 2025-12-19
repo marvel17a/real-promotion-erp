@@ -35,22 +35,12 @@
                     <tr>
                         <td class="ps-4">
                             <div class="d-flex align-items-center gap-3">
-                                <!-- SMART AVATAR LOGIC -->
+                                <!-- AVATAR LOGIC: Direct URL from DB -->
                                 <div class="avatar-wrapper">
                                     {% if emp.image %}
-                                        {% if 'http' in emp.image %}
-                                            <!-- CASE 1: Legacy Full URL (Existing Data) -->
-                                            <img src="{{ emp.image }}" class="table-thumb" alt="{{ emp.name }}"
-                                                 onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name={{ emp.name }}&background=random&color=fff';">
-                                        {% else %}
-                                            <!-- CASE 2: Cloudinary Public ID (New Data) -->
-                                            <!-- Uses Cloudinary's auto-format and optimization features -->
-                                            <img src="https://res.cloudinary.com/{{ config.CLOUDINARY_CLOUD_NAME }}/image/upload/c_fill,h_100,w_100,q_auto,f_auto/{{ emp.image }}" 
-                                                 class="table-thumb" alt="{{ emp.name }}"
-                                                 onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name={{ emp.name }}&background=random&color=fff';">
-                                        {% endif %}
+                                        <img src="{{ emp.image }}" class="table-thumb" alt="{{ emp.name }}"
+                                             onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name={{ emp.name }}&background=random&color=fff';">
                                     {% else %}
-                                        <!-- CASE 3: No Image -->
                                         <img src="https://ui-avatars.com/api/?name={{ emp.name }}&background=random&color=fff" class="table-thumb" alt="{{ emp.name }}">
                                     {% endif %}
                                 </div>
