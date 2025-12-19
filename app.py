@@ -4144,45 +4144,28 @@ def product_sales():
 @app.route('/emp_list')
 def emp_list():
     if 'loggedin' not in session: return redirect(url_for('login'))
-    
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    
-    # CRITICAL FIX: Explicitly selecting 'image' column so it's not None
-    # Also joining with positions table to get position name if needed, 
-    # but 'employees' table usually has a 'position' string column based on your SQL.
-    # Based on your SQL dump, 'employees' table has 'position' (varchar) AND 'position_id'.
-    # We will select everything to be safe.
-    
     cursor.execute("SELECT * FROM employees WHERE status = 'active' ORDER BY name")
-    
     employees = cursor.fetchall()
     cursor.close()
-    
     return render_template('emp_list.html', employees=employees)
 
-# ... rest of app.py ...
 
 
-
-# --- HELPER: Get Cloudinary Public ID from URL (Fixed) ---
+# --- HELPER: Get Cloudinary Public ID from URL (for legacy support if needed) ---
 def get_public_id_from_url(url):
     """Extracts public_id from a full Cloudinary URL if present."""
     if url and "res.cloudinary.com" in url:
         try:
-            # Example: https://res.cloudinary.com/cloudname/image/upload/v1234/folder/myimage.jpg
             parts = url.split("/upload/")
             if len(parts) > 1:
                 version_and_id = parts[1].split("/")
-                # Remove version (v1234) if present
                 if version_and_id[0].startswith("v"):
                     public_id_with_ext = "/".join(version_and_id[1:])
                 else:
                     public_id_with_ext = "/".join(version_and_id)
-                # Remove extension (.jpg)
                 return public_id_with_ext.rsplit(".", 1)[0]
-        except Exception:
-            # If parsing fails, return the original URL as a fallback
-            return url
+        except: return url
     return url 
 
 
@@ -4512,6 +4495,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
