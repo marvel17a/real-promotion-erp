@@ -858,66 +858,89 @@ def purchases():
     cur.close()
     return render_template('purchases/purchases.html', purchases=all_purchases)
 
-@app.route('/purchases/new', methods=['GET', 'POST'])
+
+
+
+
+@app.route('/new_purchase', methods=['GET', 'POST'])
 def new_purchase():
-    db_cursor = None
-    try:
-        db_cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-        
-        if request.method == 'POST':
-            supplier_id = request.form.get('supplier_id')
-            purchase_date = request.form.get('purchase_date')
-            bill_number = request.form.get('bill_number')
+    if 'loggedin' not in session: return redirect(url_for('login'))
+    
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    
+    if request.method == 'POST':
+        try:
+            # 1. Master Data
+            supplier_id = request.form['supplier_id']
+            # This will now be YYYY-MM-DD thanks to Flatpickr config
+            purchase_date = request.form['purchase_date'] 
+            bill_number = request.form.get('bill_number', '')
+            
+            # 2. Item Arrays (Using getlist)
             product_ids = request.form.getlist('product_id[]')
             quantities = request.form.getlist('quantity[]')
-            purchase_prices = request.form.getlist('purchase_price[]')
+            prices = request.form.getlist('price[]')
             
-            if not all([supplier_id, purchase_date, product_ids, quantities, purchase_prices]):
-                flash("Supplier, Date, and at least one full product row are required.", "danger")
-                return redirect(url_for('new_purchase'))
-
-            total_amount = sum([float(qty) * float(price) for qty, price in zip(quantities, purchase_prices)])
-
-            db_cursor.execute("INSERT INTO purchases (supplier_id, purchase_date, bill_number, total_amount) VALUES (%s, %s, %s, %s)",
-                              (supplier_id, purchase_date, bill_number, total_amount))
-            purchase_id = db_cursor.lastrowid
-
-            item_sql = "INSERT INTO purchase_items (purchase_id, product_id, quantity, purchase_price) VALUES (%s, %s, %s, %s)"
-            stock_update_sql = "UPDATE products SET stock = stock + %s, purchase_price = %s WHERE id = %s"
-
-            for i, product_id_val in enumerate(product_ids):
-                if product_id_val.startswith('new--'):
-                    new_product_name = product_id_val.split('--', 1)[1]
-                    db_cursor.execute("INSERT INTO products (name, stock, price, purchase_price) VALUES (%s, %s, %s, %s)",
-                                      (new_product_name, quantities[i], 0, purchase_prices[i]))
-                    product_id = db_cursor.lastrowid
-                else:
-                    product_id = int(product_id_val)
-                    db_cursor.execute(stock_update_sql, (quantities[i], purchase_prices[i], product_id))
-                
-                db_cursor.execute(item_sql, (purchase_id, product_id, quantities[i], purchase_prices[i]))
-
-            db_cursor.execute("UPDATE suppliers SET current_due = current_due + %s WHERE id = %s", (total_amount, supplier_id))
-
+            # Calculate Total
+            total_amount = 0.0
+            for i in range(len(product_ids)):
+                if product_ids[i]: # Ensure product is selected
+                    qty = float(quantities[i])
+                    price = float(prices[i])
+                    total_amount += (qty * price)
+            
+            # 3. Insert Master
+            cursor.execute("""
+                INSERT INTO purchases (supplier_id, purchase_date, bill_number, total_amount)
+                VALUES (%s, %s, %s, %s)
+            """, (supplier_id, purchase_date, bill_number, total_amount))
+            
+            purchase_id = cursor.lastrowid
+            
+            # 4. Insert Items & Update Stock
+            for i in range(len(product_ids)):
+                p_id = product_ids[i]
+                if p_id:
+                    qty = float(quantities[i])
+                    price = float(prices[i])
+                    item_total = qty * price
+                    
+                    # Insert Item
+                    cursor.execute("""
+                        INSERT INTO purchase_items (purchase_id, product_id, quantity, purchase_price, total_price)
+                        VALUES (%s, %s, %s, %s, %s)
+                    """, (purchase_id, p_id, qty, price, item_total))
+                    
+                    # Update Stock (Add quantity)
+                    cursor.execute("""
+                        UPDATE products SET quantity = quantity + %s, price = %s 
+                        WHERE id = %s
+                    """, (qty, price, p_id))
+            
+            # 5. Update Supplier Dues (Add to debt)
+            cursor.execute("""
+                UPDATE suppliers SET current_due = current_due + %s WHERE id = %s
+            """, (total_amount, supplier_id))
+            
             mysql.connection.commit()
-            flash('Purchase recorded successfully and stock updated!', 'success')
+            flash(f"Purchase Order #{purchase_id} created!", "success")
             return redirect(url_for('purchases'))
-
-        db_cursor.execute("SELECT id, name FROM suppliers WHERE is_active = TRUE ORDER BY name")
-        suppliers = db_cursor.fetchall()
-        db_cursor.execute("SELECT id, name, purchase_price FROM products ORDER BY name")
-        products = db_cursor.fetchall()
-        
-        return render_template('purchases/new_purchase.html', suppliers=suppliers, products=products, today_date=date.today().isoformat())
-        
-    except Exception as e:
-        if db_cursor:
+            
+        except Exception as e:
             mysql.connection.rollback()
-        flash(f"An error occurred: {e}", "danger")
-        return redirect(url_for('new_purchase'))
-    finally:
-        if db_cursor:
-            db_cursor.close()
+            flash(f"Error: {str(e)}", "danger")
+            print(f"Purchase Error: {e}")
+            
+    # GET: Load data
+    cursor.execute("SELECT id, name FROM suppliers ORDER BY name")
+    suppliers = cursor.fetchall()
+    
+    # Ensuring we fetch price or cost_price to autopopulate
+    cursor.execute("SELECT * FROM products ORDER BY name")
+    products = cursor.fetchall()
+    
+    cursor.close()
+    return render_template('new_purchase.html', suppliers=suppliers, products=products)
 
 
 @app.route('/purchases/view/<int:purchase_id>')
@@ -4531,6 +4554,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
