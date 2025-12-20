@@ -13,7 +13,7 @@
         
         <div class="d-flex gap-2">
             <!-- New Payment Button -->
-            <a href="{{ url_for('record_payment') }}?supplier_id={{ supplier.id }}" class="btn btn-success rounded-pill shadow-sm px-4 d-flex align-items-center">
+            <a href="{{ url_for('new_payment') }}?supplier_id={{ supplier.id }}" class="btn btn-success rounded-pill shadow-sm px-4 d-flex align-items-center">
                 <i class="fa-solid fa-plus me-2"></i>New Payment
             </a>
 
@@ -186,5 +186,6 @@
     }
 </script>
 {% endblock %}
+
 
 
