@@ -564,9 +564,11 @@ def edit_supplier(supplier_id):
 # SUPPLIER LEDGER & PAYMENT ROUTES
 # =====================================================================
 
+
 @app.route('/supplier_ledger/<int:supplier_id>')
 def supplier_ledger(supplier_id):
     if 'loggedin' not in session: return redirect(url_for('login'))
+    
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
     # 1. Fetch Supplier Info
@@ -582,14 +584,9 @@ def supplier_ledger(supplier_id):
     purchases = cursor.fetchall()
     
     # 3. Fetch Payments (Credits - Money Paid via Purchase Order System)
-    # CRITICAL CHANGE: Query 'supplier_payments', NOT 'supplier_cashflow'
-    # Assuming 'supplier_payments' is the table populated by 'record_payment'
-    try:
-        cursor.execute("SELECT * FROM supplier_payments WHERE supplier_id=%s ORDER BY payment_date DESC", (supplier_id,))
-        payments = cursor.fetchall()
-    except:
-        # Fallback if table doesn't exist yet, empty list
-        payments = []
+    # querying the new 'supplier_payments' table
+    cursor.execute("SELECT * FROM supplier_payments WHERE supplier_id=%s ORDER BY payment_date DESC", (supplier_id,))
+    payments = cursor.fetchall()
     
     # 4. Calculate Total Due
     # Formula: Opening Balance + Total Purchases - Total Payments (from supplier_payments only)
@@ -598,18 +595,15 @@ def supplier_ledger(supplier_id):
     cursor.execute("SELECT SUM(total_amount) as total FROM purchases WHERE supplier_id=%s", (supplier_id,))
     total_purchases = cursor.fetchone()['total'] or 0
     
-    # Sum Payments (Purchase Order Payments)
-    try:
-        cursor.execute("SELECT SUM(amount_paid) as total FROM supplier_payments WHERE supplier_id=%s", (supplier_id,))
-        total_paid = cursor.fetchone()['total'] or 0
-    except:
-        total_paid = 0
+    # Sum Payments
+    cursor.execute("SELECT SUM(amount_paid) as total FROM supplier_payments WHERE supplier_id=%s", (supplier_id,))
+    total_paid = cursor.fetchone()['total'] or 0
     
-    # Opening Balance
+    # Opening Balance (Treated as initial debt you owe)
     opening_bal = float(supplier.get('opening_balance', 0.0))
     
-    # Final Calculation
-    current_due = opening_bal + float(total_purchases) - float(total_paid)
+    # Final Calculation: (Opening + Purchases) - Paid
+    current_due = (opening_bal + float(total_purchases)) - float(total_paid)
     
     cursor.close()
     
@@ -644,13 +638,14 @@ def record_payment(supplier_id):
             return render_template('suppliers/new_payment.html', supplier=supplier, today_date=date.today().isoformat())
         
         try:
-            # Insert into supplier_payments (The Bill Payment Table)
+            # Insert into supplier_payments
             cur.execute("""
                 INSERT INTO supplier_payments (supplier_id, amount_paid, payment_date, payment_mode, notes)
                 VALUES (%s, %s, %s, %s, %s)
             """, (supplier_id, amount_paid, payment_date, payment_mode, notes))
 
-            # Update 'current_due' in suppliers table (if you maintain a running total column)
+            # Update 'current_due' in suppliers table (Optional, but good for quick access in list view)
+            # Logic: Reducing the debt
             cur.execute("""
                 UPDATE suppliers SET current_due = current_due - %s WHERE id = %s
             """, (amount_paid, supplier_id))
@@ -665,6 +660,7 @@ def record_payment(supplier_id):
     
     cur.close()
     return render_template('suppliers/new_payment.html', supplier=supplier, today_date=date.today().isoformat())
+
 
 
 @app.route('/suppliers/delete/<int:supplier_id>', methods=['POST'])
@@ -4565,6 +4561,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
