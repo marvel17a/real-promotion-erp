@@ -3,7 +3,7 @@
 {% block page_content %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/supplier.css') }}">
 
-<div class="container py-5 fade-in-up" style="max-width: 800px;">
+<div class="container py-5 fade-in-up" style="max-width: 900px;">
     
     <div class="d-flex align-items-center mb-4">
         <a href="{{ url_for('suppliers') }}" class="btn btn-light rounded-circle shadow-sm me-3" style="width: 40px; height: 40px; display:flex; align-items:center; justify-content:center;">
@@ -15,6 +15,12 @@
     <div class="glass-panel p-5">
         <form method="POST" class="needs-validation" novalidate>
             <div class="row g-4">
+                
+                <!-- Basic Info -->
+                <div class="col-12 border-bottom pb-2 mb-2">
+                    <h5 class="fw-bold text-primary"><i class="fa-solid fa-id-card me-2"></i>Basic Details</h5>
+                </div>
+
                 <div class="col-md-6">
                     <label class="form-label fw-bold text-muted small text-uppercase">Supplier Name <span class="text-danger">*</span></label>
                     <input type="text" class="form-control input-glass" id="name" name="name" placeholder="Business Name" required>
@@ -23,14 +29,42 @@
                     <label class="form-label fw-bold text-muted small text-uppercase">Phone Number</label>
                     <input type="text" class="form-control input-glass" id="phone" name="phone" placeholder="Contact No.">
                 </div>
-                <div class="col-12">
-                    <label class="form-label fw-bold text-muted small text-uppercase">Address</label>
-                    <textarea class="form-control input-glass" id="address" name="address" rows="3" placeholder="Full Address"></textarea>
+                <div class="col-md-6">
+                    <label class="form-label fw-bold text-muted small text-uppercase">Email</label>
+                    <input type="email" class="form-control input-glass" id="email" name="email" placeholder="email@example.com">
                 </div>
                 <div class="col-md-6">
                     <label class="form-label fw-bold text-muted small text-uppercase">GSTIN</label>
-                    <input type="text" class="form-control input-glass" id="gstin" name="gstin" placeholder="GST Number">
+                    <input type="text" class="form-control input-glass" id="gst_number" name="gst_number" placeholder="GST Number">
                 </div>
+                <div class="col-12">
+                    <label class="form-label fw-bold text-muted small text-uppercase">Address</label>
+                    <textarea class="form-control input-glass" id="address" name="address" rows="2" placeholder="Full Address"></textarea>
+                </div>
+
+                <!-- Financial Info (New Section) -->
+                <div class="col-12 border-bottom pb-2 mb-2 mt-4">
+                    <h5 class="fw-bold text-success"><i class="fa-solid fa-wallet me-2"></i>Financial Settings</h5>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label fw-bold text-muted small text-uppercase">Opening Balance (₹)</label>
+                    <input type="number" step="0.01" class="form-control input-glass fw-bold text-danger" id="opening_balance" name="opening_balance" placeholder="0.00" value="0.00">
+                    <div class="form-text text-muted">Amount you currently owe this supplier (pre-system).</div>
+                </div>
+                
+                <div class="col-md-6">
+                    <label class="form-label fw-bold text-muted small text-uppercase">Payment Terms (Days)</label>
+                    <select class="form-select input-glass" name="payment_terms">
+                        <option value="0">Immediate</option>
+                        <option value="15">15 Days</option>
+                        <option value="30" selected>30 Days (Net 30)</option>
+                        <option value="45">45 Days</option>
+                        <option value="60">60 Days</option>
+                    </select>
+                    <div class="form-text text-muted">Used to calculate due dates.</div>
+                </div>
+
             </div>
             
             <div class="mt-5 text-end">
@@ -42,4 +76,3 @@
     </div>
 </div>
 {% endblock %}
-
