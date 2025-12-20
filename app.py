@@ -1041,7 +1041,7 @@ def safe_date_format(date_obj, format='%d-%m-%Y', default='N/A'):
         return date_obj.strftime(format)
     return default
 
-# ... existing routes ...
+
 
 @app.route('/purchases/pdf/<int:purchase_id>')
 def purchase_pdf(purchase_id):
@@ -1050,8 +1050,9 @@ def purchase_pdf(purchase_id):
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
     # Fetch Purchase & Supplier
+    # FIX: Changed s.gst_number to s.gstin based on schema inference
     cursor.execute("""
-        SELECT p.*, s.name as supplier_name, s.address as supplier_address, s.phone as supplier_phone, s.gst_number as supplier_gst
+        SELECT p.*, s.name as supplier_name, s.address as supplier_address, s.phone as supplier_phone, s.gstin as supplier_gst
         FROM purchases p 
         LEFT JOIN suppliers s ON p.supplier_id = s.id 
         WHERE p.id = %s
@@ -4687,6 +4688,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
