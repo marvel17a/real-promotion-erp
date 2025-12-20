@@ -969,6 +969,30 @@ def view_purchase(purchase_id):
         return redirect(url_for('purchases'))
     return render_template('purchases/view_purchase.html', purchase=purchase, items=items)
 
+
+@app.route('/purchases/edit/<int:purchase_id>', methods=['GET', 'POST'])
+def edit_purchase(purchase_id):
+    if 'loggedin' not in session: return redirect(url_for('login'))
+    
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    
+    # Fetch purchase data
+    cursor.execute("SELECT * FROM purchases WHERE id = %s", (purchase_id,))
+    purchase = cursor.fetchone()
+    
+    if not purchase:
+        flash("Purchase not found", "danger")
+        return redirect(url_for('purchases'))
+        
+    # Fetch suppliers for dropdown
+    cursor.execute("SELECT id, name FROM suppliers ORDER BY name")
+    suppliers = cursor.fetchall()
+    
+    cursor.close()
+    
+    return render_template('purchases/edit_purchase.html', purchase=purchase, suppliers=suppliers)
+
+
 # --- PDF Class ---
 # We must define this class before it's used
 class PDF(FPDF):
@@ -4625,6 +4649,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
