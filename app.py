@@ -938,7 +938,7 @@ def new_purchase():
     products = cursor.fetchall()
     
     cursor.close()
-    return render_template('new_purchase.html', suppliers=suppliers, products=products)
+    return render_template('purchases/new_purchase.html', suppliers=suppliers, products=products)
 
 
 
@@ -4554,6 +4554,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
