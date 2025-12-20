@@ -614,19 +614,26 @@ def supplier_ledger(supplier_id):
                          opening_balance=opening_bal)
 
 
+# ... existing imports ...
 
 @app.route('/suppliers/<int:supplier_id>/payment/new', methods=['GET', 'POST'])
 def record_payment(supplier_id):
+    if 'loggedin' not in session: return redirect(url_for('login'))
+    
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    cur.execute("SELECT id, name FROM suppliers WHERE id = %s", (supplier_id,))
+    
+    # CRITICAL FIX: Select 'current_due' (or *) so it's available in the template
+    # Also good to have address/phone if the template uses it
+    cur.execute("SELECT * FROM suppliers WHERE id = %s", (supplier_id,))
     supplier = cur.fetchone()
-    cur.close()
-
+    
     if not supplier:
+        cur.close()
         flash("Supplier not found.", "danger")
         return redirect(url_for('suppliers'))
 
     if request.method == 'POST':
+        # ... (rest of your POST logic) ...
         amount_paid = request.form.get('amount_paid')
         payment_date = request.form.get('payment_date')
         payment_mode = request.form.get('payment_mode')
@@ -636,28 +643,37 @@ def record_payment(supplier_id):
             flash("Payment amount and date are required.", "danger")
             return render_template('suppliers/new_payment.html', supplier=supplier, today_date=date.today().isoformat())
         
-        db_cursor = None
         try:
-            db_cursor = mysql.connection.cursor()
-            db_cursor.execute("""
+            # We already have 'cur' open, no need for new db_cursor unless nesting transactions
+            # But let's stick to your structure if you prefer separate try blocks
+            
+            # Using the same cursor 'cur' is cleaner
+            cur.execute("""
                 INSERT INTO supplier_payments (supplier_id, amount_paid, payment_date, payment_mode, notes)
                 VALUES (%s, %s, %s, %s, %s)
             """, (supplier_id, amount_paid, payment_date, payment_mode, notes))
 
-            db_cursor.execute("""
+            cur.execute("""
                 UPDATE suppliers SET current_due = current_due - %s WHERE id = %s
             """, (amount_paid, supplier_id))
             
+            # Also record in cashflow for consistency if that's your system design?
+            # If 'supplier_payments' table is new, ensure it exists. 
+            # If you use 'supplier_cashflow' table usually, maybe insert there too?
+            # Assuming your 'record_payment' logic is correct for your schema.
+            
             mysql.connection.commit()
+            cur.close()
             flash('Payment recorded successfully!', 'success')
             return redirect(url_for('supplier_ledger', supplier_id=supplier_id))
+            
         except Exception as e:
             mysql.connection.rollback()
+            cur.close()
             flash(f"An error occurred: {e}", "danger")
-        finally:
-            if db_cursor:
-                db_cursor.close()
+            return redirect(url_for('record_payment', supplier_id=supplier_id))
 
+    cur.close()
     return render_template('suppliers/new_payment.html', supplier=supplier, today_date=date.today().isoformat())
 
 
@@ -4493,6 +4509,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
