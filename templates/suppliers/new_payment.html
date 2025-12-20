@@ -2,7 +2,6 @@
 
 {% block page_content %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/supplier.css') }}">
-<!-- Flatpickr CSS -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 
 <div class="container py-5 fade-in-up" style="max-width: 800px;">
@@ -12,8 +11,8 @@
             <i class="fa-solid fa-arrow-left"></i>
         </a>
         <div>
-            <h2 class="mb-0 fw-bold page-title">Record Payment</h2>
-            <p class="text-muted mb-0 small">Paying to: <span class="text-primary fw-bold">{{ supplier.name }}</span></p>
+            <h2 class="mb-0 fw-bold page-title">Record Purchase Payment</h2>
+            <p class="text-muted mb-0 small">Paying Supplier: <span class="text-primary fw-bold">{{ supplier.name }}</span></p>
         </div>
     </div>
 
@@ -21,7 +20,6 @@
         <form method="POST" class="needs-validation" novalidate>
             <div class="row g-4">
                 
-                <!-- Date with Flatpickr -->
                 <div class="col-md-6">
                     <label class="form-label fw-bold text-muted small text-uppercase">Payment Date <span class="text-danger">*</span></label>
                     <div class="input-group">
@@ -32,8 +30,12 @@
 
                 <div class="col-md-6">
                     <label class="form-label fw-bold text-muted small text-uppercase">Amount Paid (₹) <span class="text-danger">*</span></label>
-                    <input type="number" class="form-control input-glass fs-5 fw-bold" id="amount_paid" name="amount_paid" step="0.01" min="0.01" max="{{ supplier.current_due }}" required placeholder="0.00">
-                    <div class="form-text text-danger">Max payable: ₹{{ "%.2f"|format(supplier.current_due) }}</div>
+                    <!-- Display current due for reference -->
+                    <div class="input-group">
+                        <span class="input-group-text bg-white border-end-0 fw-bold">₹</span>
+                        <input type="number" class="form-control input-glass border-start-0 ps-0 fs-5 fw-bold text-success" id="amount_paid" name="amount_paid" step="0.01" min="0.01" required placeholder="0.00">
+                    </div>
+                    <div class="form-text text-muted">Current Due: ₹{{ "%.2f"|format(supplier.current_due or 0) }}</div>
                 </div>
 
                 <div class="col-md-6">
@@ -48,7 +50,7 @@
 
                 <div class="col-12">
                     <label class="form-label fw-bold text-muted small text-uppercase">Notes</label>
-                    <textarea class="form-control input-glass" id="notes" name="notes" rows="2" placeholder="Transaction ID, Cheque No, etc."></textarea>
+                    <textarea class="form-control input-glass" id="notes" name="notes" rows="2" placeholder="Cheque No, Transaction ID, Invoice Ref..."></textarea>
                 </div>
             </div>
 
@@ -61,7 +63,6 @@
     </div>
 </div>
 
-<!-- Flatpickr JS -->
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script>
     flatpickr("#payment_date", {
@@ -71,4 +72,3 @@
     });
 </script>
 {% endblock %}
-
