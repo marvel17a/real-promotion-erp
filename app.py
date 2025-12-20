@@ -860,8 +860,6 @@ def purchases():
 
 
 
-
-
 @app.route('/new_purchase', methods=['GET', 'POST'])
 def new_purchase():
     if 'loggedin' not in session: return redirect(url_for('login'))
@@ -905,9 +903,9 @@ def new_purchase():
                     price = float(prices[i])
                     item_total = qty * price
                     
-                    # Insert Item
+                    # Insert Item (Fixed column name: 'total_price' -> 'total_amount')
                     cursor.execute("""
-                        INSERT INTO purchase_items (purchase_id, product_id, quantity, purchase_price, total_price)
+                        INSERT INTO purchase_items (purchase_id, product_id, quantity, purchase_price, total_amount)
                         VALUES (%s, %s, %s, %s, %s)
                     """, (purchase_id, p_id, qty, price, item_total))
                     
@@ -940,7 +938,9 @@ def new_purchase():
     products = cursor.fetchall()
     
     cursor.close()
-    return render_template('purchases/new_purchase.html', suppliers=suppliers, products=products)
+    return render_template('new_purchase.html', suppliers=suppliers, products=products)
+
+
 
 
 @app.route('/purchases/view/<int:purchase_id>')
@@ -4554,6 +4554,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
