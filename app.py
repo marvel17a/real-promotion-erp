@@ -1009,46 +1009,110 @@ class PDF(FPDF):
         # Fallback for Arial: encode non-Latin characters
         return text_str.encode('latin-1', 'replace').decode('latin-1')
 
+
+# --- HELPER: Safe Date Formatter ---
+def safe_date_format(date_obj, format='%d-%m-%Y', default='N/A'):
+    """Safely formats a date object, returning default if None."""
+    if date_obj:
+        return date_obj.strftime(format)
+    return default
+
+# ... existing routes ...
+
 @app.route('/purchases/pdf/<int:purchase_id>')
 def purchase_pdf(purchase_id):
-    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    cur.execute("SELECT p.*, s.name as s_name, s.address as s_addr FROM purchases p JOIN suppliers s ON p.supplier_id = s.id WHERE p.id = %s", (purchase_id,))
-    purchase = cur.fetchone()
-    cur.execute("SELECT pi.*, pr.name as p_name FROM purchase_items pi JOIN products pr ON pi.product_id = pr.id WHERE pi.purchase_id = %s", (purchase_id,))
-    items = cur.fetchall()
-    cur.close()
-    if not purchase: return "Not Found", 404
+    if 'loggedin' not in session: return redirect(url_for('login'))
     
-    pdf = PDF()
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    
+    # Fetch Purchase & Supplier
+    cursor.execute("""
+        SELECT p.*, s.name as supplier_name, s.address as supplier_address, s.phone as supplier_phone, s.gst_number as supplier_gst
+        FROM purchases p 
+        LEFT JOIN suppliers s ON p.supplier_id = s.id 
+        WHERE p.id = %s
+    """, (purchase_id,))
+    purchase = cursor.fetchone()
+    
+    if not purchase:
+        flash("Purchase not found", "danger")
+        return redirect(url_for('purchases'))
+        
+    # Fetch Items
+    cursor.execute("""
+        SELECT pi.*, pr.name as product_name 
+        FROM purchase_items pi 
+        LEFT JOIN products pr ON pi.product_id = pr.id 
+        WHERE pi.purchase_id = %s
+    """, (purchase_id,))
+    items = cursor.fetchall()
+    
+    cursor.close()
+    
+    # Generate PDF
+    pdf = FPDF()
     pdf.add_page()
-    pdf.set_font(pdf.font_family, '', 12)
-    pdf.cell(0, 10, f"Date: {purchase['purchase_date'].strftime('%d-%m-%Y')}", 0, 1)
-    pdf.cell(0, 10, f"Bill No: {purchase['bill_number']}", 0, 1)
-    pdf.cell(0, 10, pdf.safe_text(f"Supplier: {purchase['s_name']}"), 0, 1)
-    pdf.ln(10)
-
-    pdf.set_font(pdf.font_family, 'B', 12)
-    pdf.cell(100, 10, 'Product', 1)
-    pdf.cell(30, 10, 'Quantity', 1)
-    pdf.cell(30, 10, 'Price', 1)
-    pdf.cell(30, 10, 'Amount', 1, 1)
-
-    pdf.set_font(pdf.font_family, '', 12)
-    for item in items:
-        pdf.cell(100, 10, pdf.safe_text(item['p_name']), 1)
-        pdf.cell(30, 10, str(item['quantity']), 1)
-        pdf.cell(30, 10, f"{item['purchase_price']:.2f}", 1)
-        pdf.cell(30, 10, f"{item['quantity'] * item['purchase_price']:.2f}", 1, 1)
     
-    pdf.set_font(pdf.font_family, 'B', 12)
-    pdf.cell(160, 10, 'Grand Total', 1)
-    pdf.cell(30, 10, f"{purchase['total_amount']:.2f}", 1, 1)
-
-    # Use 'S' to output as string, then encode
-    pdf_output = pdf.output(dest='S').encode('latin1')
-    response = make_response(pdf_output)
-    response.headers.set('Content-Type', 'application/pdf')
-    response.headers.set('Content-Disposition', 'attachment', filename=f'Purchase_{purchase_id}.pdf')
+    # Title
+    pdf.set_font("Arial", 'B', 16)
+    pdf.cell(0, 10, f"Purchase Order #{purchase['id']}", 0, 1, 'C')
+    pdf.ln(10)
+    
+    # Supplier Info
+    pdf.set_font("Arial", 'B', 12)
+    pdf.cell(0, 10, "Supplier Details:", 0, 1)
+    pdf.set_font("Arial", '', 10)
+    pdf.cell(0, 6, f"Name: {purchase['supplier_name']}", 0, 1)
+    pdf.cell(0, 6, f"Address: {purchase['supplier_address'] or 'N/A'}", 0, 1)
+    pdf.cell(0, 6, f"Phone: {purchase['supplier_phone'] or 'N/A'}", 0, 1)
+    if purchase.get('supplier_gst'):
+        pdf.cell(0, 6, f"GSTIN: {purchase['supplier_gst']}", 0, 1)
+    
+    # Purchase Info (FIXED DATE HERE)
+    pdf.ln(5)
+    pdf.set_font("Arial", 'B', 12)
+    pdf.cell(0, 10, "Order Details:", 0, 1)
+    pdf.set_font("Arial", '', 10)
+    
+    # Use helper or inline check
+    p_date = safe_date_format(purchase['purchase_date'])
+    pdf.cell(0, 6, f"Date: {p_date}", 0, 1)
+    pdf.cell(0, 6, f"Bill No: {purchase['bill_number'] or 'N/A'}", 0, 1)
+    pdf.ln(10)
+    
+    # Items Table Header
+    pdf.set_font("Arial", 'B', 10)
+    pdf.set_fill_color(240, 240, 240)
+    pdf.cell(10, 10, "#", 1, 0, 'C', 1)
+    pdf.cell(80, 10, "Product", 1, 0, 'L', 1)
+    pdf.cell(25, 10, "Qty", 1, 0, 'C', 1)
+    pdf.cell(35, 10, "Price", 1, 0, 'R', 1)
+    pdf.cell(40, 10, "Total", 1, 1, 'R', 1)
+    
+    # Items Rows
+    pdf.set_font("Arial", '', 10)
+    total_calc = 0
+    for i, item in enumerate(items):
+        item_total = float(item['quantity']) * float(item['purchase_price'])
+        total_calc += item_total
+        
+        pdf.cell(10, 10, str(i+1), 1, 0, 'C')
+        pdf.cell(80, 10, str(item['product_name']), 1, 0, 'L')
+        pdf.cell(25, 10, str(item['quantity']), 1, 0, 'C')
+        pdf.cell(35, 10, f"{float(item['purchase_price']):.2f}", 1, 0, 'R')
+        pdf.cell(40, 10, f"{item_total:.2f}", 1, 1, 'R')
+    
+    # Grand Total
+    pdf.set_font("Arial", 'B', 12)
+    pdf.cell(150, 10, "Grand Total", 1, 0, 'R')
+    # Use stored total_amount or calculated one
+    final_total = purchase['total_amount'] if purchase['total_amount'] else total_calc
+    pdf.cell(40, 10, f"{float(final_total):.2f}", 1, 1, 'R')
+    
+    # Output
+    response = make_response(pdf.output(dest='S').encode('latin1'))
+    response.headers['Content-Type'] = 'application/pdf'
+    response.headers['Content-Disposition'] = f'attachment; filename=PO_{purchase_id}.pdf'
     return response
 
 
@@ -4561,6 +4625,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
