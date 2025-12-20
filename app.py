@@ -498,28 +498,34 @@ def suppliers():
     cur.close()
     return render_template('suppliers/suppliers.html', suppliers=all_suppliers)
 
+
+
 @app.route('/suppliers/add', methods=['GET', 'POST'])
 def add_supplier():
+    if 'loggedin' not in session: return redirect(url_for('login'))
+    
     if request.method == 'POST':
-        name = request.form.get('name')
-        phone = request.form.get('phone')
-        address = request.form.get('address')
-        gstin = request.form.get('gstin')
-
-        if not name:
-            flash("Supplier name is required.", "danger")
-            return render_template('suppliers/add_supplier.html')
-
-        cur = mysql.connection.cursor()
-        cur.execute(
-            "INSERT INTO suppliers (name, phone, address, gstin) VALUES (%s, %s, %s, %s)",
-            (name, phone, address, gstin)
-        )
+        name = request.form['name']
+        phone = request.form['phone']
+        email = request.form['email']
+        gst = request.form.get('gst_number', '')
+        address = request.form.get('address', '')
+        
+        # New Fields
+        opening_balance = request.form.get('opening_balance', 0.0)
+        payment_terms = request.form.get('payment_terms', 30)
+        
+        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        cursor.execute("""
+            INSERT INTO suppliers (name, phone, email, gst_number, address, opening_balance, payment_terms) 
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """, (name, phone, email, gst, address, opening_balance, payment_terms))
+        
         mysql.connection.commit()
-        cur.close()
+        cursor.close()
         flash('Supplier added successfully!', 'success')
         return redirect(url_for('suppliers'))
-    
+        
     return render_template('suppliers/add_supplier.html')
 
 @app.route('/suppliers/edit/<int:supplier_id>', methods=['GET', 'POST'])
@@ -557,63 +563,55 @@ def edit_supplier(supplier_id):
 # =====================================================================
 # SUPPLIER LEDGER & PAYMENT ROUTES
 # =====================================================================
-@app.route("/suppliers/ledger/<int:supplier_id>")
+
+@app.route('/supplier_ledger/<int:supplier_id>')
 def supplier_ledger(supplier_id):
-    if "loggedin" not in session:
-        return redirect(url_for("login"))
-
+    if 'loggedin' not in session: return redirect(url_for('login'))
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-
-    # ---------------------------------------------------------
-    # 1. FETCH SUPPLIER
-    # ---------------------------------------------------------
-    cursor.execute("SELECT * FROM suppliers WHERE id = %s", (supplier_id,))
+    
+    # Fetch Supplier Info (Include opening_balance)
+    cursor.execute("SELECT * FROM suppliers WHERE id=%s", (supplier_id,))
     supplier = cursor.fetchone()
-
+    
     if not supplier:
-        cursor.close()
-        return "Supplier not found", 404
+        flash("Supplier not found!", "danger")
+        return redirect(url_for('suppliers'))
 
-    # ---------------------------------------------------------
-    # 2. FETCH PURCHASES FOR THIS SUPPLIER
-    # ---------------------------------------------------------
-    cursor.execute("""
-        SELECT
-            id,
-            purchase_date AS date,
-            bill_number,
-            total_amount AS amount
-        FROM purchases
-        WHERE supplier_id = %s
-        ORDER BY purchase_date DESC
-    """, (supplier_id,))
+    # Fetch Purchases (Debits - money we owe)
+    cursor.execute("SELECT * FROM purchases WHERE supplier_id=%s ORDER BY purchase_date DESC", (supplier_id,))
     purchases = cursor.fetchall()
-
-    # ---------------------------------------------------------
-    # 3. FETCH PAYMENTS (supplier_cashflow)
-    # ---------------------------------------------------------
-    cursor.execute("""
-        SELECT
-            date,
-            mode,
-            amount
-        FROM supplier_cashflow
-        WHERE supplier_id = %s
-        ORDER BY date DESC
-    """, (supplier_id,))
+    
+    # Fetch Payments (Credits - money we paid)
+    # Note: Using 'payment' type from cashflow
+    cursor.execute("SELECT * FROM supplier_cashflow WHERE supplier_id=%s AND type='payment' ORDER BY date DESC", (supplier_id,))
     payments = cursor.fetchall()
-
+    
+    # Calculate Total Due
+    # Formula: Opening Balance + Total Purchases - Total Payments
+    
+    # 1. Total Purchases
+    cursor.execute("SELECT SUM(total_amount) as total FROM purchases WHERE supplier_id=%s", (supplier_id,))
+    total_purchases = cursor.fetchone()['total'] or 0
+    
+    # 2. Total Payments
+    cursor.execute("SELECT SUM(amount) as total FROM supplier_cashflow WHERE supplier_id=%s AND type='payment'", (supplier_id,))
+    total_paid = cursor.fetchone()['total'] or 0
+    
+    # 3. Opening Balance
+    opening_bal = float(supplier.get('opening_balance', 0.0))
+    
+    # Final Calculation
+    current_due = opening_bal + float(total_purchases) - float(total_paid)
+    
     cursor.close()
-
-    # ---------------------------------------------------------
-    # 4. SEND EVERYTHING TO TEMPLATE
-    # ---------------------------------------------------------
-    return render_template(
-        "suppliers/supplier_ledger.html",
-        supplier=supplier,
-        purchases=purchases,
-        payments=payments
-    )
+    
+    # Pass 'current_due' as 'final_balance' to matching template variable
+    return render_template('suppliers/supplier_ledger.html', 
+                         supplier=supplier, 
+                         purchases=purchases, 
+                         payments=payments, 
+                         final_balance=current_due,
+                         opening_balance=opening_bal)
 
 
 
@@ -4495,6 +4493,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
