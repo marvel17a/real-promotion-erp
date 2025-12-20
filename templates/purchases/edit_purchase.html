@@ -1,6 +1,6 @@
 {% extends "admin_master.html" %}
 
-{% block page_content %}
+{% block content %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/purchase.css') }}">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 
@@ -29,6 +29,10 @@
                 </div>
                 <div class="col-md-6">
                     <label class="form-label fw-bold text-muted small text-uppercase">Date</label>
+                    <!-- IMPORTANT: Value passed to flatpickr input should ideally be parsable by it.
+                         If using d-m-Y format in UI, flatpickr will convert Y-m-d (from Python) if correctly initialized,
+                         or we can pass it as d-m-Y from python if convenient, but usually Y-m-d is safer for value attribute.
+                         Flatpickr 'dateFormat' controls display. -->
                     <input type="text" name="purchase_date" id="purchase_date" class="form-control input-glass" 
                            value="{{ purchase.purchase_date.strftime('%Y-%m-%d') }}" required>
                 </div>
@@ -51,9 +55,8 @@
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script>
     flatpickr("#purchase_date", {
-        dateFormat: "Y-m-d",
+        dateFormat: "d-m-Y", // India format
         allowInput: true
     });
 </script>
 {% endblock %}
-
