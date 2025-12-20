@@ -859,7 +859,7 @@ def purchases():
     return render_template('purchases/purchases.html', purchases=all_purchases)
 
 
-
+# ... existing imports ...
 @app.route('/new_purchase', methods=['GET', 'POST'])
 def new_purchase():
     if 'loggedin' not in session: return redirect(url_for('login'))
@@ -903,9 +903,9 @@ def new_purchase():
                     price = float(prices[i])
                     item_total = qty * price
                     
-                    # Insert Item (Fixed column name: 'total_price' -> 'total_amount')
+                    # Insert Item (Fixed column name: 'total_amount' -> 'total_price')
                     cursor.execute("""
-                        INSERT INTO purchase_items (purchase_id, product_id, quantity, purchase_price, total_amount)
+                        INSERT INTO purchase_items (purchase_id, product_id, quantity, purchase_price, total_price)
                         VALUES (%s, %s, %s, %s, %s)
                     """, (purchase_id, p_id, qty, price, item_total))
                     
@@ -4554,6 +4554,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
