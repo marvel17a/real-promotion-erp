@@ -1,10 +1,11 @@
 {% extends "admin_master.html" %}
 
-{% block page_content %}
+{% block content %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/supplier.css') }}">
 
 <div class="container-fluid py-4 fade-in-up" id="ledgerContent">
 
+    <!-- Header -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h2 class="page-title mb-0">Supplier Ledger</h2>
@@ -12,29 +13,24 @@
         </div>
         
         <div class="d-flex gap-2">
-            <!-- New Payment Button -->
             <a href="{{ url_for('record_payment', supplier_id=supplier.id) }}" class="btn btn-glass-primary text-decoration-none d-flex align-items-center">
                 <i class="fa-solid fa-plus me-2"></i>New Payment
             </a>
-
-            <!-- WhatsApp Share -->
             <a href="https://wa.me/?text=Hi {{ supplier.name }}, current outstanding balance is {{ final_balance|inr }}" target="_blank" class="btn btn-success rounded-circle shadow-sm" style="width: 40px; height: 40px; display:flex; align-items:center; justify-content:center;" title="Share on WhatsApp">
                 <i class="fa-brands fa-whatsapp"></i>
             </a>
-            
             <button onclick="downloadPDF()" class="btn btn-danger rounded-circle shadow-sm" style="width: 40px; height: 40px; display:flex; align-items:center; justify-content:center;" title="Download PDF">
                 <i class="fa-solid fa-file-pdf"></i>
             </button>
-
             <a href="{{ url_for('suppliers') }}" class="btn btn-light rounded-pill shadow-sm px-4">
                 <i class="fa-solid fa-arrow-left me-2"></i>Back
             </a>
         </div>
     </div>
 
-    <!-- Summary & Chart Row -->
+    <!-- Financial Summary Cards -->
     <div class="row g-4 mb-4">
-        <!-- Profile & Due Card -->
+        <!-- Current Due Card -->
         <div class="col-lg-8">
             <div class="glass-panel d-flex justify-content-between align-items-center p-4 h-100">
                 <div class="d-flex align-items-center gap-4">
@@ -59,13 +55,12 @@
             </div>
         </div>
 
-        <!-- Mini Chart -->
+        <!-- Opening Balance Widget (RESTORED) -->
         <div class="col-lg-4">
-            <div class="glass-panel p-4 h-100 d-flex flex-column justify-content-center align-items-center">
-                <h6 class="text-muted small fw-bold mb-3">Balance Composition</h6>
-                <div style="height: 150px; width: 150px;">
-                    <canvas id="balanceChart"></canvas>
-                </div>
+            <div class="glass-panel p-4 h-100 d-flex flex-column justify-content-center border-start border-4 border-secondary">
+                <small class="text-uppercase text-muted fw-bold mb-1">Opening Balance</small>
+                <h3 class="fw-bold text-dark mb-0">{{ (opening_balance if opening_balance is defined else 0)|inr }}</h3>
+                <small class="text-muted mt-2">Initial Debt</small>
             </div>
         </div>
     </div>
@@ -121,36 +116,26 @@
                                 <th>Date</th>
                                 <th>Mode</th>
                                 <th class="text-end">Amount</th>
+                                <th class="text-center">Action</th> <!-- Added Action Col -->
                             </tr>
                         </thead>
                         <tbody>
                             {% for pay in payments %}
                             <tr>
-                                <!-- FIXED: Handle both 'date' and 'payment_date' column names -->
-                                <td>
-                                    {% if pay.payment_date %}
-                                        {{ pay.payment_date.strftime('%d-%b-%Y') }}
-                                    {% elif pay.date %}
-                                        {{ pay.date.strftime('%d-%b-%Y') }}
-                                    {% else %}
-                                        -
-                                    {% endif %}
-                                </td>
-                                
-                                <!-- FIXED: Handle 'payment_mode' vs 'mode' -->
-                                <td>
-                                    <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle">
-                                        {{ pay.payment_mode if pay.payment_mode else pay.mode }}
-                                    </span>
-                                </td>
-                                
-                                <!-- FIXED: Handle 'amount_paid' vs 'amount' -->
-                                <td class="text-end fw-bold text-success">
-                                    - {{ (pay.amount_paid if pay.amount_paid else pay.amount)|inr }}
+                                <td>{{ pay.payment_date.strftime('%d-%b-%Y') }}</td>
+                                <td><span class="badge bg-success bg-opacity-10 text-success border border-success-subtle">{{ pay.payment_mode }}</span></td>
+                                <td class="text-end fw-bold text-success">- {{ pay.amount_paid|inr }}</td>
+                                <td class="text-center">
+                                    <!-- DELETE PAYMENT BUTTON -->
+                                    <form action="{{ url_for('delete_supplier_payment', payment_id=pay.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this payment? This will INCREASE the supplier due amount.')">
+                                        <button class="btn btn-sm text-danger border-0 p-0" title="Delete & Reverse">
+                                            <i class="fa-solid fa-trash-can"></i>
+                                        </button>
+                                    </form>
                                 </td>
                             </tr>
                             {% else %}
-                            <tr><td colspan="3" class="text-center text-muted py-4">No payments found.</td></tr>
+                            <tr><td colspan="4" class="text-center text-muted py-4">No payments found.</td></tr>
                             {% endfor %}
                         </tbody>
                     </table>
@@ -160,27 +145,8 @@
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-
 <script>
-    const ctx = document.getElementById('balanceChart').getContext('2d');
-    const openingBal = parseFloat("{{ opening_balance if opening_balance is defined else 0 }}");
-    const currentDue = parseFloat("{{ balance if balance is defined else 0 }}");
-    
-    new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-            labels: ['Opening', 'Current Due'],
-            datasets: [{
-                data: [openingBal, currentDue > 0 ? currentDue : 0],
-                backgroundColor: ['#64748b', '#ef4444'],
-                borderWidth: 0
-            }]
-        },
-        options: { cutout: '70%', plugins: { legend: { display: false } } }
-    });
-
     function downloadPDF() {
         const element = document.getElementById('ledgerContent');
         html2pdf().from(element).save();
