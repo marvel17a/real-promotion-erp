@@ -1,6 +1,6 @@
 {% extends "admin_master.html" %}
 
-{% block page_content %}
+{% block content %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/supplier.css') }}">
 
 <div class="container-fluid py-4 fade-in-up" id="ledgerContent">
@@ -12,12 +12,12 @@
         </div>
         
         <div class="d-flex gap-2">
-            <!-- New Payment Button -->
-            <a href="{{ url_for('new_payment') }}?supplier_id={{ supplier.id }}" class="btn btn-success rounded-pill shadow-sm px-4 d-flex align-items-center">
+            <!-- FIXED: Matches your provided backend route 'record_payment' -->
+            <a href="{{ url_for('record_payment', supplier_id=supplier.id) }}" class="btn btn-glass-primary text-decoration-none d-flex align-items-center">
                 <i class="fa-solid fa-plus me-2"></i>New Payment
             </a>
 
-            <!-- WhatsApp Share: Fixed format syntax -->
+            <!-- WhatsApp Share -->
             <a href="https://wa.me/?text=Hi {{ supplier.name }}, current outstanding balance is {{ final_balance|inr }}" target="_blank" class="btn btn-success rounded-circle shadow-sm" style="width: 40px; height: 40px; display:flex; align-items:center; justify-content:center;" title="Share on WhatsApp">
                 <i class="fa-brands fa-whatsapp"></i>
             </a>
@@ -48,10 +48,7 @@
                 </div>
                 <div class="text-end">
                     <small class="text-uppercase fw-bold text-muted ls-1">Current Due Balance</small>
-                    <!-- Check if final_balance is defined to avoid errors -->
                     {% set balance = final_balance if final_balance is defined else 0 %}
-                    
-                    <!-- Using custom 'inr' filter which handles float conversion safely -->
                     <h1 class="display-5 fw-bold mb-0 {% if balance > 0 %}text-danger{% else %}text-success{% endif %}">
                         {{ (balance|abs)|inr }}
                     </h1>
@@ -87,7 +84,7 @@
                                 <th>Date</th>
                                 <th>Bill No</th>
                                 <th class="text-end">Amount</th>
-                                <th class="text-center">Action</th> <!-- Added Action Column -->
+                                <th class="text-center">Action</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -96,8 +93,8 @@
                                 <td>{{ pur.purchase_date.strftime('%d-%b-%Y') }}</td>
                                 <td><span class="badge bg-light text-dark border">{{ pur.bill_number }}</span></td>
                                 <td class="text-end fw-bold text-danger">₹{{ "%.2f"|format(pur.total_amount) }}</td>
-                                <td class="text-center"> <!-- Added View Button -->
-                                    <a href="{{ url_for('view_purchase', purchase_id=pur.id) }}" class="btn btn-sm btn-outline-primary rounded-circle" title="View Purchase Order">
+                                <td class="text-center">
+                                    <a href="{{ url_for('view_purchase', purchase_id=pur.id) }}" class="btn btn-sm btn-outline-primary rounded-circle" title="View Order">
                                         <i class="fa-solid fa-eye"></i>
                                     </a>
                                 </td>
@@ -144,15 +141,11 @@
     </div>
 </div>
 
-<!-- SCRIPTS for Chart & PDF -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
 <script>
-    // Mini Chart Logic
     const ctx = document.getElementById('balanceChart').getContext('2d');
-    
-    // Safely parse Jinja variables for JS
     const openingBal = parseFloat("{{ opening_balance if opening_balance is defined else 0 }}");
     const currentDue = parseFloat("{{ balance if balance is defined else 0 }}");
     
@@ -166,26 +159,12 @@
                 borderWidth: 0
             }]
         },
-        options: {
-            cutout: '70%',
-            plugins: { legend: { display: false } }
-        }
+        options: { cutout: '70%', plugins: { legend: { display: false } } }
     });
 
-    // PDF Download Logic
     function downloadPDF() {
         const element = document.getElementById('ledgerContent');
-        const opt = {
-            margin: 0.5,
-            filename: 'Supplier_Ledger_{{ supplier.name }}.pdf',
-            image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: { scale: 2 },
-            jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
-        };
-        html2pdf().set(opt).from(element).save();
+        html2pdf().from(element).save();
     }
 </script>
 {% endblock %}
-
-
-
