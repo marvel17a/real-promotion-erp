@@ -569,7 +569,7 @@ def supplier_ledger(supplier_id):
     if 'loggedin' not in session: return redirect(url_for('login'))
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
-    # Fetch Supplier Info (Include opening_balance)
+    # 1. Fetch Supplier Info
     cursor.execute("SELECT * FROM suppliers WHERE id=%s", (supplier_id,))
     supplier = cursor.fetchone()
     
@@ -577,27 +577,35 @@ def supplier_ledger(supplier_id):
         flash("Supplier not found!", "danger")
         return redirect(url_for('suppliers'))
 
-    # Fetch Purchases (Debits - money we owe)
+    # 2. Fetch Purchases (Debits - Money Owed)
     cursor.execute("SELECT * FROM purchases WHERE supplier_id=%s ORDER BY purchase_date DESC", (supplier_id,))
     purchases = cursor.fetchall()
     
-    # Fetch Payments (Credits - money we paid)
-    # Note: Using 'payment' type from cashflow
-    cursor.execute("SELECT * FROM supplier_cashflow WHERE supplier_id=%s AND type='payment' ORDER BY date DESC", (supplier_id,))
-    payments = cursor.fetchall()
+    # 3. Fetch Payments (Credits - Money Paid via Purchase Order System)
+    # CRITICAL CHANGE: Query 'supplier_payments', NOT 'supplier_cashflow'
+    # Assuming 'supplier_payments' is the table populated by 'record_payment'
+    try:
+        cursor.execute("SELECT * FROM supplier_payments WHERE supplier_id=%s ORDER BY payment_date DESC", (supplier_id,))
+        payments = cursor.fetchall()
+    except:
+        # Fallback if table doesn't exist yet, empty list
+        payments = []
     
-    # Calculate Total Due
-    # Formula: Opening Balance + Total Purchases - Total Payments
+    # 4. Calculate Total Due
+    # Formula: Opening Balance + Total Purchases - Total Payments (from supplier_payments only)
     
-    # 1. Total Purchases
+    # Sum Purchases
     cursor.execute("SELECT SUM(total_amount) as total FROM purchases WHERE supplier_id=%s", (supplier_id,))
     total_purchases = cursor.fetchone()['total'] or 0
     
-    # 2. Total Payments
-    cursor.execute("SELECT SUM(amount) as total FROM supplier_cashflow WHERE supplier_id=%s AND type='payment'", (supplier_id,))
-    total_paid = cursor.fetchone()['total'] or 0
+    # Sum Payments (Purchase Order Payments)
+    try:
+        cursor.execute("SELECT SUM(amount_paid) as total FROM supplier_payments WHERE supplier_id=%s", (supplier_id,))
+        total_paid = cursor.fetchone()['total'] or 0
+    except:
+        total_paid = 0
     
-    # 3. Opening Balance
+    # Opening Balance
     opening_bal = float(supplier.get('opening_balance', 0.0))
     
     # Final Calculation
@@ -605,7 +613,6 @@ def supplier_ledger(supplier_id):
     
     cursor.close()
     
-    # Pass 'current_due' as 'final_balance' to matching template variable
     return render_template('suppliers/supplier_ledger.html', 
                          supplier=supplier, 
                          purchases=purchases, 
@@ -614,26 +621,19 @@ def supplier_ledger(supplier_id):
                          opening_balance=opening_bal)
 
 
-# ... existing imports ...
-
 @app.route('/suppliers/<int:supplier_id>/payment/new', methods=['GET', 'POST'])
 def record_payment(supplier_id):
     if 'loggedin' not in session: return redirect(url_for('login'))
     
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    
-    # CRITICAL FIX: Select 'current_due' (or *) so it's available in the template
-    # Also good to have address/phone if the template uses it
     cur.execute("SELECT * FROM suppliers WHERE id = %s", (supplier_id,))
     supplier = cur.fetchone()
     
     if not supplier:
-        cur.close()
         flash("Supplier not found.", "danger")
         return redirect(url_for('suppliers'))
 
     if request.method == 'POST':
-        # ... (rest of your POST logic) ...
         amount_paid = request.form.get('amount_paid')
         payment_date = request.form.get('payment_date')
         payment_mode = request.form.get('payment_mode')
@@ -644,35 +644,25 @@ def record_payment(supplier_id):
             return render_template('suppliers/new_payment.html', supplier=supplier, today_date=date.today().isoformat())
         
         try:
-            # We already have 'cur' open, no need for new db_cursor unless nesting transactions
-            # But let's stick to your structure if you prefer separate try blocks
-            
-            # Using the same cursor 'cur' is cleaner
+            # Insert into supplier_payments (The Bill Payment Table)
             cur.execute("""
                 INSERT INTO supplier_payments (supplier_id, amount_paid, payment_date, payment_mode, notes)
                 VALUES (%s, %s, %s, %s, %s)
             """, (supplier_id, amount_paid, payment_date, payment_mode, notes))
 
+            # Update 'current_due' in suppliers table (if you maintain a running total column)
             cur.execute("""
                 UPDATE suppliers SET current_due = current_due - %s WHERE id = %s
             """, (amount_paid, supplier_id))
             
-            # Also record in cashflow for consistency if that's your system design?
-            # If 'supplier_payments' table is new, ensure it exists. 
-            # If you use 'supplier_cashflow' table usually, maybe insert there too?
-            # Assuming your 'record_payment' logic is correct for your schema.
-            
             mysql.connection.commit()
-            cur.close()
             flash('Payment recorded successfully!', 'success')
             return redirect(url_for('supplier_ledger', supplier_id=supplier_id))
             
         except Exception as e:
             mysql.connection.rollback()
-            cur.close()
             flash(f"An error occurred: {e}", "danger")
-            return redirect(url_for('record_payment', supplier_id=supplier_id))
-
+    
     cur.close()
     return render_template('suppliers/new_payment.html', supplier=supplier, today_date=date.today().isoformat())
 
@@ -4509,6 +4499,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
