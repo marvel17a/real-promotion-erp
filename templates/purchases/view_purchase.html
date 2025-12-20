@@ -60,15 +60,15 @@
                         <td class="ps-3">{{ loop.index }}</td>
                         <td class="fw-bold text-dark">{{ item.product_name }}</td>
                         <td class="text-end">{{ item.quantity }}</td>
-                        <td class="text-end">₹{{ "%.2f"|format(item.purchase_price) }}</td>
-                        <td class="text-end pe-3 fw-bold">₹{{ "%.2f"|format(item.quantity * item.purchase_price) }}</td>
+                        <td class="text-end">{{ item.purchase_price|inr }}</td>
+                        <td class="text-end pe-3 fw-bold">{{ (item.quantity * item.purchase_price)|inr }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
                 <tfoot class="border-top">
                     <tr>
                         <td colspan="4" class="text-end pt-4"><strong class="text-uppercase text-muted small">Grand Total</strong></td>
-                        <td class="text-end pe-3 pt-4"><h3 class="fw-bold text-primary mb-0">₹{{ "%.2f"|format(purchase.total_amount) }}</h3></td>
+                        <td class="text-end pe-3 pt-4"><h3 class="fw-bold text-primary mb-0">{{ purchase.total_amount|inr }}</h3></td>
                     </tr>
                 </tfoot>
             </table>
