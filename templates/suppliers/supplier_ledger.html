@@ -15,10 +15,11 @@
         </a>
     </div>
 
+    <!-- Financial Summary Cards -->
     <div class="row g-4 mb-4">
         <!-- Profile & Due Card -->
-        <div class="col-md-12">
-            <div class="glass-panel d-flex justify-content-between align-items-center p-4">
+        <div class="col-lg-8">
+            <div class="glass-panel d-flex justify-content-between align-items-center p-4 h-100">
                 <div class="d-flex align-items-center gap-4">
                     <div class="icon-box bg-primary bg-opacity-10 text-primary" style="width: 70px; height: 70px; font-size: 2rem;">
                         <i class="fa-solid fa-building-user"></i>
@@ -30,16 +31,24 @@
                 </div>
                 <div class="text-end">
                     <small class="text-uppercase fw-bold text-muted ls-1">Current Due Balance</small>
-                    <!-- FIX: Handle missing 'final_balance' by falling back to supplier.current_due or 0 -->
-                    {% set balance = final_balance if final_balance is defined else (supplier.current_due if supplier.current_due is defined else 0) %}
-                    
+                    <!-- FIX: Handle missing 'final_balance' safely -->
+                    {% set balance = final_balance if final_balance is defined else 0 %}
                     <h1 class="display-5 fw-bold mb-0 {% if balance > 0 %}text-danger{% else %}text-success{% endif %}">
-                        {{ "%.2f"|format(balance|abs) }}
+                        {{ (balance|abs)|format("%.2f") }}
                     </h1>
                     <span class="badge rounded-pill {% if balance > 0 %}bg-danger{% else %}bg-success{% endif %}">
                         {% if balance > 0 %}To Pay{% else %}Cleared{% endif %}
                     </span>
                 </div>
+            </div>
+        </div>
+
+        <!-- Opening Balance Widget -->
+        <div class="col-lg-4">
+            <div class="glass-panel p-4 h-100 d-flex flex-column justify-content-center border-start border-4 border-secondary">
+                <small class="text-uppercase text-muted fw-bold mb-1">Opening Balance</small>
+                <h3 class="fw-bold text-dark mb-0">₹{{ "%.2f"|format(opening_balance if opening_balance is defined else 0) }}</h3>
+                <small class="text-muted mt-2"><i class="fa-solid fa-calendar-check me-1"></i>Terms: {{ supplier.payment_terms or 30 }} Days</small>
             </div>
         </div>
     </div>
@@ -109,4 +118,3 @@
     </div>
 </div>
 {% endblock %}
-
