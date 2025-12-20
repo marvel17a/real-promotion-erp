@@ -31,11 +31,13 @@
                     {% for purchase in purchases %}
                     <tr>
                         <td class="ps-4 fw-medium text-dark">
-                            <!-- FIX: Safe Date Check -->
                             {% if purchase.purchase_date %}
                                 {{ purchase.purchase_date.strftime('%d-%b-%Y') }}
                             {% else %}
-                                <span class="text-muted small">N/A</span>
+                                <!-- Visual prompt to fix the missing date -->
+                                <a href="{{ url_for('edit_purchase', purchase_id=purchase.id) }}" class="badge bg-warning text-dark text-decoration-none" title="Date is missing in DB. Click to fix.">
+                                    <i class="fa-solid fa-calendar-plus me-1"></i> Set Date
+                                </a>
                             {% endif %}
                         </td>
                         <td>
@@ -53,7 +55,7 @@
                                 <a href="{{ url_for('view_purchase', purchase_id=purchase.id) }}" class="action-btn btn-view" title="View Details">
                                     <i class="fa-regular fa-eye"></i>
                                 </a>
-                                <!-- ADDED: Edit Button -->
+                                <!-- Edit Button -->
                                 <a href="{{ url_for('edit_purchase', purchase_id=purchase.id) }}" class="action-btn btn-edit" title="Edit Purchase">
                                     <i class="fa-solid fa-pen"></i>
                                 </a>
