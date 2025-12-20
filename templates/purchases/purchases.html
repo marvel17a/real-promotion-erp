@@ -30,7 +30,14 @@
                 <tbody>
                     {% for purchase in purchases %}
                     <tr>
-                        <td class="ps-4 fw-medium text-dark">{{ purchase.purchase_date.strftime('%d-%b-%Y') }}</td>
+                        <!-- FIX: Handle None/NULL purchase_date -->
+                        <td class="ps-4 fw-medium text-dark">
+                            {% if purchase.purchase_date %}
+                                {{ purchase.purchase_date.strftime('%d-%b-%Y') }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
                         <td>
                             <div class="d-flex align-items-center gap-3">
                                 <div class="icon-box bg-light text-primary">
