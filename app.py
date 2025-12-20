@@ -857,6 +857,8 @@ def purchases():
     all_purchases = cur.fetchall()
     cur.close()
     return render_template('purchases/purchases.html', purchases=all_purchases)
+
+
 # ... existing imports ...
 @app.route('/new_purchase', methods=['GET', 'POST'])
 def new_purchase():
@@ -909,8 +911,9 @@ def new_purchase():
                     """, (purchase_id, p_id, qty, price))
                     
                     # Update Stock (Add quantity)
+                    # FIX: Changed 'quantity' to 'stock_quantity' (Most likely correct column based on error)
                     cursor.execute("""
-                        UPDATE products SET quantity = quantity + %s, price = %s 
+                        UPDATE products SET stock_quantity = stock_quantity + %s, price = %s 
                         WHERE id = %s
                     """, (qty, price, p_id))
             
@@ -4553,6 +4556,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
