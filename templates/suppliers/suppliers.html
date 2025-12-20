@@ -1,13 +1,13 @@
 {% extends "admin_master.html" %}
 
-{% block page_content %}
+{% block content %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/supplier.css') }}">
 
 <div class="container-fluid py-4 fade-in-up">
     
-    <!-- IDEA 1: Smart Dashboard Widget -->
+    <!-- Smart Dashboard Widget -->
     <div class="row g-4 mb-4">
-        <div class="col-md-4">
+        <div class="col-md-6">
             <div class="glass-panel p-4 d-flex align-items-center justify-content-between">
                 <div>
                     <p class="text-muted small fw-bold text-uppercase mb-1">Active Vendors</p>
@@ -18,25 +18,15 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-6">
             <div class="glass-panel p-4 d-flex align-items-center justify-content-between border-start border-4 border-danger">
                 <div>
-                    <p class="text-muted small fw-bold text-uppercase mb-1">Total Outstanding</p>
-                    <h2 class="text-danger fw-bold mb-0" id="totalOutstandingDisplay">₹ 0.00</h2>
+                    <p class="text-muted small fw-bold text-uppercase mb-1">Total Purchase Dues</p>
+                    <!-- Calculated via JS below -->
+                    <h2 class="text-danger fw-bold mb-0" id="totalDuesDisplay">₹ 0.00</h2>
                 </div>
                 <div class="icon-box bg-danger bg-opacity-10 text-danger rounded-circle">
-                    <i class="fa-solid fa-money-bill-wave"></i>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="glass-panel p-4 d-flex align-items-center justify-content-between">
-                <div>
-                    <p class="text-muted small fw-bold text-uppercase mb-1">Top Creditor</p>
-                    <h5 class="text-dark fw-bold mb-0 text-truncate" id="topCreditorName" style="max-width: 150px;">-</h5>
-                </div>
-                <div class="icon-box bg-warning bg-opacity-10 text-warning rounded-circle">
-                    <i class="fa-solid fa-crown"></i>
+                    <i class="fa-solid fa-file-invoice-dollar"></i>
                 </div>
             </div>
         </div>
@@ -46,10 +36,9 @@
     <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
         <div>
             <h2 class="page-title mb-0">Supplier Management</h2>
-            <p class="text-muted mb-0">Manage vendors, payments, and ledgers.</p>
+            <p class="text-muted mb-0">Manage vendors and track purchase dues.</p>
         </div>
         
-        <!-- IDEA 6: Real-time Search -->
         <div class="d-flex gap-3">
             <input type="text" id="supplierSearch" class="form-control input-glass" placeholder="Search suppliers..." style="width: 250px;">
             <a href="{{ url_for('add_supplier') }}" class="btn-glass-primary text-decoration-none d-none d-md-inline-block">
@@ -61,7 +50,7 @@
     <!-- Table Container -->
     <div class="glass-panel p-0 overflow-hidden">
         <div class="table-responsive p-3">
-            <table class="table-glass" id="supplierTable">
+            <table class="table-glass">
                 <thead>
                     <tr>
                         <th class="ps-4">Supplier Details</th>
@@ -70,9 +59,9 @@
                         <th class="text-center pe-4">Actions</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="supplierTable">
                     {% for supplier in suppliers %}
-                    <tr class="supplier-row" data-due="{{ supplier.current_due or 0 }}" data-name="{{ supplier.name }}">
+                    <tr class="supplier-row" data-due="{{ supplier.current_due or 0 }}">
                         <!-- Name -->
                         <td class="ps-4">
                             <div class="d-flex align-items-center gap-3">
@@ -82,10 +71,6 @@
                                 <div>
                                     <h6 class="mb-0 fw-bold text-dark">{{ supplier.name }}</h6>
                                     <small class="text-muted">ID: #{{ supplier.id }}</small>
-                                    <!-- IDEA 7: Supplier Tags (Simulated) -->
-                                    {% if (supplier.current_due or 0) > 50000 %}
-                                        <span class="badge bg-warning text-dark ms-2" style="font-size: 0.6rem;">High Value</span>
-                                    {% endif %}
                                 </div>
                             </div>
                         </td>
@@ -101,16 +86,18 @@
                         <td class="text-end">
                             {% set due = supplier.current_due if supplier.current_due is defined else 0 %}
                             <span class="due-badge {% if due > 0 %}due-positive{% else %}due-negative{% endif %}">
-                                ₹{{ "%.2f"|format(due) }}
+                                {{ due|inr }}
                             </span>
                         </td>
 
                         <!-- Actions -->
                         <td class="text-center pe-4">
                             <div class="d-flex justify-content-center">
-                                <a href="{{ url_for('supplier_cashflow') }}?supplier_id={{ supplier.id }}" class="action-btn btn-cashflow" title="Cashflow">
+                                <!-- Cashflow Link -->
+                                <a href="{{ url_for('supplier_cashflow') }}?supplier_id={{ supplier.id }}" class="action-btn btn-cashflow" title="Cashflow (General)">
                                     <i class="fa-solid fa-money-bill-transfer"></i>
                                 </a>
+                                <!-- Ledger Link -->
                                 <a href="{{ url_for('supplier_ledger', supplier_id=supplier.id) }}" class="action-btn btn-view" title="View Ledger">
                                     <i class="fa-solid fa-book-open"></i>
                                 </a>
@@ -139,35 +126,19 @@
     </div>
 </div>
 
-<!-- IDEA 3: Floating Action Button (Mobile) -->
-<a href="{{ url_for('add_supplier') }}" class="btn-fab d-md-none">
-    <i class="fa-solid fa-plus"></i>
-</a>
-
-<!-- Scripts for Ideas 1 & 6 -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // 1. Calculate Totals & Top Creditor
-    let totalDue = 0;
-    let maxDue = 0;
-    let topCreditor = "-";
+    // 1. Calculate Total Purchase Dues
+    let totalDues = 0;
     
     document.querySelectorAll('.supplier-row').forEach(row => {
         let due = parseFloat(row.dataset.due) || 0;
-        totalDue += due;
-        
-        if(due > maxDue) {
-            maxDue = due;
-            topCreditor = row.dataset.name;
-        }
+        totalDues += due;
     });
     
-    document.getElementById('totalOutstandingDisplay').textContent = "₹ " + totalDue.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-    if(maxDue > 0) {
-        document.getElementById('topCreditorName').textContent = topCreditor;
-    }
+    document.getElementById('totalDuesDisplay').textContent = "₹ " + totalDues.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
 
-    // 6. Real-time Search
+    // 2. Real-time Search
     document.getElementById('supplierSearch').addEventListener('keyup', function() {
         let filter = this.value.toLowerCase();
         document.querySelectorAll('.supplier-row').forEach(row => {
@@ -177,26 +148,4 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 </script>
-
-<style>
-/* FAB Style */
-.btn-fab {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    width: 60px;
-    height: 60px;
-    background: var(--primary-color);
-    color: white;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.5rem;
-    box-shadow: 0 4px 15px rgba(79, 70, 229, 0.4);
-    z-index: 1000;
-    transition: transform 0.2s;
-}
-.btn-fab:hover { transform: scale(1.1); color: white; }
-</style>
 {% endblock %}
