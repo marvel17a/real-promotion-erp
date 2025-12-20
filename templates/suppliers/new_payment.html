@@ -11,7 +11,7 @@
             <i class="fa-solid fa-arrow-left"></i>
         </a>
         <div>
-            <h2 class="mb-0 fw-bold page-title">Record Purchase Payment</h2>
+            <h2 class="mb-0 fw-bold page-title">Record Payment</h2>
             <p class="text-muted mb-0 small">Paying Supplier: <span class="text-primary fw-bold">{{ supplier.name }}</span></p>
         </div>
     </div>
@@ -24,13 +24,12 @@
                     <label class="form-label fw-bold text-muted small text-uppercase">Payment Date <span class="text-danger">*</span></label>
                     <div class="input-group">
                         <span class="input-group-text bg-white border-end-0"><i class="fa-regular fa-calendar"></i></span>
-                        <input type="text" class="form-control input-glass border-start-0 ps-0" id="payment_date" name="payment_date" value="{{ today_date }}" required>
+                        <input type="text" class="form-control input-glass border-start-0 ps-0" id="payment_date" name="payment_date" required>
                     </div>
                 </div>
 
                 <div class="col-md-6">
                     <label class="form-label fw-bold text-muted small text-uppercase">Amount Paid (₹) <span class="text-danger">*</span></label>
-                    <!-- Display current due for reference -->
                     <div class="input-group">
                         <span class="input-group-text bg-white border-end-0 fw-bold">₹</span>
                         <input type="number" class="form-control input-glass border-start-0 ps-0 fs-5 fw-bold text-success" id="amount_paid" name="amount_paid" step="0.01" min="0.01" required placeholder="0.00">
@@ -66,10 +65,9 @@
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script>
     flatpickr("#payment_date", {
-        dateFormat: "d-m-Y",
+        dateFormat: "Y-m-d",
         defaultDate: "today",
         allowInput: true
     });
 </script>
 {% endblock %}
-
