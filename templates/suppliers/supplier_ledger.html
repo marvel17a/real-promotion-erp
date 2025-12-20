@@ -1,33 +1,23 @@
 {% extends "admin_master.html" %}
 
-{% block page_content %}
+{% block content %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/supplier.css') }}">
 
 <div class="container-fluid py-4 fade-in-up" id="ledgerContent">
 
-    <!-- HEADER -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h2 class="page-title mb-0">Supplier Ledger</h2>
-            <p class="text-muted mb-0">
-                History for:
-                <span class="text-primary fw-bold">{{ supplier.name }}</span>
-            </p>
+            <p class="text-muted mb-0">History for: <span class="text-primary fw-bold">{{ supplier.name }}</span></p>
         </div>
-
+        
         <div class="d-flex gap-2">
-            <!-- WhatsApp Share -->
-            <a href="https://wa.me/?text=Hi {{ supplier.name }}, current outstanding balance is {{ (final_balance|abs)|format('%.2f') }}"
-               target="_blank"
-               class="btn btn-success rounded-circle shadow-sm"
-               style="width:40px;height:40px;display:flex;align-items:center;justify-content:center;">
+            <!-- WhatsApp Share: Fixed format syntax -->
+            <a href="https://wa.me/?text=Hi {{ supplier.name }}, current outstanding balance is {{ final_balance|inr }}" target="_blank" class="btn btn-success rounded-circle shadow-sm" style="width: 40px; height: 40px; display:flex; align-items:center; justify-content:center;">
                 <i class="fa-brands fa-whatsapp"></i>
             </a>
-
-            <!-- PDF Export -->
-            <button onclick="downloadPDF()"
-                    class="btn btn-danger rounded-circle shadow-sm"
-                    style="width:40px;height:40px;display:flex;align-items:center;justify-content:center;">
+            
+            <button onclick="downloadPDF()" class="btn btn-danger rounded-circle shadow-sm" style="width: 40px; height: 40px; display:flex; align-items:center; justify-content:center;">
                 <i class="fa-solid fa-file-pdf"></i>
             </button>
 
@@ -37,34 +27,28 @@
         </div>
     </div>
 
-    <!-- SUMMARY -->
+    <!-- Summary & Chart Row -->
     <div class="row g-4 mb-4">
-
+        <!-- Profile & Due Card -->
         <div class="col-lg-8">
             <div class="glass-panel d-flex justify-content-between align-items-center p-4 h-100">
                 <div class="d-flex align-items-center gap-4">
-                    <div class="icon-box bg-primary bg-opacity-10 text-primary"
-                         style="width:70px;height:70px;font-size:2rem;">
+                    <div class="icon-box bg-primary bg-opacity-10 text-primary" style="width: 70px; height: 70px; font-size: 2rem;">
                         <i class="fa-solid fa-building-user"></i>
                     </div>
                     <div>
                         <h3 class="mb-1 fw-bold">{{ supplier.name }}</h3>
-                        <p class="text-muted mb-0">
-                            <i class="fa-solid fa-phone me-2"></i>{{ supplier.phone }}
-                            | {{ supplier.address }}
-                        </p>
-                        <p class="text-muted mb-0 small mt-1">
-                            Payment Terms:
-                            <strong>{{ supplier.payment_terms }} Days</strong>
-                        </p>
+                        <p class="text-muted mb-0"><i class="fa-solid fa-phone me-2"></i>{{ supplier.phone }} | {{ supplier.address }}</p>
                     </div>
                 </div>
-
-                {% set balance = final_balance if final_balance is defined else 0 %}
                 <div class="text-end">
-                    <small class="text-uppercase fw-bold text-muted">Current Due Balance</small>
+                    <small class="text-uppercase fw-bold text-muted ls-1">Current Due Balance</small>
+                    <!-- Check if final_balance is defined to avoid errors -->
+                    {% set balance = final_balance if final_balance is defined else 0 %}
+                    
+                    <!-- Using custom 'inr' filter which handles float conversion safely -->
                     <h1 class="display-5 fw-bold mb-0 {% if balance > 0 %}text-danger{% else %}text-success{% endif %}">
-                        {{ (balance|abs)|format('%.2f') }}
+                        {{ (balance|abs)|inr }}
                     </h1>
                     <span class="badge rounded-pill {% if balance > 0 %}bg-danger{% else %}bg-success{% endif %}">
                         {% if balance > 0 %}To Pay{% else %}Cleared{% endif %}
@@ -73,29 +57,23 @@
             </div>
         </div>
 
-        <!-- MINI CHART -->
+        <!-- Mini Chart -->
         <div class="col-lg-4">
             <div class="glass-panel p-4 h-100 d-flex flex-column justify-content-center align-items-center">
                 <h6 class="text-muted small fw-bold mb-3">Balance Composition</h6>
-                <div style="height:150px;width:150px;">
+                <div style="height: 150px; width: 150px;">
                     <canvas id="balanceChart"></canvas>
                 </div>
             </div>
         </div>
-
     </div>
 
-    <!-- TABLES -->
     <div class="row g-4">
-
-        <!-- PURCHASES -->
+        <!-- PURCHASES TABLE -->
         <div class="col-lg-6">
             <div class="glass-panel p-0 overflow-hidden h-100">
                 <div class="p-3 border-bottom bg-light bg-opacity-50">
-                    <h5 class="mb-0 fw-bold">
-                        <i class="fa-solid fa-cart-shopping me-2 text-primary"></i>
-                        Purchases (Debits)
-                    </h5>
+                    <h5 class="mb-0 fw-bold text-dark"><i class="fa-solid fa-cart-shopping me-2 text-primary"></i>Purchases (Debits)</h5>
                 </div>
                 <div class="table-responsive p-3">
                     <table class="table-glass">
@@ -111,16 +89,10 @@
                             <tr>
                                 <td>{{ pur.purchase_date.strftime('%d-%b-%Y') }}</td>
                                 <td><span class="badge bg-light text-dark border">{{ pur.bill_number }}</span></td>
-                                <td class="text-end fw-bold text-danger">
-                                    ₹{{ "%.2f"|format(pur.total_amount) }}
-                                </td>
+                                <td class="text-end fw-bold text-danger">₹{{ "%.2f"|format(pur.total_amount) }}</td>
                             </tr>
                             {% else %}
-                            <tr>
-                                <td colspan="3" class="text-center text-muted py-4">
-                                    No purchases found.
-                                </td>
-                            </tr>
+                            <tr><td colspan="3" class="text-center text-muted py-4">No purchases found.</td></tr>
                             {% endfor %}
                         </tbody>
                     </table>
@@ -128,14 +100,11 @@
             </div>
         </div>
 
-        <!-- PAYMENTS -->
+        <!-- PAYMENTS TABLE -->
         <div class="col-lg-6">
             <div class="glass-panel p-0 overflow-hidden h-100">
                 <div class="p-3 border-bottom bg-light bg-opacity-50">
-                    <h5 class="mb-0 fw-bold">
-                        <i class="fa-solid fa-money-bill-wave me-2 text-success"></i>
-                        Payments (Credits)
-                    </h5>
+                    <h5 class="mb-0 fw-bold text-dark"><i class="fa-solid fa-money-bill-wave me-2 text-success"></i>Payments (Credits)</h5>
                 </div>
                 <div class="table-responsive p-3">
                     <table class="table-glass">
@@ -150,80 +119,59 @@
                             {% for pay in payments %}
                             <tr>
                                 <td>{{ pay.date.strftime('%d-%b-%Y') }}</td>
-                                <td>
-                                    <span class="badge bg-success bg-opacity-10 text-success border">
-                                        {{ pay.mode }}
-                                    </span>
-                                </td>
-                                <td class="text-end fw-bold text-success">
-                                    - ₹{{ "%.2f"|format(pay.amount) }}
-                                </td>
+                                <td><span class="badge bg-success bg-opacity-10 text-success border border-success-subtle">{{ pay.mode }}</span></td>
+                                <td class="text-end fw-bold text-success">- ₹{{ "%.2f"|format(pay.amount) }}</td>
                             </tr>
                             {% else %}
-                            <tr>
-                                <td colspan="3" class="text-center text-muted py-4">
-                                    No payments found.
-                                </td>
-                            </tr>
+                            <tr><td colspan="3" class="text-center text-muted py-4">No payments found.</td></tr>
                             {% endfor %}
                         </tbody>
                     </table>
                 </div>
             </div>
         </div>
-
     </div>
 </div>
 
-<!-- ✅ SAFE JSON INJECTION -->
-<script type="application/json" id="ledger-data">
-{
-  "opening": {{ opening_balance | default(0) | tojson }},
-  "current": {{ balance | default(0) | tojson }}
-}
-</script>
-
+<!-- SCRIPTS for Chart & PDF -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
 <script>
-document.addEventListener("DOMContentLoaded", function () {
-
-    const data = JSON.parse(
-        document.getElementById("ledger-data").textContent.trim()
-    );
-
-    const ctx = document.getElementById("balanceChart").getContext("2d");
-
+    // Mini Chart Logic
+    const ctx = document.getElementById('balanceChart').getContext('2d');
+    
+    // Safely parse Jinja variables for JS
+    const openingBal = parseFloat("{{ opening_balance if opening_balance is defined else 0 }}");
+    const currentDue = parseFloat("{{ balance if balance is defined else 0 }}");
+    
     new Chart(ctx, {
-        type: "doughnut",
+        type: 'doughnut',
         data: {
-            labels: ["Opening", "Current Due"],
+            labels: ['Opening', 'Current Due'],
             datasets: [{
-                data: [
-                    data.opening,
-                    data.current > 0 ? data.current : 0
-                ],
-                backgroundColor: ["#64748b", "#ef4444"],
+                data: [openingBal, currentDue > 0 ? currentDue : 0],
+                backgroundColor: ['#64748b', '#ef4444'],
                 borderWidth: 0
             }]
         },
         options: {
-            cutout: "70%",
+            cutout: '70%',
             plugins: { legend: { display: false } }
         }
     });
-});
 
-function downloadPDF() {
-    const element = document.getElementById("ledgerContent");
-    html2pdf().from(element).set({
-        margin: 0.5,
-        filename: "Supplier_Ledger_{{ supplier.name }}.pdf",
-        image: { type: "jpeg", quality: 0.98 },
-        html2canvas: { scale: 2 },
-        jsPDF: { unit: "in", format: "letter", orientation: "portrait" }
-    }).save();
-}
+    // PDF Download Logic
+    function downloadPDF() {
+        const element = document.getElementById('ledgerContent');
+        const opt = {
+            margin: 0.5,
+            filename: 'Supplier_Ledger_{{ supplier.name }}.pdf',
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2 },
+            jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+        };
+        html2pdf().set(opt).from(element).save();
+    }
 </script>
 {% endblock %}
