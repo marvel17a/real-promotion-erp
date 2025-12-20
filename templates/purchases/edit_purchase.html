@@ -1,262 +1,58 @@
 {% extends "admin_master.html" %}
-{% block content %}
-<div class="container-fluid py-4">
-  <h4 class="mb-4 text-primary fw-bold">
-    <i class="bi bi-pencil-square me-2"></i> Edit Purchase Order #{{ purchase.id }}
-  </h4>
 
-  <form action="{{ url_for('update_purchase', purchase_id=purchase.id) }}" method="POST" id="purchaseForm">
-    <!-- Supplier & Date -->
-    <div class="card shadow-sm border-0 mb-4">
-      <div class="card-body">
-        <div class="row g-3">
-          <div class="col-md-4">
-            <label class="form-label">Supplier <span class="text-danger">*</span></label>
-            <select name="supplier_id" class="form-select" required>
-              {% for s in suppliers %}
-                <option value="{{ s.id }}" {% if s.id == purchase.supplier_id %}selected{% endif %}>
-                  {{ s.name }}
-                </option>
-              {% endfor %}
-            </select>
-          </div>
-          <div class="col-md-4">
-            <label class="form-label">Date <span class="text-danger">*</span></label>
-            <input
-              type="date"
-              name="purchase_date"
-              class="form-control"
-              required
-              value="{{ purchase.purchase_date.strftime('%Y-%m-%d') }}"
-            >
-          </div>
-          <div class="col-md-4">
-            <label class="form-label">Invoice No</label>
-            <input
-              type="text"
-              name="invoice_number"
-              class="form-control"
-              value="{{ purchase.invoice_number or '' }}"
-            >
-          </div>
-        </div>
-      </div>
+{% block page_content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/purchase.css') }}">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+
+<div class="container py-5 fade-in-up" style="max-width: 800px;">
+    
+    <div class="d-flex align-items-center mb-4">
+        <a href="{{ url_for('purchases') }}" class="btn btn-light rounded-circle shadow-sm me-3" style="width: 40px; height: 40px; display:flex; align-items:center; justify-content:center;">
+            <i class="fa-solid fa-arrow-left"></i>
+        </a>
+        <h2 class="mb-0 fw-bold page-title">Edit Purchase #{{ purchase.id }}</h2>
     </div>
 
-    <!-- Products -->
-    <div class="card shadow-sm border-0 mb-4">
-      <div class="card-header bg-light d-flex justify-content-between align-items-center">
-        <h5 class="mb-0">Products</h5>
-        <button type="button" class="btn btn-success btn-sm" id="addItemBtn">
-          <i class="bi bi-plus-circle me-1"></i> Add Product
-        </button>
-      </div>
-      <div class="card-body p-0">
-        <div class="table-responsive">
-          <table class="table mb-0">
-            <thead class="table-light">
-              <tr>
-                <th style="width: 40%;">Product</th>
-                <th style="width: 15%;">Quantity</th>
-                <th style="width: 15%;">Unit Price</th>
-                <th class="text-end" style="width: 20%;">Total</th>
-                <th class="text-center" style="width: 10%;">Action</th>
-              </tr>
-            </thead>
-            <tbody id="itemsTableBody">
-              {% for item in items %}
-              <tr>
-                <td>
-                  <select name="product_id" class="form-select product-select" required>
-                    <option value="" disabled>-- Select --</option>
-                    {% for p in products %}
-                      <option
-                        value="{{ p.id }}"
-                        data-price="{{ p.purchase_price }}"
-                        {% if p.id == item.product_id %}selected{% endif %}
-                      >
-                        {{ p.name }}
-                      </option>
-                    {% endfor %}
-                  </select>
-                  <input
-                    type="hidden"
-                    name="product_name"
-                    class="product-name"
-                    value="{{ item.product_name }}"
-                  >
-                </td>
-                <td>
-                  <input
-                    type="number"
-                    name="quantity"
-                    class="form-control quantity"
-                    value="{{ '%.2f'|format(item.quantity) }}"
-                    min="0.01"
-                    step="any"
-                    required
-                  >
-                </td>
-                <td>
-                  <input
-                    type="number"
-                    name="unit_price"
-                    class="form-control unit_price"
-                    value="{{ '%.2f'|format(item.unit_price) }}"
-                    min="0.00"
-                    step="any"
-                    required
-                  >
-                </td>
-                <td class="text-end item-total fw-bold">
-                  {{ '%.2f'|format(item.item_total) }}
-                </td>
-                <td class="text-center">
-                  <button type="button" class="btn btn-danger btn-sm remove-item">
-                    <i class="bi bi-trash"></i>
-                  </button>
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      </div>
-      <div class="card-footer">
-        <div class="row justify-content-end">
-          <div class="col-md-4">
-            <div class="d-flex justify-content-between mb-2">
-              <span>Sub Total:</span><span id="subTotal">0.00</span>
+    <div class="glass-panel p-5">
+        <form action="{{ url_for('update_purchase', purchase_id=purchase.id) }}" method="POST" id="purchaseForm">
+            
+            <div class="row g-4 mb-4">
+                <div class="col-md-6">
+                    <label class="form-label fw-bold text-muted small text-uppercase">Supplier</label>
+                    <select name="supplier_id" class="form-select input-glass" required>
+                        {% for s in suppliers %}
+                            <option value="{{ s.id }}" {% if s.id == purchase.supplier_id %}selected{% endif %}>
+                                {{ s.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-bold text-muted small text-uppercase">Date</label>
+                    <input type="text" name="purchase_date" id="purchase_date" class="form-control input-glass" 
+                           value="{{ purchase.purchase_date.strftime('%Y-%m-%d') }}" required>
+                </div>
+                <div class="col-12">
+                    <label class="form-label fw-bold text-muted small text-uppercase">Bill Number</label>
+                    <input type="text" name="bill_number" class="form-control input-glass" 
+                           value="{{ purchase.bill_number or '' }}">
+                </div>
             </div>
-            <div class="d-flex justify-content-between mb-2 align-items-center">
-              <span>Tax:</span>
-              <input
-                type="number"
-                name="tax_amount"
-                id="taxAmount"
-                class="form-control form-control-sm"
-                style="width: 120px;"
-                value="{{ '%.2f'|format(purchase.tax_amount) }}"
-                step="0.01"
-                min="0"
-              >
-            </div>
-            <hr>
-            <div class="d-flex justify-content-between fw-bold fs-5">
-              <span>Grand Total:</span><span id="grandTotal">0.00</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
 
-    <!-- Actions & Hidden Fields -->
-    <div class="d-flex justify-content-end">
-      <a href="{{ url_for('purchases') }}" class="btn btn-secondary me-2">Cancel</a>
-      <button type="submit" class="btn btn-primary">Update Purchase</button>
+            <div class="mt-5 text-end">
+                <button type="submit" class="btn-glass-primary px-5 py-3 shadow-lg">
+                    <i class="fa-solid fa-check-double me-2"></i>Update Purchase
+                </button>
+            </div>
+        </form>
     </div>
-    <input type="hidden" name="sub_total" id="subTotalInput">
-    <input type="hidden" name="grand_total" id="grandTotalInput">
-  </form>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script>
-document.addEventListener('DOMContentLoaded', function () {
-  // inline-tojson always emits valid JSON
-  const products = {{ (products or []) | tojson }};
-
-  const tbody        = document.getElementById('itemsTableBody');
-  const addBtn       = document.getElementById('addItemBtn');
-  const taxEl        = document.getElementById('taxAmount');
-  const subTotalEl   = document.getElementById('subTotal');
-  const grandTotalEl = document.getElementById('grandTotal');
-  const subInput     = document.getElementById('subTotalInput');
-  const grandInput   = document.getElementById('grandTotalInput');
-
-  function money(v){ return (parseFloat(v)||0).toFixed(2); }
-
-  function productOptions(){
-    let html = '<option value="" selected disabled>-- Select --</option>';
-    products.forEach(p=>{
-      html += `<option value="${p.id}" data-price="${p.purchase_price}">${p.name}</option>`;
+    flatpickr("#purchase_date", {
+        dateFormat: "Y-m-d",
+        allowInput: true
     });
-    return html;
-  }
-
-  function addRow(){
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>
-        <select name="product_id" class="form-select product-select" required>
-          ${productOptions()}
-        </select>
-        <input type="hidden" name="product_name" class="product-name">
-      </td>
-      <td><input type="number" name="quantity" class="form-control quantity" value="1" min="0.01" step="any" required></td>
-      <td><input type="number" name="unit_price" class="form-control unit_price" value="0.00" min="0.00" step="any" required></td>
-      <td class="text-end item-total fw-bold">0.00</td>
-      <td class="text-center">
-        <button type="button" class="btn btn-danger btn-sm remove-item">
-          <i class="bi bi-trash"></i>
-        </button>
-      </td>
-    `;
-    tbody.appendChild(tr);
-  }
-
-  function updateRowName(row){
-    const sel = row.querySelector('.product-select');
-    row.querySelector('.product-name').value = sel.selectedOptions[0]?.textContent||'';
-  }
-
-  function updateTotals(){
-    let sub=0;
-    tbody.querySelectorAll('tr').forEach(row=>{
-      const q = parseFloat(row.querySelector('.quantity').value)||0;
-      const u = parseFloat(row.querySelector('.unit_price').value)||0;
-      const t = q*u;
-      row.querySelector('.item-total').textContent = t.toFixed(2);
-      sub += t;
-    });
-    const tax   = parseFloat(taxEl.value)||0;
-    const grand = sub + tax;
-    subTotalEl.textContent   = sub.toFixed(2);
-    grandTotalEl.textContent = grand.toFixed(2);
-    subInput.value           = sub.toFixed(2);
-    grandInput.value         = grand.toFixed(2);
-  }
-
-  // Event handlers
-  addBtn.addEventListener('click', ()=>{
-    addRow(); updateTotals();
-  });
-
-  tbody.addEventListener('click', e=>{
-    if(e.target.closest('.remove-item')){
-      e.target.closest('tr').remove();
-      updateTotals();
-    }
-  });
-
-  tbody.addEventListener('change', e=>{
-    if(e.target.classList.contains('product-select')){
-      const row = e.target.closest('tr');
-      const price = e.target.selectedOptions[0]?.dataset.price||0;
-      row.querySelector('.unit_price').value = money(price);
-      updateRowName(row);
-      updateTotals();
-    }
-  });
-
-  tbody.addEventListener('input', e=>{
-    if(e.target.matches('.quantity, .unit_price')) updateTotals();
-  });
-
-  taxEl.addEventListener('input', updateTotals);
-
-  // When editing, recalc using your pre-rendered rows:
-  updateTotals();
-});
 </script>
 {% endblock %}
-
