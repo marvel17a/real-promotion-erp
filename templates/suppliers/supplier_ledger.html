@@ -1,6 +1,6 @@
 {% extends "admin_master.html" %}
 
-{% block page_content %}
+{% block content %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/supplier.css') }}">
 
 <div class="container-fluid py-4 fade-in-up" id="ledgerContent">
@@ -12,7 +12,7 @@
         </div>
         
         <div class="d-flex gap-2">
-            <!-- FIXED: Matches your provided backend route 'record_payment' -->
+            <!-- FIXED: Points to record_payment for Purchase Order payments -->
             <a href="{{ url_for('record_payment', supplier_id=supplier.id) }}" class="btn btn-glass-primary text-decoration-none d-flex align-items-center">
                 <i class="fa-solid fa-plus me-2"></i>New Payment
             </a>
@@ -59,13 +59,12 @@
             </div>
         </div>
 
-        <!-- Mini Chart -->
+        <!-- Opening Balance Widget -->
         <div class="col-lg-4">
-            <div class="glass-panel p-4 h-100 d-flex flex-column justify-content-center align-items-center">
-                <h6 class="text-muted small fw-bold mb-3">Balance Composition</h6>
-                <div style="height: 150px; width: 150px;">
-                    <canvas id="balanceChart"></canvas>
-                </div>
+            <div class="glass-panel p-4 h-100 d-flex flex-column justify-content-center border-start border-4 border-secondary">
+                <small class="text-uppercase text-muted fw-bold mb-1">Opening Balance</small>
+                <h3 class="fw-bold text-dark mb-0">{{ (opening_balance if opening_balance is defined else 0)|inr }}</h3>
+                <small class="text-muted mt-2">Initial Debt</small>
             </div>
         </div>
     </div>
@@ -92,7 +91,7 @@
                             <tr>
                                 <td>{{ pur.purchase_date.strftime('%d-%b-%Y') }}</td>
                                 <td><span class="badge bg-light text-dark border">{{ pur.bill_number }}</span></td>
-                                <td class="text-end fw-bold text-danger">₹{{ "%.2f"|format(pur.total_amount) }}</td>
+                                <td class="text-end fw-bold text-danger">{{ pur.total_amount|inr }}</td>
                                 <td class="text-center">
                                     <a href="{{ url_for('view_purchase', purchase_id=pur.id) }}" class="btn btn-sm btn-outline-primary rounded-circle" title="View Order">
                                         <i class="fa-solid fa-eye"></i>
@@ -128,7 +127,7 @@
                             <tr>
                                 <td>{{ pay.date.strftime('%d-%b-%Y') }}</td>
                                 <td><span class="badge bg-success bg-opacity-10 text-success border border-success-subtle">{{ pay.mode }}</span></td>
-                                <td class="text-end fw-bold text-success">- ₹{{ "%.2f"|format(pay.amount) }}</td>
+                                <td class="text-end fw-bold text-success">- {{ pay.amount|inr }}</td>
                             </tr>
                             {% else %}
                             <tr><td colspan="3" class="text-center text-muted py-4">No payments found.</td></tr>
@@ -141,31 +140,11 @@
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-
 <script>
-    const ctx = document.getElementById('balanceChart').getContext('2d');
-    const openingBal = parseFloat("{{ opening_balance if opening_balance is defined else 0 }}");
-    const currentDue = parseFloat("{{ balance if balance is defined else 0 }}");
-    
-    new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-            labels: ['Opening', 'Current Due'],
-            datasets: [{
-                data: [openingBal, currentDue > 0 ? currentDue : 0],
-                backgroundColor: ['#64748b', '#ef4444'],
-                borderWidth: 0
-            }]
-        },
-        options: { cutout: '70%', plugins: { legend: { display: false } } }
-    });
-
     function downloadPDF() {
         const element = document.getElementById('ledgerContent');
         html2pdf().from(element).save();
     }
 </script>
 {% endblock %}
-
