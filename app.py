@@ -1140,30 +1140,68 @@ def purchase_pdf(purchase_id):
     return response
 
 
+
 @app.route('/purchases/delete/<int:purchase_id>', methods=['POST'])
 def delete_purchase(purchase_id):
-    cursor = None
+    if 'loggedin' not in session: return redirect(url_for('login'))
+    
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    
     try:
-        cursor = mysql.connection.cursor()
+        # 1. Fetch Purchase Details (to reverse Supplier Dues)
+        cursor.execute("SELECT supplier_id, total_amount FROM purchases WHERE id = %s", (purchase_id,))
+        purchase = cursor.fetchone()
+        
+        if not purchase:
+            flash("Purchase not found.", "danger")
+            return redirect(url_for('purchases'))
+            
+        supplier_id = purchase['supplier_id']
+        total_amount = purchase['total_amount']
 
-        # Delete dependent child rows first (important for foreign key)
-        cursor.execute("DELETE FROM purchase_items WHERE purchase_id = %s", (purchase_id,))
-
-        # Delete the parent purchase record
+        # 2. Fetch Purchase Items (to reverse Stock)
+        cursor.execute("SELECT product_id, quantity FROM purchase_items WHERE purchase_id = %s", (purchase_id,))
+        items = cursor.fetchall()
+        
+        # 3. Dynamic Column Detection for Stock
+        stock_col = 'quantity' # default
+        cursor.execute("SHOW COLUMNS FROM products")
+        columns = [row['Field'] for row in cursor.fetchall()]
+        if 'stock_quantity' in columns: stock_col = 'stock_quantity'
+        elif 'stock' in columns: stock_col = 'stock'
+        elif 'qty' in columns: stock_col = 'qty'
+        
+        # 4. Reverse Stock (Subtract quantity)
+        for item in items:
+            p_id = item['product_id']
+            qty = float(item['quantity'])
+            
+            # Subtract the quantity back
+            query = f"UPDATE products SET {stock_col} = {stock_col} - %s WHERE id = %s"
+            cursor.execute(query, (qty, p_id))
+            
+        # 5. Reverse Supplier Dues (Subtract amount)
+        cursor.execute("""
+            UPDATE suppliers SET current_due = current_due - %s WHERE id = %s
+        """, (total_amount, supplier_id))
+        
+        # 6. Delete the Purchase Record
+        # (purchase_items will be deleted automatically if ON DELETE CASCADE is set, otherwise delete them first)
         cursor.execute("DELETE FROM purchases WHERE id = %s", (purchase_id,))
-
+        
         mysql.connection.commit()
-        flash("Purchase deleted successfully!", "success")
-
+        flash(f"Purchase #{purchase_id} deleted and stock reversed.", "success")
+        
     except Exception as e:
         mysql.connection.rollback()
-        flash(f"Error deleting purchase: {e}", "danger")
-
+        flash(f"Error deleting purchase: {str(e)}", "danger")
+        print(f"Delete Error: {e}")
+        
     finally:
-        if cursor:
-            cursor.close()
-
+        cursor.close()
+        
     return redirect(url_for('purchases'))
+
 
 # ==============================
 #  PURCHASE REPORTS MODULE
@@ -4649,6 +4687,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
