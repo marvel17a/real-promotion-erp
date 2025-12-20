@@ -508,18 +508,18 @@ def add_supplier():
         name = request.form['name']
         phone = request.form['phone']
         email = request.form['email']
-        gst = request.form.get('gst_number', '')
+        gstin = request.form.get('gstim', '')
         address = request.form.get('address', '')
         
         # New Fields
         opening_balance = request.form.get('opening_balance', 0.0)
-        payment_terms = request.form.get('payment_terms', 30)
+        payment_terms = request.form.get('payment_terms', 60)
         
         cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
         cursor.execute("""
-            INSERT INTO suppliers (name, phone, email, gst_number, address, opening_balance, payment_terms) 
+            INSERT INTO suppliers (name, phone, email, gstin, address, opening_balance, payment_terms) 
             VALUES (%s, %s, %s, %s, %s, %s, %s)
-        """, (name, phone, email, gst, address, opening_balance, payment_terms))
+        """, (name, phone, email, gstin, address, opening_balance, payment_terms))
         
         mysql.connection.commit()
         cursor.close()
@@ -4531,6 +4531,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
