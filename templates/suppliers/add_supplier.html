@@ -24,10 +24,12 @@
                 <div class="col-md-6">
                     <label class="form-label fw-bold text-muted small text-uppercase">Supplier Name <span class="text-danger">*</span></label>
                     <input type="text" class="form-control input-glass" id="name" name="name" placeholder="Business Name" required>
+                    <div class="invalid-feedback">Name is required.</div>
                 </div>
                 <div class="col-md-6">
-                    <label class="form-label fw-bold text-muted small text-uppercase">Phone Number</label>
-                    <input type="text" class="form-control input-glass" id="phone" name="phone" placeholder="Contact No.">
+                    <label class="form-label fw-bold text-muted small text-uppercase">Phone Number <span class="text-danger">*</span></label>
+                    <input type="tel" class="form-control input-glass" id="phone" name="phone" placeholder="10-digit Mobile No." pattern="[0-9]{10}" maxlength="10" required>
+                    <div class="invalid-feedback">Please enter a valid 10-digit phone number.</div>
                 </div>
                 <div class="col-md-6">
                     <label class="form-label fw-bold text-muted small text-uppercase">Email</label>
@@ -42,7 +44,7 @@
                     <textarea class="form-control input-glass" id="address" name="address" rows="2" placeholder="Full Address"></textarea>
                 </div>
 
-                <!-- Financial Info (New Section) -->
+                <!-- Financial Info -->
                 <div class="col-12 border-bottom pb-2 mb-2 mt-4">
                     <h5 class="fw-bold text-success"><i class="fa-solid fa-wallet me-2"></i>Financial Settings</h5>
                 </div>
@@ -50,10 +52,8 @@
                 <div class="col-md-6">
                     <label class="form-label fw-bold text-muted small text-uppercase">Opening Balance (₹)</label>
                     <input type="number" step="0.01" class="form-control input-glass fw-bold text-danger" id="opening_balance" name="opening_balance" placeholder="0.00" value="0.00">
-                    
+                    <div class="form-text text-muted">Initial debt amount (if any).</div>
                 </div>
-                
-                <!-- Payment Terms Removed as requested -->
 
             </div>
             
@@ -65,5 +65,21 @@
         </form>
     </div>
 </div>
-{% endblock %}
 
+<script>
+    // Enable Bootstrap validation
+    (function () {
+        'use strict'
+        var forms = document.querySelectorAll('.needs-validation')
+        Array.prototype.slice.call(forms).forEach(function (form) {
+            form.addEventListener('submit', function (event) {
+                if (!form.checkValidity()) {
+                    event.preventDefault()
+                    event.stopPropagation()
+                }
+                form.classList.add('was-validated')
+            }, false)
+        })
+    })()
+</script>
+{% endblock %}
