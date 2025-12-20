@@ -1,86 +1,73 @@
 {% extends "admin_master.html" %}
 
-{% block page_content %}
+{% block content %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/purchase.css') }}">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 
 <div class="container py-5 fade-in-up" style="max-width: 1000px;">
-
+    
     <div class="d-flex align-items-center mb-4">
-        <a href="{{ url_for('purchases') }}"
-           class="btn btn-light rounded-circle shadow-sm me-3"
-           style="width:40px;height:40px;display:flex;align-items:center;justify-content:center;">
+        <a href="{{ url_for('purchases') }}" class="btn btn-light rounded-circle shadow-sm me-3" style="width: 40px; height: 40px; display:flex; align-items:center; justify-content:center;">
             <i class="fa-solid fa-arrow-left"></i>
         </a>
         <h2 class="mb-0 fw-bold page-title">New Purchase Entry</h2>
     </div>
 
     <div class="glass-panel p-5">
-        <form id="purchaseForm" method="POST" action="{{ url_for('new_purchase') }}" novalidate>
-
-            <!-- MASTER DETAILS -->
+        <form id="purchaseForm" method="POST" action="{{ url_for('new_purchase') }}" class="needs-validation" novalidate>
+            
+            <!-- Master Details -->
             <div class="row g-4 mb-5 border-bottom pb-4">
                 <div class="col-md-4">
-                    <label class="form-label fw-bold text-muted small text-uppercase">
-                        Supplier <span class="text-danger">*</span>
-                    </label>
-                    <select class="form-select input-glass" name="supplier_id" required>
+                    <label for="supplier_id" class="form-label fw-bold text-muted small text-uppercase">Supplier <span class="text-danger">*</span></label>
+                    <select class="form-select input-glass" id="supplier_id" name="supplier_id" required>
                         <option value="" disabled selected>-- Select Supplier --</option>
                         {% for supplier in suppliers %}
                         <option value="{{ supplier.id }}">{{ supplier.name }}</option>
                         {% endfor %}
                     </select>
                 </div>
-
                 <div class="col-md-4">
-                    <label class="form-label fw-bold text-muted small text-uppercase">
-                        Purchase Date <span class="text-danger">*</span>
-                    </label>
+                    <label for="purchase_date" class="form-label fw-bold text-muted small text-uppercase">Purchase Date <span class="text-danger">*</span></label>
                     <div class="input-group">
-                        <span class="input-group-text bg-white border-end-0">
-                            <i class="fa-regular fa-calendar"></i>
-                        </span>
-                        <input type="text" class="form-control input-glass border-start-0 ps-0"
-                               id="purchase_date" name="purchase_date" required>
+                        <span class="input-group-text bg-white border-end-0"><i class="fa-regular fa-calendar"></i></span>
+                        <input type="text" class="form-control input-glass border-start-0 ps-0" id="purchase_date" name="purchase_date" required>
                     </div>
                 </div>
-
                 <div class="col-md-4">
-                    <label class="form-label fw-bold text-muted small text-uppercase">
-                        Bill / Invoice No.
-                    </label>
-                    <input type="text" class="form-control input-glass" name="bill_number">
+                    <label for="bill_number" class="form-label fw-bold text-muted small text-uppercase">Bill / Invoice No.</label>
+                    <input type="text" class="form-control input-glass" id="bill_number" name="bill_number" placeholder="Optional">
                 </div>
             </div>
 
-            <!-- ITEMS -->
+            <!-- Product Items Table -->
             <h5 class="fw-bold mb-3">Item Details</h5>
-
             <div class="table-responsive mb-3">
                 <table class="table table-borderless align-middle" id="itemsTable">
                     <thead class="text-muted small text-uppercase border-bottom">
                         <tr>
-                            <th>Product</th>
-                            <th>Qty</th>
-                            <th>Price (₹)</th>
-                            <th class="text-end">Total</th>
-                            <th class="text-center">Action</th>
+                            <th style="width: 35%;">Product</th>
+                            <th style="width: 15%;">Quantity</th>
+                            <th style="width: 20%;">Unit Price (₹)</th>
+                            <th style="width: 20%;" class="text-end">Total</th>
+                            <th style="width: 10%;" class="text-center">Action</th>
                         </tr>
                     </thead>
-                    <tbody></tbody>
+                    <tbody>
+                        <!-- Rows added by JS -->
+                    </tbody>
                     <tfoot class="border-top">
                         <tr>
-                            <td colspan="3" class="text-end fw-bold">Grand Total</td>
-                            <td id="grandTotal" class="fw-bold fs-5 text-end text-primary">₹0.00</td>
+                            <td colspan="3" class="text-end pt-3"><strong>Grand Total</strong></td>
+                            <td id="grandTotal" class="fw-bold fs-5 text-end pt-3 text-primary">₹0.00</td>
                             <td></td>
                         </tr>
                     </tfoot>
                 </table>
             </div>
-
-            <button type="button" id="addRowBtn"
-                    class="btn btn-sm btn-light border shadow-sm fw-bold text-primary">
-                <i class="fa-solid fa-plus me-2"></i>Add Item Row
+            
+            <button type="button" id="addRowBtn" class="btn btn-sm btn-light border shadow-sm fw-bold text-primary">
+                <i class="fa-solid fa-plus me-2"></i> Add Item Row
             </button>
 
             <div class="mt-5 text-end">
@@ -88,112 +75,23 @@
                     <i class="fa-solid fa-check me-2"></i>Save Purchase
                 </button>
             </div>
-
         </form>
     </div>
 </div>
 
-<!-- ✅ SAFE JSON DATA -->
-<script id="products-data" type="application/json">
-{{ products | default([]) | tojson }}
-</script>
-
+<!-- Scripts -->
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-
 <script>
-document.addEventListener("DOMContentLoaded", function () {
-
     flatpickr("#purchase_date", {
-        dateFormat: "d-m-Y",
+        dateFormat: "Y-m-d",
         defaultDate: "today",
         allowInput: true
     });
-
-    let products = [];
-    const jsonEl = document.getElementById("products-data");
-
-    if (jsonEl) {
-        try {
-            products = JSON.parse(jsonEl.textContent.trim());
-        } catch (e) {
-            console.error("Product JSON error:", e);
-            products = [];
-        }
-    }
-
-    const tbody = document.querySelector("#itemsTable tbody");
-    const addBtn = document.getElementById("addRowBtn");
-    const grandTotalEl = document.getElementById("grandTotal");
-
-    function addRow() {
-        const row = document.createElement("tr");
-
-        let options = `<option value="" disabled selected>Select Product</option>`;
-        products.forEach(p => {
-            const price = p.price || p.cost_price || p.selling_price || 0;
-            options += `<option value="${p.id}" data-price="${price}">${p.name}</option>`;
-        });
-
-        row.innerHTML = `
-            <td>
-                <select class="form-select input-glass product-select" name="product_id[]" required>
-                    ${options}
-                </select>
-            </td>
-            <td><input type="number" class="form-control input-glass qty" name="quantity[]" value="1" min="1"></td>
-            <td><input type="number" class="form-control input-glass price" name="price[]" step="0.01" value="0.00"></td>
-            <td class="text-end fw-bold total">₹0.00</td>
-            <td class="text-center">
-                <button type="button" class="btn btn-sm text-danger remove">
-                    <i class="fa-solid fa-trash"></i>
-                </button>
-            </td>
-        `;
-
-        tbody.appendChild(row);
-
-        const qty = row.querySelector(".qty");
-        const price = row.querySelector(".price");
-        const select = row.querySelector(".product-select");
-
-        select.addEventListener("change", () => {
-            const opt = select.options[select.selectedIndex];
-            price.value = parseFloat(opt.dataset.price || 0).toFixed(2);
-            updateRow(row);
-        });
-
-        qty.addEventListener("input", () => updateRow(row));
-        price.addEventListener("input", () => updateRow(row));
-
-        row.querySelector(".remove").addEventListener("click", () => {
-            if (tbody.rows.length > 1) {
-                row.remove();
-                updateGrandTotal();
-            }
-        });
-    }
-
-    function updateRow(row) {
-        const q = parseFloat(row.querySelector(".qty").value) || 0;
-        const p = parseFloat(row.querySelector(".price").value) || 0;
-        row.querySelector(".total").textContent = "₹" + (q * p).toFixed(2);
-        updateGrandTotal();
-    }
-
-    function updateGrandTotal() {
-        let sum = 0;
-        tbody.querySelectorAll("tr").forEach(r => {
-            const q = parseFloat(r.querySelector(".qty").value) || 0;
-            const p = parseFloat(r.querySelector(".price").value) || 0;
-            sum += q * p;
-        });
-        grandTotalEl.textContent = "₹" + sum.toFixed(2);
-    }
-
-    addBtn.addEventListener("click", addRow);
-    addRow();
-});
 </script>
 
+<!-- Pass products data to JS -->
+<script id="products-data" type="application/json">
+    {{ products|tojson }}
+</script>
+<script src="{{ url_for('static', filename='js/purchase.js') }}"></script>
 {% endblock %}
-
