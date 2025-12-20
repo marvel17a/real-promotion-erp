@@ -12,7 +12,7 @@
         </div>
         
         <div class="d-flex gap-2">
-            <!-- FIXED: Points to record_payment for Purchase Order payments -->
+            <!-- New Payment Button -->
             <a href="{{ url_for('record_payment', supplier_id=supplier.id) }}" class="btn btn-glass-primary text-decoration-none d-flex align-items-center">
                 <i class="fa-solid fa-plus me-2"></i>New Payment
             </a>
@@ -59,12 +59,13 @@
             </div>
         </div>
 
-        <!-- Opening Balance Widget -->
+        <!-- Mini Chart -->
         <div class="col-lg-4">
-            <div class="glass-panel p-4 h-100 d-flex flex-column justify-content-center border-start border-4 border-secondary">
-                <small class="text-uppercase text-muted fw-bold mb-1">Opening Balance</small>
-                <h3 class="fw-bold text-dark mb-0">{{ (opening_balance if opening_balance is defined else 0)|inr }}</h3>
-                <small class="text-muted mt-2"></small>
+            <div class="glass-panel p-4 h-100 d-flex flex-column justify-content-center align-items-center">
+                <h6 class="text-muted small fw-bold mb-3">Balance Composition</h6>
+                <div style="height: 150px; width: 150px;">
+                    <canvas id="balanceChart"></canvas>
+                </div>
             </div>
         </div>
     </div>
@@ -74,7 +75,7 @@
         <div class="col-lg-6">
             <div class="glass-panel p-0 overflow-hidden h-100">
                 <div class="p-3 border-bottom bg-light bg-opacity-50">
-                    <h5 class="mb-0 fw-bold text-dark"><i class="fa-solid fa-cart-shopping me-2 text-primary"></i>Purchases</h5>
+                    <h5 class="mb-0 fw-bold text-dark"><i class="fa-solid fa-cart-shopping me-2 text-primary"></i>Purchases (Debits)</h5>
                 </div>
                 <div class="table-responsive p-3">
                     <table class="table-glass">
@@ -111,7 +112,7 @@
         <div class="col-lg-6">
             <div class="glass-panel p-0 overflow-hidden h-100">
                 <div class="p-3 border-bottom bg-light bg-opacity-50">
-                    <h5 class="mb-0 fw-bold text-dark"><i class="fa-solid fa-money-bill-wave me-2 text-success"></i>Payments</h5>
+                    <h5 class="mb-0 fw-bold text-dark"><i class="fa-solid fa-money-bill-wave me-2 text-success"></i>Payments (Credits)</h5>
                 </div>
                 <div class="table-responsive p-3">
                     <table class="table-glass">
@@ -125,9 +126,28 @@
                         <tbody>
                             {% for pay in payments %}
                             <tr>
-                                <td>{{ pay.date.strftime('%d-%b-%Y') }}</td>
-                                <td><span class="badge bg-success bg-opacity-10 text-success border border-success-subtle">{{ pay.mode }}</span></td>
-                                <td class="text-end fw-bold text-success">- {{ pay.amount|inr }}</td>
+                                <!-- FIXED: Handle both 'date' and 'payment_date' column names -->
+                                <td>
+                                    {% if pay.payment_date %}
+                                        {{ pay.payment_date.strftime('%d-%b-%Y') }}
+                                    {% elif pay.date %}
+                                        {{ pay.date.strftime('%d-%b-%Y') }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                
+                                <!-- FIXED: Handle 'payment_mode' vs 'mode' -->
+                                <td>
+                                    <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle">
+                                        {{ pay.payment_mode if pay.payment_mode else pay.mode }}
+                                    </span>
+                                </td>
+                                
+                                <!-- FIXED: Handle 'amount_paid' vs 'amount' -->
+                                <td class="text-end fw-bold text-success">
+                                    - {{ (pay.amount_paid if pay.amount_paid else pay.amount)|inr }}
+                                </td>
                             </tr>
                             {% else %}
                             <tr><td colspan="3" class="text-center text-muted py-4">No payments found.</td></tr>
@@ -140,14 +160,30 @@
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
 <script>
+    const ctx = document.getElementById('balanceChart').getContext('2d');
+    const openingBal = parseFloat("{{ opening_balance if opening_balance is defined else 0 }}");
+    const currentDue = parseFloat("{{ balance if balance is defined else 0 }}");
+    
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Opening', 'Current Due'],
+            datasets: [{
+                data: [openingBal, currentDue > 0 ? currentDue : 0],
+                backgroundColor: ['#64748b', '#ef4444'],
+                borderWidth: 0
+            }]
+        },
+        options: { cutout: '70%', plugins: { legend: { display: false } } }
+    });
+
     function downloadPDF() {
         const element = document.getElementById('ledgerContent');
         html2pdf().from(element).save();
     }
 </script>
 {% endblock %}
-
-
-
