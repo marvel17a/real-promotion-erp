@@ -857,7 +857,6 @@ def purchases():
     all_purchases = cur.fetchall()
     cur.close()
     return render_template('purchases/purchases.html', purchases=all_purchases)
-
 # ... existing imports ...
 @app.route('/new_purchase', methods=['GET', 'POST'])
 def new_purchase():
@@ -900,14 +899,14 @@ def new_purchase():
                 if p_id:
                     qty = float(quantities[i])
                     price = float(prices[i])
-                    item_total = qty * price
+                    # item_total = qty * price  <-- Calculated but not stored if column missing
                     
-                    # Insert Item (Fixed column name: 'total_price' -> 'total_amount')
-                    # Based on companydb_realdb (3).sql, the column is 'total_amount'
+                    # Insert Item (REMOVED total_price/total_amount column)
+                    # Assuming the table only has: id, purchase_id, product_id, quantity, purchase_price
                     cursor.execute("""
-                        INSERT INTO purchase_items (purchase_id, product_id, quantity, purchase_price, total_amount)
-                        VALUES (%s, %s, %s, %s, %s)
-                    """, (purchase_id, p_id, qty, price, item_total))
+                        INSERT INTO purchase_items (purchase_id, product_id, quantity, purchase_price)
+                        VALUES (%s, %s, %s, %s)
+                    """, (purchase_id, p_id, qty, price))
                     
                     # Update Stock (Add quantity)
                     cursor.execute("""
@@ -4554,6 +4553,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
