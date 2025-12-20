@@ -896,6 +896,17 @@ def new_purchase():
             purchase_id = cursor.lastrowid
             
             # 4. Insert Items & Update Stock
+            
+            # DYNAMICALLY FIND STOCK COLUMN NAME
+            # Check which column exists: quantity, stock, qty, etc.
+            stock_col = 'quantity' # default
+            cursor.execute("SHOW COLUMNS FROM products")
+            columns = [row['Field'] for row in cursor.fetchall()]
+            if 'stock_quantity' in columns: stock_col = 'stock_quantity'
+            elif 'stock' in columns: stock_col = 'stock'
+            elif 'qty' in columns: stock_col = 'qty'
+            elif 'quantity' in columns: stock_col = 'quantity'
+            
             for i in range(len(product_ids)):
                 p_id = product_ids[i]
                 if p_id:
@@ -911,11 +922,9 @@ def new_purchase():
                     """, (purchase_id, p_id, qty, price))
                     
                     # Update Stock (Add quantity)
-                    # FIX: Changed 'quantity' to 'stock_quantity' (Most likely correct column based on error)
-                    cursor.execute("""
-                        UPDATE products SET stock_quantity = stock_quantity + %s, price = %s 
-                        WHERE id = %s
-                    """, (qty, price, p_id))
+                    # FIX: Use dynamic column name
+                    query = f"UPDATE products SET {stock_col} = {stock_col} + %s, price = %s WHERE id = %s"
+                    cursor.execute(query, (qty, price, p_id))
             
             # 5. Update Supplier Dues (Add to debt)
             cursor.execute("""
@@ -4556,6 +4565,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
