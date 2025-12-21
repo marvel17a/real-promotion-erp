@@ -863,6 +863,7 @@ def purchases():
     return render_template('purchases/purchases.html', purchases=all_purchases)
 
 
+
 @app.route('/new_purchase', methods=['GET', 'POST'])
 def new_purchase():
     if 'loggedin' not in session: return redirect(url_for('login'))
@@ -872,30 +873,25 @@ def new_purchase():
     if request.method == 'POST':
         try:
             # 1. Master Data
-            supplier_id = request.form.get('supplier_id')
-            purchase_date = request.form.get('purchase_date')
+            supplier_id = request.form['supplier_id']
+            purchase_date = request.form['purchase_date']
             bill_number = request.form.get('bill_number', '')
             
-            if not supplier_id or not purchase_date:
-                 flash("Supplier and Date are required.", "danger")
-                 return redirect(url_for('new_purchase'))
-
-            # 2. Item Arrays (Using getlist)
+            # 2. Item Arrays
             product_ids = request.form.getlist('product_id[]')
             quantities = request.form.getlist('quantity[]')
             prices = request.form.getlist('price[]')
             
-            if not product_ids:
-                 flash("Please add at least one product.", "danger")
-                 return redirect(url_for('new_purchase'))
-
-            # Calculate Total
+            # Calculate Grand Total
             total_amount = 0.0
+            valid_items = []
+            
             for i in range(len(product_ids)):
-                if product_ids[i]: # Ensure product is selected
+                if product_ids[i]: 
                     qty = float(quantities[i])
                     price = float(prices[i])
                     total_amount += (qty * price)
+                    valid_items.append({'p_id': product_ids[i], 'qty': qty, 'price': price})
             
             # 3. Insert Master Purchase Record
             cursor.execute("""
@@ -907,29 +903,25 @@ def new_purchase():
             
             # 4. Insert Items & Update Stock
             
-            # Dynamic Column Detection for Stock
+            # Dynamic Column Detection for Stock (Safety Check)
             stock_col = 'quantity' # default
             cursor.execute("SHOW COLUMNS FROM products")
             columns = [row['Field'] for row in cursor.fetchall()]
             if 'stock_quantity' in columns: stock_col = 'stock_quantity'
             elif 'stock' in columns: stock_col = 'stock'
             elif 'qty' in columns: stock_col = 'qty'
-
-            for i in range(len(product_ids)):
-                p_id = product_ids[i]
-                if p_id:
-                    qty = float(quantities[i])
-                    price = float(prices[i])
-                    
-                    # Insert Item (REMOVED total_amount/total_price to fix errors)
-                    cursor.execute("""
-                        INSERT INTO purchase_items (purchase_id, product_id, quantity, purchase_price)
-                        VALUES (%s, %s, %s, %s)
-                    """, (purchase_id, p_id, qty, price))
-                    
-                    # Update Stock (Add quantity)
-                    query = f"UPDATE products SET {stock_col} = {stock_col} + %s, price = %s WHERE id = %s"
-                    cursor.execute(query, (qty, price, p_id))
+            
+            for item in valid_items:
+                # Insert Item (REMOVED total_price/total_amount column to fix errors)
+                # We only insert ID, PurchaseID, ProductID, Quantity, Price
+                cursor.execute("""
+                    INSERT INTO purchase_items (purchase_id, product_id, quantity, purchase_price)
+                    VALUES (%s, %s, %s, %s)
+                """, (purchase_id, item['p_id'], item['qty'], item['price']))
+                
+                # Update Stock (Add quantity)
+                query = f"UPDATE products SET {stock_col} = {stock_col} + %s, price = %s WHERE id = %s"
+                cursor.execute(query, (item['qty'], item['price'], item['p_id']))
             
             # 5. Update Supplier Dues (Add to debt)
             cursor.execute("""
@@ -4805,6 +4797,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
