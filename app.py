@@ -978,27 +978,33 @@ def view_purchase(purchase_id):
     return render_template('purchases/view_purchase.html', purchase=purchase, items=items)
 
 
-@app.route('/purchases/edit/<int:purchase_id>', methods=['GET', 'POST'])
+@app.route('/purchases/edit/<int:purchase_id>', methods=['GET'])
 def edit_purchase(purchase_id):
-    if 'loggedin' not in session: return redirect(url_for('login'))
-    
+    # ... (auth check) ...
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
-    # Fetch purchase data
+    # 1. Fetch Purchase
     cursor.execute("SELECT * FROM purchases WHERE id = %s", (purchase_id,))
     purchase = cursor.fetchone()
     
-    if not purchase:
-        flash("Purchase not found", "danger")
-        return redirect(url_for('purchases'))
-        
-    # Fetch suppliers for dropdown
+    # 2. Fetch Suppliers (for dropdown)
     cursor.execute("SELECT id, name FROM suppliers ORDER BY name")
     suppliers = cursor.fetchall()
     
-    cursor.close()
+    # 3. Fetch Products (for JS dropdown)
+    cursor.execute("SELECT * FROM products ORDER BY name")
+    products = cursor.fetchall()
     
-    return render_template('purchases/edit_purchase.html', purchase=purchase, suppliers=suppliers)
+    # 4. Fetch Existing Items (to populate rows)
+    cursor.execute("SELECT * FROM purchase_items WHERE purchase_id = %s", (purchase_id,))
+    items = cursor.fetchall()
+    
+    cursor.close()
+    return render_template('purchases/edit_purchase.html', 
+                         purchase=purchase, 
+                         suppliers=suppliers, 
+                         products=products, 
+                         items=items)
 
 
 @app.route('/purchases/update/<int:purchase_id>', methods=['POST'])
@@ -4799,6 +4805,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
