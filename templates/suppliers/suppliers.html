@@ -93,10 +93,7 @@
                         <!-- Actions -->
                         <td class="text-center pe-4">
                             <div class="d-flex justify-content-center">
-                                <!-- Cashflow Link -->
-                                <a href="{{ url_for('supplier_cashflow') }}?supplier_id={{ supplier.id }}" class="action-btn btn-cashflow" title="Cashflow (General)">
-                                    <i class="fa-solid fa-money-bill-transfer"></i>
-                                </a>
+                                
                                 <!-- Ledger Link -->
                                 <a href="{{ url_for('supplier_ledger', supplier_id=supplier.id) }}" class="action-btn btn-view" title="View Ledger">
                                     <i class="fa-solid fa-book-open"></i>
@@ -149,5 +146,6 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% endblock %}
+
 
 
