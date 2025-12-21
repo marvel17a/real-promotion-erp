@@ -16,11 +16,10 @@
     <div class="glass-panel p-5">
         <form id="purchaseForm" method="POST" action="{{ url_for('new_purchase') }}" class="needs-validation" novalidate>
             
+            <!-- Master Details -->
             <div class="row g-4 mb-5 border-bottom pb-4">
                 <div class="col-md-4">
-                    <label for="supplier_id" class="form-label fw-bold text-muted small text-uppercase">
-                        Supplier <span class="text-danger">*</span>
-                    </label>
+                    <label for="supplier_id" class="form-label fw-bold text-muted small text-uppercase">Supplier <span class="text-danger">*</span></label>
                     <select class="form-select input-glass" id="supplier_id" name="supplier_id" required>
                         <option value="" disabled selected>-- Select Supplier --</option>
                         {% for supplier in suppliers %}
@@ -28,31 +27,21 @@
                         {% endfor %}
                     </select>
                 </div>
-
                 <div class="col-md-4">
-                    <label for="purchase_date" class="form-label fw-bold text-muted small text-uppercase">
-                        Purchase Date <span class="text-danger">*</span>
-                    </label>
+                    <label for="purchase_date" class="form-label fw-bold text-muted small text-uppercase">Purchase Date <span class="text-danger">*</span></label>
                     <div class="input-group">
-                        <span class="input-group-text bg-white border-end-0">
-                            <i class="fa-regular fa-calendar"></i>
-                        </span>
-                        <input type="text" class="form-control input-glass border-start-0 ps-0"
-                               id="purchase_date" name="purchase_date" required>
+                        <span class="input-group-text bg-white border-end-0"><i class="fa-regular fa-calendar"></i></span>
+                        <input type="text" class="form-control input-glass border-start-0 ps-0" id="purchase_date" name="purchase_date" required>
                     </div>
                 </div>
-
                 <div class="col-md-4">
-                    <label for="bill_number" class="form-label fw-bold text-muted small text-uppercase">
-                        Bill / Invoice No.
-                    </label>
-                    <input type="text" class="form-control input-glass"
-                           id="bill_number" name="bill_number" placeholder="Optional">
+                    <label for="bill_number" class="form-label fw-bold text-muted small text-uppercase">Bill / Invoice No.</label>
+                    <input type="text" class="form-control input-glass" id="bill_number" name="bill_number" placeholder="Optional">
                 </div>
             </div>
 
+            <!-- Product Items Table -->
             <h5 class="fw-bold mb-3">Item Details</h5>
-
             <div class="table-responsive mb-3">
                 <table class="table table-borderless align-middle" id="itemsTable">
                     <thead class="text-muted small text-uppercase border-bottom">
@@ -64,7 +53,9 @@
                             <th style="width: 10%;" class="text-center">Action</th>
                         </tr>
                     </thead>
-                    <tbody></tbody>
+                    <tbody>
+                        <!-- Rows added by JS -->
+                    </tbody>
                     <tfoot class="border-top">
                         <tr>
                             <td colspan="3" class="text-end pt-3"><strong>Grand Total</strong></td>
@@ -74,9 +65,8 @@
                     </tfoot>
                 </table>
             </div>
-
-            <button type="button" id="addRowBtn"
-                    class="btn btn-sm btn-light border shadow-sm fw-bold text-primary">
+            
+            <button type="button" id="addRowBtn" class="btn btn-sm btn-light border shadow-sm fw-bold text-primary">
                 <i class="fa-solid fa-plus me-2"></i> Add Item Row
             </button>
 
@@ -89,97 +79,133 @@
     </div>
 </div>
 
+<!-- Scripts -->
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-
 <script>
-flatpickr("#purchase_date", {
-    dateFormat: "Y-m-d",
-    altInput: true,
-    altFormat: "d-m-Y",
-    defaultDate: "today",
-    allowInput: true
-});
+    // Initialize Flatpickr
+    flatpickr("#purchase_date", {
+        dateFormat: "Y-m-d", // Value sent to backend
+        altInput: true,      // Display format
+        altFormat: "d-m-Y",
+        defaultDate: "today",
+        allowInput: true
+    });
 
-document.addEventListener('DOMContentLoaded', function() {
-    const productsDataElement = document.getElementById('products-data');
-    let products = [];
-
-    if (productsDataElement) {
-        try {
-            const rawData = productsDataElement.textContent.trim();
-            if (rawData) products = JSON.parse(rawData);
-        } catch (e) {
-            console.error("Error parsing products JSON:", e);
-            products = [];
+    document.addEventListener('DOMContentLoaded', function() {
+        // --- ROBUST JSON PARSING ---
+        // We read from a hidden script tag to avoid syntax errors in JS
+        const productsDataElement = document.getElementById('products-data');
+        let products = [];
+        
+        if (productsDataElement) {
+            try {
+                const rawData = productsDataElement.textContent.trim();
+                if (rawData) {
+                    products = JSON.parse(rawData);
+                }
+            } catch (e) {
+                console.error("Error parsing products JSON:", e);
+                // Graceful fallback
+                products = []; 
+            }
         }
-    }
 
-    const tbody = document.querySelector('#itemsTable tbody');
-    const addBtn = document.getElementById('addRowBtn');
-    const grandTotalEl = document.getElementById('grandTotal');
+        const tbody = document.querySelector('#itemsTable tbody');
+        const addBtn = document.getElementById('addRowBtn');
+        const grandTotalEl = document.getElementById('grandTotal');
 
-    function addRow() {
-        const row = document.createElement('tr');
-        let options = '<option value="" disabled selected>Select Product</option>';
+        function addRow() {
+            const row = document.createElement('tr');
+            
+            let productOptions = '<option value="" disabled selected>Select Product</option>';
+            if (Array.isArray(products) && products.length > 0) {
+                products.forEach(p => {
+                    // Handle missing price fields gracefully
+                    let price = p.price || p.cost_price || p.selling_price || 0;
+                    // Escape quotes in name just in case (simple replace)
+                    let safeName = p.name.replace(/"/g, '&quot;');
+                    productOptions += `<option value="${p.id}" data-price="${price}">${safeName}</option>`;
+                });
+            } else {
+                productOptions += '<option value="" disabled>No products available</option>';
+            }
 
-        products.forEach(p => {
-            let price = p.price || p.cost_price || p.selling_price || 0;
-            options += `<option value="${p.id}" data-price="${price}">${p.name}</option>`;
-        });
+            row.innerHTML = `
+                <td>
+                    <select class="form-select input-glass product-select" name="product_id[]" required>
+                        ${productOptions}
+                    </select>
+                </td>
+                <td>
+                    <input type="number" class="form-control input-glass quantity" name="quantity[]" value="1" min="1" required>
+                </td>
+                <td>
+                    <input type="number" step="0.01" class="form-control input-glass price" name="price[]" value="0.00" required>
+                </td>
+                <td class="text-end total-cell fw-bold text-dark">₹0.00</td>
+                <td class="text-center">
+                    <button type="button" class="btn btn-sm text-danger remove-row"><i class="fa-solid fa-trash"></i></button>
+                </td>
+            `;
+            tbody.appendChild(row);
+            
+            // Add listeners
+            const select = row.querySelector('.product-select');
+            const qtyInput = row.querySelector('.quantity');
+            const priceInput = row.querySelector('.price');
+            const removeBtn = row.querySelector('.remove-row');
 
-        row.innerHTML = `
-            <td><select class="form-select product-select">${options}</select></td>
-            <td><input type="number" class="form-control quantity" value="1" min="1"></td>
-            <td><input type="number" class="form-control price" value="0.00"></td>
-            <td class="text-end total-cell fw-bold">₹0.00</td>
-            <td class="text-center">
-                <button type="button" class="btn btn-sm text-danger remove-row">
-                    <i class="fa-solid fa-trash"></i>
-                </button>
-            </td>
-        `;
-        tbody.appendChild(row);
+            select.addEventListener('change', function() {
+                const selectedOption = this.options[this.selectedIndex];
+                const price = parseFloat(selectedOption.dataset.price) || 0;
+                priceInput.value = price.toFixed(2);
+                updateRowTotal(row);
+            });
 
-        function recalc() {
+            qtyInput.addEventListener('input', () => updateRowTotal(row));
+            priceInput.addEventListener('input', () => updateRowTotal(row));
+            
+            removeBtn.addEventListener('click', () => {
+                if(tbody.rows.length > 1) {
+                    row.remove();
+                    updateGrandTotal();
+                } else {
+                    // Clear values instead of removing last row
+                    select.value = "";
+                    qtyInput.value = 1;
+                    priceInput.value = "0.00";
+                    updateRowTotal(row);
+                }
+            });
+        }
+
+        function updateRowTotal(row) {
             const qty = parseFloat(row.querySelector('.quantity').value) || 0;
             const price = parseFloat(row.querySelector('.price').value) || 0;
-            row.querySelector('.total-cell').textContent = '₹' + (qty * price).toFixed(2);
+            const total = qty * price;
+            row.querySelector('.total-cell').textContent = '₹' + total.toFixed(2);
             updateGrandTotal();
         }
 
-        row.querySelector('.product-select').addEventListener('change', e => {
-            const opt = e.target.options[e.target.selectedIndex];
-            row.querySelector('.price').value = parseFloat(opt.dataset.price || 0).toFixed(2);
-            recalc();
-        });
+        function updateGrandTotal() {
+            let total = 0;
+            document.querySelectorAll('#itemsTable tbody tr').forEach(row => {
+                const qty = parseFloat(row.querySelector('.quantity').value) || 0;
+                const price = parseFloat(row.querySelector('.price').value) || 0;
+                total += qty * price;
+            });
+            grandTotalEl.textContent = '₹' + total.toFixed(2);
+        }
 
-        row.querySelector('.quantity').addEventListener('input', recalc);
-        row.querySelector('.price').addEventListener('input', recalc);
-
-        row.querySelector('.remove-row').addEventListener('click', () => {
-            row.remove();
-            updateGrandTotal();
-        });
-    }
-
-    function updateGrandTotal() {
-        let sum = 0;
-        tbody.querySelectorAll('tr').forEach(row => {
-            sum +=
-                (parseFloat(row.querySelector('.quantity').value) || 0) *
-                (parseFloat(row.querySelector('.price').value) || 0);
-        });
-        grandTotalEl.textContent = '₹' + sum.toFixed(2);
-    }
-
-    addBtn.addEventListener('click', addRow);
-    addRow();
-});
+        if(addBtn) addBtn.addEventListener('click', addRow);
+        
+        // Add first row on load
+        addRow();
+    });
 </script>
 
-<!-- ✅ ONLY FIX IS HERE -->
+<!-- SAFE DATA PASSING: Uses hidden script tag instead of JS variable -->
 <script id="products-data" type="application/json">
-{{ products | default([]) | tojson }}
+    {{ products|tojson|safe }}
 </script>
-
 {% endblock %}
