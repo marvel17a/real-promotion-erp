@@ -49,7 +49,14 @@
                             </div>
                         </td>
                         <td><span class="badge bg-light text-dark border">{{ purchase.bill_number or 'N/A' }}</span></td>
-                        <td class="text-end fw-bold text-success">{{ purchase.total_amount|inr }}</td>
+                        <!-- Display Total Amount with Fallback -->
+                        <td class="text-end fw-bold text-success">
+                            {% if purchase.total_amount %}
+                                {{ purchase.total_amount|inr }}
+                            {% else %}
+                                ₹0.00
+                            {% endif %}
+                        </td>
                         <td class="text-center pe-4">
                             <div class="d-flex justify-content-center gap-2">
                                 <a href="{{ url_for('view_purchase', purchase_id=purchase.id) }}" class="action-btn btn-view" title="View Details">
