@@ -863,7 +863,6 @@ def purchases():
     return render_template('purchases/purchases.html', purchases=all_purchases)
 
 
-# ... existing imports ...
 @app.route('/new_purchase', methods=['GET', 'POST'])
 def new_purchase():
     if 'loggedin' not in session: return redirect(url_for('login'))
@@ -873,16 +872,23 @@ def new_purchase():
     if request.method == 'POST':
         try:
             # 1. Master Data
-            supplier_id = request.form['supplier_id']
-            # This will now be YYYY-MM-DD thanks to Flatpickr config
-            purchase_date = request.form['purchase_date'] 
+            supplier_id = request.form.get('supplier_id')
+            purchase_date = request.form.get('purchase_date')
             bill_number = request.form.get('bill_number', '')
             
+            if not supplier_id or not purchase_date:
+                 flash("Supplier and Date are required.", "danger")
+                 return redirect(url_for('new_purchase'))
+
             # 2. Item Arrays (Using getlist)
             product_ids = request.form.getlist('product_id[]')
             quantities = request.form.getlist('quantity[]')
             prices = request.form.getlist('price[]')
             
+            if not product_ids:
+                 flash("Please add at least one product.", "danger")
+                 return redirect(url_for('new_purchase'))
+
             # Calculate Total
             total_amount = 0.0
             for i in range(len(product_ids)):
@@ -891,7 +897,7 @@ def new_purchase():
                     price = float(prices[i])
                     total_amount += (qty * price)
             
-            # 3. Insert Master
+            # 3. Insert Master Purchase Record
             cursor.execute("""
                 INSERT INTO purchases (supplier_id, purchase_date, bill_number, total_amount)
                 VALUES (%s, %s, %s, %s)
@@ -901,32 +907,27 @@ def new_purchase():
             
             # 4. Insert Items & Update Stock
             
-            # DYNAMICALLY FIND STOCK COLUMN NAME
-            # Check which column exists: quantity, stock, qty, etc.
+            # Dynamic Column Detection for Stock
             stock_col = 'quantity' # default
             cursor.execute("SHOW COLUMNS FROM products")
             columns = [row['Field'] for row in cursor.fetchall()]
             if 'stock_quantity' in columns: stock_col = 'stock_quantity'
             elif 'stock' in columns: stock_col = 'stock'
             elif 'qty' in columns: stock_col = 'qty'
-            elif 'quantity' in columns: stock_col = 'quantity'
-            
+
             for i in range(len(product_ids)):
                 p_id = product_ids[i]
                 if p_id:
                     qty = float(quantities[i])
                     price = float(prices[i])
-                    # item_total = qty * price  <-- Calculated but not stored if column missing
                     
-                    # Insert Item (REMOVED total_price/total_amount column)
-                    # Assuming the table only has: id, purchase_id, product_id, quantity, purchase_price
+                    # Insert Item (REMOVED total_amount/total_price to fix errors)
                     cursor.execute("""
                         INSERT INTO purchase_items (purchase_id, product_id, quantity, purchase_price)
                         VALUES (%s, %s, %s, %s)
                     """, (purchase_id, p_id, qty, price))
                     
                     # Update Stock (Add quantity)
-                    # FIX: Use dynamic column name
                     query = f"UPDATE products SET {stock_col} = {stock_col} + %s, price = %s WHERE id = %s"
                     cursor.execute(query, (qty, price, p_id))
             
@@ -936,19 +937,18 @@ def new_purchase():
             """, (total_amount, supplier_id))
             
             mysql.connection.commit()
-            flash(f"Purchase Order #{purchase_id} created!", "success")
+            flash(f"Purchase Order #{purchase_id} created successfully!", "success")
             return redirect(url_for('purchases'))
             
         except Exception as e:
             mysql.connection.rollback()
-            flash(f"Error: {str(e)}", "danger")
+            flash(f"Error creating purchase: {str(e)}", "danger")
             print(f"Purchase Error: {e}")
             
     # GET: Load data
     cursor.execute("SELECT id, name FROM suppliers ORDER BY name")
     suppliers = cursor.fetchall()
     
-    # Ensuring we fetch price or cost_price to autopopulate
     cursor.execute("SELECT * FROM products ORDER BY name")
     products = cursor.fetchall()
     
@@ -4805,6 +4805,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
