@@ -83,6 +83,14 @@ from cloudinary.utils import cloudinary_url
 app.jinja_env.globals.update(cloudinary_url=cloudinary_url)
 
 
+
+def safe_date_format(date_obj, format='%d-%m-%Y', default='N/A'):
+    """Safely formats a date object, returning default if None."""
+    if date_obj:
+        return date_obj.strftime(format)
+    return default
+
+
 # Helpers
 def parse_ddmmyyyy_to_date(s):
     if not s:
@@ -4728,6 +4736,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
