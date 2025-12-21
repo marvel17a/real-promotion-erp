@@ -994,7 +994,7 @@ def edit_purchase(purchase_id):
 
 
 
-@app.route('/purchases/update/<int:purchase_id>', methods=['POST']}
+@app.route('/purchases/update/<int:purchase_id>', methods=['POST'])
 def update_purchase(purchase_id):
     if 'loggedin' not in session: return redirect(url_for('login'))
     
@@ -1031,11 +1031,6 @@ def update_purchase(purchase_id):
         
     return redirect(url_for('purchases'))
 
-def safe_date_format(date_obj, format='%d-%m-%Y', default='N/A'):
-    """Safely formats a date object, returning default if None."""
-    if date_obj:
-        return date_obj.strftime(format)
-    return default
 
 
 # --- PDF Class ---
@@ -4733,6 +4728,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
