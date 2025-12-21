@@ -1001,7 +1001,6 @@ def edit_purchase(purchase_id):
     return render_template('purchases/edit_purchase.html', purchase=purchase, suppliers=suppliers)
 
 
-
 @app.route('/purchases/update/<int:purchase_id>', methods=['POST'])
 def update_purchase(purchase_id):
     if 'loggedin' not in session: return redirect(url_for('login'))
@@ -1009,23 +1008,85 @@ def update_purchase(purchase_id):
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
     try:
-        # 1. Get Form Data
-        supplier_id = request.form['supplier_id']
-        purchase_date = request.form['purchase_date']
-        bill_number = request.form.get('bill_number', '')
+        # 1. Fetch OLD Purchase Data (to reverse stock and dues)
+        cursor.execute("SELECT * FROM purchases WHERE id = %s", (purchase_id,))
+        old_purchase = cursor.fetchone()
         
-        # 2. Update Master Record
+        if not old_purchase:
+            flash("Purchase not found.", "danger")
+            return redirect(url_for('purchases'))
+            
+        old_total = float(old_purchase['total_amount'])
+        old_supplier_id = old_purchase['supplier_id']
+        
+        # 2. Fetch OLD Items (to reverse stock)
+        cursor.execute("SELECT * FROM purchase_items WHERE purchase_id = %s", (purchase_id,))
+        old_items = cursor.fetchall()
+        
+        # Reverse Stock: Subtract old quantities
+        # Logic: Purchase added stock, so editing/removing means subtracting that addition first
+        stock_col = 'quantity' # dynamic check logic omitted for brevity, assuming 'quantity' or 'stock_quantity'
+        # Check column name quickly
+        cursor.execute("SHOW COLUMNS FROM products")
+        cols = [r['Field'] for r in cursor.fetchall()]
+        if 'stock_quantity' in cols: stock_col = 'stock_quantity'
+        elif 'stock' in cols: stock_col = 'stock'
+        
+        for item in old_items:
+            cursor.execute(f"UPDATE products SET {stock_col} = {stock_col} - %s WHERE id = %s", 
+                           (item['quantity'], item['product_id']))
+            
+        # 3. Get NEW Form Data
+        new_supplier_id = request.form['supplier_id']
+        new_date = request.form['purchase_date']
+        new_bill = request.form.get('bill_number', '')
+        
+        product_ids = request.form.getlist('product_id[]')
+        quantities = request.form.getlist('quantity[]')
+        prices = request.form.getlist('price[]')
+        
+        # 4. Delete Old Items
+        cursor.execute("DELETE FROM purchase_items WHERE purchase_id = %s", (purchase_id,))
+        
+        # 5. Insert NEW Items & Update Stock & Calculate New Total
+        new_total = 0.0
+        
+        for i in range(len(product_ids)):
+            if product_ids[i]:
+                p_id = product_ids[i]
+                qty = float(quantities[i])
+                price = float(prices[i])
+                line_total = qty * price
+                new_total += line_total
+                
+                # Insert Item (Using 'total_amount' based on your DB schema)
+                cursor.execute("""
+                    INSERT INTO purchase_items (purchase_id, product_id, quantity, purchase_price, total_amount)
+                    VALUES (%s, %s, %s, %s, %s)
+                """, (purchase_id, p_id, qty, price, line_total))
+                
+                # Update Stock (Add new quantity)
+                cursor.execute(f"UPDATE products SET {stock_col} = {stock_col} + %s, price = %s WHERE id = %s", 
+                               (qty, price, p_id))
+
+        # 6. Update Master Record
         cursor.execute("""
             UPDATE purchases 
-            SET supplier_id=%s, purchase_date=%s, bill_number=%s 
+            SET supplier_id=%s, purchase_date=%s, bill_number=%s, total_amount=%s 
             WHERE id=%s
-        """, (supplier_id, purchase_date, bill_number, purchase_id))
+        """, (new_supplier_id, new_date, new_bill, new_total, purchase_id))
         
-        # Note: Updating items is complex (adding/removing rows). 
-        # For this basic edit, we are only updating the header info (Date, Supplier, Bill No).
-        # If you need to edit items, it requires deleting old items and re-inserting, 
-        # which affects stock history complexly. 
-        # Usually, users delete and re-create for full item edits in simple ERPs.
+        # 7. Update Supplier Dues
+        # Logic: Subtract Old Total, Add New Total
+        # If supplier changed, handle separately (Complex, assuming same supplier for simplicity or simple adjustment)
+        if str(old_supplier_id) == str(new_supplier_id):
+            diff = new_total - old_total
+            cursor.execute("UPDATE suppliers SET current_due = current_due + %s WHERE id = %s", (diff, old_supplier_id))
+        else:
+            # Revert old supplier
+            cursor.execute("UPDATE suppliers SET current_due = current_due - %s WHERE id = %s", (old_total, old_supplier_id))
+            # Add to new supplier
+            cursor.execute("UPDATE suppliers SET current_due = current_due + %s WHERE id = %s", (new_total, new_supplier_id))
         
         mysql.connection.commit()
         flash(f"Purchase Order #{purchase_id} updated successfully.", "success")
@@ -1033,11 +1094,13 @@ def update_purchase(purchase_id):
     except Exception as e:
         mysql.connection.rollback()
         flash(f"Error updating purchase: {str(e)}", "danger")
+        print(f"Update Error: {e}")
         
     finally:
         cursor.close()
         
     return redirect(url_for('purchases'))
+
 
 
 
@@ -4736,6 +4799,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
