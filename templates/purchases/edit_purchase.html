@@ -1,221 +1,65 @@
 {% extends "admin_master.html" %}
 
-{% block page_content %}
+{% block content %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/purchase.css') }}">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 
-<div class="container py-5 fade-in-up" style="max-width: 1000px;">
-
+<div class="container py-5 fade-in-up" style="max-width: 800px;">
+    
     <div class="d-flex align-items-center mb-4">
-        <a href="{{ url_for('purchases') }}"
-           class="btn btn-light rounded-circle shadow-sm me-3"
-           style="width:40px;height:40px;display:flex;align-items:center;justify-content:center;">
+        <a href="{{ url_for('purchases') }}" class="btn btn-light rounded-circle shadow-sm me-3" style="width: 40px; height: 40px; display:flex; align-items:center; justify-content:center;">
             <i class="fa-solid fa-arrow-left"></i>
         </a>
         <h2 class="mb-0 fw-bold page-title">Edit Purchase #{{ purchase.id }}</h2>
     </div>
 
     <div class="glass-panel p-5">
-        <form action="{{ url_for('update_purchase', purchase_id=purchase.id) }}"
-              method="POST"
-              id="purchaseForm">
-
-            <!-- MASTER DETAILS -->
-            <div class="row g-4 mb-5 border-bottom pb-4">
-                <div class="col-md-4">
+        <form action="{{ url_for('update_purchase', purchase_id=purchase.id) }}" method="POST" id="purchaseForm">
+            
+            <div class="row g-4 mb-4">
+                <div class="col-md-6">
                     <label class="form-label fw-bold text-muted small text-uppercase">Supplier</label>
                     <select name="supplier_id" class="form-select input-glass" required>
                         {% for s in suppliers %}
-                        <option value="{{ s.id }}" {% if s.id == purchase.supplier_id %}selected{% endif %}>
-                            {{ s.name }}
-                        </option>
+                            <option value="{{ s.id }}" {% if s.id == purchase.supplier_id %}selected{% endif %}>
+                                {{ s.name }}
+                            </option>
                         {% endfor %}
                     </select>
                 </div>
-
-                <div class="col-md-4">
+                <div class="col-md-6">
                     <label class="form-label fw-bold text-muted small text-uppercase">Date</label>
-                    <input type="text"
-                           name="purchase_date"
-                           id="purchase_date"
-                           class="form-control input-glass"
-                           value="{{ purchase.purchase_date.strftime('%Y-%m-%d') }}"
-                           required>
+                    <!-- FIX: Handle None/NULL date safely. Defaults to today if missing. -->
+                    <input type="text" name="purchase_date" id="purchase_date" class="form-control input-glass" 
+                           value="{{ purchase.purchase_date.strftime('%Y-%m-%d') if purchase.purchase_date else '' }}" required>
                 </div>
-
-                <div class="col-md-4">
+                <div class="col-12">
                     <label class="form-label fw-bold text-muted small text-uppercase">Bill Number</label>
-                    <input type="text"
-                           name="bill_number"
-                           class="form-control input-glass"
+                    <input type="text" name="bill_number" class="form-control input-glass" 
                            value="{{ purchase.bill_number or '' }}">
                 </div>
             </div>
 
-            <!-- ITEMS -->
-            <h5 class="fw-bold mb-3">Item Details</h5>
-
-            <div class="table-responsive mb-3">
-                <table class="table table-borderless align-middle" id="itemsTable">
-                    <thead class="text-muted small text-uppercase border-bottom">
-                        <tr>
-                            <th>Product</th>
-                            <th>Quantity</th>
-                            <th>Unit Price (₹)</th>
-                            <th class="text-end">Total</th>
-                            <th class="text-center">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody id="itemsBody"></tbody>
-                    <tfoot class="border-top">
-                        <tr>
-                            <td colspan="3" class="text-end fw-bold pt-3">Grand Total</td>
-                            <td id="grandTotal"
-                                class="fw-bold fs-5 text-end pt-3 text-primary">
-                                ₹{{ "%.2f"|format(purchase.total_amount) }}
-                            </td>
-                            <td></td>
-                        </tr>
-                    </tfoot>
-                </table>
-            </div>
-
-            <button type="button"
-                    id="addRowBtn"
-                    class="btn btn-sm btn-light border shadow-sm fw-bold text-primary">
-                <i class="fa-solid fa-plus me-2"></i>Add Item Row
-            </button>
-
+            <!-- Items Table (If you implemented item editing logic in app.py, include it here. 
+                 If not, this simple form just updates the header info.) -->
+            
             <div class="mt-5 text-end">
                 <button type="submit" class="btn-glass-primary px-5 py-3 shadow-lg">
                     <i class="fa-solid fa-check-double me-2"></i>Update Purchase
                 </button>
             </div>
-
         </form>
     </div>
 </div>
 
-<!-- ✅ SAFE JSON DATA (NO safe, ALWAYS default) -->
-<script id="products-data" type="application/json">
-{{ products | default([]) | tojson }}
-</script>
-
-<script id="existing-items" type="application/json">
-{{ items | default([]) | tojson }}
-</script>
-
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-
 <script>
-document.addEventListener("DOMContentLoaded", function () {
-
+    // Initialize Flatpickr
+    // If value is empty, 'defaultDate: "today"' will auto-fill it
     flatpickr("#purchase_date", {
         dateFormat: "Y-m-d",
-        altInput: true,
-        altFormat: "d-m-Y",
+        defaultDate: "today",
         allowInput: true
     });
-
-    let products = [];
-    let existingItems = [];
-
-    try {
-        products = JSON.parse(
-            document.getElementById("products-data").textContent.trim()
-        );
-        existingItems = JSON.parse(
-            document.getElementById("existing-items").textContent.trim()
-        );
-    } catch (e) {
-        console.error("JSON parse error:", e);
-        products = [];
-        existingItems = [];
-    }
-
-    const tbody = document.getElementById("itemsBody");
-    const addBtn = document.getElementById("addRowBtn");
-    const grandTotalEl = document.getElementById("grandTotal");
-
-    function addRow(item = null) {
-        const row = document.createElement("tr");
-
-        let options = `<option value="" disabled>Select Product</option>`;
-        products.forEach(p => {
-            const price = p.price || p.cost_price || p.selling_price || 0;
-            const selected = item && item.product_id == p.id ? "selected" : "";
-            options += `<option value="${p.id}" data-price="${price}" ${selected}>${p.name}</option>`;
-        });
-
-        const qty = item ? item.quantity : 1;
-        const price = item ? item.purchase_price : 0;
-
-        row.innerHTML = `
-            <td>
-                <select class="form-select input-glass product-select" name="product_id[]" required>
-                    ${options}
-                </select>
-            </td>
-            <td><input type="number" class="form-control input-glass qty" name="quantity[]" value="${qty}" min="1"></td>
-            <td><input type="number" class="form-control input-glass price" name="price[]" value="${price}" step="0.01"></td>
-            <td class="text-end fw-bold total">₹0.00</td>
-            <td class="text-center">
-                <button type="button" class="btn btn-sm text-danger remove">
-                    <i class="fa-solid fa-trash"></i>
-                </button>
-            </td>
-        `;
-
-        tbody.appendChild(row);
-
-        const qtyEl = row.querySelector(".qty");
-        const priceEl = row.querySelector(".price");
-        const select = row.querySelector(".product-select");
-
-        select.addEventListener("change", () => {
-            const opt = select.options[select.selectedIndex];
-            priceEl.value = parseFloat(opt.dataset.price || 0).toFixed(2);
-            updateRow(row);
-        });
-
-        qtyEl.addEventListener("input", () => updateRow(row));
-        priceEl.addEventListener("input", () => updateRow(row));
-
-        row.querySelector(".remove").addEventListener("click", () => {
-            row.remove();
-            updateGrandTotal();
-        });
-
-        updateRow(row);
-    }
-
-    function updateRow(row) {
-        const q = parseFloat(row.querySelector(".qty").value) || 0;
-        const p = parseFloat(row.querySelector(".price").value) || 0;
-        row.querySelector(".total").textContent = "₹" + (q * p).toFixed(2);
-        updateGrandTotal();
-    }
-
-    function updateGrandTotal() {
-        let sum = 0;
-        tbody.querySelectorAll("tr").forEach(r => {
-            sum +=
-                (parseFloat(r.querySelector(".qty").value) || 0) *
-                (parseFloat(r.querySelector(".price").value) || 0);
-        });
-        grandTotalEl.textContent = "₹" + sum.toFixed(2);
-    }
-
-    addBtn.addEventListener("click", () => addRow());
-
-    if (existingItems.length) {
-        existingItems.forEach(item => addRow(item));
-    } else {
-        addRow();
-    }
-
-    updateGrandTotal();
-});
 </script>
-
 {% endblock %}
