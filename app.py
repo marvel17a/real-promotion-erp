@@ -993,6 +993,51 @@ def edit_purchase(purchase_id):
     return render_template('purchases/edit_purchase.html', purchase=purchase, suppliers=suppliers)
 
 
+
+@app.route('/purchases/update/<int:purchase_id>', methods=['POST']}
+def update_purchase(purchase_id):
+    if 'loggedin' not in session: return redirect(url_for('login'))
+    
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    
+    try:
+        # 1. Get Form Data
+        supplier_id = request.form['supplier_id']
+        purchase_date = request.form['purchase_date']
+        bill_number = request.form.get('bill_number', '')
+        
+        # 2. Update Master Record
+        cursor.execute("""
+            UPDATE purchases 
+            SET supplier_id=%s, purchase_date=%s, bill_number=%s 
+            WHERE id=%s
+        """, (supplier_id, purchase_date, bill_number, purchase_id))
+        
+        # Note: Updating items is complex (adding/removing rows). 
+        # For this basic edit, we are only updating the header info (Date, Supplier, Bill No).
+        # If you need to edit items, it requires deleting old items and re-inserting, 
+        # which affects stock history complexly. 
+        # Usually, users delete and re-create for full item edits in simple ERPs.
+        
+        mysql.connection.commit()
+        flash(f"Purchase Order #{purchase_id} updated successfully.", "success")
+        
+    except Exception as e:
+        mysql.connection.rollback()
+        flash(f"Error updating purchase: {str(e)}", "danger")
+        
+    finally:
+        cursor.close()
+        
+    return redirect(url_for('purchases'))
+
+def safe_date_format(date_obj, format='%d-%m-%Y', default='N/A'):
+    """Safely formats a date object, returning default if None."""
+    if date_obj:
+        return date_obj.strftime(format)
+    return default
+
+
 # --- PDF Class ---
 # We must define this class before it's used
 class PDF(FPDF):
@@ -4688,6 +4733,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
