@@ -31,11 +31,11 @@
                     {% for purchase in purchases %}
                     <tr>
                         <td class="ps-4 fw-medium text-dark">
+                            <!-- Safe Date Rendering -->
                             {% if purchase.purchase_date %}
                                 {{ purchase.purchase_date.strftime('%d-%b-%Y') }}
                             {% else %}
-                                <!-- Visual prompt to fix the missing date -->
-                                <a href="{{ url_for('edit_purchase', purchase_id=purchase.id) }}" class="badge bg-warning text-dark text-decoration-none" title="Date is missing in DB. Click to fix.">
+                                <a href="{{ url_for('edit_purchase', purchase_id=purchase.id) }}" class="badge bg-warning text-dark text-decoration-none">
                                     <i class="fa-solid fa-calendar-plus me-1"></i> Set Date
                                 </a>
                             {% endif %}
@@ -55,7 +55,6 @@
                                 <a href="{{ url_for('view_purchase', purchase_id=purchase.id) }}" class="action-btn btn-view" title="View Details">
                                     <i class="fa-regular fa-eye"></i>
                                 </a>
-                                <!-- Edit Button -->
                                 <a href="{{ url_for('edit_purchase', purchase_id=purchase.id) }}" class="action-btn btn-edit" title="Edit Purchase">
                                     <i class="fa-solid fa-pen"></i>
                                 </a>
@@ -71,7 +70,7 @@
                     <tr>
                         <td colspan="5" class="text-center py-5 text-muted">
                             <i class="fa-solid fa-file-invoice fa-3x mb-3 text-secondary opacity-50"></i>
-                            <p>No purchases recorded yet. Start by adding one!</p>
+                            <p>No purchases recorded yet.</p>
                         </td>
                     </tr>
                     {% endfor %}
