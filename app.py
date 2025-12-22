@@ -590,35 +590,44 @@ def supplier_ledger(supplier_id):
     purchases = cursor.fetchall()
     
     # 3. Fetch Payments (Credits - Money Paid via Purchase Order System)
-    # querying the new 'supplier_payments' table which is for PO payments only
     try:
         cursor.execute("SELECT * FROM supplier_payments WHERE supplier_id=%s ORDER BY payment_date DESC", (supplier_id,))
         payments = cursor.fetchall()
     except:
-        payments = [] # Fallback if table doesn't exist
+        payments = [] # Fallback
+        
+    # 4. Fetch Manual Adjustments (New Dues)
+    try:
+        cursor.execute("SELECT * FROM supplier_adjustments WHERE supplier_id=%s ORDER BY adjustment_date DESC", (supplier_id,))
+        adjustments = cursor.fetchall()
+    except:
+        adjustments = []
     
-    # 4. Calculate Total Due
-    # Formula: Opening Balance + Total Purchases - Total Payments (from supplier_payments only)
+    # 5. Calculate Total Due
+    # Formula: Opening + Purchases + Adjustments - Payments
     
-    # Sum Purchases
     cursor.execute("SELECT SUM(total_amount) as total FROM purchases WHERE supplier_id=%s", (supplier_id,))
     total_purchases = cursor.fetchone()['total'] or 0
     
-    # Sum Payments (Purchase Order Payments only)
     try:
         cursor.execute("SELECT SUM(amount_paid) as total FROM supplier_payments WHERE supplier_id=%s", (supplier_id,))
         total_paid = cursor.fetchone()['total'] or 0
     except:
         total_paid = 0
+        
+    try:
+        cursor.execute("SELECT SUM(amount) as total FROM supplier_adjustments WHERE supplier_id=%s", (supplier_id,))
+        total_adjustments = cursor.fetchone()['total'] or 0
+    except:
+        total_adjustments = 0
     
-    # Opening Balance (Treated as initial debt you owe)
     opening_bal = float(supplier.get('opening_balance', 0.0))
     
-    # Final Calculation: (Opening + Purchases) - Paid
-    current_due = (opening_bal + float(total_purchases)) - float(total_paid)
+    # Final Calculation
+    current_due = (opening_bal + float(total_purchases) + float(total_adjustments)) - float(total_paid)
     
-    # If you want to show 'Total Outstanding' (Opening + Purchases) separately from 'Due'
-    total_outstanding = opening_bal + float(total_purchases)
+    # Gross Outstanding (Total Liability generated)
+    total_outstanding = opening_bal + float(total_purchases) + float(total_adjustments)
     
     cursor.close()
     
@@ -626,9 +635,52 @@ def supplier_ledger(supplier_id):
                          supplier=supplier, 
                          purchases=purchases, 
                          payments=payments, 
-                         final_balance=current_due, # This is the "Net Payable"
-                         total_outstanding=total_outstanding, # This is (Opening + New Purchases) before payments
+                         adjustments=adjustments,
+                         final_balance=current_due, 
+                         total_outstanding=total_outstanding, 
                          opening_balance=opening_bal)
+
+
+# Route to Add Manual Due (Other Reason)
+@app.route('/suppliers/add_due/<int:supplier_id>', methods=['GET', 'POST'])
+def supplier_add_due(supplier_id):
+    if 'loggedin' not in session: return redirect(url_for('login'))
+    
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    cursor.execute("SELECT * FROM suppliers WHERE id = %s", (supplier_id,))
+    supplier = cursor.fetchone()
+    
+    if not supplier:
+        flash("Supplier not found.", "danger")
+        return redirect(url_for('suppliers'))
+        
+    if request.method == 'POST':
+        amount = request.form.get('amount')
+        date_val = request.form.get('date')
+        notes = request.form.get('notes')
+        
+        try:
+            cursor.execute("""
+                INSERT INTO supplier_adjustments (supplier_id, amount, adjustment_date, notes)
+                VALUES (%s, %s, %s, %s)
+            """, (supplier_id, amount, date_val, notes))
+            
+            # Update current_due in suppliers table (Increase Debt)
+            cursor.execute("""
+                UPDATE suppliers SET current_due = current_due + %s WHERE id = %s
+            """, (amount, supplier_id))
+            
+            mysql.connection.commit()
+            flash("Manual due added successfully.", "success")
+            return redirect(url_for('supplier_ledger', supplier_id=supplier_id))
+            
+        except Exception as e:
+            mysql.connection.rollback()
+            flash(f"Error: {e}", "danger")
+            
+    cursor.close()
+    return render_template('suppliers/add_manual_due.html', supplier=supplier, today_date=date.today().isoformat())
+
 
 
 @app.route('/suppliers/<int:supplier_id>/payment/new', methods=['GET', 'POST'])
@@ -4806,6 +4858,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
