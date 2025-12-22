@@ -1,0 +1,63 @@
+{% extends "admin_master.html" %}
+
+{% block page_content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/supplier.css') }}">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+
+<div class="container py-5 fade-in-up" style="max-width: 800px;">
+    
+    <div class="d-flex align-items-center mb-4">
+        <a href="{{ url_for('supplier_ledger', supplier_id=supplier.id) }}" class="btn btn-light rounded-circle shadow-sm me-3" style="width: 40px; height: 40px; display:flex; align-items:center; justify-content:center;">
+            <i class="fa-solid fa-arrow-left"></i>
+        </a>
+        <div>
+            <h2 class="mb-0 fw-bold page-title">Add Other Due</h2>
+            <p class="text-muted mb-0 small">Adding manual debt to: <span class="text-primary fw-bold">{{ supplier.name }}</span></p>
+        </div>
+    </div>
+
+    <div class="glass-panel p-5">
+        <form method="POST" class="needs-validation" novalidate>
+            <div class="row g-4">
+                
+                <div class="col-md-6">
+                    <label class="form-label fw-bold text-muted small text-uppercase">Date <span class="text-danger">*</span></label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-white border-end-0"><i class="fa-regular fa-calendar"></i></span>
+                        <input type="text" class="form-control input-glass border-start-0 ps-0" id="date" name="date" value="{{ today_date }}" required>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label fw-bold text-muted small text-uppercase">Amount (₹) <span class="text-danger">*</span></label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-white border-end-0 fw-bold">₹</span>
+                        <input type="number" class="form-control input-glass border-start-0 ps-0 fs-5 fw-bold text-danger" name="amount" step="0.01" min="0.01" required placeholder="0.00">
+                    </div>
+                    <div class="form-text text-muted">This will INCREASE the supplier's due balance.</div>
+                </div>
+
+                <div class="col-12">
+                    <label class="form-label fw-bold text-muted small text-uppercase">Reason / Notes <span class="text-danger">*</span></label>
+                    <textarea class="form-control input-glass" name="notes" rows="3" placeholder="e.g. Previous pending amount, Penalty charge, etc." required></textarea>
+                </div>
+            </div>
+
+            <div class="mt-5 text-end">
+                <button type="submit" class="btn-glass-primary px-5 py-3 shadow-lg">
+                    <i class="fa-solid fa-plus-circle me-2"></i>Add to Due
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script>
+    flatpickr("#date", {
+        dateFormat: "Y-m-d",
+        defaultDate: "today",
+        allowInput: true
+    });
+</script>
+{% endblock %}
