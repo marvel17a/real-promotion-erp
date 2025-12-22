@@ -34,7 +34,7 @@
                         <span class="input-group-text bg-white border-end-0 fw-bold">₹</span>
                         <input type="number" class="form-control input-glass border-start-0 ps-0 fs-5 fw-bold text-success" id="amount_paid" name="amount_paid" step="0.01" min="0.01" required placeholder="0.00">
                     </div>
-                    <div class="form-text text-muted">Current Due: ₹{{ "%.2f"|format( or 0) }}</div>
+                    <div class="form-text text-muted">Current Due: ₹{{ "%.2f"|format(total_outstanding_amount or 0) }}</div>
                 </div>
 
                 <div class="col-md-6">
@@ -65,10 +65,11 @@
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script>
     flatpickr("#payment_date", {
-        dateFormat: "Y-m-d",
+        dateFormat: "d-m-Y",
         defaultDate: "today",
         allowInput: true
     });
 </script>
 {% endblock %}
+
 
