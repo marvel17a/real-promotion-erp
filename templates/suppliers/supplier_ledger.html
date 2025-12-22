@@ -34,6 +34,7 @@
     <div class="row g-4 mb-4">
         
         <!-- SINGLE CARD: TOTAL OUTSTANDING AMOUNT -->
+        <!-- This card displays the dynamic Net Payable amount based on your formula -->
         <div class="col-lg-8">
             <div class="glass-panel p-5 h-100 border-start border-5 {% if total_outstanding_amount > 0 %}border-danger{% else %}border-success{% endif %} shadow-sm position-relative overflow-hidden d-flex align-items-center justify-content-between">
                 
@@ -159,6 +160,9 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script>
     const ctx = document.getElementById('balanceChart').getContext('2d');
+    
+    // Convert Jinja variables to JS numbers
+    // Note: We use total_outstanding_amount as the 'net due' here to color the chart
     const netDue = parseFloat("{{ total_outstanding_amount }}");
     const opening = parseFloat("{{ opening_balance }}");
     
