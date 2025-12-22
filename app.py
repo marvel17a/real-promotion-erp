@@ -417,30 +417,34 @@ def dash():
         low_stock = cursor.fetchone()['cnt'] or 0
     except: low_stock = 0
     
-    # --- 6. Supplier Dues (FIXED LOGIC) ---
-    # Formula: Total Opening Balance + Total Purchases - Total Payments
+    # --- 6. Supplier Dues (FIXED LOGIC: Opening + Purchases + Adjustments - Payments) ---
     try:
-        # A. Get Total Opening Balance of all suppliers
+        # A. Total Opening Balance
         cursor.execute("SELECT SUM(opening_balance) as total_ob FROM suppliers")
         total_ob = float(cursor.fetchone()['total_ob'] or 0)
         
-        # B. Get Total Purchases
-        cursor.execute(f"SELECT SUM({purch_col}) as total_pur FROM purchases")
+        # B. Total Purchases
+        cursor.execute(f"SELECT SUM(total_amount) as total_pur FROM purchases")
         total_pur = float(cursor.fetchone()['total_pur'] or 0)
         
-        # C. Get Total Payments (from supplier_payments table)
+        # C. Total Manual Adjustments (Others)
+        try:
+            cursor.execute("SELECT SUM(amount) as total_adj FROM supplier_adjustments")
+            total_adj = float(cursor.fetchone()['total_adj'] or 0)
+        except: total_adj = 0.0
+
+        # D. Total Payments (from supplier_payments table)
         try:
             cursor.execute("SELECT SUM(amount_paid) as total_paid FROM supplier_payments")
             total_paid = float(cursor.fetchone()['total_paid'] or 0)
-        except:
-            total_paid = 0.0 # Table might not exist yet
+        except: total_paid = 0.0
             
-        supplier_dues = (total_ob + total_pur) - total_paid
+        supplier_dues = (total_ob + total_pur + total_adj) - total_paid
     except Exception as e:
         print(f"Dues Calc Error: {e}")
         supplier_dues = 0
     
-    # --- 7. CHART DATA (Jan - Dec) ---
+    # --- 7. CHART DATA ---
     chart_months = []
     chart_sales = []
     chart_expenses = []
@@ -486,7 +490,7 @@ def dash():
         yearly_sales=yearly_sales,
         yearly_expenses=yearly_expenses,
         low_stock=low_stock,
-        supplier_dues=supplier_dues, # Now correct
+        supplier_dues=supplier_dues, # Updated
         chart_months=chart_months,
         chart_sales=chart_sales,
         chart_expenses=chart_expenses,
@@ -4738,6 +4742,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
