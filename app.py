@@ -579,60 +579,51 @@ def edit_supplier(supplier_id):
 @app.route('/supplier_ledger/<int:supplier_id>')
 def supplier_ledger(supplier_id):
     if 'loggedin' not in session: return redirect(url_for('login'))
-    
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
-    # 1. Fetch Supplier Info
+    # 1. Fetch Supplier
     cursor.execute("SELECT * FROM suppliers WHERE id=%s", (supplier_id,))
     supplier = cursor.fetchone()
-    
     if not supplier:
         flash("Supplier not found!", "danger")
         return redirect(url_for('suppliers'))
 
-    # 2. Fetch Purchases (Debits - Money Owed)
+    # 2. Fetch Records
     cursor.execute("SELECT * FROM purchases WHERE supplier_id=%s ORDER BY purchase_date DESC", (supplier_id,))
     purchases = cursor.fetchall()
     
-    # 3. Fetch Payments (Credits - Money Paid via Purchase Order System)
     try:
         cursor.execute("SELECT * FROM supplier_payments WHERE supplier_id=%s ORDER BY payment_date DESC", (supplier_id,))
         payments = cursor.fetchall()
-    except:
-        payments = [] # Fallback
-        
-    # 4. Fetch Manual Adjustments (New Dues)
+    except: payments = []
+
     try:
         cursor.execute("SELECT * FROM supplier_adjustments WHERE supplier_id=%s ORDER BY adjustment_date DESC", (supplier_id,))
         adjustments = cursor.fetchall()
-    except:
-        adjustments = []
+    except: adjustments = []
     
-    # 5. Calculate Total Due
-    # Formula: Opening + Purchases + Adjustments - Payments
-    
+    # 3. Calculations
     cursor.execute("SELECT SUM(total_amount) as total FROM purchases WHERE supplier_id=%s", (supplier_id,))
-    total_purchases = cursor.fetchone()['total'] or 0
+    total_purchases = float(cursor.fetchone()['total'] or 0)
     
     try:
         cursor.execute("SELECT SUM(amount_paid) as total FROM supplier_payments WHERE supplier_id=%s", (supplier_id,))
-        total_paid = cursor.fetchone()['total'] or 0
-    except:
-        total_paid = 0
-        
+        total_paid = float(cursor.fetchone()['total'] or 0)
+    except: total_paid = 0.0
+    
     try:
         cursor.execute("SELECT SUM(amount) as total FROM supplier_adjustments WHERE supplier_id=%s", (supplier_id,))
-        total_adjustments = cursor.fetchone()['total'] or 0
-    except:
-        total_adjustments = 0
+        total_adj = float(cursor.fetchone()['total'] or 0)
+    except: total_adj = 0.0
     
     opening_bal = float(supplier.get('opening_balance', 0.0))
     
-    # Final Calculation
-    current_due = (opening_bal + float(total_purchases) + float(total_adjustments)) - float(total_paid)
+    # Formula: Total Outstanding = Opening + Purchases + Adjustments - Payments
+    # Note: User requested "Total Outstanding" to be the final due amount in the first box
+    current_due = (opening_bal + total_purchases + total_adj) - total_paid
     
-    # Gross Outstanding (Total Liability generated)
-    total_outstanding = opening_bal + float(total_purchases) + float(total_adjustments)
+    # Gross Outstanding (Before payments)
+    gross_outstanding = opening_bal + total_purchases + total_adj
     
     cursor.close()
     
@@ -641,8 +632,8 @@ def supplier_ledger(supplier_id):
                          purchases=purchases, 
                          payments=payments, 
                          adjustments=adjustments,
-                         final_balance=current_due, 
-                         total_outstanding=total_outstanding, 
+                         final_balance=current_due,       # This is the net payable
+                         total_outstanding=gross_outstanding, # Gross before payments
                          opening_balance=opening_bal)
 
 
@@ -791,149 +782,6 @@ def delete_supplier(supplier_id):
         
     return redirect(url_for('suppliers'))
 
-# ... existing imports ...
-
-# ============================================================
-# SUPPLIER CASHFLOW MODULE (Updated: Payment Only)
-# ============================================================
-
-@app.route("/supplier_cashflow")
-def supplier_cashflow():
-    if "loggedin" not in session:
-        return redirect(url_for('login'))
-
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-
-    # Filters
-    sup = request.args.get("supplier_id")
-    start = request.args.get("start_date")
-    end = request.args.get("end_date")
-
-    cursor.execute("SELECT id, name FROM suppliers ORDER BY name")
-    suppliers = cursor.fetchall()
-
-    sql = """
-        SELECT sc.*, s.name AS supplier_name 
-        FROM supplier_cashflow sc
-        LEFT JOIN suppliers s ON s.id = sc.supplier_id
-        WHERE 1=1
-    """
-
-    params = []
-
-    if sup:
-        sql += " AND sc.supplier_id = %s"
-        params.append(sup)
-
-    if start:
-        sql += " AND DATE(sc.date) >= %s"
-        params.append(start)
-
-    if end:
-        sql += " AND DATE(sc.date) <= %s"
-        params.append(end)
-
-    sql += " ORDER BY sc.date DESC"
-
-    cursor.execute(sql, params)
-    transactions = cursor.fetchall()
-
-    # Summary totals (Only Payment is relevant now, but keeping query safe)
-    cursor.execute("""
-        SELECT 
-            SUM(CASE WHEN type='payment' THEN amount ELSE 0 END) AS total_payment
-        FROM supplier_cashflow
-    """)
-    summary = cursor.fetchone()
-
-    cursor.close()
-
-    return render_template(
-        "suppliers/supplier_cashflow.html",
-        transactions=transactions,
-        suppliers=suppliers,
-        total_payment=summary["total_payment"] or 0,
-        start_date=start,
-        end_date=end,
-        selected_supplier=sup
-    )
-
-
-@app.route("/supplier_cashflow/add", methods=["GET","POST"])
-def supplier_cashflow_add():
-    if "loggedin" not in session:
-        return redirect(url_for("login"))
-
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-
-    if request.method == "POST":
-        supplier_id = request.form["supplier_id"]
-        # MODIFICATION: Hardcoded to 'payment' (Removed Receipt feature)
-        trans_type = "payment" 
-        amount = request.form["amount"]
-        mode = request.form["mode"]
-        remark = request.form["remark"]
-
-        cursor.execute("""
-            INSERT INTO supplier_cashflow (supplier_id, type, amount, mode, remark)
-            VALUES (%s, %s, %s, %s, %s)
-        """, (supplier_id, trans_type, amount, mode, remark))
-
-        mysql.connection.commit()
-        flash("Payment recorded successfully!", "success")
-        return redirect(url_for("supplier_cashflow"))
-
-    cursor.execute("SELECT id, name FROM suppliers ORDER BY name")
-    suppliers = cursor.fetchall()
-
-    return render_template("suppliers/supplier_cashflow_add.html", suppliers=suppliers)
-
-# ... (keep supplier_cashflow_delete as is) ...
-
-@app.route("/supplier_cashflow/delete/<int:id>")
-def supplier_cashflow_delete(id):
-    if "loggedin" not in session:
-        return redirect(url_for('login'))
-
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    cursor.execute("DELETE FROM supplier_cashflow WHERE id = %s", (id,))
-    mysql.connection.commit()
-    cursor.close()
-
-    flash("Transaction deleted successfully!", "success")
-    return redirect(url_for("supplier_cashflow"))
-
-
-
-# Add to app.py
-@app.route('/supplier/payment/delete/<int:payment_id>', methods=['POST'])
-def delete_supplier_payment(payment_id):
-    if 'loggedin' not in session: return redirect(url_for('login'))
-    
-    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    
-    # 1. Get payment details to know amount and supplier
-    cur.execute("SELECT * FROM supplier_payments WHERE id = %s", (payment_id,))
-    payment = cur.fetchone()
-    
-    if payment:
-        amount = payment['amount_paid']
-        supplier_id = payment['supplier_id']
-        
-        # 2. Delete the payment record
-        cur.execute("DELETE FROM supplier_payments WHERE id = %s", (payment_id,))
-        
-        # 3. Reverse the deduction (Add amount back to current_due)
-        cur.execute("UPDATE suppliers SET current_due = current_due + %s WHERE id = %s", (amount, supplier_id))
-        
-        mysql.connection.commit()
-        flash('Payment deleted and due amount reversed.', 'warning')
-        cur.close()
-        return redirect(url_for('supplier_ledger', supplier_id=supplier_id))
-        
-    cur.close()
-    flash('Payment not found.', 'danger')
-    return redirect(url_for('suppliers'))
 
 
 # =====================================================================#
@@ -4890,6 +4738,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
