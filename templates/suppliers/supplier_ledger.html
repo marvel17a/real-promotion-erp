@@ -35,16 +35,20 @@
         
         <!-- CARD 1: NET OUTSTANDING (Dynamic - Reduces on Payment) -->
         <div class="col-lg-4">
-            <div class="glass-panel p-4 h-100 border-start border-4 {% if net_outstanding > 0 %}border-danger{% else %}border-success{% endif %} shadow-sm">
-                <small class="text-uppercase fw-bold text-muted ls-1 mb-1 d-block">Total Outstanding Amount</small>
-                <h1 class="display-4 fw-bold mb-0 {% if net_outstanding > 0 %}text-danger{% else %}text-success{% endif %}">
-                    {{ (net_outstanding|abs)|inr }}
-                </h1>
-                <div class="mt-2 small text-muted d-flex align-items-center gap-2">
-                    <span class="badge rounded-pill {% if net_outstanding > 0 %}bg-danger{% else %}bg-success{% endif %}">
-                        {% if net_outstanding > 0 %}Payable{% else %}Cleared{% endif %}
-                    </span>
-                    <span>(Op + Pur + Oth) - Paid</span>
+            <div class="glass-panel p-4 h-100 border-start border-4 {% if net_outstanding > 0 %}border-danger{% else %}border-success{% endif %} shadow-sm position-relative overflow-hidden">
+                <div class="d-flex justify-content-between align-items-start z-1 position-relative">
+                    <div>
+                        <small class="text-uppercase fw-bold text-muted ls-1 mb-1 d-block">Total Outstanding Amount</small>
+                        <h1 class="display-4 fw-bold mb-0 {% if net_outstanding > 0 %}text-danger{% else %}text-success{% endif %}">
+                            {{ (net_outstanding|abs)|inr }}
+                        </h1>
+                        <div class="mt-2 small text-muted d-flex align-items-center gap-2">
+                            <span class="badge rounded-pill {% if net_outstanding > 0 %}bg-danger{% else %}bg-success{% endif %}">
+                                {% if net_outstanding > 0 %}Payable{% else %}Cleared{% endif %}
+                            </span>
+                            <span>(Op + Pur + Oth) - Paid</span>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -78,6 +82,7 @@
         </div>
     </div>
 
+    <!-- Tables Row -->
     <div class="row g-4">
         <!-- LEFT: PURCHASES + OTHER DUES -->
         <div class="col-lg-6">
@@ -143,19 +148,11 @@
                         <tbody>
                             {% for pay in payments %}
                             <tr>
-                                <td>
-                                    {% if pay.payment_date %}
-                                        {{ pay.payment_date.strftime('%d-%b-%Y') }}
-                                    {% elif pay.date %}
-                                        {{ pay.date.strftime('%d-%b-%Y') }}
-                                    {% else %}
-                                        -
-                                    {% endif %}
-                                </td>
-                                <td><span class="badge bg-success bg-opacity-10 text-success border border-success-subtle">{{ pay.payment_mode or pay.mode }}</span></td>
-                                <td class="text-end fw-bold text-success">- {{ (pay.amount_paid or pay.amount)|inr }}</td>
+                                <td>{% if pay.payment_date %}{{ pay.payment_date.strftime('%d-%b-%Y') }}{% else %}-{% endif %}</td>
+                                <td><span class="badge bg-success bg-opacity-10 text-success border border-success-subtle">{{ pay.payment_mode }}</span></td>
+                                <td class="text-end fw-bold text-success">- {{ pay.amount_paid|inr }}</td>
                                 <td class="text-center">
-                                    <form action="{{ url_for('delete_supplier_payment', payment_id=pay.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete payment?')">
+                                    <form action="{{ url_for('delete_supplier_payment', payment_id=pay.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete?')">
                                         <button class="btn btn-sm text-danger border-0 p-0"><i class="fa-solid fa-trash-can"></i></button>
                                     </form>
                                 </td>
