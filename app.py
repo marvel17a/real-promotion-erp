@@ -639,7 +639,6 @@ def supplier_ledger(supplier_id):
     except: adjustments = []
     
     # 3. Calculate Totals
-    # Use COALESCE to handle NULLs safely
     cursor.execute("SELECT SUM(COALESCE(total_amount, 0)) as total FROM purchases WHERE supplier_id=%s", (supplier_id,))
     total_purchases = float(cursor.fetchone()['total'] or 0)
     
@@ -657,13 +656,9 @@ def supplier_ledger(supplier_id):
     
     opening_bal = float(supplier.get('opening_balance', 0.0))
     
-    # --- FORMULAS ---
-    # 1. Gross Debt (All money ever owed to this supplier)
-    gross_debt = opening_bal + total_purchases + total_adjustments
-    
-    # 2. Net Outstanding (What you currently owe)
-    # This is the dynamic amount that reduces when you pay
-    net_outstanding = gross_debt - total_paid
+    # Formula: Total Outstanding = (Opening + Purchases + Adjustments) - Payments
+    # This is the single truth number the user wants to see
+    total_outstanding_amount = (opening_bal + total_purchases + total_adjustments) - total_paid
     
     cursor.close()
     
@@ -672,8 +667,7 @@ def supplier_ledger(supplier_id):
                          purchases=purchases, 
                          payments=payments, 
                          adjustments=adjustments,
-                         net_outstanding=net_outstanding, # Dynamic Due
-                         gross_debt=gross_debt,           # Static History
+                         total_outstanding_amount=total_outstanding_amount, # The main figure
                          opening_balance=opening_bal)
 
 
@@ -4778,6 +4772,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
