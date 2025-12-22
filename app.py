@@ -940,10 +940,9 @@ def new_purchase():
             quantities = request.form.getlist('quantity[]')
             prices = request.form.getlist('price[]')
             
-            # Calculate Grand Total
+            # Calculate Total
             total_amount = 0.0
             valid_items = []
-            
             for i in range(len(product_ids)):
                 if product_ids[i]: 
                     qty = float(quantities[i])
@@ -961,23 +960,29 @@ def new_purchase():
             
             # 4. Insert Items & Update Stock
             
-            # Dynamic Column Detection for Stock (Safety Check)
-            stock_col = 'quantity' # default
-            cursor.execute("SHOW COLUMNS FROM products")
-            columns = [row['Field'] for row in cursor.fetchall()]
-            if 'stock_quantity' in columns: stock_col = 'stock_quantity'
-            elif 'stock' in columns: stock_col = 'stock'
-            elif 'qty' in columns: stock_col = 'qty'
+            # --- DYNAMIC COLUMN DETECTION ---
+            # Find the correct column name for stock quantity
+            stock_col = 'quantity' # default fallback
+            try:
+                cursor.execute("SHOW COLUMNS FROM products")
+                columns = [row['Field'] for row in cursor.fetchall()]
+                # Check for known variations
+                for col in ['stock_quantity', 'stock', 'qty', 'quantity', 'inventory']:
+                    if col in columns:
+                        stock_col = col
+                        break
+            except:
+                pass # Use default if check fails
             
             for item in valid_items:
-                # Insert Item (REMOVED total_price/total_amount column to fix errors)
-                # We only insert ID, PurchaseID, ProductID, Quantity, Price
+                # Insert Item (No total column)
                 cursor.execute("""
                     INSERT INTO purchase_items (purchase_id, product_id, quantity, purchase_price)
                     VALUES (%s, %s, %s, %s)
                 """, (purchase_id, item['p_id'], item['qty'], item['price']))
                 
-                # Update Stock (Add quantity)
+                # Update Stock (Using detected column)
+                # We use string formatting for the column name (safe here as it comes from our internal list match)
                 query = f"UPDATE products SET {stock_col} = {stock_col} + %s, price = %s WHERE id = %s"
                 cursor.execute(query, (item['qty'], item['price'], item['p_id']))
             
@@ -1003,7 +1008,7 @@ def new_purchase():
     products = cursor.fetchall()
     
     cursor.close()
-    return render_template('purchases/new_purchase.html', suppliers=suppliers, products=products)
+    return render_template('new_purchase.html', suppliers=suppliers, products=products)
 
 
 
@@ -4855,6 +4860,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
