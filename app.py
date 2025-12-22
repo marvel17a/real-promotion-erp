@@ -609,6 +609,7 @@ def edit_supplier(supplier_id):
 # =====================================================================
 # SUPPLIER LEDGER & PAYMENT ROUTES
 # =====================================================================
+
 @app.route('/supplier_ledger/<int:supplier_id>')
 def supplier_ledger(supplier_id):
     if 'loggedin' not in session: return redirect(url_for('login'))
@@ -4777,6 +4778,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
