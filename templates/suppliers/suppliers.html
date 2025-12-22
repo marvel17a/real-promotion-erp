@@ -22,6 +22,7 @@
             <div class="glass-panel p-4 d-flex align-items-center justify-content-between border-start border-4 border-danger">
                 <div>
                     <p class="text-muted small fw-bold text-uppercase mb-1">Total Net Dues</p>
+                    <!-- This ID will be populated by JS summing up the calculated dues -->
                     <h2 class="text-danger fw-bold mb-0" id="totalDuesDisplay">₹ 0.00</h2>
                 </div>
                 <div class="icon-box bg-danger bg-opacity-10 text-danger rounded-circle">
@@ -52,23 +53,26 @@
             <table class="table-glass">
                 <thead>
                     <tr>
-                        <th class="ps-4">Supplier Details</th>
+                        <th class="ps-4">ID</th> <!-- Added ID column for clarity -->
+                        <th>Supplier Details</th>
                         <th>Contact</th>
-                        <th class="text-end">Current Net Due</th>
+                        <th class="text-end">Total Outstanding Amount</th> <!-- Updated Header -->
                         <th class="text-center pe-4">Actions</th>
                     </tr>
                 </thead>
                 <tbody id="supplierTable">
                     {% for supplier in suppliers %}
-                    <tr class="supplier-row" data-due="{{ supplier.current_due or 0 }}">
-                        <td class="ps-4">
+                    <!-- Use calculated_due if available, else fallback to current_due -->
+                    {% set net_due = supplier.calculated_due if supplier.calculated_due is defined else supplier.current_due %}
+                    <tr class="supplier-row" data-due="{{ net_due or 0 }}">
+                        <td class="ps-4 fw-bold text-muted">#{{ supplier.id }}</td>
+                        <td>
                             <div class="d-flex align-items-center gap-3">
                                 <div class="icon-box bg-light text-primary">
                                     <i class="fa-solid fa-building"></i>
                                 </div>
                                 <div>
                                     <h6 class="mb-0 fw-bold text-dark">{{ supplier.name }}</h6>
-                                    <small class="text-muted">ID: #{{ supplier.id }}</small>
                                 </div>
                             </div>
                         </td>
@@ -78,9 +82,8 @@
                             </div>
                         </td>
                         <td class="text-end">
-                            {% set due = supplier.current_due if supplier.current_due is defined else 0 %}
-                            <span class="due-badge {% if due > 0 %}due-positive{% else %}due-negative{% endif %}">
-                                {{ due|inr }}
+                            <span class="due-badge {% if net_due > 0 %}due-positive{% else %}due-negative{% endif %}">
+                                {{ net_due|inr }}
                             </span>
                         </td>
                         <td class="text-center pe-4">
@@ -100,7 +103,7 @@
                         </td>
                     </tr>
                     {% else %}
-                    <tr><td colspan="4" class="text-center py-5 text-muted">No suppliers found.</td></tr>
+                    <tr><td colspan="5" class="text-center py-5 text-muted">No suppliers found.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
