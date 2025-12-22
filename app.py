@@ -608,7 +608,9 @@ def edit_supplier(supplier_id):
 
 # =====================================================================
 # SUPPLIER LEDGER & PAYMENT ROUTES
-# =====================================================================
+# ===================================================
+
+
 
 @app.route('/supplier_ledger/<int:supplier_id>')
 def supplier_ledger(supplier_id):
@@ -670,7 +672,8 @@ def supplier_ledger(supplier_id):
                          payments=payments, 
                          adjustments=adjustments,
                          total_outstanding_amount=total_outstanding_amount, # The main figure
-                         opening_balance=opening_bal)
+                         opening_balance=opening_bal,
+                         total_paid=total_paid)
 
 
 # Route to Add Manual Due (Other Reason)
@@ -4774,6 +4777,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
