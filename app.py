@@ -538,34 +538,32 @@ def add_supplier():
 
 @app.route('/suppliers/edit/<int:supplier_id>', methods=['GET', 'POST'])
 def edit_supplier(supplier_id):
-    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    cur.execute("SELECT * FROM suppliers WHERE id = %s", (supplier_id,))
-    supplier = cur.fetchone()
+    if 'loggedin' not in session: return redirect(url_for('login'))
     
-    if not supplier:
-        flash("Supplier not found.", "danger")
-        return redirect(url_for('suppliers'))
-
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    
     if request.method == 'POST':
-        name = request.form.get('name')
-        phone = request.form.get('phone')
-        address = request.form.get('address')
-        gstin = request.form.get('gstin')
-
-        if not name:
-            flash("Supplier name is required.", "danger")
-            return render_template('suppliers/edit_supplier.html', supplier=supplier)
-
-        cur.execute("""
-            UPDATE suppliers SET name=%s, phone=%s, address=%s, gstin=%s 
+        name = request.form['name']
+        phone = request.form['phone']
+        email = request.form['email']
+        gstin = request.form.get('gstin', '')
+        address = request.form.get('address', '')
+        opening_balance = request.form.get('opening_balance', 0.0)
+        
+        cursor.execute("""
+            UPDATE suppliers 
+            SET name=%s, phone=%s, email=%s, gstin=%s, address=%s, opening_balance=%s
             WHERE id=%s
-        """, (name, phone, address, gstin, supplier_id))
+        """, (name, phone, email, gstin, address, opening_balance, supplier_id))
+        
         mysql.connection.commit()
-        cur.close()
         flash('Supplier updated successfully!', 'success')
         return redirect(url_for('suppliers'))
-
-    cur.close()
+    
+    cursor.execute("SELECT * FROM suppliers WHERE id=%s", (supplier_id,))
+    supplier = cursor.fetchone()
+    cursor.close()
+    
     return render_template('suppliers/edit_supplier.html', supplier=supplier)
 
 # =====================================================================
@@ -4808,6 +4806,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
