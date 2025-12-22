@@ -718,6 +718,40 @@ def supplier_add_due(supplier_id):
 
 
 
+@app.route('/suppliers/delete_adjustment/<int:adjustment_id>', methods=['POST'])
+def delete_supplier_adjustment(adjustment_id):
+    if 'loggedin' not in session: return redirect(url_for('login'))
+    
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    
+    # Get supplier ID first to redirect back
+    cursor.execute("SELECT supplier_id, amount FROM supplier_adjustments WHERE id=%s", (adjustment_id,))
+    adj = cursor.fetchone()
+    
+    if adj:
+        supplier_id = adj['supplier_id']
+        amount = adj['amount']
+        
+        try:
+            # Delete adjustment
+            cursor.execute("DELETE FROM supplier_adjustments WHERE id=%s", (adjustment_id,))
+            
+            # Update supplier current_due (Decrease debt)
+            cursor.execute("UPDATE suppliers SET current_due = current_due - %s WHERE id=%s", (amount, supplier_id))
+            
+            mysql.connection.commit()
+            flash("Adjustment deleted successfully.", "success")
+            return redirect(url_for('supplier_ledger', supplier_id=supplier_id))
+        except Exception as e:
+            mysql.connection.rollback()
+            flash(f"Error deleting adjustment: {e}", "danger")
+            return redirect(url_for('suppliers')) # Fallback
+            
+    cursor.close()
+    return redirect(url_for('suppliers'))
+
+
+
 @app.route('/suppliers/<int:supplier_id>/payment/new', methods=['GET', 'POST'])
 def record_payment(supplier_id):
     if 'loggedin' not in session: return redirect(url_for('login'))
@@ -4777,6 +4811,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
