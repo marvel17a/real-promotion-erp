@@ -1,6 +1,6 @@
 {% extends "admin_master.html" %}
 
-{% block page_content %}
+{% block content %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/supplier.css') }}">
 
 <div class="container-fluid py-4 fade-in-up" id="ledgerContent">
@@ -51,7 +51,6 @@
                     </div>
                     <div class="d-flex justify-content-between">
                         <span>New Purchases + Other:</span> 
-                        <!-- Calculated on the fly for display: Total - Opening -->
                         <span class="fw-bold">{{ ((total_outstanding if total_outstanding is defined else 0) - (opening_balance or 0))|inr }}</span>
                     </div>
                 </div>
@@ -91,16 +90,29 @@
                 </div>
                 <div class="table-responsive p-3" style="max-height: 300px; overflow-y: auto;">
                     <table class="table-glass">
-                        <thead><tr><th>Date</th><th>Bill #</th><th class="text-end">Amount</th></tr></thead>
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Bill #</th>
+                                <th class="text-end">Amount</th>
+                                <th class="text-center">View</th> <!-- Added View Column Header -->
+                            </tr>
+                        </thead>
                         <tbody>
                             {% for pur in purchases %}
                             <tr>
                                 <td>{% if pur.purchase_date %}{{ pur.purchase_date.strftime('%d-%b-%Y') }}{% else %}-{% endif %}</td>
                                 <td>{{ pur.bill_number }}</td>
                                 <td class="text-end fw-bold text-danger">{{ pur.total_amount|inr }}</td>
+                                <td class="text-center">
+                                    <!-- ADDED: View Purchase Button -->
+                                    <a href="{{ url_for('view_purchase', purchase_id=pur.id) }}" class="btn btn-sm btn-outline-primary rounded-circle" title="View Order Details">
+                                        <i class="fa-solid fa-eye"></i>
+                                    </a>
+                                </td>
                             </tr>
                             {% else %}
-                            <tr><td colspan="3" class="text-center text-muted">No purchases.</td></tr>
+                            <tr><td colspan="4" class="text-center text-muted">No purchases.</td></tr>
                             {% endfor %}
                         </tbody>
                     </table>
@@ -198,4 +210,3 @@
     }
 </script>
 {% endblock %}
-
