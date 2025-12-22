@@ -643,7 +643,7 @@ def supplier_ledger(supplier_id):
         flash("Supplier not found!", "danger")
         return redirect(url_for('suppliers'))
 
-    # 2. Fetch Records
+    # 2. Fetch Records (Purchases, Payments, Adjustments)
     cursor.execute("SELECT * FROM purchases WHERE supplier_id=%s ORDER BY purchase_date DESC", (supplier_id,))
     purchases = cursor.fetchall()
     
@@ -657,28 +657,31 @@ def supplier_ledger(supplier_id):
         adjustments = cursor.fetchall()
     except: adjustments = []
     
-    # 3. Calculate Totals
-    # Use COALESCE to handle NULLs safely
+    # 3. Calculate Totals (Using COALESCE for safety)
+    
+    # Purchases Total
     cursor.execute("SELECT SUM(COALESCE(total_amount, 0)) as total FROM purchases WHERE supplier_id=%s", (supplier_id,))
     total_purchases = float(cursor.fetchone()['total'] or 0)
     
+    # Payments Total
     try:
         cursor.execute("SELECT SUM(COALESCE(amount_paid, 0)) as total FROM supplier_payments WHERE supplier_id=%s", (supplier_id,))
         total_paid = float(cursor.fetchone()['total'] or 0)
     except:
         total_paid = 0.0
         
+    # Adjustments (Other Dues) Total
     try:
         cursor.execute("SELECT SUM(COALESCE(amount, 0)) as total FROM supplier_adjustments WHERE supplier_id=%s", (supplier_id,))
         total_adjustments = float(cursor.fetchone()['total'] or 0)
     except:
         total_adjustments = 0.0
     
+    # Opening Balance
     opening_bal = float(supplier.get('opening_balance', 0.0))
     
     # --- FORMULA ---
-    # Total Outstanding Amount = (Opening + Purchases + Adjustments) - Payments
-    # This value is DYNAMIC: it increases with purchases/adjustments and decreases with payments.
+    # Total Outstanding = (Opening + Purchases + Adjustments) - Payments
     total_outstanding_amount = (opening_bal + total_purchases + total_adjustments) - total_paid
     
     cursor.close()
@@ -688,8 +691,10 @@ def supplier_ledger(supplier_id):
                          purchases=purchases, 
                          payments=payments, 
                          adjustments=adjustments,
-                         total_outstanding_amount=total_outstanding_amount, # The main figure
+                         total_outstanding_amount=total_outstanding_amount, # Main Figure
                          opening_balance=opening_bal,
+                         total_purchases=total_purchases,
+                         total_adjustments=total_adjustments,
                          total_paid=total_paid)
 
 
@@ -4850,6 +4855,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
