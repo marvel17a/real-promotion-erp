@@ -931,24 +931,40 @@ def new_purchase():
     if request.method == 'POST':
         try:
             # 1. Master Data
-            supplier_id = request.form['supplier_id']
-            purchase_date = request.form['purchase_date']
+            supplier_id = request.form.get('supplier_id')
+            purchase_date = request.form.get('purchase_date')
             bill_number = request.form.get('bill_number', '')
             
-            # 2. Item Arrays
+            if not supplier_id or not purchase_date:
+                flash("Supplier and Date are required.", "danger")
+                return redirect(url_for('new_purchase'))
+
+            # 2. Item Arrays (Using getlist)
             product_ids = request.form.getlist('product_id[]')
             quantities = request.form.getlist('quantity[]')
             prices = request.form.getlist('price[]')
             
-            # Calculate Total
+            # Calculate Total (Handle empty prices)
             total_amount = 0.0
             valid_items = []
+            
             for i in range(len(product_ids)):
-                if product_ids[i]: 
-                    qty = float(quantities[i])
-                    price = float(prices[i])
+                p_id = product_ids[i]
+                if p_id: 
+                    # Safe conversion for Quantity
+                    try:
+                        qty = float(quantities[i]) if quantities[i] else 0.0
+                    except ValueError:
+                        qty = 0.0
+                        
+                    # Safe conversion for Price (Allow empty/zero)
+                    try:
+                        price = float(prices[i]) if prices[i] else 0.0
+                    except ValueError:
+                        price = 0.0
+                        
                     total_amount += (qty * price)
-                    valid_items.append({'p_id': product_ids[i], 'qty': qty, 'price': price})
+                    valid_items.append({'p_id': p_id, 'qty': qty, 'price': price})
             
             # 3. Insert Master Purchase Record
             cursor.execute("""
@@ -960,33 +976,31 @@ def new_purchase():
             
             # 4. Insert Items & Update Stock
             
-            # --- DYNAMIC COLUMN DETECTION ---
-            # Find the correct column name for stock quantity
-            stock_col = 'quantity' # default fallback
+            # Dynamic Column Detection for Stock
+            stock_col = 'quantity' # default
             try:
                 cursor.execute("SHOW COLUMNS FROM products")
                 columns = [row['Field'] for row in cursor.fetchall()]
-                # Check for known variations
-                for col in ['stock_quantity', 'stock', 'qty', 'quantity', 'inventory']:
+                for col in ['stock_quantity', 'stock', 'qty', 'quantity']:
                     if col in columns:
                         stock_col = col
                         break
-            except:
-                pass # Use default if check fails
+            except: pass
             
             for item in valid_items:
-                # Insert Item (No total column)
+                # Insert Item
                 cursor.execute("""
                     INSERT INTO purchase_items (purchase_id, product_id, quantity, purchase_price)
                     VALUES (%s, %s, %s, %s)
                 """, (purchase_id, item['p_id'], item['qty'], item['price']))
                 
-                # Update Stock (Using detected column)
-                # We use string formatting for the column name (safe here as it comes from our internal list match)
+                # Update Stock (Add quantity) - Price update optional? 
+                # If price is 0 (sample), maybe don't update product master price?
+                # For now, we update it as per original logic, but 0 is valid.
                 query = f"UPDATE products SET {stock_col} = {stock_col} + %s, price = %s WHERE id = %s"
                 cursor.execute(query, (item['qty'], item['price'], item['p_id']))
             
-            # 5. Update Supplier Dues (Add to debt)
+            # 5. Update Supplier Dues
             cursor.execute("""
                 UPDATE suppliers SET current_due = current_due + %s WHERE id = %s
             """, (total_amount, supplier_id))
@@ -1003,11 +1017,10 @@ def new_purchase():
     # GET: Load data
     cursor.execute("SELECT id, name FROM suppliers ORDER BY name")
     suppliers = cursor.fetchall()
-    
     cursor.execute("SELECT * FROM products ORDER BY name")
     products = cursor.fetchall()
-    
     cursor.close()
+    
     return render_template('purchases/new_purchase.html', suppliers=suppliers, products=products)
 
 
@@ -4860,6 +4873,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
