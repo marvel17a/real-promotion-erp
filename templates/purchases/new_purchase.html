@@ -82,30 +82,23 @@
 <!-- Scripts -->
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script>
-    // Initialize Flatpickr
     flatpickr("#purchase_date", {
-        dateFormat: "Y-m-d", // Value sent to backend
-        altInput: true,      // Display format
+        dateFormat: "Y-m-d", 
+        altInput: true,
         altFormat: "d-m-Y",
         defaultDate: "today",
         allowInput: true
     });
 
     document.addEventListener('DOMContentLoaded', function() {
-        // --- ROBUST JSON PARSING ---
         const productsDataElement = document.getElementById('products-data');
         let products = [];
         
         if (productsDataElement) {
             try {
                 const rawData = productsDataElement.textContent.trim();
-                if (rawData) {
-                    products = JSON.parse(rawData);
-                }
-            } catch (e) {
-                console.error("Error parsing products JSON:", e);
-                products = []; 
-            }
+                if (rawData) products = JSON.parse(rawData);
+            } catch (e) { console.error("JSON Error:", e); }
         }
 
         const tbody = document.querySelector('#itemsTable tbody');
@@ -114,17 +107,13 @@
 
         function addRow() {
             const row = document.createElement('tr');
-            
             let productOptions = '<option value="" disabled selected>Select Product</option>';
             if (Array.isArray(products) && products.length > 0) {
                 products.forEach(p => {
-                    let price = p.price || p.cost_price || p.selling_price || 0;
-                    // Escape quotes in name just in case
+                    let price = p.price || p.cost_price || 0;
                     let safeName = p.name.replace(/"/g, '&quot;');
                     productOptions += `<option value="${p.id}" data-price="${price}">${safeName}</option>`;
                 });
-            } else {
-                productOptions += '<option value="" disabled>No products available</option>';
             }
 
             row.innerHTML = `
@@ -137,7 +126,8 @@
                     <input type="number" class="form-control input-glass quantity" name="quantity[]" value="1" min="1" required>
                 </td>
                 <td>
-                    <input type="number" step="0.01" class="form-control input-glass price" name="price[]" value="0.00" required>
+                    <!-- Removed 'required' attribute to allow 0/empty price -->
+                    <input type="number" step="0.01" class="form-control input-glass price" name="price[]" value="0.00">
                 </td>
                 <td class="text-end total-cell fw-bold text-dark">₹0.00</td>
                 <td class="text-center">
@@ -146,7 +136,6 @@
             `;
             tbody.appendChild(row);
             
-            // Add listeners
             const select = row.querySelector('.product-select');
             const qtyInput = row.querySelector('.quantity');
             const priceInput = row.querySelector('.price');
@@ -155,9 +144,9 @@
             select.addEventListener('change', function() {
                 const selectedOption = this.options[this.selectedIndex];
                 const price = parseFloat(selectedOption.dataset.price) || 0;
-                // Only update price if it's currently 0 to allow manual override
-                if (parseFloat(priceInput.value) === 0) {
-                     priceInput.value = price.toFixed(2);
+                // Only autofill if field is empty or 0
+                if (!priceInput.value || parseFloat(priceInput.value) === 0) {
+                    priceInput.value = price.toFixed(2);
                 }
                 updateRowTotal(row);
             });
@@ -166,22 +155,17 @@
             priceInput.addEventListener('input', () => updateRowTotal(row));
             
             removeBtn.addEventListener('click', () => {
-                if(tbody.rows.length > 1) {
-                    row.remove();
-                    updateGrandTotal();
-                } else {
-                    // Clear values instead of removing last row
-                    select.value = "";
-                    qtyInput.value = 1;
-                    priceInput.value = "0.00";
-                    updateRowTotal(row);
-                }
+                if(tbody.rows.length > 1) { row.remove(); updateGrandTotal(); }
+                else { select.value = ""; qtyInput.value = 1; priceInput.value = "0.00"; updateRowTotal(row); }
             });
         }
 
         function updateRowTotal(row) {
             const qty = parseFloat(row.querySelector('.quantity').value) || 0;
-            const price = parseFloat(row.querySelector('.price').value) || 0;
+            // Handle empty price string as 0
+            const priceStr = row.querySelector('.price').value;
+            const price = priceStr ? parseFloat(priceStr) : 0;
+            
             const total = qty * price;
             row.querySelector('.total-cell').textContent = '₹' + total.toFixed(2);
             updateGrandTotal();
@@ -191,20 +175,18 @@
             let total = 0;
             document.querySelectorAll('#itemsTable tbody tr').forEach(row => {
                 const qty = parseFloat(row.querySelector('.quantity').value) || 0;
-                const price = parseFloat(row.querySelector('.price').value) || 0;
+                const priceStr = row.querySelector('.price').value;
+                const price = priceStr ? parseFloat(priceStr) : 0;
                 total += qty * price;
             });
             grandTotalEl.textContent = '₹' + total.toFixed(2);
         }
 
         if(addBtn) addBtn.addEventListener('click', () => addRow());
-        
-        // Add first row on load
         addRow();
     });
 </script>
 
-<!-- SAFE DATA PASSING -->
 <script id="products-data" type="application/json">
     {{ products|tojson|safe }}
 </script>
