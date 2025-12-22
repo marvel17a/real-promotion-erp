@@ -920,6 +920,7 @@ def purchases():
     cur.close()
     return render_template('purchases/purchases.html', purchases=all_purchases)
 
+
 @app.route('/new_purchase', methods=['GET', 'POST'])
 def new_purchase():
     if 'loggedin' not in session: return redirect(url_for('login'))
@@ -944,19 +945,21 @@ def new_purchase():
             
             for i in range(len(product_ids)):
                 if product_ids[i]: 
-                    # --- FIX: Safe Float Conversion ---
+                    # --- FIX 1: Safe Float Conversion (Prevents "could not convert string to float") ---
                     try:
                         raw_qty = quantities[i]
-                        qty = float(raw_qty) if raw_qty and raw_qty.strip() else 0.0
+                        # Convert to float, default to 0.0 if empty string
+                        qty = float(raw_qty) if raw_qty and str(raw_qty).strip() else 0.0
                     except ValueError:
                         qty = 0.0
 
                     try:
                         raw_price = prices[i]
-                        price = float(raw_price) if raw_price and raw_price.strip() else 0.0
+                        # Convert to float, default to 0.0 if empty string
+                        price = float(raw_price) if raw_price and str(raw_price).strip() else 0.0
                     except ValueError:
                         price = 0.0
-                    # ----------------------------------
+                    # ---------------------------------------------------------------------------------
 
                     total_amount += (qty * price)
                     valid_items.append({'p_id': product_ids[i], 'qty': qty, 'price': price})
@@ -969,7 +972,7 @@ def new_purchase():
             
             purchase_id = cursor.lastrowid
             
-            # 4. Insert Items & Update Stock (FIXED LOGIC)
+            # 4. Insert Items & Update Stock
             
             # Dynamic Column Detection for Stock
             stock_col = 'quantity' # default
@@ -984,14 +987,11 @@ def new_purchase():
                 new_qty = item['qty']
                 new_price = item['price']
 
-                # --- [FIX START] Weighted Average Calculation ---
-                
-                # A. Fetch CURRENT stock and price
+                # --- Fetch CURRENT stock and price ---
                 cursor.execute(f"SELECT {stock_col}, price FROM products WHERE id = %s", (p_id,))
                 current_product = cursor.fetchone()
                 
                 if current_product:
-                    # Safe conversion for DB values too
                     try:
                         old_qty = float(current_product[stock_col] or 0)
                     except: old_qty = 0.0
@@ -1000,34 +1000,34 @@ def new_purchase():
                         old_price = float(current_product['price'] or 0)
                     except: old_price = 0.0
                     
-                    # B. Calculate Total Values
-                    total_old_value = old_qty * old_price
-                    total_new_value = new_qty * new_price
-                    
-                    # C. Combine
-                    final_total_value = total_old_value + total_new_value
+                    # Calculate New Total Quantity
                     final_total_qty = old_qty + new_qty
                     
-                    # D. Calculate New Average Price
-                    if final_total_qty > 0:
-                        new_avg_price = final_total_value / final_total_qty
+                    # --- FIX 2: Logic for Price Update ---
+                    if new_price > 0:
+                        # SCENARIO A: Paid Purchase -> Calculate Weighted Average
+                        total_old_value = old_qty * old_price
+                        total_new_value = new_qty * new_price
+                        final_total_value = total_old_value + total_new_value
+                        
+                        if final_total_qty > 0:
+                            new_avg_price = final_total_value / final_total_qty
+                        else:
+                            new_avg_price = 0.0
                     else:
-                        # If total quantity is 0 (e.g. returns/adjustments), keep old price or 0
-                        new_avg_price = old_price if final_total_qty == 0 else 0.0
-                    
+                        # SCENARIO B: Zero Price (Free/Bonus) -> KEEP OLD PRICE
+                        # The user specifically requested NOT to update price if new price is missing/zero.
+                        new_avg_price = old_price
+
                     # E. Insert Item
                     cursor.execute("""
                         INSERT INTO purchase_items (purchase_id, product_id, quantity, purchase_price)
                         VALUES (%s, %s, %s, %s)
                     """, (purchase_id, p_id, new_qty, new_price))
                     
-                    # F. Update Product with NEW Average Price and NEW Total Quantity
-                    # Note: We use final_total_qty here directly
+                    # F. Update Product with Calculated Price and New Quantity
                     update_query = f"UPDATE products SET {stock_col} = %s, price = %s WHERE id = %s"
                     cursor.execute(update_query, (final_total_qty, new_avg_price, p_id))
-                    
-                # --- [FIX END] ---
-
             
             # 5. Update Supplier Dues (Add to debt)
             cursor.execute("""
@@ -1041,8 +1041,9 @@ def new_purchase():
         except Exception as e:
             mysql.connection.rollback()
             flash(f"Error creating purchase: {str(e)}", "danger")
-            print(f"Purchase Error: {e}")
-            return redirect(url_for('purchases')) # Redirect back on error instead of hanging
+            # Log error to console for debugging
+            print(f"Purchase Error: {e}") 
+            return redirect(url_for('purchases'))
             
     # GET: Load data
     cursor.execute("SELECT id, name FROM suppliers ORDER BY name")
@@ -4904,6 +4905,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
