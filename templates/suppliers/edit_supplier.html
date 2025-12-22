@@ -1,9 +1,9 @@
 {% extends "admin_master.html" %}
 
-{% block page_content %}
+{% block content %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/supplier.css') }}">
 
-<div class="container py-5 fade-in-up" style="max-width: 800px;">
+<div class="container py-5 fade-in-up" style="max-width: 900px;">
     
     <div class="d-flex align-items-center mb-4">
         <a href="{{ url_for('suppliers') }}" class="btn btn-light rounded-circle shadow-sm me-3" style="width: 40px; height: 40px; display:flex; align-items:center; justify-content:center;">
@@ -18,31 +18,72 @@
     <div class="glass-panel p-5">
         <form method="POST" class="needs-validation" novalidate>
             <div class="row g-4">
+                
+                <!-- Basic Info -->
+                <div class="col-12 border-bottom pb-2 mb-2">
+                    <h5 class="fw-bold text-primary"><i class="fa-solid fa-id-card me-2"></i>Basic Details</h5>
+                </div>
+
                 <div class="col-md-6">
                     <label class="form-label fw-bold text-muted small text-uppercase">Supplier Name <span class="text-danger">*</span></label>
                     <input type="text" class="form-control input-glass" id="name" name="name" value="{{ supplier.name }}" required>
+                    <div class="invalid-feedback">Name is required.</div>
                 </div>
                 <div class="col-md-6">
                     <label class="form-label fw-bold text-muted small text-uppercase">Phone Number</label>
-                    <input type="text" class="form-control input-glass" id="phone" name="phone" value="{{ supplier.phone or '' }}">
+                    <input type="text" class="form-control input-glass" id="phone" name="phone" value="{{ supplier.phone or '' }}" pattern="[0-9]{10}" maxlength="10">
+                    <div class="invalid-feedback">Enter a valid 10-digit phone number.</div>
                 </div>
-                <div class="col-12">
-                    <label class="form-label fw-bold text-muted small text-uppercase">Address</label>
-                    <textarea class="form-control input-glass" id="address" name="address" rows="3">{{ supplier.address or '' }}</textarea>
+                <div class="col-md-6">
+                    <label class="form-label fw-bold text-muted small text-uppercase">Email</label>
+                    <input type="email" class="form-control input-glass" id="email" name="email" value="{{ supplier.email or '' }}">
                 </div>
                 <div class="col-md-6">
                     <label class="form-label fw-bold text-muted small text-uppercase">GSTIN</label>
-                    <input type="text" class="form-control input-glass" id="gstin" name="gstin" value="{{ supplier.gstin or '' }}">
+                    <input type="text" class="form-control input-glass" id="gst_number" name="gst_number" value="{{ supplier.gst_number or '' }}">
                 </div>
+                <div class="col-12">
+                    <label class="form-label fw-bold text-muted small text-uppercase">Address</label>
+                    <textarea class="form-control input-glass" id="address" name="address" rows="2">{{ supplier.address or '' }}</textarea>
+                </div>
+
+                <!-- Financial Info -->
+                <div class="col-12 border-bottom pb-2 mb-2 mt-4">
+                    <h5 class="fw-bold text-success"><i class="fa-solid fa-wallet me-2"></i>Financial Settings</h5>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label fw-bold text-muted small text-uppercase">Opening Balance (₹)</label>
+                    <input type="number" step="0.01" class="form-control input-glass fw-bold text-danger" id="opening_balance" name="opening_balance" value="{{ supplier.opening_balance or 0 }}">
+                    <div class="form-text text-muted">Initial debt amount (pre-system).</div>
+                </div>
+                
+                <!-- Payment Terms Removed as per previous instructions -->
+
             </div>
             
             <div class="mt-5 text-end">
                 <button type="submit" class="btn-glass-primary px-5 py-3 shadow-lg">
-                    <i class="fa-solid fa-check-double me-2"></i>Update Changes
+                    <i class="fa-solid fa-check-double me-2"></i>Update Supplier
                 </button>
             </div>
         </form>
     </div>
 </div>
-{% endblock %}
 
+<script>
+    (function () {
+        'use strict'
+        var forms = document.querySelectorAll('.needs-validation')
+        Array.prototype.slice.call(forms).forEach(function (form) {
+            form.addEventListener('submit', function (event) {
+                if (!form.checkValidity()) {
+                    event.preventDefault()
+                    event.stopPropagation()
+                }
+                form.classList.add('was-validated')
+            }, false)
+        })
+    })()
+</script>
+{% endblock %}
