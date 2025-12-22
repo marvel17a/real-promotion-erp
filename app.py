@@ -639,6 +639,7 @@ def supplier_ledger(supplier_id):
     except: adjustments = []
     
     # 3. Calculate Totals
+    # Use COALESCE to handle NULLs safely
     cursor.execute("SELECT SUM(COALESCE(total_amount, 0)) as total FROM purchases WHERE supplier_id=%s", (supplier_id,))
     total_purchases = float(cursor.fetchone()['total'] or 0)
     
@@ -656,8 +657,9 @@ def supplier_ledger(supplier_id):
     
     opening_bal = float(supplier.get('opening_balance', 0.0))
     
-    # Formula: Total Outstanding = (Opening + Purchases + Adjustments) - Payments
-    # This is the single truth number the user wants to see
+    # --- FORMULA ---
+    # Total Outstanding Amount = (Opening + Purchases + Adjustments) - Payments
+    # This value is DYNAMIC: it increases with purchases/adjustments and decreases with payments.
     total_outstanding_amount = (opening_bal + total_purchases + total_adjustments) - total_paid
     
     cursor.close()
@@ -4772,6 +4774,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
