@@ -739,29 +739,56 @@ def record_payment(supplier_id):
 
 @app.route('/suppliers/delete/<int:supplier_id>', methods=['POST'])
 def delete_supplier(supplier_id):
-    cursor = None
+    if 'loggedin' not in session: return redirect(url_for('login'))
+    
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     try:
-        cursor = mysql.connection.cursor()
+        # 1. Delete Supplier Payments (Purchase Order Payments)
+        # We try this, but if table doesn't exist or is empty, we continue
+        try:
+            cursor.execute("DELETE FROM supplier_payments WHERE supplier_id = %s", (supplier_id,))
+        except Exception:
+            pass # Table might not exist or other issue
+            
+        # 2. Delete Purchases (and items)
+        # Get purchase IDs to manually delete items if CASCADE is missing
+        cursor.execute("SELECT id FROM purchases WHERE supplier_id = %s", (supplier_id,))
+        purchase_ids = [p['id'] for p in cursor.fetchall()]
+        
+        if purchase_ids:
+            if len(purchase_ids) == 1:
+                ids_tuple = f"({purchase_ids[0]})"
+            else:
+                ids_tuple = str(tuple(purchase_ids))
+                
+            cursor.execute(f"DELETE FROM purchase_items WHERE purchase_id IN {ids_tuple}")
+            cursor.execute("DELETE FROM purchases WHERE supplier_id=%s", (supplier_id,))
 
-        # FIRST delete dependent tables (important for FK constraints)
-        cursor.execute("DELETE FROM supplier_payments WHERE supplier_id = %s", (supplier_id,))
-        cursor.execute("DELETE FROM purchase_items WHERE purchase_id IN (SELECT id FROM purchases WHERE supplier_id = %s)", (supplier_id,))
-        cursor.execute("DELETE FROM purchases WHERE supplier_id = %s", (supplier_id,))
+        # 3. Delete Manual Adjustments (if any)
+        try:
+            cursor.execute("DELETE FROM supplier_adjustments WHERE supplier_id = %s", (supplier_id,))
+        except:
+            pass
 
-        # NOW delete the supplier
-        cursor.execute("DELETE FROM suppliers WHERE id = %s", (supplier_id,))
+        # NOTE: Removed 'supplier_cashflow' deletion as per instruction ("module removed")
 
+        # 4. Finally, Delete the Supplier
+        cursor.execute("DELETE FROM suppliers WHERE id=%s", (supplier_id,))
+        
         mysql.connection.commit()
-        flash("Supplier deleted successfully!", "success")
-
+        flash('Supplier and related records deleted successfully.', 'success')
+        
     except Exception as e:
         mysql.connection.rollback()
-        flash(f"Error deleting supplier: {e}", "danger")
-
+        # Check for specific FK error (1451) to give better message
+        if "1451" in str(e):
+             flash("Cannot delete supplier: They still have linked records (possibly in Cashflow/Archive) that must be removed first.", "danger")
+        else:
+             flash(f"Error deleting supplier: {str(e)}", "danger")
+        
     finally:
-        if cursor:
-            cursor.close()
-
+        cursor.close()
+        
     return redirect(url_for('suppliers'))
 
 # ... existing imports ...
@@ -4863,6 +4890,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
