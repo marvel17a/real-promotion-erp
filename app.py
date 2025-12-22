@@ -592,9 +592,12 @@ def supplier_ledger(supplier_id):
     purchases = cursor.fetchall()
     
     # 3. Fetch Payments (Credits - Money Paid via Purchase Order System)
-    # querying the new 'supplier_payments' table
-    cursor.execute("SELECT * FROM supplier_payments WHERE supplier_id=%s ORDER BY payment_date DESC", (supplier_id,))
-    payments = cursor.fetchall()
+    # querying the new 'supplier_payments' table which is for PO payments only
+    try:
+        cursor.execute("SELECT * FROM supplier_payments WHERE supplier_id=%s ORDER BY payment_date DESC", (supplier_id,))
+        payments = cursor.fetchall()
+    except:
+        payments = [] # Fallback if table doesn't exist
     
     # 4. Calculate Total Due
     # Formula: Opening Balance + Total Purchases - Total Payments (from supplier_payments only)
@@ -603,9 +606,12 @@ def supplier_ledger(supplier_id):
     cursor.execute("SELECT SUM(total_amount) as total FROM purchases WHERE supplier_id=%s", (supplier_id,))
     total_purchases = cursor.fetchone()['total'] or 0
     
-    # Sum Payments
-    cursor.execute("SELECT SUM(amount_paid) as total FROM supplier_payments WHERE supplier_id=%s", (supplier_id,))
-    total_paid = cursor.fetchone()['total'] or 0
+    # Sum Payments (Purchase Order Payments only)
+    try:
+        cursor.execute("SELECT SUM(amount_paid) as total FROM supplier_payments WHERE supplier_id=%s", (supplier_id,))
+        total_paid = cursor.fetchone()['total'] or 0
+    except:
+        total_paid = 0
     
     # Opening Balance (Treated as initial debt you owe)
     opening_bal = float(supplier.get('opening_balance', 0.0))
@@ -613,13 +619,17 @@ def supplier_ledger(supplier_id):
     # Final Calculation: (Opening + Purchases) - Paid
     current_due = (opening_bal + float(total_purchases)) - float(total_paid)
     
+    # If you want to show 'Total Outstanding' (Opening + Purchases) separately from 'Due'
+    total_outstanding = opening_bal + float(total_purchases)
+    
     cursor.close()
     
     return render_template('suppliers/supplier_ledger.html', 
                          supplier=supplier, 
                          purchases=purchases, 
                          payments=payments, 
-                         final_balance=current_due,
+                         final_balance=current_due, # This is the "Net Payable"
+                         total_outstanding=total_outstanding, # This is (Opening + New Purchases) before payments
                          opening_balance=opening_bal)
 
 
@@ -652,7 +662,7 @@ def record_payment(supplier_id):
                 VALUES (%s, %s, %s, %s, %s)
             """, (supplier_id, amount_paid, payment_date, payment_mode, notes))
 
-            # Update 'current_due' in suppliers table (Optional, but good for quick access in list view)
+            # Update 'current_due' in suppliers table directly
             # Logic: Reducing the debt
             cur.execute("""
                 UPDATE suppliers SET current_due = current_due - %s WHERE id = %s
@@ -668,6 +678,7 @@ def record_payment(supplier_id):
     
     cur.close()
     return render_template('suppliers/new_payment.html', supplier=supplier, today_date=date.today().isoformat())
+
 
 
 
@@ -4797,6 +4808,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
