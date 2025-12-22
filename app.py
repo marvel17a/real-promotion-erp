@@ -610,55 +610,67 @@ def edit_supplier(supplier_id):
 # SUPPLIER LEDGER & PAYMENT ROUTES
 # =====================================================================
 
-
 @app.route('/supplier_ledger/<int:supplier_id>')
 def supplier_ledger(supplier_id):
     if 'loggedin' not in session: return redirect(url_for('login'))
+    
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
-    # 1. Fetch Supplier
+    # 1. Fetch Supplier Info
     cursor.execute("SELECT * FROM suppliers WHERE id=%s", (supplier_id,))
     supplier = cursor.fetchone()
+    
     if not supplier:
         flash("Supplier not found!", "danger")
         return redirect(url_for('suppliers'))
 
-    # 2. Fetch Records
+    # 2. Fetch Purchases (Debits - Money Owed)
     cursor.execute("SELECT * FROM purchases WHERE supplier_id=%s ORDER BY purchase_date DESC", (supplier_id,))
     purchases = cursor.fetchall()
     
+    # 3. Fetch Payments (Credits - Money Paid via Purchase Order System)
     try:
         cursor.execute("SELECT * FROM supplier_payments WHERE supplier_id=%s ORDER BY payment_date DESC", (supplier_id,))
         payments = cursor.fetchall()
-    except: payments = []
-
+    except:
+        payments = [] # Fallback
+        
+    # 4. Fetch Manual Adjustments (New Dues)
     try:
         cursor.execute("SELECT * FROM supplier_adjustments WHERE supplier_id=%s ORDER BY adjustment_date DESC", (supplier_id,))
         adjustments = cursor.fetchall()
-    except: adjustments = []
+    except:
+        adjustments = []
     
-    # 3. Calculations
+    # 5. Calculate Totals
+    
+    # Sum of Purchases
     cursor.execute("SELECT SUM(total_amount) as total FROM purchases WHERE supplier_id=%s", (supplier_id,))
     total_purchases = float(cursor.fetchone()['total'] or 0)
     
+    # Sum of Payments
     try:
         cursor.execute("SELECT SUM(amount_paid) as total FROM supplier_payments WHERE supplier_id=%s", (supplier_id,))
         total_paid = float(cursor.fetchone()['total'] or 0)
-    except: total_paid = 0.0
-    
+    except:
+        total_paid = 0.0
+        
+    # Sum of Manual Adjustments
     try:
         cursor.execute("SELECT SUM(amount) as total FROM supplier_adjustments WHERE supplier_id=%s", (supplier_id,))
-        total_adj = float(cursor.fetchone()['total'] or 0)
-    except: total_adj = 0.0
+        total_adjustments = float(cursor.fetchone()['total'] or 0)
+    except:
+        total_adjustments = 0.0
     
+    # Opening Balance
     opening_bal = float(supplier.get('opening_balance', 0.0))
     
-    # Formula: Total Outstanding = Opening + Purchases + Adjustments - Payments
-    # Note: User requested "Total Outstanding" to be the final due amount in the first box
-    current_due = (opening_bal + total_purchases + total_adj) - total_paid
+    # Formula: Total Outstanding = (Opening + Purchases + Adjustments) - Payments
+    # This is the "Net Payable" or "Current Due"
+    current_due = (opening_bal + total_purchases + total_adjustments) - total_paid
     
-    # Gross Outstanding (Before payments)
-    gross_outstanding = opening_bal + total_purchases + total_adj
+    # Gross Billed Amount (Before Payments)
+    gross_billed = opening_bal + total_purchases + total_adjustments
     
     cursor.close()
     
@@ -667,8 +679,8 @@ def supplier_ledger(supplier_id):
                          purchases=purchases, 
                          payments=payments, 
                          adjustments=adjustments,
-                         final_balance=current_due,       # This is the net payable
-                         total_outstanding=gross_outstanding, # Gross before payments
+                         final_balance=current_due,       # Net Payable (Total Outstanding)
+                         total_outstanding=gross_billed,  # Gross before payments
                          opening_balance=opening_bal)
 
 
@@ -4773,6 +4785,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
