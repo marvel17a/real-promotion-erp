@@ -615,12 +615,15 @@ def supplier_ledger(supplier_id):
     
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
-    # 1. Fetch Supplier
+    # 1. Fetch Supplier Info
     cursor.execute("SELECT * FROM suppliers WHERE id=%s", (supplier_id,))
     supplier = cursor.fetchone()
-    if not supplier: return redirect(url_for('suppliers'))
+    
+    if not supplier:
+        flash("Supplier not found!", "danger")
+        return redirect(url_for('suppliers'))
 
-    # 2. Lists for Tables
+    # 2. Fetch Records
     cursor.execute("SELECT * FROM purchases WHERE supplier_id=%s ORDER BY purchase_date DESC", (supplier_id,))
     purchases = cursor.fetchall()
     
@@ -628,38 +631,37 @@ def supplier_ledger(supplier_id):
         cursor.execute("SELECT * FROM supplier_payments WHERE supplier_id=%s ORDER BY payment_date DESC", (supplier_id,))
         payments = cursor.fetchall()
     except: payments = []
-
+    
     try:
         cursor.execute("SELECT * FROM supplier_adjustments WHERE supplier_id=%s ORDER BY adjustment_date DESC", (supplier_id,))
         adjustments = cursor.fetchall()
     except: adjustments = []
     
-    # 3. CALCULATIONS (Robust COALESCE to handle NULLs)
-    
-    # Total Purchases
+    # 3. Calculate Totals
+    # Use COALESCE to handle NULLs safely
     cursor.execute("SELECT SUM(COALESCE(total_amount, 0)) as total FROM purchases WHERE supplier_id=%s", (supplier_id,))
     total_purchases = float(cursor.fetchone()['total'] or 0)
     
-    # Total Payments
     try:
         cursor.execute("SELECT SUM(COALESCE(amount_paid, 0)) as total FROM supplier_payments WHERE supplier_id=%s", (supplier_id,))
         total_paid = float(cursor.fetchone()['total'] or 0)
-    except: total_paid = 0.0
-    
-    # Total Adjustments
+    except:
+        total_paid = 0.0
+        
     try:
         cursor.execute("SELECT SUM(COALESCE(amount, 0)) as total FROM supplier_adjustments WHERE supplier_id=%s", (supplier_id,))
         total_adjustments = float(cursor.fetchone()['total'] or 0)
-    except: total_adjustments = 0.0
+    except:
+        total_adjustments = 0.0
     
-    # Opening Balance
     opening_bal = float(supplier.get('opening_balance', 0.0))
     
-    # FORMULAS
-    # 1. Gross Debt (Total Liability generated over time)
+    # --- FORMULAS ---
+    # 1. Gross Debt (All money ever owed to this supplier)
     gross_debt = opening_bal + total_purchases + total_adjustments
     
-    # 2. Net Outstanding (What is currently owed) -> This uses the user's requested formula
+    # 2. Net Outstanding (What you currently owe)
+    # This is the dynamic amount that reduces when you pay
     net_outstanding = gross_debt - total_paid
     
     cursor.close()
@@ -669,8 +671,8 @@ def supplier_ledger(supplier_id):
                          purchases=purchases, 
                          payments=payments, 
                          adjustments=adjustments,
-                         net_outstanding=net_outstanding, # Changed variable name for clarity
-                         gross_debt=gross_debt,
+                         net_outstanding=net_outstanding, # Dynamic Due
+                         gross_debt=gross_debt,           # Static History
                          opening_balance=opening_bal)
 
 
@@ -4775,6 +4777,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
