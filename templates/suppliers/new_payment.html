@@ -24,7 +24,7 @@
                     <label class="form-label fw-bold text-muted small text-uppercase">Payment Date <span class="text-danger">*</span></label>
                     <div class="input-group">
                         <span class="input-group-text bg-white border-end-0"><i class="fa-regular fa-calendar"></i></span>
-                        <input type="text" class="form-control input-glass border-start-0 ps-0" id="payment_date" name="payment_date" required>
+                        <input type="text" class="form-control input-glass border-start-0 ps-0" id="payment_date" name="payment_date" value="{{ today_date }}" required>
                     </div>
                 </div>
 
@@ -34,7 +34,8 @@
                         <span class="input-group-text bg-white border-end-0 fw-bold">₹</span>
                         <input type="number" class="form-control input-glass border-start-0 ps-0 fs-5 fw-bold text-success" id="amount_paid" name="amount_paid" step="0.01" min="0.01" required placeholder="0.00">
                     </div>
-                    <div class="form-text text-muted">Current Due: ₹{{ "%.2f"|format(total_outstanding_amount or 0) }}</div>
+                    <!-- Updated to use the calculated 'current_due' passed from backend -->
+                    <div class="form-text text-muted">Current Due: <span class="fw-bold text-danger">₹{{ "%.2f"|format(current_due or 0) }}</span></div>
                 </div>
 
                 <div class="col-md-6">
@@ -71,5 +72,3 @@
     });
 </script>
 {% endblock %}
-
-
