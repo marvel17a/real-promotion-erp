@@ -366,6 +366,8 @@ def get_db_column(cursor, table_name, candidates):
     except:
         return candidates[0]
 
+
+
 @app.route("/dash")
 def dash():
     """Admin Analytics Dashboard (Premium)"""
@@ -390,7 +392,6 @@ def dash():
     # --- 2. Sales This Month ---
     try:
         start_m = date(today.year, today.month, 1)
-        # Logic to find end of month
         if today.month == 12: end_m = date(today.year + 1, 1, 1) - timedelta(days=1)
         else: end_m = date(today.year, today.month + 1, 1) - timedelta(days=1)
         
@@ -398,13 +399,13 @@ def dash():
         sales_this_month = cursor.fetchone()['total'] or 0
     except: sales_this_month = 0
 
-    # --- 3. Yearly Sales (New) ---
+    # --- 3. Yearly Sales ---
     try:
         cursor.execute(f"SELECT SUM({sales_col}) as total FROM sales WHERE YEAR(date) = %s", (current_year,))
         yearly_sales = cursor.fetchone()['total'] or 0
     except: yearly_sales = 0
 
-    # --- 4. Yearly Expenses (New) ---
+    # --- 4. Yearly Expenses ---
     try:
         cursor.execute(f"SELECT SUM({exp_col}) as total FROM expenses WHERE YEAR(date) = %s", (current_year,))
         yearly_expenses = cursor.fetchone()['total'] or 0
@@ -416,46 +417,50 @@ def dash():
         low_stock = cursor.fetchone()['cnt'] or 0
     except: low_stock = 0
     
-    # --- 6. Supplier Dues ---
+    # --- 6. Supplier Dues (FIXED LOGIC) ---
+    # Formula: Total Opening Balance + Total Purchases - Total Payments
     try:
-        cursor.execute(f"""
-            SELECT 
-                (SELECT IFNULL(SUM({purch_col}),0) FROM purchases) - 
-                (SELECT IFNULL(SUM(amount),0) FROM supplier_cashflow WHERE type='payment') 
-            AS pending_dues
-        """)
-        supplier_dues = cursor.fetchone()['pending_dues'] or 0
-    except: supplier_dues = 0
+        # A. Get Total Opening Balance of all suppliers
+        cursor.execute("SELECT SUM(opening_balance) as total_ob FROM suppliers")
+        total_ob = float(cursor.fetchone()['total_ob'] or 0)
+        
+        # B. Get Total Purchases
+        cursor.execute(f"SELECT SUM({purch_col}) as total_pur FROM purchases")
+        total_pur = float(cursor.fetchone()['total_pur'] or 0)
+        
+        # C. Get Total Payments (from supplier_payments table)
+        try:
+            cursor.execute("SELECT SUM(amount_paid) as total_paid FROM supplier_payments")
+            total_paid = float(cursor.fetchone()['total_paid'] or 0)
+        except:
+            total_paid = 0.0 # Table might not exist yet
+            
+        supplier_dues = (total_ob + total_pur) - total_paid
+    except Exception as e:
+        print(f"Dues Calc Error: {e}")
+        supplier_dues = 0
     
-    # --- 7. CHART DATA (Jan - Dec for Current Year) ---
+    # --- 7. CHART DATA (Jan - Dec) ---
     chart_months = []
     chart_sales = []
     chart_expenses = []
     
-    # Loop 1 to 12 for January to December
     for m in range(1, 13):
         month_name = calendar.month_abbr[m]
         chart_months.append(month_name)
         
-        # Calculate start and end date for month 'm' in 'current_year'
         start_date = date(current_year, m, 1)
-        if m == 12:
-            end_date = date(current_year + 1, 1, 1) - timedelta(days=1)
-        else:
-            end_date = date(current_year, m + 1, 1) - timedelta(days=1)
+        if m == 12: end_date = date(current_year + 1, 1, 1) - timedelta(days=1)
+        else: end_date = date(current_year, m + 1, 1) - timedelta(days=1)
             
-        # Sales Query
         try:
             cursor.execute(f"SELECT SUM({sales_col}) as s FROM sales WHERE date BETWEEN %s AND %s", (start_date, end_date))
-            val = cursor.fetchone()['s'] or 0
-            chart_sales.append(float(val))
+            chart_sales.append(float(cursor.fetchone()['s'] or 0))
         except: chart_sales.append(0.0)
         
-        # Expenses Query
         try:
             cursor.execute(f"SELECT SUM({exp_col}) as e FROM expenses WHERE date BETWEEN %s AND %s", (start_date, end_date))
-            val = cursor.fetchone()['e'] or 0
-            chart_expenses.append(float(val))
+            chart_expenses.append(float(cursor.fetchone()['e'] or 0))
         except: chart_expenses.append(0.0)
 
     # --- 8. TOP PRODUCTS ---
@@ -478,10 +483,10 @@ def dash():
         "dash.html",
         sales_today=sales_today,
         sales_this_month=sales_this_month,
-        yearly_sales=yearly_sales,         # New
-        yearly_expenses=yearly_expenses,   # New
+        yearly_sales=yearly_sales,
+        yearly_expenses=yearly_expenses,
         low_stock=low_stock,
-        supplier_dues=supplier_dues,
+        supplier_dues=supplier_dues, # Now correct
         chart_months=chart_months,
         chart_sales=chart_sales,
         chart_expenses=chart_expenses,
@@ -4858,6 +4863,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
