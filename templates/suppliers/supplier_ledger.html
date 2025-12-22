@@ -5,7 +5,7 @@
 
 <div class="container-fluid py-4 fade-in-up" id="ledgerContent">
 
-    <!-- Header & Actions -->
+    <!-- Header -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h2 class="page-title mb-0">Supplier Ledger</h2>
@@ -13,20 +13,14 @@
         </div>
         
         <div class="d-flex gap-2">
-            <a href="{{ url_for('supplier_add_due', supplier_id=supplier.id) }}" class="btn btn-warning text-dark rounded-pill shadow-sm px-3 d-flex align-items-center fw-bold">
-                <i class="fa-solid fa-file-circle-plus me-2"></i>Add Other Due
+            <a href="{{ url_for('supplier_add_due', supplier_id=supplier.id) }}" class="btn btn-warning text-dark rounded-pill shadow-sm px-3 fw-bold">
+                <i class="fa-solid fa-plus-circle me-1"></i> Other Due
             </a>
-            <a href="{{ url_for('record_payment', supplier_id=supplier.id) }}" class="btn btn-glass-primary text-decoration-none d-flex align-items-center">
-                <i class="fa-solid fa-plus me-2"></i>Pay Bill
+            <a href="{{ url_for('record_payment', supplier_id=supplier.id) }}" class="btn btn-glass-primary text-decoration-none">
+                <i class="fa-solid fa-wallet me-1"></i> Pay Bill
             </a>
-            <a href="https://wa.me/?text=Hi {{ supplier.name }}, current due: {{ final_balance|inr }}" target="_blank" class="btn btn-success rounded-circle shadow-sm" style="width: 40px; height: 40px; display:flex; align-items:center; justify-content:center;">
-                <i class="fa-brands fa-whatsapp"></i>
-            </a>
-            <button onclick="downloadPDF()" class="btn btn-danger rounded-circle shadow-sm" style="width: 40px; height: 40px; display:flex; align-items:center; justify-content:center;">
-                <i class="fa-solid fa-file-pdf"></i>
-            </button>
-            <a href="{{ url_for('suppliers') }}" class="btn btn-light rounded-pill shadow-sm px-4">
-                <i class="fa-solid fa-arrow-left me-2"></i>Back
+            <a href="{{ url_for('suppliers') }}" class="btn btn-light rounded-pill shadow-sm px-3">
+                <i class="fa-solid fa-arrow-left"></i>
             </a>
         </div>
     </div>
@@ -34,61 +28,79 @@
     <!-- Financial Cards Row -->
     <div class="row g-4 mb-4">
         
-        <!-- 1. TOTAL OUTSTANDING (NET PAYABLE) - This is the main dynamic figure -->
+        <!-- CARD 1: TOTAL OUTSTANDING (NET PAYABLE) - Requested First Position -->
+        <!-- Formula: Opening + Purchases + Others - Payment -->
         <div class="col-lg-4">
-            <div class="glass-panel p-4 h-100 border-start border-4 {% if final_balance > 0 %}border-danger{% else %}border-success{% endif %} shadow-sm">
-                <small class="text-uppercase fw-bold text-muted ls-1 mb-1 d-block">Total Outstanding Amount</small>
-                <h1 class="display-5 fw-bold mb-0 {% if final_balance > 0 %}text-danger{% else %}text-success{% endif %}">
-                    {{ (final_balance|abs)|inr }}
-                </h1>
-                <div class="mt-2 small text-muted d-flex align-items-center justify-content-between">
-                    <span class="badge rounded-pill {% if final_balance > 0 %}bg-danger{% else %}bg-success{% endif %}">
-                        {% if final_balance > 0 %}Payable{% else %}Cleared{% endif %}
-                    </span>
-                    <span>(Op + Pur + Oth) - Paid</span>
+            <div class="glass-panel p-4 h-100 border-start border-4 {% if net_outstanding > 0 %}border-danger{% else %}border-success{% endif %} shadow-sm position-relative overflow-hidden">
+                <div class="d-flex justify-content-between align-items-start z-1 position-relative">
+                    <div>
+                        <small class="text-uppercase fw-bold text-muted ls-1">Total Outstanding</small>
+                        <h2 class="display-5 fw-bold mb-0 mt-1 {% if net_outstanding > 0 %}text-danger{% else %}text-success{% endif %}">
+                            {{ net_outstanding|inr }}
+                        </h2>
+                        <span class="badge mt-2 rounded-pill {% if net_outstanding > 0 %}bg-danger{% else %}bg-success{% endif %}">
+                            {% if net_outstanding > 0 %}Pending{% else %}Paid{% endif %}
+                        </span>
+                    </div>
+                    <div class="icon-box {% if net_outstanding > 0 %}bg-danger{% else %}bg-success{% endif %} bg-opacity-10 rounded-circle">
+                        <i class="fa-solid fa-hand-holding-dollar"></i>
+                    </div>
+                </div>
+                <div class="mt-3 pt-3 border-top small text-muted">
+                    Calculation: (Op + Pur + Oth) - Paid
                 </div>
             </div>
         </div>
 
-        <!-- 2. GROSS BILLED (Total Value) -->
+        <!-- CARD 2: GROSS HISTORY (Total Billed) -->
         <div class="col-lg-4">
             <div class="glass-panel p-4 h-100 border-start border-4 border-warning shadow-sm">
-                <small class="text-uppercase fw-bold text-muted ls-1 mb-1 d-block">Gross Billed Value</small>
-                <h3 class="fw-bold text-dark mb-0">{{ (total_outstanding if total_outstanding is defined else 0)|inr }}</h3>
-                <div class="mt-3 small text-muted border-top pt-2">
-                    <div class="d-flex justify-content-between">
-                        <span>Opening Bal:</span> 
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <small class="text-uppercase fw-bold text-muted ls-1">Gross Billed Value</small>
+                        <h3 class="fw-bold text-dark mb-0 mt-1">{{ gross_debt|inr }}</h3>
+                    </div>
+                    <div class="icon-box bg-warning bg-opacity-10 text-warning rounded-circle">
+                        <i class="fa-solid fa-file-invoice"></i>
+                    </div>
+                </div>
+                <div class="mt-3 pt-3 border-top small">
+                    <div class="d-flex justify-content-between mb-1">
+                        <span class="text-muted">Opening:</span>
                         <span class="fw-bold">{{ (opening_balance or 0)|inr }}</span>
                     </div>
                     <div class="d-flex justify-content-between">
-                        <span>Purchases:</span> 
-                        <!-- Calculated: Gross - Opening - Other -->
-                        <span class="fw-bold">{{ ((total_outstanding if total_outstanding is defined else 0) - (opening_balance or 0))|inr }}</span>
+                        <span class="text-muted">New Bills+Other:</span>
+                        <span class="fw-bold">{{ (gross_debt - (opening_balance or 0))|inr }}</span>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- 3. MINI CHART -->
+        <!-- CARD 3: CHART -->
         <div class="col-lg-4">
-            <div class="glass-panel p-3 h-100 d-flex flex-column align-items-center justify-content-center shadow-sm">
+            <div class="glass-panel p-3 h-100 d-flex align-items-center justify-content-center">
                 <div style="height: 120px; width: 120px;">
-                    <canvas id="balanceChart"></canvas>
+                    <canvas id="ledgerChart"></canvas>
                 </div>
-                <small class="text-muted mt-2 fw-bold">Payment Progress</small>
+                <div class="ms-4">
+                    <div class="small mb-1"><span class="badge bg-danger p-1 rounded-circle me-1"></span> Due</div>
+                    <div class="small"><span class="badge bg-success p-1 rounded-circle me-1"></span> Paid</div>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Tables Row -->
+    <!-- TABLES (Purchases, Others, Payments) -->
     <div class="row g-4">
-        <!-- LEFT: PURCHASES + OTHER DUES -->
+        <!-- LEFT COL: Debits -->
         <div class="col-lg-6">
+            <!-- Purchases -->
             <div class="glass-panel p-0 overflow-hidden mb-4 shadow-sm">
-                <div class="p-3 border-bottom bg-light bg-opacity-50">
-                    <h5 class="mb-0 fw-bold text-dark"><i class="fa-solid fa-cart-shopping me-2 text-primary"></i>Purchases</h5>
+                <div class="p-3 border-bottom bg-light">
+                    <h6 class="mb-0 fw-bold"><i class="fa-solid fa-cart-shopping me-2 text-primary"></i>Purchases</h6>
                 </div>
-                <div class="table-responsive p-3" style="max-height: 300px; overflow-y: auto;">
+                <div class="table-responsive p-3" style="max-height: 250px; overflow-y: auto;">
                     <table class="table-glass">
                         <thead><tr><th>Date</th><th>Bill #</th><th class="text-end">Amount</th><th>View</th></tr></thead>
                         <tbody>
@@ -108,15 +120,15 @@
                     </table>
                 </div>
             </div>
-
-            <!-- Other Manual Dues -->
+            
+            <!-- Other Dues -->
             <div class="glass-panel p-0 overflow-hidden shadow-sm">
                 <div class="p-3 border-bottom bg-warning bg-opacity-10">
-                    <h5 class="mb-0 fw-bold text-dark"><i class="fa-solid fa-file-invoice me-2 text-warning"></i>Other Dues</h5>
+                    <h6 class="mb-0 fw-bold"><i class="fa-solid fa-file-circle-plus me-2 text-warning"></i>Other Dues</h6>
                 </div>
-                <div class="table-responsive p-3" style="max-height: 300px; overflow-y: auto;">
+                <div class="table-responsive p-3" style="max-height: 250px; overflow-y: auto;">
                     <table class="table-glass">
-                        <thead><tr><th>Date</th><th>Reason</th><th class="text-end">Amount</th></tr></thead>
+                        <thead><tr><th>Date</th><th>Note</th><th class="text-end">Amount</th></tr></thead>
                         <tbody>
                             {% for adj in adjustments %}
                             <tr>
@@ -133,15 +145,15 @@
             </div>
         </div>
 
-        <!-- RIGHT: PAYMENTS -->
+        <!-- RIGHT COL: Credits (Payments) -->
         <div class="col-lg-6">
             <div class="glass-panel p-0 overflow-hidden h-100 shadow-sm">
-                <div class="p-3 border-bottom bg-light bg-opacity-50">
-                    <h5 class="mb-0 fw-bold text-dark"><i class="fa-solid fa-money-bill-wave me-2 text-success"></i>Payment History</h5>
+                <div class="p-3 border-bottom bg-light">
+                    <h6 class="mb-0 fw-bold"><i class="fa-solid fa-money-bill-transfer me-2 text-success"></i>Payment History</h6>
                 </div>
                 <div class="table-responsive p-3" style="max-height: 600px; overflow-y: auto;">
                     <table class="table-glass">
-                        <thead><tr><th>Date</th><th>Mode</th><th class="text-end">Amount</th><th>Action</th></tr></thead>
+                        <thead><tr><th>Date</th><th>Mode</th><th class="text-end">Amount</th><th>Act</th></tr></thead>
                         <tbody>
                             {% for pay in payments %}
                             <tr>
@@ -150,7 +162,7 @@
                                 <td class="text-end fw-bold text-success">- {{ pay.amount_paid|inr }}</td>
                                 <td class="text-center">
                                     <form action="{{ url_for('delete_supplier_payment', payment_id=pay.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete?')">
-                                        <button class="btn btn-sm text-danger border-0"><i class="fa-solid fa-trash-can"></i></button>
+                                        <button class="btn btn-sm text-danger border-0 p-0"><i class="fa-solid fa-trash-can"></i></button>
                                     </form>
                                 </td>
                             </tr>
@@ -163,14 +175,14 @@
             </div>
         </div>
     </div>
+
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script>
-    const ctx = document.getElementById('balanceChart').getContext('2d');
-    const gross = parseFloat("{{ total_outstanding if total_outstanding is defined else 0 }}");
-    const net = parseFloat("{{ final_balance if final_balance is defined else 0 }}");
+    const ctx = document.getElementById('ledgerChart').getContext('2d');
+    const gross = parseFloat("{{ gross_debt }}");
+    const net = parseFloat("{{ net_outstanding }}");
     const paid = Math.max(0, gross - net);
     
     new Chart(ctx, {
@@ -185,10 +197,5 @@
         },
         options: { cutout: '70%', plugins: { legend: { display: false } } }
     });
-
-    function downloadPDF() {
-        const element = document.getElementById('ledgerContent');
-        html2pdf().from(element).save();
-    }
 </script>
 {% endblock %}
