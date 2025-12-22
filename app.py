@@ -920,7 +920,6 @@ def purchases():
     cur.close()
     return render_template('purchases/purchases.html', purchases=all_purchases)
 
-
 @app.route('/new_purchase', methods=['GET', 'POST'])
 def new_purchase():
     if 'loggedin' not in session: return redirect(url_for('login'))
@@ -945,8 +944,20 @@ def new_purchase():
             
             for i in range(len(product_ids)):
                 if product_ids[i]: 
-                    qty = float(quantities[i])
-                    price = float(prices[i])
+                    # --- FIX: Safe Float Conversion ---
+                    try:
+                        raw_qty = quantities[i]
+                        qty = float(raw_qty) if raw_qty and raw_qty.strip() else 0.0
+                    except ValueError:
+                        qty = 0.0
+
+                    try:
+                        raw_price = prices[i]
+                        price = float(raw_price) if raw_price and raw_price.strip() else 0.0
+                    except ValueError:
+                        price = 0.0
+                    # ----------------------------------
+
                     total_amount += (qty * price)
                     valid_items.append({'p_id': product_ids[i], 'qty': qty, 'price': price})
             
@@ -980,8 +991,14 @@ def new_purchase():
                 current_product = cursor.fetchone()
                 
                 if current_product:
-                    old_qty = float(current_product[stock_col] or 0)
-                    old_price = float(current_product['price'] or 0)
+                    # Safe conversion for DB values too
+                    try:
+                        old_qty = float(current_product[stock_col] or 0)
+                    except: old_qty = 0.0
+                    
+                    try:
+                        old_price = float(current_product['price'] or 0)
+                    except: old_price = 0.0
                     
                     # B. Calculate Total Values
                     total_old_value = old_qty * old_price
@@ -995,7 +1012,8 @@ def new_purchase():
                     if final_total_qty > 0:
                         new_avg_price = final_total_value / final_total_qty
                     else:
-                        new_avg_price = 0.0
+                        # If total quantity is 0 (e.g. returns/adjustments), keep old price or 0
+                        new_avg_price = old_price if final_total_qty == 0 else 0.0
                     
                     # E. Insert Item
                     cursor.execute("""
@@ -1024,6 +1042,7 @@ def new_purchase():
             mysql.connection.rollback()
             flash(f"Error creating purchase: {str(e)}", "danger")
             print(f"Purchase Error: {e}")
+            return redirect(url_for('purchases')) # Redirect back on error instead of hanging
             
     # GET: Load data
     cursor.execute("SELECT id, name FROM suppliers ORDER BY name")
@@ -4885,6 +4904,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
