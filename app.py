@@ -609,68 +609,58 @@ def edit_supplier(supplier_id):
 # =====================================================================
 # SUPPLIER LEDGER & PAYMENT ROUTES
 # =====================================================================
-
 @app.route('/supplier_ledger/<int:supplier_id>')
 def supplier_ledger(supplier_id):
     if 'loggedin' not in session: return redirect(url_for('login'))
     
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
-    # 1. Fetch Supplier Info
+    # 1. Fetch Supplier
     cursor.execute("SELECT * FROM suppliers WHERE id=%s", (supplier_id,))
     supplier = cursor.fetchone()
-    
-    if not supplier:
-        flash("Supplier not found!", "danger")
-        return redirect(url_for('suppliers'))
+    if not supplier: return redirect(url_for('suppliers'))
 
-    # 2. Fetch Purchases (Debits - Money Owed)
+    # 2. Lists for Tables
     cursor.execute("SELECT * FROM purchases WHERE supplier_id=%s ORDER BY purchase_date DESC", (supplier_id,))
     purchases = cursor.fetchall()
     
-    # 3. Fetch Payments (Credits - Money Paid via Purchase Order System)
     try:
         cursor.execute("SELECT * FROM supplier_payments WHERE supplier_id=%s ORDER BY payment_date DESC", (supplier_id,))
         payments = cursor.fetchall()
-    except:
-        payments = [] # Fallback
-        
-    # 4. Fetch Manual Adjustments (New Dues)
+    except: payments = []
+
     try:
         cursor.execute("SELECT * FROM supplier_adjustments WHERE supplier_id=%s ORDER BY adjustment_date DESC", (supplier_id,))
         adjustments = cursor.fetchall()
-    except:
-        adjustments = []
+    except: adjustments = []
     
-    # 5. Calculate Totals
+    # 3. CALCULATIONS (Robust COALESCE to handle NULLs)
     
-    # Sum of Purchases
-    cursor.execute("SELECT SUM(total_amount) as total FROM purchases WHERE supplier_id=%s", (supplier_id,))
+    # Total Purchases
+    cursor.execute("SELECT SUM(COALESCE(total_amount, 0)) as total FROM purchases WHERE supplier_id=%s", (supplier_id,))
     total_purchases = float(cursor.fetchone()['total'] or 0)
     
-    # Sum of Payments
+    # Total Payments
     try:
-        cursor.execute("SELECT SUM(amount_paid) as total FROM supplier_payments WHERE supplier_id=%s", (supplier_id,))
+        cursor.execute("SELECT SUM(COALESCE(amount_paid, 0)) as total FROM supplier_payments WHERE supplier_id=%s", (supplier_id,))
         total_paid = float(cursor.fetchone()['total'] or 0)
-    except:
-        total_paid = 0.0
-        
-    # Sum of Manual Adjustments
+    except: total_paid = 0.0
+    
+    # Total Adjustments
     try:
-        cursor.execute("SELECT SUM(amount) as total FROM supplier_adjustments WHERE supplier_id=%s", (supplier_id,))
+        cursor.execute("SELECT SUM(COALESCE(amount, 0)) as total FROM supplier_adjustments WHERE supplier_id=%s", (supplier_id,))
         total_adjustments = float(cursor.fetchone()['total'] or 0)
-    except:
-        total_adjustments = 0.0
+    except: total_adjustments = 0.0
     
     # Opening Balance
     opening_bal = float(supplier.get('opening_balance', 0.0))
     
-    # Formula: Total Outstanding = (Opening + Purchases + Adjustments) - Payments
-    # This is the "Net Payable" or "Current Due"
-    current_due = (opening_bal + total_purchases + total_adjustments) - total_paid
+    # FORMULAS
+    # 1. Gross Debt (Total Liability generated over time)
+    gross_debt = opening_bal + total_purchases + total_adjustments
     
-    # Gross Billed Amount (Before Payments)
-    gross_billed = opening_bal + total_purchases + total_adjustments
+    # 2. Net Outstanding (What is currently owed) -> This uses the user's requested formula
+    net_outstanding = gross_debt - total_paid
     
     cursor.close()
     
@@ -679,8 +669,8 @@ def supplier_ledger(supplier_id):
                          purchases=purchases, 
                          payments=payments, 
                          adjustments=adjustments,
-                         final_balance=current_due,       # Net Payable (Total Outstanding)
-                         total_outstanding=gross_billed,  # Gross before payments
+                         net_outstanding=net_outstanding, # Changed variable name for clarity
+                         gross_debt=gross_debt,
                          opening_balance=opening_bal)
 
 
@@ -4785,6 +4775,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
