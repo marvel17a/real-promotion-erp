@@ -537,14 +537,31 @@ def dash():
 # =====================================================================
 # SUPPLIER MANAGEMENT ROUTES
 # =====================================================================
-
 @app.route('/suppliers')
 def suppliers():
-    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    cur.execute("SELECT * FROM suppliers ORDER BY name")
-    all_suppliers = cur.fetchall()
-    cur.close()
-    return render_template('suppliers/suppliers.html', suppliers=all_suppliers)
+    if 'loggedin' not in session: return redirect(url_for('login'))
+    
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    
+    # FETCH SUPPLIERS WITH DYNAMIC DUE CALCULATION
+    # Formula: Opening + Purchases + Adjustments - Payments
+    # Ordered by ID ASC
+    query = """
+        SELECT s.*, 
+            (
+                s.opening_balance + 
+                COALESCE((SELECT SUM(total_amount) FROM purchases WHERE supplier_id = s.id), 0) +
+                COALESCE((SELECT SUM(amount) FROM supplier_adjustments WHERE supplier_id = s.id), 0) -
+                COALESCE((SELECT SUM(amount_paid) FROM supplier_payments WHERE supplier_id = s.id), 0)
+            ) as calculated_due
+        FROM suppliers s
+        ORDER BY s.id ASC
+    """
+    cursor.execute(query)
+    suppliers = cursor.fetchall()
+    
+    cursor.close()
+    return render_template('suppliers/suppliers.html', suppliers=suppliers)
 
 
 
@@ -751,18 +768,38 @@ def delete_supplier_adjustment(adjustment_id):
     return redirect(url_for('suppliers'))
 
 
-
 @app.route('/suppliers/<int:supplier_id>/payment/new', methods=['GET', 'POST'])
 def record_payment(supplier_id):
     if 'loggedin' not in session: return redirect(url_for('login'))
     
-    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    cur.execute("SELECT * FROM suppliers WHERE id = %s", (supplier_id,))
-    supplier = cur.fetchone()
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    
+    # Fetch Supplier
+    cursor.execute("SELECT * FROM suppliers WHERE id = %s", (supplier_id,))
+    supplier = cursor.fetchone()
     
     if not supplier:
         flash("Supplier not found.", "danger")
         return redirect(url_for('suppliers'))
+
+    # Calculate Current Due Dynamically for Display
+    cursor.execute("SELECT SUM(total_amount) as total FROM purchases WHERE supplier_id=%s", (supplier_id,))
+    total_purchases = float(cursor.fetchone()['total'] or 0)
+    
+    try:
+        cursor.execute("SELECT SUM(amount_paid) as total FROM supplier_payments WHERE supplier_id=%s", (supplier_id,))
+        total_paid = float(cursor.fetchone()['total'] or 0)
+    except: total_paid = 0.0
+    
+    try:
+        cursor.execute("SELECT SUM(amount) as total FROM supplier_adjustments WHERE supplier_id=%s", (supplier_id,))
+        total_adj = float(cursor.fetchone()['total'] or 0)
+    except: total_adj = 0.0
+    
+    opening_bal = float(supplier.get('opening_balance', 0.0))
+    
+    # Net Payable
+    current_due_display = (opening_bal + total_purchases + total_adj) - total_paid
 
     if request.method == 'POST':
         amount_paid = request.form.get('amount_paid')
@@ -772,18 +809,17 @@ def record_payment(supplier_id):
 
         if not amount_paid or not payment_date:
             flash("Payment amount and date are required.", "danger")
-            return render_template('suppliers/new_payment.html', supplier=supplier, today_date=date.today().isoformat())
+            return render_template('suppliers/new_payment.html', supplier=supplier, current_due=current_due_display, today_date=date.today().isoformat())
         
         try:
             # Insert into supplier_payments
-            cur.execute("""
+            cursor.execute("""
                 INSERT INTO supplier_payments (supplier_id, amount_paid, payment_date, payment_mode, notes)
                 VALUES (%s, %s, %s, %s, %s)
             """, (supplier_id, amount_paid, payment_date, payment_mode, notes))
 
-            # Update 'current_due' in suppliers table directly
-            # Logic: Reducing the debt
-            cur.execute("""
+            # Update 'current_due' in suppliers table (Optional sync, but good practice)
+            cursor.execute("""
                 UPDATE suppliers SET current_due = current_due - %s WHERE id = %s
             """, (amount_paid, supplier_id))
             
@@ -795,8 +831,11 @@ def record_payment(supplier_id):
             mysql.connection.rollback()
             flash(f"An error occurred: {e}", "danger")
     
-    cur.close()
-    return render_template('suppliers/new_payment.html', supplier=supplier, today_date=date.today().isoformat())
+    cursor.close()
+    
+    # Pass 'current_due_display' to template
+    return render_template('suppliers/new_payment.html', supplier=supplier, current_due=current_due_display, today_date=date.today().isoformat())
+
 
 
 
@@ -4811,6 +4850,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
