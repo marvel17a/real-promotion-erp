@@ -12,61 +12,57 @@
         </div>
         
         <div class="d-flex gap-2">
-            <!-- Add Other Due Button -->
             <a href="{{ url_for('supplier_add_due', supplier_id=supplier.id) }}" class="btn btn-warning text-dark rounded-pill shadow-sm px-3 d-flex align-items-center fw-bold">
                 <i class="fa-solid fa-file-circle-plus me-2"></i>Add Other Due
             </a>
-
-            <!-- Pay Bill Button -->
             <a href="{{ url_for('record_payment', supplier_id=supplier.id) }}" class="btn btn-glass-primary text-decoration-none d-flex align-items-center">
                 <i class="fa-solid fa-plus me-2"></i>Pay Bill
             </a>
-
-            <a href="https://wa.me/?text=Hi {{ supplier.name }}, net payable amount is {{ final_balance|inr }}" target="_blank" class="btn btn-success rounded-circle shadow-sm" style="width: 40px; height: 40px; display:flex; align-items:center; justify-content:center;">
+            <a href="https://wa.me/?text=Hi {{ supplier.name }}, current due: {{ final_balance|inr }}" target="_blank" class="btn btn-success rounded-circle shadow-sm" style="width: 40px; height: 40px; display:flex; align-items:center; justify-content:center;">
                 <i class="fa-brands fa-whatsapp"></i>
             </a>
-            
             <button onclick="downloadPDF()" class="btn btn-danger rounded-circle shadow-sm" style="width: 40px; height: 40px; display:flex; align-items:center; justify-content:center;">
                 <i class="fa-solid fa-file-pdf"></i>
             </button>
-
             <a href="{{ url_for('suppliers') }}" class="btn btn-light rounded-pill shadow-sm px-4">
                 <i class="fa-solid fa-arrow-left me-2"></i>Back
             </a>
         </div>
     </div>
 
-    <!-- Financial Breakdown Cards -->
+    <!-- Financial Cards -->
     <div class="row g-4 mb-4">
         
-        <!-- 1. Gross Outstanding (Opening + Purchases + Adjustments) -->
+        <!-- 1. TOTAL OUTSTANDING AMOUNT (Net Payable) - Moved First -->
         <div class="col-lg-4">
-            <div class="glass-panel p-4 h-100 border-start border-4 border-warning">
-                <small class="text-uppercase fw-bold text-muted ls-1 mb-1">Gross Outstanding</small>
-                <h3 class="fw-bold text-dark mb-0">{{ (total_outstanding if total_outstanding is defined else 0)|inr }}</h3>
+            <div class="glass-panel p-4 h-100 border-start border-4 {% if final_balance > 0 %}border-danger{% else %}border-success{% endif %}">
+                <small class="text-uppercase fw-bold text-muted ls-1 mb-1">Total Outstanding Amount</small>
+                <h2 class="display-6 fw-bold mb-0 {% if final_balance > 0 %}text-danger{% else %}text-success{% endif %}">
+                    {{ (final_balance|abs)|inr }}
+                </h2>
                 <div class="mt-2 small text-muted">
-                    <div class="d-flex justify-content-between">
-                        <span>Opening:</span> 
-                        <span class="fw-bold">{{ (opening_balance or 0)|inr }}</span>
-                    </div>
-                    <div class="d-flex justify-content-between">
-                        <span>New Purchases + Other:</span> 
-                        <span class="fw-bold">{{ ((total_outstanding if total_outstanding is defined else 0) - (opening_balance or 0))|inr }}</span>
-                    </div>
+                    <span class="badge rounded-pill {% if final_balance > 0 %}bg-danger{% else %}bg-success{% endif %}">
+                        {% if final_balance > 0 %}Payable{% else %}Cleared{% endif %}
+                    </span>
+                    <span class="ms-2">(Op + Pur + Oth) - Paid</span>
                 </div>
             </div>
         </div>
 
-        <!-- 2. Net Payable (Final Due) -->
+        <!-- 2. Gross Total (Opening + Purchases + Others) -->
         <div class="col-lg-4">
-            <div class="glass-panel p-4 h-100 border-start border-4 {% if final_balance > 0 %}border-danger{% else %}border-success{% endif %}">
-                <small class="text-uppercase fw-bold text-muted ls-1 mb-1">Net Payable Due</small>
-                <h2 class="display-6 fw-bold mb-0 {% if final_balance > 0 %}text-danger{% else %}text-success{% endif %}">
-                    {{ (final_balance|abs)|inr }}
-                </h2>
-                <span class="badge rounded-pill mt-2 {% if final_balance > 0 %}bg-danger{% else %}bg-success{% endif %}">
-                    {% if final_balance > 0 %}To Pay{% else %}Cleared{% endif %}
-                </span>
+            <div class="glass-panel p-4 h-100 border-start border-4 border-warning">
+                <small class="text-uppercase fw-bold text-muted ls-1 mb-1">Total Billed Value</small>
+                <h3 class="fw-bold text-dark mb-0">{{ (total_outstanding if total_outstanding is defined else 0)|inr }}</h3>
+                <div class="mt-2 small text-muted">
+                    <div class="d-flex justify-content-between">
+                        <span>Opening:</span> <span class="fw-bold">{{ (opening_balance or 0)|inr }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span>Purchases+Others:</span> 
+                        <span class="fw-bold">{{ ((total_outstanding if total_outstanding is defined else 0) - (opening_balance or 0))|inr }}</span>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -80,24 +76,17 @@
         </div>
     </div>
 
+    <!-- Tables Row -->
     <div class="row g-4">
-        <!-- LEFT: PURCHASES + OTHER DUES -->
+        <!-- Purchases + Other Dues -->
         <div class="col-lg-6">
-            <!-- Purchases -->
             <div class="glass-panel p-0 overflow-hidden mb-4">
                 <div class="p-3 border-bottom bg-light bg-opacity-50">
                     <h5 class="mb-0 fw-bold text-dark"><i class="fa-solid fa-cart-shopping me-2 text-primary"></i>Purchases</h5>
                 </div>
                 <div class="table-responsive p-3" style="max-height: 300px; overflow-y: auto;">
                     <table class="table-glass">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Bill #</th>
-                                <th class="text-end">Amount</th>
-                                <th class="text-center">View</th> <!-- Added View Column Header -->
-                            </tr>
-                        </thead>
+                        <thead><tr><th>Date</th><th>Bill #</th><th class="text-end">Amount</th><th>View</th></tr></thead>
                         <tbody>
                             {% for pur in purchases %}
                             <tr>
@@ -105,10 +94,7 @@
                                 <td>{{ pur.bill_number }}</td>
                                 <td class="text-end fw-bold text-danger">{{ pur.total_amount|inr }}</td>
                                 <td class="text-center">
-                                    <!-- ADDED: View Purchase Button -->
-                                    <a href="{{ url_for('view_purchase', purchase_id=pur.id) }}" class="btn btn-sm btn-outline-primary rounded-circle" title="View Order Details">
-                                        <i class="fa-solid fa-eye"></i>
-                                    </a>
+                                    <a href="{{ url_for('view_purchase', purchase_id=pur.id) }}" class="btn btn-sm btn-outline-primary rounded-circle"><i class="fa-solid fa-eye"></i></a>
                                 </td>
                             </tr>
                             {% else %}
@@ -119,7 +105,7 @@
                 </div>
             </div>
 
-            <!-- Other Manual Dues -->
+            <!-- Other Dues Table -->
             <div class="glass-panel p-0 overflow-hidden">
                 <div class="p-3 border-bottom bg-warning bg-opacity-10">
                     <h5 class="mb-0 fw-bold text-dark"><i class="fa-solid fa-file-invoice me-2 text-warning"></i>Other Dues</h5>
@@ -143,7 +129,7 @@
             </div>
         </div>
 
-        <!-- RIGHT: PAYMENTS -->
+        <!-- Payments -->
         <div class="col-lg-6">
             <div class="glass-panel p-0 overflow-hidden h-100">
                 <div class="p-3 border-bottom bg-light bg-opacity-50">
@@ -151,19 +137,12 @@
                 </div>
                 <div class="table-responsive p-3" style="max-height: 600px; overflow-y: auto;">
                     <table class="table-glass">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Mode</th>
-                                <th class="text-end">Amount</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
+                        <thead><tr><th>Date</th><th>Mode</th><th class="text-end">Amount</th><th>Action</th></tr></thead>
                         <tbody>
                             {% for pay in payments %}
                             <tr>
                                 <td>{% if pay.payment_date %}{{ pay.payment_date.strftime('%d-%b-%Y') }}{% else %}-{% endif %}</td>
-                                <td><span class="badge bg-success bg-opacity-10 text-success border border-success-subtle">{{ pay.payment_mode }}</span></td>
+                                <td><span class="badge bg-success bg-opacity-10 text-success">{{ pay.payment_mode }}</span></td>
                                 <td class="text-end fw-bold text-success">- {{ pay.amount_paid|inr }}</td>
                                 <td class="text-center">
                                     <form action="{{ url_for('delete_supplier_payment', payment_id=pay.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete?')">
@@ -184,20 +163,19 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-
 <script>
     const ctx = document.getElementById('balanceChart').getContext('2d');
-    const grossOutstanding = parseFloat("{{ total_outstanding if total_outstanding is defined else 0 }}");
-    const netDue = parseFloat("{{ final_balance if final_balance is defined else 0 }}");
-    const paidAmount = Math.max(0, grossOutstanding - netDue);
+    const gross = parseFloat("{{ total_outstanding if total_outstanding is defined else 0 }}");
+    const net = parseFloat("{{ final_balance if final_balance is defined else 0 }}");
+    const paid = Math.max(0, gross - net);
     
     new Chart(ctx, {
         type: 'doughnut',
         data: {
-            labels: ['Paid', 'Pending Due'],
+            labels: ['Paid', 'Outstanding'],
             datasets: [{
-                data: [paidAmount, netDue > 0 ? netDue : 0],
-                backgroundColor: ['#10b981', '#ef4444'], // Green for paid, Red for due
+                data: [paid, net > 0 ? net : 0],
+                backgroundColor: ['#10b981', '#ef4444'],
                 borderWidth: 0
             }]
         },
@@ -210,4 +188,3 @@
     }
 </script>
 {% endblock %}
-
