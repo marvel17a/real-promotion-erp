@@ -21,7 +21,7 @@
         <div class="col-md-6">
             <div class="glass-panel p-4 d-flex align-items-center justify-content-between border-start border-4 border-danger">
                 <div>
-                    <p class="text-muted small fw-bold text-uppercase mb-1">Total Purchase Dues</p>
+                    <p class="text-muted small fw-bold text-uppercase mb-1">Total Net Dues</p>
                     <h2 class="text-danger fw-bold mb-0" id="totalDuesDisplay">₹ 0.00</h2>
                 </div>
                 <div class="icon-box bg-danger bg-opacity-10 text-danger rounded-circle">
@@ -54,14 +54,13 @@
                     <tr>
                         <th class="ps-4">Supplier Details</th>
                         <th>Contact</th>
-                        <th class="text-end">Current Due</th>
+                        <th class="text-end">Current Net Due</th>
                         <th class="text-center pe-4">Actions</th>
                     </tr>
                 </thead>
                 <tbody id="supplierTable">
                     {% for supplier in suppliers %}
                     <tr class="supplier-row" data-due="{{ supplier.current_due or 0 }}">
-                        <!-- Name -->
                         <td class="ps-4">
                             <div class="d-flex align-items-center gap-3">
                                 <div class="icon-box bg-light text-primary">
@@ -73,33 +72,26 @@
                                 </div>
                             </div>
                         </td>
-
-                        <!-- Contact -->
                         <td>
                             <div class="d-flex flex-column">
                                 <span class="small fw-bold text-dark"><i class="fa-solid fa-phone me-2 text-muted"></i>{{ supplier.phone or 'N/A' }}</span>
                             </div>
                         </td>
-
-                        <!-- Due Amount -->
                         <td class="text-end">
                             {% set due = supplier.current_due if supplier.current_due is defined else 0 %}
                             <span class="due-badge {% if due > 0 %}due-positive{% else %}due-negative{% endif %}">
                                 {{ due|inr }}
                             </span>
                         </td>
-
-                        <!-- Actions -->
                         <td class="text-center pe-4">
                             <div class="d-flex justify-content-center">
-                                <!-- Ledger Link (Main) -->
                                 <a href="{{ url_for('supplier_ledger', supplier_id=supplier.id) }}" class="action-btn btn-view" title="View Ledger">
                                     <i class="fa-solid fa-book-open"></i>
                                 </a>
                                 <a href="{{ url_for('edit_supplier', supplier_id=supplier.id) }}" class="action-btn btn-edit" title="Edit">
                                     <i class="fa-solid fa-pen"></i>
                                 </a>
-                                <form action="{{ url_for('delete_supplier', supplier_id=supplier.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure? This deletes all related records (Purchases, Payments).')">
+                                <form action="{{ url_for('delete_supplier', supplier_id=supplier.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete supplier?')">
                                     <button class="action-btn btn-delete" title="Delete">
                                         <i class="fa-regular fa-trash-can"></i>
                                     </button>
@@ -108,12 +100,7 @@
                         </td>
                     </tr>
                     {% else %}
-                    <tr>
-                        <td colspan="4" class="text-center py-5 text-muted">
-                            <i class="fa-solid fa-box-open fa-3x mb-3 text-secondary opacity-50"></i>
-                            <p>No suppliers found. Start by adding one!</p>
-                        </td>
-                    </tr>
+                    <tr><td colspan="4" class="text-center py-5 text-muted">No suppliers found.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -123,17 +110,13 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // 1. Calculate Total Purchase Dues
     let totalDues = 0;
-    
     document.querySelectorAll('.supplier-row').forEach(row => {
         let due = parseFloat(row.dataset.due) || 0;
         totalDues += due;
     });
-    
     document.getElementById('totalDuesDisplay').textContent = "₹ " + totalDues.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
 
-    // 2. Real-time Search
     document.getElementById('supplierSearch').addEventListener('keyup', function() {
         let filter = this.value.toLowerCase();
         document.querySelectorAll('.supplier-row').forEach(row => {
