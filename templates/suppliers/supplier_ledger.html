@@ -33,7 +33,7 @@
     <!-- MAIN PANEL CARD ROW -->
     <div class="row g-4 mb-4">
         
-        <!-- SINGLE CARD: TOTAL OUTSTANDING AMOUNT (With Detailed Breakdown) -->
+        <!-- SINGLE CARD: TOTAL OUTSTANDING AMOUNT (With List Breakdown) -->
         <div class="col-lg-8">
             <div class="glass-panel p-4 h-100 border-start border-5 {% if total_outstanding_amount > 0 %}border-danger{% else %}border-success{% endif %} shadow-sm position-relative overflow-hidden d-flex align-items-center justify-content-between">
                 
@@ -49,18 +49,19 @@
                 </div>
 
                 <!-- Right Side: Breakdown List -->
-                <div class="border-start ps-4 ms-4 d-none d-md-block" style="min-width: 250px;">
+                <div class="border-start ps-4 ms-4 d-none d-md-block" style="min-width: 280px;">
                     <ul class="list-unstyled mb-0 small text-muted">
                         <li class="d-flex justify-content-between mb-1">
-                            <span>Opening Bal:</span> 
+                            <span>Opening Balance:</span> 
                             <span class="fw-bold text-dark">{{ (opening_balance or 0)|inr }}</span>
                         </li>
                         <li class="d-flex justify-content-between mb-1">
-                            <span>+ Purchases:</span> 
-                            <!-- Calculate Purchases from Total Outstanding logic for display if not passed directly, or assume logic holds -->
-                            <!-- Or better, pass variables. Since I passed opening_balance and total_paid, I can infer purchases+others. -->
-                            <!-- Let's calculate: (Total Outstanding + Paid) - Opening = Purchases + Others -->
-                            <span class="fw-bold text-dark">{{ ((total_outstanding_amount + total_paid) - (opening_balance or 0))|inr }}</span>
+                            <span>+ Purchase Amount:</span> 
+                            <span class="fw-bold text-dark">{{ (total_purchases or 0)|inr }}</span>
+                        </li>
+                        <li class="d-flex justify-content-between mb-1">
+                            <span>+ Other Dues:</span> 
+                            <span class="fw-bold text-dark">{{ (total_adjustments or 0)|inr }}</span>
                         </li>
                         <li class="d-flex justify-content-between border-top pt-1 mt-1 text-success">
                             <span>- Total Paid:</span> 
@@ -119,16 +120,21 @@
                 </div>
                 <div class="table-responsive p-3" style="max-height: 250px; overflow-y: auto;">
                     <table class="table-glass">
-                        <thead><tr><th>Date</th><th>Note</th><th class="text-end">Amount</th></tr></thead>
+                        <thead><tr><th>Date</th><th>Reason</th><th class="text-end">Amount</th><th>Action</th></tr></thead>
                         <tbody>
                             {% for adj in adjustments %}
                             <tr>
                                 <td>{{ adj.adjustment_date }}</td>
                                 <td>{{ adj.notes }}</td>
                                 <td class="text-end fw-bold text-danger">{{ adj.amount|inr }}</td>
+                                <td class="text-center">
+                                    <form action="{{ url_for('delete_supplier_adjustment', adjustment_id=adj.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this adjustment? It will reduce the debt.')">
+                                        <button class="btn btn-sm text-danger border-0"><i class="fa-solid fa-trash-can"></i></button>
+                                    </form>
+                                </td>
                             </tr>
                             {% else %}
-                            <tr><td colspan="3" class="text-center text-muted">No other dues.</td></tr>
+                            <tr><td colspan="4" class="text-center text-muted">No other dues.</td></tr>
                             {% endfor %}
                         </tbody>
                     </table>
@@ -173,16 +179,15 @@
 <script>
     const ctx = document.getElementById('balanceChart').getContext('2d');
     const netDue = parseFloat("{{ total_outstanding_amount }}");
-    const opening = parseFloat("{{ opening_balance }}");
+    const totalPaid = parseFloat("{{ total_paid }}");
     
-    // Simplistic visual: Red = Due, Green = Paid (Approximate visual)
-    // If Net Due > 0, show Red slice. 
-    const data = netDue > 0 ? [netDue, 0] : [0, 100];
+    // Visual: Red = Due, Green = Paid
+    const data = netDue > 0 ? [netDue, totalPaid] : [0, 100];
     
     new Chart(ctx, {
         type: 'doughnut',
         data: {
-            labels: ['Outstanding', 'Paid/Clear'],
+            labels: ['Outstanding', 'Total Paid'],
             datasets: [{
                 data: data,
                 backgroundColor: ['#ef4444', '#10b981'],
