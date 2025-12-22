@@ -91,6 +91,37 @@ def safe_date_format(date_obj, format='%d-%m-%Y', default='N/A'):
     return default
 
 
+
+@app.route('/supplier/payment/delete/<int:payment_id>', methods=['POST'])
+def delete_supplier_payment(payment_id):
+    if 'loggedin' not in session: return redirect(url_for('login'))
+    
+    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    
+    # 1. Get payment details to know amount and supplier
+    cur.execute("SELECT * FROM supplier_payments WHERE id = %s", (payment_id,))
+    payment = cur.fetchone()
+    
+    if payment:
+        amount = payment['amount_paid']
+        supplier_id = payment['supplier_id']
+        
+        # 2. Delete the payment record
+        cur.execute("DELETE FROM supplier_payments WHERE id = %s", (payment_id,))
+        
+        # 3. Reverse the deduction (Add amount back to current_due)
+        cur.execute("UPDATE suppliers SET current_due = current_due + %s WHERE id = %s", (amount, supplier_id))
+        
+        mysql.connection.commit()
+        flash('Payment deleted and due amount reversed.', 'warning')
+        cur.close()
+        return redirect(url_for('supplier_ledger', supplier_id=supplier_id))
+        
+    cur.close()
+    flash('Payment not found.', 'danger')
+    return redirect(url_for('suppliers'))
+
+
 # Helpers
 def parse_ddmmyyyy_to_date(s):
     if not s:
@@ -4742,6 +4773,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
