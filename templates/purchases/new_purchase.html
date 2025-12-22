@@ -26,7 +26,6 @@
                         <option value="{{ supplier.id }}">{{ supplier.name }}</option>
                         {% endfor %}
                     </select>
-                    <div class="invalid-feedback">Please select a supplier.</div>
                 </div>
                 <div class="col-md-4">
                     <label for="purchase_date" class="form-label fw-bold text-muted small text-uppercase">Purchase Date <span class="text-danger">*</span></label>
@@ -112,7 +111,6 @@
         const tbody = document.querySelector('#itemsTable tbody');
         const addBtn = document.getElementById('addRowBtn');
         const grandTotalEl = document.getElementById('grandTotal');
-        const form = document.getElementById('purchaseForm');
 
         function addRow() {
             const row = document.createElement('tr');
@@ -121,6 +119,7 @@
             if (Array.isArray(products) && products.length > 0) {
                 products.forEach(p => {
                     let price = p.price || p.cost_price || p.selling_price || 0;
+                    // Escape quotes in name just in case
                     let safeName = p.name.replace(/"/g, '&quot;');
                     productOptions += `<option value="${p.id}" data-price="${price}">${safeName}</option>`;
                 });
@@ -138,7 +137,7 @@
                     <input type="number" class="form-control input-glass quantity" name="quantity[]" value="1" min="1" required>
                 </td>
                 <td>
-                    <input type="number" step="0.01" class="form-control input-glass price" name="price[]">
+                    <input type="number" step="0.01" class="form-control input-glass price" name="price[]" value="0.00" required>
                 </td>
                 <td class="text-end total-cell fw-bold text-dark">₹0.00</td>
                 <td class="text-center">
@@ -147,6 +146,7 @@
             `;
             tbody.appendChild(row);
             
+            // Add listeners
             const select = row.querySelector('.product-select');
             const qtyInput = row.querySelector('.quantity');
             const priceInput = row.querySelector('.price');
@@ -155,7 +155,10 @@
             select.addEventListener('change', function() {
                 const selectedOption = this.options[this.selectedIndex];
                 const price = parseFloat(selectedOption.dataset.price) || 0;
-                priceInput.value = price.toFixed(2);
+                // Only update price if it's currently 0 to allow manual override
+                if (parseFloat(priceInput.value) === 0) {
+                     priceInput.value = price.toFixed(2);
+                }
                 updateRowTotal(row);
             });
 
@@ -167,6 +170,7 @@
                     row.remove();
                     updateGrandTotal();
                 } else {
+                    // Clear values instead of removing last row
                     select.value = "";
                     qtyInput.value = 1;
                     priceInput.value = "0.00";
@@ -197,28 +201,6 @@
         
         // Add first row on load
         addRow();
-
-        // Custom Form Validation
-        form.addEventListener('submit', function(event) {
-            if (!form.checkValidity()) {
-                event.preventDefault();
-                event.stopPropagation();
-            }
-            
-            // Check if at least one product is selected
-            const productSelects = document.querySelectorAll('.product-select');
-            let hasProduct = false;
-            productSelects.forEach(select => {
-                if(select.value) hasProduct = true;
-            });
-
-            if (!hasProduct) {
-                event.preventDefault();
-                alert("Please add at least one product.");
-            }
-
-            form.classList.add('was-validated');
-        }, false);
     });
 </script>
 
@@ -227,4 +209,3 @@
     {{ products|tojson|safe }}
 </script>
 {% endblock %}
-
