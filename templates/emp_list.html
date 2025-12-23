@@ -102,7 +102,12 @@
                                 </div>
                             </div>
                         </td>
-                        <td><span class="badge bg-light text-dark border">{{ emp.position or emp.position_name }}</span></td>
+                        <!-- Position Fix: Checks 'position' first, then 'position_name' -->
+                        <td>
+                            <span class="badge bg-light text-dark border">
+                                {{ emp.position or emp.position_name or 'N/A' }}
+                            </span>
+                        </td>
                         <td><small class="text-muted">{{ emp.phone }}</small></td>
                         <td class="text-end pe-4">
                             <a href="{{ url_for('emp_ledger', employee_id=emp.id) }}" class="btn btn-primary btn-sm rounded-pill px-3">
