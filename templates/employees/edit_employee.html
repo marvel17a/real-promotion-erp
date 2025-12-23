@@ -4,121 +4,138 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/employee.css') }}">
 
 <div class="container py-5">
-    <div class="glass-card mx-auto" style="max-width: 900px;">
-        <div class="text-center mb-5">
-            <h2 class="fw-bold">Edit Profile</h2>
-            <p class="text-muted">Update information for {{ employee.name }}</p>
-        </div>
+    <div class="row justify-content-center">
+        <div class="col-lg-9">
+            
+            <div class="glass-card">
+                
+                <div class="glass-card-header text-center">
+                    <h3 class="fw-bold mb-1">Edit Employee Profile</h3>
+                    <p class="text-muted mb-0">Update details for {{ employee.name }}</p>
+                </div>
 
-        <form action="{{ url_for('edit_employee', id=employee.id) }}" 
-              method="POST" enctype="multipart/form-data">
+                <form action="{{ url_for('edit_employee', id=employee.id) }}" method="POST" enctype="multipart/form-data">
 
-            <div class="row g-4">
-                <!-- Image Preview Section -->
-                <div class="col-12 text-center mb-3">
-                    {% if employee.image %}
-                        <img src="{{ cloudinary_url(employee.image)[0] }}" 
-                             class="rounded-circle shadow-lg border border-3 border-white" width="120" height="120" style="object-fit: cover;">
-                    {% else %}
-                        <div class="rounded-circle shadow-lg border border-3 border-white bg-secondary d-inline-flex align-items-center justify-content-center text-white" style="width:120px; height:120px;">
-                            <i class="fas fa-user fa-3x"></i>
+                    <!-- Profile Image Section -->
+                    <div class="text-center mb-4">
+                        <div class="profile-img-container mb-3">
+                            {% if employee.image %}
+                                <img src="{{ cloudinary_url(employee.image)[0] }}" class="profile-img">
+                            {% else %}
+                                <div class="profile-img bg-white d-flex align-items-center justify-content-center">
+                                    <i class="fas fa-user fa-3x text-secondary"></i>
+                                </div>
+                            {% endif %}
                         </div>
-                    {% endif %}
-                    <div class="mt-3 mx-auto" style="max-width: 250px;">
-                         <input type="file" name="image" class="form-control form-control-sm">
+                        <div class="d-inline-block">
+                             <input type="file" name="image" class="form-control form-control-sm">
+                        </div>
                     </div>
-                </div>
 
-                <div class="col-md-6">
-                    <label class="form-label">Full Name</label>
-                    <input type="text" name="name" value="{{ employee.name }}" class="form-control" required>
-                </div>
-
-                <div class="col-md-6">
-                    <label class="form-label">Email</label>
-                    <input type="email" name="email" value="{{ employee.email }}" class="form-control" required>
-                </div>
-
-                <div class="col-md-6">
-                    <label class="form-label">Phone</label>
-                    <input type="text" maxlength="10" pattern="\d{10}" 
-                           name="phone" value="{{ employee.phone }}" class="form-control" required>
-                </div>
-
-                <div class="col-md-6">
-                    <label class="form-label">Date of Birth</label>
-                    <input type="date" name="dob" value="{{ employee.dob }}" class="form-control">
-                </div>
-
-                <div class="col-md-6">
-                    <label class="form-label">Position</label>
-                    <select name="position_id" class="form-select">
-                        {% for p in positions %}
-                        <option value="{{ p.id }}" {% if p.id == employee.position_id %}selected{% endif %}>
-                            {{ p.position_name }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <div class="col-md-6">
-                    <label class="form-label">Department</label>
-                    <select name="department_id" class="form-select">
-                        {% for d in departments %}
-                        <option value="{{ d.id }}" {% if d.id == employee.department_id %}selected{% endif %}>
-                            {{ d.department_name }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <!-- Pincode Section -->
-                <div class="col-12 mt-4"><h6 class="text-primary border-bottom pb-2">Address Details</h6></div>
-
-                <div class="col-md-4">
-                    <label class="form-label">Pincode</label>
-                    <input type="text" maxlength="6" id="pincode" name="pincode"
-                           value="{{ employee.pincode }}" class="form-control">
-                </div>
-
-                <div class="col-md-4">
-                    <label class="form-label">City</label>
-                    <input type="text" id="city" name="city" value="{{ employee.city }}" class="form-control" readonly>
-                </div>
-
-                <div class="col-md-4">
-                    <label class="form-label">State</label>
-                    <input type="text" id="state" name="state" value="{{ employee.state }}" class="form-control" readonly>
-                    <!-- Hidden district if needed for form submission -->
-                    <input type="hidden" id="district" name="district" value="{{ employee.district }}">
-                </div>
-
-                <div class="col-md-12">
-                    <label class="form-label">Address</label>
-                    <input type="text" name="address_line1" value="{{ employee.address_line1 }}" class="form-control mb-2" placeholder="Line 1">
-                    <input type="text" name="address_line2" value="{{ employee.address_line2 }}" class="form-control" placeholder="Line 2">
-                </div>
-
-                <div class="col-md-12 mt-4">
-                    <label class="form-label">Document (Update)</label>
-                    {% if employee.document %}
-                        <div class="mb-2">
-                            <a href="{{ cloudinary_url(employee.document)[0] }}" target="_blank" class="badge bg-info text-decoration-none p-2">
-                                <i class="fas fa-file-pdf"></i> Current Document
-                            </a>
+                    <div class="row g-3">
+                        <!-- Basic Info -->
+                        <div class="col-md-6">
+                            <label class="form-label">Full Name</label>
+                            <input type="text" name="name" value="{{ employee.name }}" class="form-control" required>
                         </div>
-                    {% endif %}
-                    <input type="file" name="document" class="form-control">
-                </div>
-            </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Email</label>
+                            <input type="email" name="email" value="{{ employee.email }}" class="form-control">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Phone</label>
+                            <input type="text" name="phone" value="{{ employee.phone }}" maxlength="10" pattern="\d{10}" class="form-control" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Date of Birth</label>
+                            <input type="date" name="dob" value="{{ employee.dob }}" class="form-control">
+                        </div>
 
-            <div class="text-center mt-5">
-                <button class="btn btn-glass-primary px-5 py-2 fw-bold shadow">
-                    Update Changes
-                </button>
-            </div>
+                        <!-- Organization -->
+                        <div class="col-md-6">
+                            <label class="form-label">Department</label>
+                            <select name="department_id" class="form-select">
+                                {% for d in departments %}
+                                <option value="{{ d.id }}" {% if d.id == employee.department_id %}selected{% endif %}>
+                                    {{ d.department_name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Designation</label>
+                            <select name="position_id" class="form-select">
+                                {% for p in positions %}
+                                <option value="{{ p.id }}" {% if p.id == employee.position_id %}selected{% endif %}>
+                                    {{ p.position_name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
 
-        </form>
+                        <!-- NEW: Emergency Contact & Person -->
+                        <div class="col-12 mt-3"><h6 class="text-primary fw-bold border-bottom pb-2">Emergency & Identity</h6></div>
+                        
+                        <div class="col-md-4">
+                            <label class="form-label">Emergency Number</label>
+                            <input type="text" name="emergency_contact" value="{{ employee.emergency_contact }}" maxlength="10" class="form-control">
+                        </div>
+                        
+                        <!-- NEW FIELD -->
+                        <div class="col-md-4">
+                            <label class="form-label">Contact Person Name</label>
+                            <input type="text" name="emergency_contact_person" value="{{ employee.emergency_contact_person }}" class="form-control" placeholder="Person Name">
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label">Aadhar Number</label>
+                            <input type="text" name="aadhar_no" value="{{ employee.aadhar_no }}" maxlength="12" class="form-control">
+                        </div>
+
+                        <!-- Address -->
+                        <div class="col-12 mt-3"><h6 class="text-primary fw-bold border-bottom pb-2">Location Details</h6></div>
+                        
+                        <div class="col-md-4">
+                            <label class="form-label">Pincode</label>
+                            <input type="text" id="pincode" name="pincode" value="{{ employee.pincode }}" maxlength="6" class="form-control">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">City</label>
+                            <input type="text" id="city" name="city" value="{{ employee.city }}" class="form-control" readonly>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">State</label>
+                            <input type="text" id="state" name="state" value="{{ employee.state }}" class="form-control" readonly>
+                            <input type="hidden" id="district" name="district" value="{{ employee.district }}">
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label">Address Lines</label>
+                            <input type="text" name="address_line1" value="{{ employee.address_line1 }}" class="form-control mb-2" placeholder="Address Line 1">
+                            <input type="text" name="address_line2" value="{{ employee.address_line2 }}" class="form-control" placeholder="Address Line 2">
+                        </div>
+
+                        <!-- Document -->
+                        <div class="col-12 mt-3">
+                            <label class="form-label d-block">Employee Document</label>
+                            {% if employee.document %}
+                                <a href="{{ cloudinary_url(employee.document)[0] }}" target="_blank" class="btn btn-sm btn-outline-info mb-2">
+                                    <i class="fas fa-eye me-1"></i> View Current Doc
+                                </a>
+                            {% endif %}
+                            <input type="file" name="document" class="form-control">
+                        </div>
+
+                    </div>
+
+                    <div class="text-center mt-5">
+                        <button type="submit" class="btn btn-glass-primary px-5 py-3 shadow">
+                            <i class="fas fa-save me-2"></i> Update Employee
+                        </button>
+                    </div>
+
+                </form>
+            </div>
+        </div>
     </div>
 </div>
 
