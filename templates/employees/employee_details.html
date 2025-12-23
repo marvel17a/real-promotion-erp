@@ -124,8 +124,8 @@
                             {% if employee.document %}
                             <div class="mt-4">
                                 <h6 class="fw-bold mb-2">Documents</h6>
-                                <!-- FIX: Used helper route to correctly resolve PDF URL -->
-                                <a href="{{ url_for('employee_document', id=employee.id) }}" target="_blank" 
+                                <!-- Updated to match edit_employee.html logic -->
+                                <a href="{{ cloudinary_url(employee.document)[0] }}" target="_blank" 
                                    class="btn btn-glass-primary w-100 border-2 rounded-pill">
                                     <i class="fas fa-file-pdf me-2"></i> View Attached Document
                                 </a>
