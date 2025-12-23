@@ -4724,14 +4724,13 @@ def get_public_id_from_url(url):
     return url 
 
 
-
 @app.route('/employee-ledger/<int:employee_id>')
 def emp_ledger(employee_id):
     if 'loggedin' not in session: return redirect(url_for('login'))
     
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
-    # Fetch Employee
+    # 1. Fetch Employee
     cur.execute("SELECT id, name, position, email, phone, image FROM employees WHERE id = %s", [employee_id])
     employee = cur.fetchone()
     
@@ -4739,8 +4738,8 @@ def emp_ledger(employee_id):
         flash('Employee not found!', 'danger')
         return redirect(url_for('emp_list'))
         
-    # Fetch Transactions (Ordering by Date AND Time)
-    # Added 'created_at' to the fetch list explicitly
+    # 2. Fetch Transactions
+    # Note: We fetch created_at to show the timestamp
     cur.execute("""
         SELECT id, transaction_date, type, amount, description, created_at 
         FROM employee_transactions 
@@ -4761,6 +4760,7 @@ def emp_ledger(employee_id):
     for t in transactions_from_db:
         amt = float(t['amount'])
         
+        # Calculate Running Balance
         if t['type'] == 'debit':
             running_balance += amt
             total_debit += amt
@@ -4774,15 +4774,18 @@ def emp_ledger(employee_id):
         t_dict = dict(t)
         t_dict['balance'] = running_balance
         
-        # Format Timestamp for Display (e.g., "10:30 AM")
-        if t['created_at']:
-            t_dict['time_str'] = t['created_at'].strftime('%I:%M %p')
+        # --- TIMESTAMP FIX (UTC to IST) ---
+        # Assuming server is UTC, we add 5 hours 30 minutes for India
+        if t.get('created_at'):
+            # Create a localized time
+            local_time = t['created_at'] + timedelta(hours=5, minutes=30)
+            t_dict['time_str'] = local_time.strftime('%I:%M %p') # e.g. 02:30 PM
         else:
-            t_dict['time_str'] = ""
+            t_dict['time_str'] = "00:00"
             
         transactions.append(t_dict)
         
-    # Reverse for display (Newest First)
+    # Reverse list to show Newest First in the UI
     transactions_reversed = transactions[::-1]
 
     return render_template('emp_ledger.html', 
@@ -5146,4 +5149,5 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
