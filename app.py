@@ -2976,23 +2976,23 @@ def category_man():
         
         if form_type == 'main_category':
             cat_name = request.form['category_name']
-            cur.execute("INSERT INTO expense_categories (category_name) VALUES (%s)", [cat_name])
+            cur.execute("INSERT INTO expensecategories (category_name) VALUES (%s)", [cat_name])
             flash('Category Added!', 'success')
             
         elif form_type == 'subcategory':
             parent_id = request.form['parent_category_id']
             sub_name = request.form['subcategory_name']
-            cur.execute("INSERT INTO expense_subcategories (category_id, subcategory_name) VALUES (%s, %s)", (parent_id, sub_name))
+            cur.execute("INSERT INTO expensesubcategories (category_id, subcategory_name) VALUES (%s, %s)", (parent_id, sub_name))
             flash('Subcategory Added!', 'success')
             
         mysql.connection.commit()
         return redirect(url_for('category_man'))
 
     # GET Request: Fetch Hierarchy
-    cur.execute("SELECT * FROM expense_categories ORDER BY category_name")
+    cur.execute("SELECT * FROM expensecategories ORDER BY category_name")
     main_cats = cur.fetchall()
     
-    cur.execute("SELECT * FROM expense_subcategories ORDER BY subcategory_name")
+    cur.execute("SELECT * FROM expensesubcategories ORDER BY subcategory_name")
     sub_cats = cur.fetchall()
     
     # Merge for Template
@@ -3011,8 +3011,8 @@ def delete_category(category_id):
     if 'loggedin' not in session: return redirect(url_for('login'))
     cur = mysql.connection.cursor()
     # Subcategories usually delete via CASCADE, but manual delete is safer if not set
-    cur.execute("DELETE FROM expense_subcategories WHERE category_id = %s", [category_id]) 
-    cur.execute("DELETE FROM expense_categories WHERE category_id = %s", [category_id])
+    cur.execute("DELETE FROM expensesubcategories WHERE category_id = %s", [category_id]) 
+    cur.execute("DELETE FROM expensecategories WHERE category_id = %s", [category_id])
     mysql.connection.commit()
     cur.close()
     flash('Category Deleted', 'info')
@@ -3023,7 +3023,7 @@ def delete_category(category_id):
 def delete_subcategory(subcategory_id):
     if 'loggedin' not in session: return redirect(url_for('login'))
     cur = mysql.connection.cursor()
-    cur.execute("DELETE FROM expense_subcategories WHERE subcategory_id = %s", [subcategory_id])
+    cur.execute("DELETE FROM expensesubcategories WHERE subcategory_id = %s", [subcategory_id])
     mysql.connection.commit()
     cur.close()
     flash('Subcategory Deleted', 'info')
@@ -5162,6 +5162,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
