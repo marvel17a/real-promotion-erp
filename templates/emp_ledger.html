@@ -4,6 +4,8 @@
 
 {% block page_content %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/employee_finance.css') }}">
+<!-- SweetAlert2 CSS -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
 
 <div class="container-fluid py-4 fade-in-up">
 
@@ -152,34 +154,19 @@
                         </td>
                         <td class="text-center pe-4">
                             <div class="d-flex justify-content-center gap-2">
-                                <!-- EDIT BUTTON (Added as requested) -->
+                                <!-- EDIT BUTTON -->
                                 <a href="{{ url_for('edit_transaction', transaction_id=t.id) }}" class="btn-icon text-primary bg-light border-0 shadow-sm" title="Edit">
                                     <i class="fa-solid fa-pen"></i>
                                 </a>
                                 
-                                <!-- DELETE BUTTON -->
-                                <button type="button" class="btn-icon text-danger bg-light border-0 shadow-sm" data-bs-toggle="modal" data-bs-target="#deleteModal{{ t.id }}" title="Delete">
+                                <!-- DELETE BUTTON (Triggering JS SweetAlert) -->
+                                <button type="button" class="btn-icon text-danger bg-light border-0 shadow-sm" onclick="confirmDelete({{ t.id }}, '{{ t.amount|inr }}')" title="Delete">
                                     <i class="fa-solid fa-trash"></i>
                                 </button>
-                            </div>
-
-                            <!-- Delete Modal -->
-                            <div class="modal fade" id="deleteModal{{ t.id }}" tabindex="-1">
-                                <div class="modal-dialog modal-dialog-centered modal-sm">
-                                    <div class="modal-content border-0 shadow-lg rounded-4">
-                                        <div class="modal-body text-center p-4">
-                                            <div class="text-danger mb-3"><i class="fa-solid fa-circle-exclamation fa-3x"></i></div>
-                                            <h6 class="mb-2 fw-bold">Delete Transaction?</h6>
-                                            <p class="text-muted small mb-4">Cannot be undone.</p>
-                                            <div class="d-flex justify-content-center gap-2">
-                                                <button type="button" class="btn btn-light btn-sm rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
-                                                <form action="{{ url_for('delete_transaction', transaction_id=t.id) }}" method="POST"> 
-                                                    <button type="submit" class="btn btn-danger btn-sm rounded-pill px-3">Delete</button>
-                                                </form>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
+                                
+                                <!-- Hidden Form for Delete -->
+                                <form id="delete-form-{{ t.id }}" action="{{ url_for('delete_transaction', transaction_id=t.id) }}" method="POST" style="display: none;">
+                                </form>
                             </div>
                         </td>
                     </tr>
@@ -191,4 +178,26 @@
         </div>
     </div>
 </div>
+
+<!-- SweetAlert2 Script -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+    function confirmDelete(id, amount) {
+        Swal.fire({
+            title: 'Are you sure?',
+            text: "You are about to delete a transaction of " + amount + ". This cannot be undone!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#6b7280',
+            confirmButtonText: 'Yes, delete it!',
+            background: 'rgba(255, 255, 255, 0.95)',
+            backdrop: `rgba(0,0,0,0.4)`
+        }).then((result) => {
+            if (result.isConfirmed) {
+                document.getElementById('delete-form-' + id).submit();
+            }
+        })
+    }
+</script>
 {% endblock %}
