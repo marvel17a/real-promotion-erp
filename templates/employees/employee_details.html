@@ -7,122 +7,107 @@
     <div class="row justify-content-center">
         <div class="col-lg-10">
             
-            <!-- Main Glass Card -->
             <div class="glass-card p-0 overflow-hidden">
                 
-                <!-- Header Banner -->
-                <div class="bg-light p-5 text-center position-relative" 
-                     style="background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);">
-                    
-                    <a href="{{ url_for('employees') }}" class="btn btn-sm btn-light position-absolute top-0 start-0 m-4 rounded-pill shadow-sm">
-                        <i class="fas fa-arrow-left"></i> Back
+                <!-- Banner -->
+                <div class="bg-white p-5 text-center position-relative border-bottom">
+                    <a href="{{ url_for('employees') }}" class="btn btn-glass-back position-absolute top-0 start-0 m-4">
+                        <i class="fas fa-arrow-left me-1"></i> Back
                     </a>
 
-                    <!-- Image -->
-                    {% if employee.image %}
-                        <img src="{{ cloudinary_url(employee.image)[0] }}" 
-                             class="rounded-circle shadow-lg border border-4 border-white mb-3 object-fit-cover" 
-                             width="160" height="160">
-                    {% else %}
-                        <div class="rounded-circle shadow-lg border border-4 border-white bg-white d-inline-flex align-items-center justify-content-center text-secondary mb-3" 
-                             style="width: 160px; height: 160px;">
-                            <i class="fas fa-user fa-4x"></i>
-                        </div>
-                    {% endif %}
+                    <div class="profile-img-container mb-3">
+                        {% if employee.image %}
+                            <img src="{{ cloudinary_url(employee.image)[0] }}" class="profile-img">
+                        {% else %}
+                            <div class="profile-img bg-light d-flex align-items-center justify-content-center">
+                                <i class="fas fa-user fa-4x text-secondary"></i>
+                            </div>
+                        {% endif %}
+                    </div>
 
-                    <h2 class="fw-bold mb-1">{{ employee.name }}</h2>
-                    <span class="badge bg-primary bg-opacity-75 rounded-pill px-3 py-2 fw-normal fs-6">
-                        {{ employee.position_name or employee.position or 'No Designation' }}
+                    <h2 class="fw-bold text-dark mb-1">{{ employee.name }}</h2>
+                    <span class="badge bg-primary rounded-pill px-3 py-2 fw-normal fs-6">
+                        {{ employee.position_name or 'No Designation' }}
                     </span>
+                    <div class="mt-2 text-muted">
+                        <i class="fas fa-building me-1"></i> {{ employee.department_name or 'N/A' }}
+                    </div>
                 </div>
 
-                <!-- Details Body -->
+                <!-- Body -->
                 <div class="p-4 p-md-5">
-                    <div class="row g-5">
+                    <div class="row g-4">
                         
-                        <!-- Left Column: Professional & Personal -->
+                        <!-- Left Col -->
                         <div class="col-md-6">
-                            <h5 class="text-primary fw-bold border-bottom pb-2 mb-4">
-                                <i class="fas fa-briefcase me-2"></i> Professional Details
-                            </h5>
-                            
-                            <ul class="list-unstyled">
-                                <li class="mb-3 d-flex justify-content-between">
-                                    <span class="text-muted">Department</span>
-                                    <span class="fw-semibold">{{ employee.department_name or 'N/A' }}</span>
-                                </li>
-                                <li class="mb-3 d-flex justify-content-between">
-                                    <span class="text-muted">Employee ID</span>
-                                    <span class="fw-semibold">EMP-{{ "%03d" % employee.id }}</span>
-                                </li>
-                                <li class="mb-3 d-flex justify-content-between">
-                                    <span class="text-muted">Date of Joining</span>
-                                    <span class="fw-semibold">{{ employee.joining_date or 'N/A' }}</span>
-                                </li>
-                                <li class="mb-3 d-flex justify-content-between">
-                                    <span class="text-muted">Status</span>
-                                    <span class="badge {{ 'bg-success' if employee.status == 'active' else 'bg-danger' }}">
-                                        {{ employee.status | title }}
-                                    </span>
-                                </li>
-                            </ul>
+                            <div class="info-group">
+                                <h6 class="text-primary fw-bold mb-3 border-bottom pb-2">Personal Info</h6>
+                                <div class="row g-3">
+                                    <div class="col-6">
+                                        <div class="detail-label">Employee ID</div>
+                                        <div class="detail-value">EMP-{{ "%03d" % employee.id }}</div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="detail-label">Status</div>
+                                        <span class="badge {{ 'bg-success' if employee.status == 'active' else 'bg-danger' }}">
+                                            {{ employee.status | title }}
+                                        </span>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="detail-label">Join Date</div>
+                                        <div class="detail-value">{{ employee.joining_date or '-' }}</div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="detail-label">Date of Birth</div>
+                                        <div class="detail-value">{{ employee.dob or '-' }}</div>
+                                    </div>
+                                </div>
+                            </div>
 
-                            <h5 class="text-primary fw-bold border-bottom pb-2 mb-4 mt-5">
-                                <i class="fas fa-user-shield me-2"></i> Personal Info
-                            </h5>
-                            <ul class="list-unstyled">
-                                <li class="mb-3 d-flex justify-content-between">
-                                    <span class="text-muted">Date of Birth</span>
-                                    <span class="fw-semibold">{{ employee.dob or 'N/A' }}</span>
-                                </li>
-                                <li class="mb-3 d-flex justify-content-between">
-                                    <span class="text-muted">Aadhar No.</span>
-                                    <span class="fw-semibold">{{ employee.aadhar_no or 'N/A' }}</span>
-                                </li>
-                            </ul>
+                            <div class="info-group">
+                                <h6 class="text-primary fw-bold mb-3 border-bottom pb-2">Emergency Details</h6>
+                                <div class="mb-3">
+                                    <div class="detail-label">Emergency Phone</div>
+                                    <div class="detail-value text-danger fw-bold">
+                                        <i class="fas fa-phone-alt me-1"></i> {{ employee.emergency_contact or 'N/A' }}
+                                    </div>
+                                </div>
+                                <div class="mb-2">
+                                    <div class="detail-label">Contact Person</div>
+                                    <div class="detail-value">
+                                        <i class="fas fa-user-friends me-1"></i> {{ employee.emergency_contact_person or 'N/A' }}
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
-                        <!-- Right Column: Contact & Address -->
+                        <!-- Right Col -->
                         <div class="col-md-6">
-                            <h5 class="text-primary fw-bold border-bottom pb-2 mb-4">
-                                <i class="fas fa-address-book me-2"></i> Contact Info
-                            </h5>
-                            
-                            <ul class="list-unstyled">
-                                <li class="mb-3">
-                                    <div class="text-muted small">Email Address</div>
-                                    <div class="fw-semibold">{{ employee.email or 'N/A' }}</div>
-                                </li>
-                                <li class="mb-3">
-                                    <div class="text-muted small">Phone Number</div>
-                                    <div class="fw-semibold fs-5">{{ employee.phone or 'N/A' }}</div>
-                                </li>
-                                <li class="mb-3">
-                                    <div class="text-muted small">Emergency Contact</div>
-                                    <div class="fw-semibold text-danger">{{ employee.emergency_contact or 'N/A' }}</div>
-                                </li>
-                            </ul>
-
-                            <h5 class="text-primary fw-bold border-bottom pb-2 mb-4 mt-4">
-                                <i class="fas fa-map-marked-alt me-2"></i> Address
-                            </h5>
-                            <div class="bg-light p-3 rounded border">
-                                <p class="mb-1 fw-bold">{{ employee.address_line1 }}</p>
-                                {% if employee.address_line2 %}
-                                    <p class="mb-1">{{ employee.address_line2 }}</p>
-                                {% endif %}
-                                <p class="mb-0 text-muted">
-                                    {{ employee.city }}, {{ employee.district }}<br>
-                                    {{ employee.state }} - <strong>{{ employee.pincode }}</strong>
-                                </p>
+                            <div class="info-group">
+                                <h6 class="text-primary fw-bold mb-3 border-bottom pb-2">Contact & Address</h6>
+                                <div class="mb-3">
+                                    <div class="detail-label">Email</div>
+                                    <div class="detail-value">{{ employee.email or 'N/A' }}</div>
+                                </div>
+                                <div class="mb-3">
+                                    <div class="detail-label">Phone</div>
+                                    <div class="detail-value">{{ employee.phone or 'N/A' }}</div>
+                                </div>
+                                <div class="mb-3">
+                                    <div class="detail-label">Address</div>
+                                    <div class="detail-value fs-6">
+                                        {{ employee.address_line1 }}<br>
+                                        {{ employee.address_line2 }}<br>
+                                        {{ employee.city }}, {{ employee.state }} - {{ employee.pincode }}
+                                    </div>
+                                </div>
                             </div>
 
                             {% if employee.document %}
-                            <div class="mt-4">
-                                <h6 class="fw-bold mb-2">Documents</h6>
+                            <div class="mt-2">
                                 <a href="{{ cloudinary_url(employee.document)[0] }}" target="_blank" 
-                                   class="btn btn-outline-primary w-100 border-2 rounded-pill">
-                                    <i class="fas fa-file-pdf me-2"></i> View Attached Document
+                                   class="btn btn-glass-primary w-100">
+                                    <i class="fas fa-file-pdf me-2"></i> View Employee Document
                                 </a>
                             </div>
                             {% endif %}
@@ -130,8 +115,8 @@
 
                     </div>
                 </div>
-            </div>
 
+            </div>
         </div>
     </div>
 </div>
