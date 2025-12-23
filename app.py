@@ -2967,55 +2967,67 @@ def expense_dash():
 
 @app.route('/category_man', methods=['GET', 'POST'])
 def category_man():
+    if 'loggedin' not in session: return redirect(url_for('login'))
+    
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    
     if request.method == 'POST':
-        form_type = request.form.get('form_type')
+        form_type = request.form['form_type']
+        
         if form_type == 'main_category':
-            category_name = request.form.get('category_name')
-            if category_name:
-                cur.execute("INSERT INTO expensecategories (category_name) VALUES (%s)", (category_name,))
-                mysql.connection.commit()
-                flash('Main Category added successfully!', 'success')
+            cat_name = request.form['category_name']
+            cur.execute("INSERT INTO expense_categories (category_name) VALUES (%s)", [cat_name])
+            flash('Category Added!', 'success')
+            
         elif form_type == 'subcategory':
-            parent_id = request.form.get('parent_category_id')
-            subcategory_name = request.form.get('subcategory_name')
-            if parent_id and subcategory_name:
-                cur.execute("INSERT INTO expensesubcategories (category_id, subcategory_name) VALUES (%s, %s)", (parent_id, subcategory_name))
-                mysql.connection.commit()
-                flash('Subcategory added successfully!', 'success')
+            parent_id = request.form['parent_category_id']
+            sub_name = request.form['subcategory_name']
+            cur.execute("INSERT INTO expense_subcategories (category_id, subcategory_name) VALUES (%s, %s)", (parent_id, sub_name))
+            flash('Subcategory Added!', 'success')
+            
+        mysql.connection.commit()
         return redirect(url_for('category_man'))
 
-    cur.execute("SELECT * FROM expensecategories ORDER BY category_name")
-    categories = cur.fetchall()
-    cur.execute("SELECT * FROM expensesubcategories ORDER BY subcategory_name")
-    subcategories = cur.fetchall()
+    # GET Request: Fetch Hierarchy
+    cur.execute("SELECT * FROM expense_categories ORDER BY category_name")
+    main_cats = cur.fetchall()
+    
+    cur.execute("SELECT * FROM expense_subcategories ORDER BY subcategory_name")
+    sub_cats = cur.fetchall()
+    
+    # Merge for Template
+    categories = []
+    for mc in main_cats:
+        mc_dict = dict(mc)
+        mc_dict['subcategories'] = [sc for sc in sub_cats if sc['category_id'] == mc['category_id']]
+        categories.append(mc_dict)
+        
     cur.close()
-    for category in categories:
-        category['subcategories'] = [sub for sub in subcategories if sub['category_id'] == category['category_id']]
     return render_template('expenses/category_man.html', categories=categories)
 
 
-@app.route('/dalete_category/<int:category_id>', methods=['POST'])
-def dalete_category(category_id):
-    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    cur.execute("DELETE FROM expensesubcategories WHERE category_id = %s", (category_id,))
-    cur.execute("DELETE FROM expensecategories WHERE category_id = %s", (category_id,))
+@app.route('/delete_category/<int:category_id>', methods=['POST'])
+def delete_category(category_id):
+    if 'loggedin' not in session: return redirect(url_for('login'))
+    cur = mysql.connection.cursor()
+    # Subcategories usually delete via CASCADE, but manual delete is safer if not set
+    cur.execute("DELETE FROM expense_subcategories WHERE category_id = %s", [category_id]) 
+    cur.execute("DELETE FROM expense_categories WHERE category_id = %s", [category_id])
     mysql.connection.commit()
-    flash('Main Category and its subcategories have been deleted.', 'danger')
+    cur.close()
+    flash('Category Deleted', 'info')
     return redirect(url_for('category_man'))
 
 
 @app.route('/delete_subcategory/<int:subcategory_id>', methods=['POST'])
 def delete_subcategory(subcategory_id):
-    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    cur.execute("DELETE FROM expensesubcategories WHERE subcategory_id = %s", (subcategory_id,))
+    if 'loggedin' not in session: return redirect(url_for('login'))
+    cur = mysql.connection.cursor()
+    cur.execute("DELETE FROM expense_subcategories WHERE subcategory_id = %s", [subcategory_id])
     mysql.connection.commit()
-    flash('Subcategory has been deleted.', 'danger')
-    return redirect(url_for('category_man'))    
-
-# ... (existing imports)
-# ... (existing imports)
-# ... (existing imports)
+    cur.close()
+    flash('Subcategory Deleted', 'info')
+    return redirect(url_for('category_man'))
 
 # REPLACE THIS ROUTE IN YOUR app.py
 @app.route("/exp_report", methods=["GET"])
@@ -5150,6 +5162,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
