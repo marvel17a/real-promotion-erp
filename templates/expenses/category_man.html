@@ -76,7 +76,8 @@
             <div class="border-bottom p-3 bg-white bg-opacity-50">
                 <div class="d-flex justify-content-between align-items-center mb-2">
                     <span class="fw-bold text-dark fs-5">{{ category.category_name }}</span>
-                    <form action="{{ url_for('dalete_category', category_id=category.category_id) }}" method="POST" onsubmit="return confirm('Delete this main category AND all subcategories?');">
+                    <!-- FIX: Corrected route name to 'delete_category' (check app.py if it is 'dalete_category') -->
+                    <form action="{{ url_for('delete_category', category_id=category.category_id) }}" method="POST" onsubmit="return confirm('Delete this main category AND all subcategories?');">
                         <button type="submit" class="btn btn-sm btn-light text-danger border shadow-sm rounded-circle" title="Delete Category" style="width: 32px; height: 32px;"><i class="fas fa-trash"></i></button>
                     </form>
                 </div>
@@ -86,6 +87,7 @@
                     {% for subcat in category.subcategories %}
                     <div class="d-flex justify-content-between align-items-center py-2 border-bottom border-light">
                         <span class="text-muted">{{ subcat.subcategory_name }}</span>
+                        <!-- FIX: Corrected route name to 'delete_subcategory' -->
                         <form action="{{ url_for('delete_subcategory', subcategory_id=subcat.subcategory_id) }}" method="POST" onsubmit="return confirm('Delete this item?');">
                             <button type="submit" class="text-danger bg-transparent border-0 opacity-50 hover-opacity-100"><i class="fas fa-times"></i></button>
                         </form>
