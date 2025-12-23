@@ -3,6 +3,9 @@
 
 <!-- Link to new Glass Theme -->
 <link rel="stylesheet" href="{{ url_for('static', filename='css/employee.css') }}">
+<!-- Flatpickr CSS -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<link rel="stylesheet" type="text/css" href="https://npmcdn.com/flatpickr/dist/themes/material_blue.css">
 
 <div class="container mt-5 mb-5">
     
@@ -42,11 +45,11 @@
                         
                         <div class="col-md-4">
                             <label class="form-label">Date of Birth</label>
-                            <input type="date" name="dob" class="form-control">
+                            <input type="text" name="dob" class="form-control date-picker" placeholder="Select Date">
                         </div>
                         <div class="col-md-4">
                             <label class="form-label">Join Date</label>
-                            <input type="date" name="join_date" class="form-control">
+                            <input type="text" name="join_date" class="form-control date-picker" placeholder="Select Date">
                         </div>
                         <div class="col-md-4">
                             <label class="form-label">Status</label>
@@ -57,7 +60,7 @@
                         </div>
                     </div>
 
-                    <!-- Section 2: Contact & Identity (UPDATED) -->
+                    <!-- Section 2: Contact & Identity -->
                     <h6 class="text-primary fw-bold mb-3"><i class="fas fa-id-card me-2"></i>Emergency & Identity</h6>
                     <div class="row g-3 mb-4">
                         <div class="col-md-4">
@@ -65,7 +68,6 @@
                             <input type="text" name="emergency_contact" maxlength="10" pattern="\d{10}" class="form-control" placeholder="Parent/Spouse No">
                         </div>
                         
-                        <!-- NEW FIELD ADDED HERE -->
                         <div class="col-md-4">
                             <label class="form-label">Contact Person Name</label>
                             <input type="text" name="emergency_contact_person" class="form-control" placeholder="e.g. Father Name">
@@ -158,7 +160,19 @@
     </div>
 </div>
 
+<!-- Flatpickr JS -->
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        flatpickr(".date-picker", {
+            dateFormat: "Y-m-d", // Format matching MySQL
+            altInput: true,
+            altFormat: "F j, Y", // User-friendly display (e.g. October 15, 2023)
+            allowInput: true
+        });
+    });
+</script>
+
 <script src="{{ url_for('static', filename='js/pincode.js') }}"></script>
-<script src="{{ url_for('static', filename='js/employee_add.js') }}"></script>
 
 {% endblock %}
