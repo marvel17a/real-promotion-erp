@@ -7,14 +7,18 @@
     <div class="row justify-content-center">
         <div class="col-lg-10">
             
+            <!-- Main Glass Card -->
             <div class="glass-card p-0 overflow-hidden">
                 
-                <!-- Banner -->
-                <div class="bg-white p-5 text-center position-relative border-bottom">
+                <!-- Header Banner -->
+                <div class="bg-light p-5 text-center position-relative" 
+                     style="background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);">
+                    
                     <a href="{{ url_for('employees') }}" class="btn btn-glass-back position-absolute top-0 start-0 m-4">
                         <i class="fas fa-arrow-left me-1"></i> Back
                     </a>
 
+                    <!-- Image -->
                     <div class="profile-img-container mb-3">
                         {% if employee.image %}
                             <img src="{{ cloudinary_url(employee.image)[0] }}" class="profile-img">
@@ -34,14 +38,16 @@
                     </div>
                 </div>
 
-                <!-- Body -->
+                <!-- Details Body -->
                 <div class="p-4 p-md-5">
-                    <div class="row g-4">
+                    <div class="row g-5">
                         
-                        <!-- Left Col -->
+                        <!-- Left Column: Professional & Personal -->
                         <div class="col-md-6">
                             <div class="info-group">
-                                <h6 class="text-primary fw-bold mb-3 border-bottom pb-2">Personal Info</h6>
+                                <h6 class="text-primary fw-bold mb-3 border-bottom pb-2">
+                                    <i class="fas fa-briefcase me-2"></i> Professional Details
+                                </h6>
                                 <div class="row g-3">
                                     <div class="col-6">
                                         <div class="detail-label">Employee ID</div>
@@ -64,50 +70,64 @@
                                 </div>
                             </div>
 
-                            <div class="info-group">
-                                <h6 class="text-primary fw-bold mb-3 border-bottom pb-2">Emergency Details</h6>
+                            <div class="info-group mt-4">
+                                <h6 class="text-primary fw-bold mb-3 border-bottom pb-2">
+                                    <i class="fas fa-user-shield me-2"></i> Emergency & Identity
+                                </h6>
                                 <div class="mb-3">
                                     <div class="detail-label">Emergency Phone</div>
                                     <div class="detail-value text-danger fw-bold">
                                         <i class="fas fa-phone-alt me-1"></i> {{ employee.emergency_contact or 'N/A' }}
                                     </div>
                                 </div>
-                                <div class="mb-2">
+                                <div class="mb-3">
                                     <div class="detail-label">Contact Person</div>
                                     <div class="detail-value">
                                         <i class="fas fa-user-friends me-1"></i> {{ employee.emergency_contact_person or 'N/A' }}
                                     </div>
                                 </div>
+                                <div>
+                                    <div class="detail-label">Aadhar No.</div>
+                                    <div class="detail-value">{{ employee.aadhar_no or 'N/A' }}</div>
+                                </div>
                             </div>
                         </div>
 
-                        <!-- Right Col -->
+                        <!-- Right Column: Contact & Address -->
                         <div class="col-md-6">
                             <div class="info-group">
-                                <h6 class="text-primary fw-bold mb-3 border-bottom pb-2">Contact & Address</h6>
+                                <h6 class="text-primary fw-bold mb-3 border-bottom pb-2">
+                                    <i class="fas fa-address-book me-2"></i> Contact Info
+                                </h6>
                                 <div class="mb-3">
                                     <div class="detail-label">Email</div>
                                     <div class="detail-value">{{ employee.email or 'N/A' }}</div>
                                 </div>
                                 <div class="mb-3">
-                                    <div class="detail-label">Phone</div>
-                                    <div class="detail-value">{{ employee.phone or 'N/A' }}</div>
+                                    <div class="detail-label">Phone Number</div>
+                                    <div class="detail-value fs-5">{{ employee.phone or 'N/A' }}</div>
                                 </div>
-                                <div class="mb-3">
-                                    <div class="detail-label">Address</div>
-                                    <div class="detail-value fs-6">
-                                        {{ employee.address_line1 }}<br>
-                                        {{ employee.address_line2 }}<br>
-                                        {{ employee.city }}, {{ employee.state }} - {{ employee.pincode }}
-                                    </div>
+                            </div>
+
+                            <div class="info-group mt-4">
+                                <h6 class="text-primary fw-bold mb-3 border-bottom pb-2">
+                                    <i class="fas fa-map-marked-alt me-2"></i> Address
+                                </h6>
+                                <div class="detail-value fs-6">
+                                    {{ employee.address_line1 }}<br>
+                                    {{ employee.address_line2 }}<br>
+                                    {{ employee.city }}, {{ employee.district }}<br>
+                                    {{ employee.state }} - <strong>{{ employee.pincode }}</strong>
                                 </div>
                             </div>
 
                             {% if employee.document %}
-                            <div class="mt-2">
-                                <a href="{{ cloudinary_url(employee.document)[0] }}" target="_blank" 
-                                   class="btn btn-glass-primary w-100">
-                                    <i class="fas fa-file-pdf me-2"></i> View Employee Document
+                            <div class="mt-4">
+                                <h6 class="fw-bold mb-2">Documents</h6>
+                                <!-- FIX: Used helper route to correctly resolve PDF URL -->
+                                <a href="{{ url_for('employee_document', id=employee.id) }}" target="_blank" 
+                                   class="btn btn-glass-primary w-100 border-2 rounded-pill">
+                                    <i class="fas fa-file-pdf me-2"></i> View Attached Document
                                 </a>
                             </div>
                             {% endif %}
@@ -115,8 +135,8 @@
 
                     </div>
                 </div>
-
             </div>
+
         </div>
     </div>
 </div>
