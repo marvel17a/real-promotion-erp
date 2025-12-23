@@ -1,172 +1,152 @@
 /* ==============================
-   Global Glass Theme Variables
+   Glassmorphism Variables
 ============================== */
 :root {
-    --glass-bg: rgba(255, 255, 255, 0.18);
-    --glass-border: rgba(255, 255, 255, 0.35);
-    --glass-shadow: 0 8px 32px rgba(31, 38, 135, 0.18);
-    --blur: blur(14px);
-
-    --primary: #4f46e5;
-    --secondary: #06b6d4;
-    --success: #22c55e;
-    --danger: #ef4444;
+    --glass-bg: rgba(255, 255, 255, 0.25);
+    --glass-border: rgba(255, 255, 255, 0.4);
+    --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+    --blur-strength: blur(12px);
+    
+    --primary-color: #4f46e5;
+    --primary-hover: #4338ca;
     --text-dark: #1f2937;
+    --text-muted: #6b7280;
 }
 
-/* ==============================
-   Page Background
-============================== */
 body {
-    background: linear-gradient(135deg, #dbeafe, #f0f9ff);
-    color: var(--text-dark);
+    background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
+    min-height: 100vh;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
 /* ==============================
-   Glass Card (Sidebar)
+   Glass Card
 ============================== */
 .glass-card {
     background: var(--glass-bg);
-    backdrop-filter: var(--blur);
-    -webkit-backdrop-filter: var(--blur);
-    border-radius: 16px;
+    backdrop-filter: var(--blur-strength);
+    -webkit-backdrop-filter: var(--blur-strength);
     border: 1px solid var(--glass-border);
+    border-radius: 20px;
     box-shadow: var(--glass-shadow);
+    padding: 2rem;
+    transition: transform 0.2s ease;
 }
 
-/* Headings inside glass cards */
-.glass-card h6 {
-    color: #111827;
+.glass-card-header {
+    background: rgba(255, 255, 255, 0.4);
+    margin: -2rem -2rem 2rem -2rem;
+    padding: 1.5rem 2rem;
+    border-bottom: 1px solid var(--glass-border);
+    border-radius: 20px 20px 0 0;
 }
 
 /* ==============================
-   Inputs (Glass Style)
+   Form Elements
 ============================== */
-.glass-card .form-control {
-    background: rgba(255, 255, 255, 0.6);
-    border: 1px solid rgba(0, 0, 0, 0.1);
-    border-radius: 10px;
+.form-label {
+    font-weight: 600;
+    color: var(--text-dark);
     font-size: 0.9rem;
+    margin-bottom: 0.4rem;
 }
 
-.glass-card .form-control:focus {
-    box-shadow: 0 0 0 0.2rem rgba(79, 70, 229, 0.25);
-    border-color: var(--primary);
+.glass-input, 
+.form-control, 
+.form-select {
+    background: rgba(255, 255, 255, 0.7) !important;
+    border: 1px solid rgba(255, 255, 255, 0.6) !important;
+    border-radius: 12px !important;
+    padding: 0.7rem 1rem !important;
+    font-size: 0.95rem;
+    transition: all 0.3s ease;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
+}
+
+.glass-input:focus, 
+.form-control:focus, 
+.form-select:focus {
+    background: #ffffff !important;
+    border-color: var(--primary-color) !important;
+    box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1) !important;
+    outline: none;
 }
 
 /* ==============================
    Buttons
 ============================== */
 .btn-glass-primary {
-    background: linear-gradient(135deg, #6366f1, #4f46e5);
-    color: #fff;
-    border-radius: 12px;
+    background: var(--primary-color);
+    color: white;
     border: none;
-    padding: 10px 18px;
-    box-shadow: 0 6px 18px rgba(79, 70, 229, 0.35);
+    padding: 10px 24px;
+    border-radius: 12px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3);
+    transition: all 0.3s ease;
 }
 
 .btn-glass-primary:hover {
-    background: linear-gradient(135deg, #4f46e5, #4338ca);
-    color: #fff;
+    background: var(--primary-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(79, 70, 229, 0.4);
+    color: white;
 }
 
-/* Rounded icon buttons */
-.btn-outline-info,
-.btn-outline-warning,
-.btn-outline-danger {
-    width: 36px;
-    height: 36px;
-    padding: 0;
-    line-height: 34px;
+.btn-glass-back {
+    background: rgba(255, 255, 255, 0.5);
+    color: var(--text-dark);
+    border: 1px solid var(--glass-border);
+    border-radius: 50px;
+    padding: 8px 20px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.btn-glass-back:hover {
+    background: white;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
 }
 
 /* ==============================
-   List Group (Glass)
+   Detail Page Styles
 ============================== */
-.glass-card .list-group-item {
-    border: none;
-    color: #111827;
-    font-size: 0.9rem;
+.profile-img-container {
+    position: relative;
+    width: 150px;
+    height: 150px;
+    margin: 0 auto;
 }
 
-.glass-card .list-group-item span {
+.profile-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+    border: 5px solid rgba(255, 255, 255, 0.8);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+}
+
+.detail-label {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    font-weight: 600;
+    margin-bottom: 2px;
+}
+
+.detail-value {
+    font-size: 1.05rem;
+    color: var(--text-dark);
     font-weight: 500;
 }
 
-/* ==============================
-   Glass Table Container
-============================== */
-.glass-table-container {
-    background: var(--glass-bg);
-    backdrop-filter: var(--blur);
-    -webkit-backdrop-filter: var(--blur);
-    border-radius: 18px;
-    border: 1px solid var(--glass-border);
-    box-shadow: var(--glass-shadow);
-    overflow-x: auto;
-}
-
-/* ==============================
-   Table Styling
-============================== */
-.glass-table {
-    width: 100%;
-    border-collapse: separate;
-    border-spacing: 0;
-}
-
-.glass-table thead th {
-    background: rgba(255, 255, 255, 0.45);
-    backdrop-filter: blur(10px);
-    padding: 14px;
-    font-weight: 600;
-    font-size: 0.85rem;
-    color: #111827;
-    border-bottom: 1px solid var(--glass-border);
-}
-
-.glass-table tbody td {
-    padding: 14px;
-    vertical-align: middle;
-    font-size: 0.9rem;
-}
-
-.glass-table tbody tr {
-    transition: background 0.25s ease;
-}
-
-.glass-table tbody tr:hover {
-    background: rgba(255, 255, 255, 0.35);
-}
-
-/* ==============================
-   Profile Image / Placeholder
-============================== */
-.table-thumb {
-    background: linear-gradient(135deg, #94a3b8, #64748b);
-}
-
-/* ==============================
-   Status Badges
-============================== */
-.badge {
-    font-size: 0.75rem;
-    letter-spacing: 0.03em;
-}
-
-/* ==============================
-   Utilities
-============================== */
-.text-muted {
-    font-size: 0.78rem;
-}
-
-/* ==============================
-   Responsive Tweaks
-============================== */
-@media (max-width: 992px) {
-    .glass-table thead {
-        font-size: 0.75rem;
-    }
+.info-group {
+    background: rgba(255, 255, 255, 0.4);
+    padding: 15px;
+    border-radius: 12px;
+    margin-bottom: 15px;
+    border: 1px solid rgba(255,255,255,0.2);
 }
