@@ -16,7 +16,8 @@
     <div class="row g-4">
         {% for emp in employees %}
         <div class="col-md-6 col-lg-4 col-xl-3">
-            <div class="glass-card h-100 text-center position-relative p-4 group-hover">
+            <!-- Added d-flex flex-column to enable vertical spacing alignment -->
+            <div class="glass-card h-100 text-center position-relative p-4 group-hover d-flex flex-column">
                 
                 <!-- Status Badge -->
                 {% if emp.status == 'active' %}
@@ -26,7 +27,7 @@
                 {% endif %}
 
                 <!-- Profile Image -->
-                <div class="mb-3 d-inline-block position-relative">
+                <div class="mb-3 d-inline-block position-relative mx-auto">
                     {% if emp.image %}
                         <img src="{{ cloudinary_url(emp.image)[0] }}" 
                              class="rounded-circle shadow-sm border border-4 border-white object-fit-cover" 
@@ -44,23 +45,21 @@
                 <p class="text-primary small fw-semibold mb-2">{{ emp.position_name or emp.position or 'Team Member' }}</p>
                 <p class="text-muted small mb-3">{{ emp.department_name }}</p>
 
-                <!-- Mini Details -->
+                <!-- Mini Details (Removed Address/City as requested) -->
+                {% if emp.phone %}
                 <div class="d-flex justify-content-center gap-3 mb-4 text-muted small">
-                    {% if emp.phone %}
                     <div title="Phone">
                         <i class="fas fa-phone me-1"></i> {{ emp.phone }}
                     </div>
-                    {% endif %}
-                    {% if emp.city %}
-                    <div title="Location">
-                        <i class="fas fa-map-marker-alt me-1"></i> {{ emp.city }}
-                    </div>
-                    {% endif %}
                 </div>
+                {% else %}
+                <!-- Spacer if no phone, to keep layout consistent -->
+                <div class="mb-4"></div>
+                {% endif %}
 
-                <!-- Action -->
+                <!-- Action (mt-auto pushes this button to the bottom) -->
                 <a href="{{ url_for('employee_details', id=emp.id) }}" 
-                   class="btn btn-glass-primary btn-sm w-100 rounded-pill">
+                   class="btn btn-glass-primary btn-sm w-100 rounded-pill mt-auto">
                     View Profile
                 </a>
 
@@ -68,7 +67,7 @@
         </div>
         {% else %}
         <div class="col-12 text-center py-5">
-            <div class="glass-card d-inline-block px-5">
+            <div class="glass-card d-inline-block px-5 py-4">
                 <i class="fas fa-users-slash fa-3x text-muted mb-3"></i>
                 <h5 class="text-muted">No employees found.</h5>
             </div>
@@ -79,8 +78,7 @@
 
 <style>
     .object-fit-cover { object-fit: cover; }
-    .group-hover:hover { transform: translateY(-5px); }
+    .group-hover:hover { transform: translateY(-5px); transition: transform 0.3s ease; }
 </style>
 
 {% endblock %}
-
