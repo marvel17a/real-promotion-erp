@@ -2874,7 +2874,7 @@ def edit_expense(expense_id):
 
     cur.execute("""
         SELECT e.*, sc.category_id
-        FROM Expenses e
+        FROM expenses e
         JOIN expensesubcategories sc ON e.subcategory_id = sc.subcategory_id
         WHERE e.expense_id = %s
     """, (expense_id,))
@@ -3009,7 +3009,6 @@ def category_man():
 # ==========================================
 # ROBUST DELETE ROUTES FOR EXPENSES
 # ==========================================
-
 @app.route('/delete_category/<int:category_id>', methods=['POST'])
 def delete_category(category_id):
     if 'loggedin' not in session: return redirect(url_for('login'))
@@ -3018,6 +3017,7 @@ def delete_category(category_id):
     try:
         # 1. First, delete all EXPENSES linked to any SUBCATEGORY of this Main Category
         # We need to find all subcategory_ids belonging to this category_id
+        # FIXED: Corrected table name to 'expensesubcategories' (no underscore)
         cur.execute("SELECT subcategory_id FROM expensesubcategories WHERE category_id = %s", [category_id])
         subcats = cur.fetchall()
         
@@ -3025,13 +3025,15 @@ def delete_category(category_id):
             # Delete expenses for each subcategory
             cur.execute("DELETE FROM expenses WHERE subcategory_id = %s", [sc[0]])
             
-        # 2. Delete all Expenses linked directly to this Main Category (if any)
-        cur.execute("DELETE FROM expenses WHERE category_id = %s", [category_id])
+        # REMOVED: The invalid query 'DELETE FROM expenses WHERE category_id...' 
+        # because the 'expenses' table does not have a 'category_id' column.
 
         # 3. Now it is safe to delete the Subcategories
+        # FIXED: Corrected table name to 'expensesubcategories'
         cur.execute("DELETE FROM expensesubcategories WHERE category_id = %s", [category_id])
         
         # 4. Finally, delete the Main Category
+        # FIXED: Corrected table name to 'expensecategories'
         cur.execute("DELETE FROM expensecategories WHERE category_id = %s", [category_id])
         
         mysql.connection.commit()
@@ -5207,6 +5209,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
