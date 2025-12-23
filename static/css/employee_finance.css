@@ -176,3 +176,131 @@ body {
 
 .fade-in-up { animation: fadeInUp 0.5s ease; }
 @keyframes fadeInUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+
+/* Import Trending Font: Outfit */
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+
+:root {
+    --glass-bg: rgba(255, 255, 255, 0.7);
+    --glass-border: 1px solid rgba(255, 255, 255, 0.5);
+    --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+    --primary-gradient: linear-gradient(135deg, #4f46e5 0%, #3730a3 100%);
+    --font-main: 'Outfit', sans-serif;
+}
+
+body {
+    font-family: var(--font-main) !important;
+    background-color: #f3f4f6;
+    color: #1f2937;
+}
+
+/* Glass Card */
+.glass-card {
+    background: var(--glass-bg);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: var(--glass-border);
+    border-radius: 20px;
+    box-shadow: var(--glass-shadow);
+    transition: transform 0.2s ease;
+}
+
+/* Profile Image */
+.profile-img-lg {
+    width: 100px;
+    height: 100px;
+    object-fit: cover;
+    border-radius: 50%;
+    border: 4px solid #fff;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+/* Action Buttons */
+.btn-action-card {
+    border: none;
+    border-radius: 16px;
+    padding: 20px;
+    transition: all 0.3s ease;
+    text-align: left;
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-action-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+}
+
+.btn-debit {
+    background: linear-gradient(145deg, #fee2e2 0%, #fff1f2 100%);
+    color: #991b1b;
+    border: 1px solid #fecaca;
+}
+
+.btn-credit {
+    background: linear-gradient(145deg, #dcfce7 0%, #f0fdf4 100%);
+    color: #166534;
+    border: 1px solid #bbf7d0;
+}
+
+/* Table Styling */
+.ledger-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.ledger-table th {
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.5px;
+    color: #6b7280;
+    padding: 16px;
+    border-bottom: 1px solid #e5e7eb;
+    background: rgba(249, 250, 251, 0.8);
+}
+
+.ledger-table td {
+    padding: 16px;
+    vertical-align: middle;
+    border-bottom: 1px solid #f3f4f6;
+    font-size: 0.95rem;
+}
+
+.ledger-table tr:hover td {
+    background-color: rgba(255, 255, 255, 0.8);
+}
+
+/* Status Badges */
+.status-badge {
+    padding: 6px 12px;
+    border-radius: 30px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.badge-debit {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.badge-credit {
+    background: #dcfce7;
+    color: #16a34a;
+}
+
+/* Animations */
+.fade-in-up {
+    animation: fadeInUp 0.5s ease-out;
+}
+
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
