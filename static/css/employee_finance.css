@@ -1,201 +1,125 @@
-/* --- GLOBAL VARIABLES & FONTS --- */
+/* Import Trending Font: Outfit */
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
 
 :root {
     --glass-bg: rgba(255, 255, 255, 0.7);
     --glass-border: 1px solid rgba(255, 255, 255, 0.5);
-    --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
-    --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    --success-gradient: linear-gradient(135deg, #d4fc79 0%, #96e6a1 100%);
-    --danger-gradient: linear-gradient(135deg, #ff9a9e 0%, #fecfef 99%, #fecfef 100%);
-    --text-dark: #2d3748;
-    --text-muted: #718096;
+    --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+    --primary-gradient: linear-gradient(135deg, #4f46e5 0%, #3730a3 100%);
+    --font-main: 'Outfit', sans-serif;
 }
 
 body {
-    font-family: 'Outfit', sans-serif;
-    background-color: #f7fafc;
-    color: var(--text-dark);
+    font-family: var(--font-main) !important;
+    background-color: #f3f4f6;
+    color: #1f2937;
 }
 
-/* --- GLASS CONTAINER --- */
-.glass-container {
+/* Glass Card */
+.glass-card {
     background: var(--glass-bg);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    border-radius: 20px;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     border: var(--glass-border);
+    border-radius: 20px;
     box-shadow: var(--glass-shadow);
-    padding: 2rem;
-    margin-bottom: 2rem;
-    transition: transform 0.3s ease;
+    transition: transform 0.2s ease;
 }
 
-.glass-container:hover {
-    transform: translateY(-5px);
-}
-
-/* --- HEADERS --- */
-.page-header {
-    margin-bottom: 2rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.page-title {
-    font-weight: 700;
-    font-size: 1.8rem;
-    background: var(--primary-gradient);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    margin-bottom: 0.5rem;
-}
-
-/* --- AVATAR STYLES --- */
-.avatar-wrapper {
-    position: relative;
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
-    overflow: hidden;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-    border: 2px solid #fff;
-    background-color: #e2e8f0;
-}
-
-.avatar-lg {
-    width: 90px;
-    height: 90px;
-    border: 4px solid #fff;
-}
-
-.table-thumb {
-    width: 100%;
-    height: 100%;
+/* Profile Image */
+.profile-img-lg {
+    width: 100px;
+    height: 100px;
     object-fit: cover;
+    border-radius: 50%;
+    border: 4px solid #fff;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
 }
 
-/* --- TABLE STYLES --- */
-.table-glass {
+/* Action Buttons */
+.btn-action-card {
+    border: none;
+    border-radius: 16px;
+    padding: 20px;
+    transition: all 0.3s ease;
+    text-align: left;
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-action-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+}
+
+.btn-debit {
+    background: linear-gradient(145deg, #fee2e2 0%, #fff1f2 100%);
+    color: #991b1b;
+    border: 1px solid #fecaca;
+}
+
+.btn-credit {
+    background: linear-gradient(145deg, #dcfce7 0%, #f0fdf4 100%);
+    color: #166534;
+    border: 1px solid #bbf7d0;
+}
+
+/* Table Styling */
+.ledger-table {
     width: 100%;
     border-collapse: separate;
-    border-spacing: 0 10px;
+    border-spacing: 0;
 }
 
-.table-glass thead th {
-    border: none;
-    padding: 15px;
+.ledger-table th {
     font-weight: 600;
-    color: var(--text-muted);
     text-transform: uppercase;
-    font-size: 0.85rem;
-    letter-spacing: 0.05em;
+    font-size: 0.75rem;
+    letter-spacing: 0.5px;
+    color: #6b7280;
+    padding: 16px;
+    border-bottom: 1px solid #e5e7eb;
+    background: rgba(249, 250, 251, 0.8);
 }
 
-.table-glass tbody tr {
-    background: #fff;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.02);
-    border-radius: 12px;
-    transition: transform 0.2s;
-}
-
-.table-glass tbody tr:hover {
-    transform: scale(1.01);
-    box-shadow: 0 5px 15px rgba(0,0,0,0.05);
-}
-
-.table-glass td {
-    padding: 15px;
+.ledger-table td {
+    padding: 16px;
     vertical-align: middle;
-    border: none;
+    border-bottom: 1px solid #f3f4f6;
+    font-size: 0.95rem;
 }
 
-.table-glass td:first-child { border-top-left-radius: 12px; border-bottom-left-radius: 12px; }
-.table-glass td:last-child { border-top-right-radius: 12px; border-bottom-right-radius: 12px; }
-
-/* --- INPUTS & BUTTONS --- */
-.input-glass {
-    background: rgba(255,255,255,0.5);
-    border: 1px solid #cbd5e1;
-    border-radius: 12px;
-    padding: 10px 15px;
-    transition: all 0.3s;
+.ledger-table tr:hover td {
+    background-color: rgba(255, 255, 255, 0.8);
 }
 
-.input-glass:focus {
-    background: #fff;
-    border-color: #667eea;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-    outline: none;
-}
-
-.btn-gradient {
-    background: var(--primary-gradient);
-    color: #fff;
-    border: none;
-    border-radius: 50px;
-    padding: 10px 25px;
-    font-weight: 600;
-    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
-    transition: transform 0.2s;
-}
-
-.btn-gradient:hover {
-    transform: translateY(-2px);
-    color: #fff;
-    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
-}
-
-.btn-icon {
-    width: 35px;
-    height: 35px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: 0.2s;
-    border: none;
-    background: #fff;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-}
-
-.btn-icon:hover { transform: rotate(15deg); }
-
-/* --- TRANSACTION TYPES --- */
-.trans-card-radio {
-    display: none;
-}
-
-.trans-card-label {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 2rem;
-    background: #fff;
-    border: 2px solid #e2e8f0;
-    border-radius: 20px;
-    cursor: pointer;
-    transition: all 0.3s;
-    height: 100%;
-}
-
-.trans-card-radio:checked + .trans-card-label {
-    border-color: #667eea;
-    background: rgba(102, 126, 234, 0.05);
-    box-shadow: 0 10px 20px rgba(102, 126, 234, 0.1);
-}
-
-.trans-card-radio:checked + .trans-card-label.credit { border-color: #48bb78; background: rgba(72, 187, 120, 0.05); }
-.trans-card-radio:checked + .trans-card-label.debit { border-color: #f56565; background: rgba(245, 101, 101, 0.05); }
-
-/* --- BADGES --- */
-.badge-soft {
-    padding: 5px 12px;
-    border-radius: 20px;
+/* Status Badges */
+.status-badge {
+    padding: 6px 12px;
+    border-radius: 30px;
     font-size: 0.75rem;
     font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
 }
-.badge-soft-success { background: rgba(72, 187, 120, 0.15); color: #2f855a; }
-.badge-soft-danger { background: rgba(245, 101, 101, 0.15); color: #c53030; }
+
+.badge-debit {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.badge-credit {
+    background: #dcfce7;
+    color: #16a34a;
+}
+
+/* Animations */
+.fade-in-up {
+    animation: fadeInUp 0.5s ease-out;
+}
+
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
