@@ -2733,55 +2733,75 @@ def api_check_employee():
     cur.close()
 
     return {'ok': True, 'exists': bool(row)}
-
 @app.route("/delete_employee/<int:id>", methods=["POST"])
 def delete_employee(id):
+    if "loggedin" not in session:
+        return redirect(url_for("login"))
+
     cursor = None
     try:
+        # We need a cursor. Since your app uses DictCursor globally, we handle results as dicts.
         cursor = mysql.connection.cursor()
 
-        # ===================================================
-        # 1. Delete evening_settle (FK → morning_allocations)
-        # ===================================================
-        cursor.execute("""
-            DELETE es FROM evening_settle es
-            INNER JOIN morning_allocations ma ON es.allocation_id = ma.id
-            WHERE ma.employee_id = %s
-        """, (id,))
+        # =========================================================
+        # STEP 1: Delete Blocking 'Evening Settle' Records
+        # =========================================================
+        # Evening settlements are linked to Morning Allocations AND Employees.
+        # We must find all Allocations belonging to this employee first.
+        
+        cursor.execute("SELECT id FROM morning_allocations WHERE employee_id = %s", (id,))
+        allocations = cursor.fetchall()
+        allocation_ids = [row['id'] for row in allocations]
 
-        # ===================================================
-        # 2. Delete morning_allocations
-        # ===================================================
+        # A. Delete Settlements linked to this Employee's Allocations
+        if allocation_ids:
+            # Convert list to string for SQL IN clause (safe way)
+            placeholders = ', '.join(['%s'] * len(allocation_ids))
+            sql = f"DELETE FROM evening_settle WHERE allocation_id IN ({placeholders})"
+            cursor.execute(sql, tuple(allocation_ids))
+
+        # B. Delete Settlements linked directly to the Employee ID
+        # (This catches any settlements that might not have a matching allocation link)
+        cursor.execute("DELETE FROM evening_settle WHERE employee_id = %s", (id,))
+
+        # =========================================================
+        # STEP 2: Delete Morning Allocations
+        # =========================================================
+        # Now that evening settlements are gone, we can delete allocations.
+        # (This will auto-delete morning_allocation_items if you have CASCADE, but we do it manually to be safe)
         cursor.execute("DELETE FROM morning_allocations WHERE employee_id = %s", (id,))
 
-        # ===================================================
-        # 3. Delete product_returns
-        # ===================================================
+        # =========================================================
+        # STEP 3: Delete Other Dependencies
+        # =========================================================
         cursor.execute("DELETE FROM product_returns WHERE employee_id = %s", (id,))
-
-        # ===================================================
-        # 4. Delete employee financial transactions
-        # ===================================================
         cursor.execute("DELETE FROM employee_transactions WHERE employee_id = %s", (id,))
+        cursor.execute("DELETE FROM employee_attendance WHERE employee_id = %s", (id,))
 
-        # ===================================================
-        # 5. Delete employee (parent row)
-        # ===================================================
+        # =========================================================
+        # STEP 4: Delete the Employee
+        # =========================================================
         cursor.execute("DELETE FROM employees WHERE id = %s", (id,))
 
         mysql.connection.commit()
-        flash("Employee and all linked records deleted successfully!", "success")
+        flash("Employee and all associated records deleted successfully!", "success")
 
     except Exception as e:
         mysql.connection.rollback()
-        flash(f"An error occurred while deleting employee: {e}", "danger")
-        app.logger.error(f"Delete Employee Error: {e}")
+        # Log the specific error to help debugging
+        app.logger.error(f"Delete Employee Failed: {e}")
+        
+        # User friendly error message
+        if "foreign key" in str(e).lower():
+            flash("Cannot delete employee: There are still linked records (like Settlements) preventing deletion.", "danger")
+        else:
+            flash(f"An error occurred: {e}", "danger")
 
     finally:
         if cursor:
             cursor.close()
 
-    return redirect(url_for("employees"))
+    return redirect(url_for("employee_master"))
 
 # === API: view single employee (for drawer) ===
 @app.route("/api/employees/<int:id>")
@@ -4916,6 +4936,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
