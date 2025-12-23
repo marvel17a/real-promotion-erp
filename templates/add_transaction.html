@@ -4,88 +4,88 @@
 
 {% block page_content %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/employee_finance.css') }}">
+<!-- Flatpickr CSS -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<link rel="stylesheet" type="text/css" href="https://npmcdn.com/flatpickr/dist/themes/material_blue.css">
 
-<div class="container py-5 fade-in-up" style="max-width: 600px;">
+<div class="container py-5 fade-in-up" style="max-width: 800px;">
     
-    <div class="glass-card p-4 p-md-5">
-        <div class="text-center mb-4">
-            <h4 class="fw-bold mb-1">New Transaction</h4>
-            <p class="text-muted mb-0">For <span class="text-primary fw-bold">{{ employee.name }}</span></p>
+    <div class="glass-container p-5">
+        <div class="d-flex align-items-center mb-4 pb-3 border-bottom">
+            <a href="{{ url_for('emp_ledger', employee_id=employee.id) }}" class="btn-icon me-3 text-dark text-decoration-none">
+                <i class="fa-solid fa-arrow-left"></i>
+            </a>
+            <div>
+                <h3 class="mb-0 fw-bold">New Transaction</h3>
+                <p class="text-muted mb-0 small">Recording for <span class="text-primary fw-bold">{{ employee.name }}</span></p>
+            </div>
         </div>
 
+        <!-- Form Action matches your route: /add-transaction/<int:employee_id> -->
         <form method="POST" action="{{ url_for('add_transaction', employee_id=employee.id) }}">
             
             <!-- Type Selection (Visual Cards) -->
-            <label class="form-label fw-bold text-muted small text-uppercase mb-2">Select Type</label>
+            <label class="form-label fw-bold mb-3">Transaction Type</label>
             <div class="row g-3 mb-4">
                 <div class="col-6">
-                    <input type="radio" class="trans-card-radio" name="type" id="debit" value="debit" 
-                           {% if selected_type == 'debit' %}checked{% endif %}>
-                    <label class="trans-card-label debit h-100 d-flex flex-column align-items-center justify-content-center p-3 rounded-3 border" for="debit">
-                        <i class="fa-solid fa-circle-arrow-up fa-2x text-danger mb-2"></i>
-                        <span class="fw-bold text-dark">DEBIT</span>
-                        <small class="text-muted text-center" style="font-size: 0.75rem;">Company Gave Money</small>
+                    <!-- Added 'checked' to ensure a value is always sent -->
+                    <input type="radio" class="trans-card-radio" name="type" id="credit" value="credit" required 
+                           {% if selected_type == 'credit' %}checked{% endif %}>
+                    <label class="trans-card-label credit" for="credit">
+                        <i class="fa-solid fa-circle-arrow-down fa-2x text-success mb-2"></i>
+                        <span class="fw-bold text-dark">Credit</span>
+                        <small class="text-muted">Money In (Receive)</small>
                     </label>
                 </div>
                 <div class="col-6">
-                    <input type="radio" class="trans-card-radio" name="type" id="credit" value="credit"
-                           {% if selected_type == 'credit' %}checked{% endif %}>
-                    <label class="trans-card-label credit h-100 d-flex flex-column align-items-center justify-content-center p-3 rounded-3 border" for="credit">
-                        <i class="fa-solid fa-circle-arrow-down fa-2x text-success mb-2"></i>
-                        <span class="fw-bold text-dark">CREDIT</span>
-                        <small class="text-muted text-center" style="font-size: 0.75rem;">Employee Paid / Salary</small>
+                    <input type="radio" class="trans-card-radio" name="type" id="debit" value="debit"
+                           {% if selected_type == 'debit' %}checked{% endif %}>
+                    <label class="trans-card-label debit" for="debit">
+                        <i class="fa-solid fa-circle-arrow-up fa-2x text-danger mb-2"></i>
+                        <span class="fw-bold text-dark">Debit</span>
+                        <small class="text-muted">Money Out (Give)</small>
                     </label>
                 </div>
             </div>
 
-            <div class="mb-3">
-                <label class="form-label fw-bold text-muted small text-uppercase">Amount (₹)</label>
-                <div class="input-group">
-                    <span class="input-group-text bg-white border-end-0">₹</span>
-                    <input type="number" step="0.01" name="amount" class="form-control border-start-0 fs-4 fw-bold" placeholder="0.00" required>
+            <div class="row g-4">
+                <div class="col-md-6">
+                    <label class="form-label fw-bold text-muted small text-uppercase">Amount (₹)</label>
+                    <input type="number" step="0.01" name="amount" class="form-control input-glass fs-5 fw-bold" placeholder="0.00" required>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-bold text-muted small text-uppercase">Date</label>
+                    <!-- KEY FIX: name="transaction_date" matches app.py -->
+                    <!-- Changed input type to text for Flatpickr compatibility -->
+                    <input type="text" name="transaction_date" id="datePicker" class="form-control input-glass" required>
+                </div>
+                <div class="col-12">
+                    <label class="form-label fw-bold text-muted small text-uppercase">Description</label>
+                    <textarea name="description" class="form-control input-glass" rows="3" placeholder="e.g. Monthly Salary Advance..."></textarea>
                 </div>
             </div>
 
-            <div class="mb-3">
-                <label class="form-label fw-bold text-muted small text-uppercase">Date</label>
-                <input type="date" name="transaction_date" id="datePicker" class="form-control" required>
-            </div>
-
-            <div class="mb-4">
-                <label class="form-label fw-bold text-muted small text-uppercase">Description</label>
-                <textarea name="description" class="form-control" rows="3" placeholder="e.g. Salary Advance, Petrol Expense..."></textarea>
-            </div>
-
-            <div class="d-grid gap-2">
-                <button type="submit" class="btn btn-primary py-3 rounded-pill fw-bold shadow-sm">
-                    Confirm Transaction
+            <div class="mt-5 d-flex justify-content-end gap-3">
+                <a href="{{ url_for('emp_ledger', employee_id=employee.id) }}" class="btn btn-light rounded-pill px-4 border">Cancel</a>
+                <button type="submit" class="btn-gradient shadow-lg px-5 py-3">
+                    <i class="fa-solid fa-check me-2"></i>Save Record
                 </button>
-                <a href="{{ url_for('emp_ledger', employee_id=employee.id) }}" class="btn btn-light py-2 rounded-pill text-muted">
-                    Cancel
-                </a>
             </div>
         </form>
     </div>
 </div>
 
+<!-- Flatpickr JS -->
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script>
     document.addEventListener("DOMContentLoaded", function() {
-        const datePicker = document.getElementById("datePicker");
-        if(datePicker) {
-            datePicker.valueAsDate = new Date();
-        }
+        flatpickr("#datePicker", {
+            dateFormat: "Y-m-d", // Format sent to backend
+            altInput: true,      // Show user-friendly format
+            altFormat: "F j, Y", // e.g. October 15, 2023
+            defaultDate: "today", // Set default to today
+            allowInput: true
+        });
     });
 </script>
-
-<style>
-    /* Simple CSS for Radio Cards if not in main CSS */
-    .trans-card-radio { display: none; }
-    .trans-card-label { cursor: pointer; transition: all 0.2s; background: #fff; }
-    .trans-card-radio:checked + .trans-card-label.debit {
-        background-color: #fef2f2; border-color: #ef4444 !important; box-shadow: 0 0 0 2px #ef4444;
-    }
-    .trans-card-radio:checked + .trans-card-label.credit {
-        background-color: #f0fdf4; border-color: #22c55e !important; box-shadow: 0 0 0 2px #22c55e;
-    }
-</style>
 {% endblock %}
