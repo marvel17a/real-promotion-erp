@@ -4723,6 +4723,7 @@ def get_public_id_from_url(url):
         except: return url
     return url 
 
+# REPLACE existing 'emp_ledger' route in app.py
 
 @app.route('/employee-ledger/<int:employee_id>')
 def emp_ledger(employee_id):
@@ -4739,7 +4740,6 @@ def emp_ledger(employee_id):
         return redirect(url_for('emp_list'))
         
     # 2. Fetch Transactions
-    # Note: We fetch created_at to show the timestamp
     cur.execute("""
         SELECT id, transaction_date, type, amount, description, created_at 
         FROM employee_transactions 
@@ -4761,6 +4761,8 @@ def emp_ledger(employee_id):
         amt = float(t['amount'])
         
         # Calculate Running Balance
+        # Debit = Money given to employee (Positive Balance / Debt)
+        # Credit = Money received/Salary (Negative Balance / Advance)
         if t['type'] == 'debit':
             running_balance += amt
             total_debit += amt
@@ -4775,9 +4777,8 @@ def emp_ledger(employee_id):
         t_dict['balance'] = running_balance
         
         # --- TIMESTAMP FIX (UTC to IST) ---
-        # Assuming server is UTC, we add 5 hours 30 minutes for India
+        # Adding 5 hours 30 minutes to server time
         if t.get('created_at'):
-            # Create a localized time
             local_time = t['created_at'] + timedelta(hours=5, minutes=30)
             t_dict['time_str'] = local_time.strftime('%I:%M %p') # e.g. 02:30 PM
         else:
@@ -5149,5 +5150,6 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
