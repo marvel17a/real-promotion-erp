@@ -7,67 +7,108 @@
 
 <div class="container-fluid py-4 fade-in-up">
     
-    <!-- Header -->
-    <div class="page-header">
-        <div>
-            <h2 class="page-title">Employee Finance</h2>
-            <p class="text-muted mb-0">Select an employee to view ledger or add transaction.</p>
+    <!-- 1. KPI Cards Row -->
+    <div class="row g-4 mb-5">
+        <!-- Card 1: Total Debit (Given by Company) -->
+        <div class="col-md-4">
+            <div class="glass-card h-100 p-4 border-start border-4 border-danger position-relative overflow-hidden">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <p class="text-uppercase text-muted fw-bold small mb-1">Total Given (Debit)</p>
+                        <h3 class="fw-bold text-dark mb-0">{{ stats.total_debit|inr }}</h3>
+                    </div>
+                    <div class="icon-circle bg-danger bg-opacity-10 text-danger">
+                        <i class="fa-solid fa-arrow-up"></i>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div class="d-flex gap-3">
-            <input type="text" id="searchInput" class="input-glass" placeholder="Search employee..." style="width: 250px;">
+
+        <!-- Card 2: Total Credit (Received/Salary) -->
+        <div class="col-md-4">
+            <div class="glass-card h-100 p-4 border-start border-4 border-success position-relative overflow-hidden">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <p class="text-uppercase text-muted fw-bold small mb-1">Total Received (Credit)</p>
+                        <h3 class="fw-bold text-dark mb-0">{{ stats.total_credit|inr }}</h3>
+                    </div>
+                    <div class="icon-circle bg-success bg-opacity-10 text-success">
+                        <i class="fa-solid fa-arrow-down"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 3: Net Holding -->
+        <div class="col-md-4">
+            <div class="glass-card h-100 p-4 border-start border-4 border-primary position-relative overflow-hidden">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <p class="text-uppercase text-muted fw-bold small mb-1">Net Holding Amount</p>
+                        <h3 class="fw-bold mb-0 {% if stats.net_holding > 0 %}text-danger{% else %}text-success{% endif %}">
+                            {{ stats.net_holding|inr }}
+                        </h3>
+                        <small class="text-muted" style="font-size: 0.75rem;">
+                            {% if stats.net_holding > 0 %} Employees owe Company {% else %} Company owes Employees {% endif %}
+                        </small>
+                    </div>
+                    <div class="icon-circle bg-primary bg-opacity-10 text-primary">
+                        <i class="fa-solid fa-scale-balanced"></i>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
-    <!-- Employee Table -->
-    <div class="glass-container p-0">
-        <div class="table-responsive p-3">
-            <table class="table-glass">
-                <thead>
+    <!-- 2. Header & Search -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="fw-bold mb-1">Employee Accounts</h4>
+            <p class="text-muted small mb-0">Manage financial records for {{ employees|length }} active employees.</p>
+        </div>
+        <div class="position-relative mt-3 mt-md-0">
+            <input type="text" id="searchInput" class="form-control rounded-pill ps-5 border-0 shadow-sm" placeholder="Search employee..." style="width: 280px; height: 45px;">
+            <i class="fa-solid fa-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted"></i>
+        </div>
+    </div>
+
+    <!-- 3. Employee Table -->
+    <div class="glass-container p-0 overflow-hidden">
+        <div class="table-responsive">
+            <table class="table align-middle mb-0 table-hover">
+                <thead class="bg-light">
                     <tr>
-                        <th class="ps-4">Employee</th>
-                        <th>Position</th>
-                        <th>Email</th>
-                        <th class="text-end pe-4">Action</th>
+                        <th class="ps-4 py-3 text-uppercase text-muted small fw-bold">Employee</th>
+                        <th class="py-3 text-uppercase text-muted small fw-bold">Position</th>
+                        <th class="py-3 text-uppercase text-muted small fw-bold">Contact</th>
+                        <th class="text-end pe-4 py-3 text-uppercase text-muted small fw-bold">Action</th>
                     </tr>
                 </thead>
                 <tbody id="employeeTable">
                     {% for emp in employees %}
                     <tr>
-                        <td class="ps-4">
+                        <td class="ps-4 py-3">
                             <div class="d-flex align-items-center gap-3">
-                                <!-- SMART AVATAR LOGIC -->
-                                <div class="avatar-wrapper">
-                                    {% if emp.image %}
-                                        {% if 'http' in emp.image %}
-                                            <!-- CASE 1: Legacy Full URL (Your current data) -->
-                                            <img src="{{ emp.image }}" class="table-thumb" alt="{{ emp.name }}"
-                                                 onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name={{ emp.name }}&background=random&color=fff';">
-                                        {% else %}
-                                            <!-- CASE 2: New Public ID (erp_employees/...) -->
-                                            <!-- Uses Cloudinary filter to generate URL -->
-                                            <img src="{{ cloudinary_url(emp.image, width=100, height=100, crop='fill')[0] }}" 
-                                                 class="table-thumb" alt="{{ emp.name }}"
-                                                 onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name={{ emp.name }}&background=random&color=fff';">
-                                        {% endif %}
-                                    {% else %}
-                                        <!-- CASE 3: No Image -->
-                                        <img src="https://ui-avatars.com/api/?name={{ emp.name }}&background=random&color=fff" class="table-thumb" alt="{{ emp.name }}">
-                                    {% endif %}
+                                {% if emp.image %}
+                                    <img src="{{ cloudinary_url(emp.image)[0] }}" class="rounded-circle border" width="45" height="45" style="object-fit: cover;">
+                                {% else %}
+                                    <div class="rounded-circle bg-light d-flex align-items-center justify-content-center border" style="width: 45px; height: 45px;">
+                                        <i class="fa-solid fa-user text-secondary"></i>
+                                    </div>
+                                {% endif %}
+                                <div>
+                                    <h6 class="mb-0 fw-bold text-dark">{{ emp.name }}</h6>
+                                    <small class="text-muted">ID: {{ emp.id }}</small>
                                 </div>
-                                <span class="fw-bold text-dark">{{ emp.name }}</span>
                             </div>
                         </td>
-                        <td><span class="badge-soft badge-soft-success">{{ emp.position }}</span></td>
-                        <td class="text-muted small">{{ emp.email }}</td>
+                        <td><span class="badge bg-light text-dark border">{{ emp.position or emp.position_name }}</span></td>
+                        <td><small class="text-muted">{{ emp.phone }}</small></td>
                         <td class="text-end pe-4">
-                            <a href="{{ url_for('emp_ledger', employee_id=emp.id) }}" class="btn-gradient btn-sm text-decoration-none">
-                                <i class="fa-solid fa-folder-open me-2"></i>Ledger
+                            <a href="{{ url_for('emp_ledger', employee_id=emp.id) }}" class="btn btn-primary btn-sm rounded-pill px-3">
+                                View Ledger <i class="fa-solid fa-chevron-right ms-1"></i>
                             </a>
                         </td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="4" class="text-center py-5 text-muted">No employees found.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -86,4 +127,10 @@
         });
     });
 </script>
+
+<style>
+    .icon-circle {
+        width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.2rem;
+    }
+</style>
 {% endblock %}
