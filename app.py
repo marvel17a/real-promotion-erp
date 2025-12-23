@@ -4581,15 +4581,123 @@ def product_sales():
 # ============================================================
 #  EMPLOYEE FINANCE LIST ROUTE (Update this in app.py)
 # ============================================================
-
+# 1. Employee List with KPI Cards (Unchanged)
 @app.route('/emp_list')
 def emp_list():
     if 'loggedin' not in session: return redirect(url_for('login'))
+    
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    
+    # Fetch Employees
     cursor.execute("SELECT * FROM employees WHERE status = 'active' ORDER BY name")
     employees = cursor.fetchall()
+    
+    # Calculate Global Stats
+    cursor.execute("""
+        SELECT 
+            SUM(CASE WHEN type = 'debit' THEN amount ELSE 0 END) as total_debit,
+            SUM(CASE WHEN type = 'credit' THEN amount ELSE 0 END) as total_credit
+        FROM employee_transactions
+    """)
+    stats = cursor.fetchone()
+    
+    total_debit = float(stats['total_debit'] or 0)
+    total_credit = float(stats['total_credit'] or 0)
+    net_holding = total_debit - total_credit 
+    
     cursor.close()
-    return render_template('emp_list.html', employees=employees)
+    
+    return render_template('emp_list.html', 
+                           employees=employees, 
+                           stats={
+                               'total_debit': total_debit,
+                               'total_credit': total_credit,
+                               'net_holding': net_holding
+                           })
+
+
+
+# 5. PDF Generator (With Timestamp Column)
+@app.route('/employee/ledger/pdf/<int:employee_id>')
+def employee_ledger_pdf(employee_id):
+    if 'loggedin' not in session: return redirect(url_for('login'))
+    
+    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    cur.execute("SELECT * FROM employees WHERE id=%s", (employee_id,))
+    emp = cur.fetchone()
+    
+    # Order by Date and Time
+    cur.execute("""
+        SELECT * FROM employee_transactions 
+        WHERE employee_id=%s 
+        ORDER BY transaction_date ASC, created_at ASC
+    """, (employee_id,))
+    transactions = cur.fetchall()
+    cur.close()
+    
+    if not emp: return "Employee not found", 404
+    
+    pdf = PDF() 
+    pdf.add_page()
+    
+    # Header
+    pdf.set_font("Arial", 'B', 16)
+    pdf.cell(0, 10, "Employee Ledger Statement", 0, 1, 'C')
+    pdf.ln(5)
+    
+    pdf.set_font("Arial", '', 11)
+    pdf.cell(0, 6, f"Employee: {emp['name']}", 0, 1)
+    pdf.cell(0, 6, f"Position: {emp['position'] or emp.get('position_name','')}", 0, 1)
+    pdf.cell(0, 6, f"Generated: {datetime.now().strftime('%d-%m-%Y %I:%M %p')}", 0, 1)
+    pdf.ln(10)
+    
+    # Table Header (Adjusted widths for Time)
+    pdf.set_font("Arial", 'B', 9)
+    pdf.set_fill_color(230, 230, 230)
+    
+    # Widths: Date(25), Time(20), Desc(65), Debit(25), Credit(25), Bal(30)
+    pdf.cell(25, 8, "Date", 1, 0, 'C', 1)
+    pdf.cell(20, 8, "Time", 1, 0, 'C', 1) # Added Time Column
+    pdf.cell(65, 8, "Description", 1, 0, 'L', 1)
+    pdf.cell(25, 8, "Debit", 1, 0, 'R', 1)
+    pdf.cell(25, 8, "Credit", 1, 0, 'R', 1)
+    pdf.cell(30, 8, "Balance", 1, 1, 'R', 1)
+    
+    pdf.set_font("Arial", '', 8)
+    balance = 0.0
+    
+    for t in transactions:
+        amt = float(t['amount'])
+        debit = 0.0
+        credit = 0.0
+        
+        if t['type'] == 'debit':
+            debit = amt
+            balance += amt
+        else:
+            credit = amt
+            balance -= amt
+            
+        d_str = t['transaction_date'].strftime('%d-%m-%Y')
+        # Time string from created_at
+        t_str = t['created_at'].strftime('%I:%M %p') if t.get('created_at') else "-"
+        
+        pdf.cell(25, 7, d_str, 1, 0, 'C')
+        pdf.cell(20, 7, t_str, 1, 0, 'C') # Print Time
+        pdf.cell(65, 7, pdf.safe_text(t['description']), 1, 0, 'L')
+        pdf.cell(25, 7, f"{debit:.2f}" if debit > 0 else "-", 1, 0, 'R')
+        pdf.cell(25, 7, f"{credit:.2f}" if credit > 0 else "-", 1, 0, 'R')
+        pdf.cell(30, 7, f"{balance:.2f}", 1, 1, 'R')
+        
+    pdf.ln(5)
+    pdf.set_font("Arial", 'B', 12)
+    status = "Due from Employee" if balance > 0 else "Payable to Employee"
+    pdf.cell(0, 10, f"Net Closing Balance: {abs(balance):.2f} ({status})", 0, 1, 'R')
+    
+    response = make_response(pdf.output(dest='S').encode('latin1'))
+    response.headers['Content-Type'] = 'application/pdf'
+    response.headers['Content-Disposition'] = f'attachment; filename={emp["name"]}_Ledger.pdf'
+    return response
 
 
 
@@ -4613,53 +4721,149 @@ def get_public_id_from_url(url):
 
 @app.route('/employee-ledger/<int:employee_id>')
 def emp_ledger(employee_id):
+    if 'loggedin' not in session: return redirect(url_for('login'))
+    
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    cur.execute("SELECT id, name, position, email, image FROM employees WHERE id = %s", [employee_id])
+    
+    # Fetch Employee
+    cur.execute("SELECT id, name, position, email, phone, image FROM employees WHERE id = %s", [employee_id])
     employee = cur.fetchone()
+    
     if not employee:
         flash('Employee not found!', 'danger')
         return redirect(url_for('emp_list'))
+        
+    # Fetch Transactions (Ordering by Date AND Time)
+    # Added 'created_at' to the fetch list explicitly
     cur.execute("""
         SELECT id, transaction_date, type, amount, description, created_at 
         FROM employee_transactions 
         WHERE employee_id = %s 
-        ORDER BY transaction_date ASC, id ASC
+        ORDER BY transaction_date ASC, created_at ASC
     """, [employee_id])
     transactions_from_db = cur.fetchall()
+    
     cur.close()
-    balance = 0.0
+    
+    running_balance = 0.0
     transactions = []
+    
+    total_debit = 0.0
+    total_credit = 0.0
+    has_opening_balance = False
+    
     for t in transactions_from_db:
-        amount = float(t['amount'])
+        amt = float(t['amount'])
+        
         if t['type'] == 'debit':
-            balance += amount
+            running_balance += amt
+            total_debit += amt
         else:
-            balance -= amount
-        processed_t = dict(t)
-        processed_t['balance'] = balance
-        transactions.append(processed_t)
-    return render_template('emp_ledger.html', employee=employee, transactions=transactions, final_balance=balance)
+            running_balance -= amt
+            total_credit += amt
+            
+        if t['description'] == 'Opening Balance':
+            has_opening_balance = True
+            
+        t_dict = dict(t)
+        t_dict['balance'] = running_balance
+        
+        # Format Timestamp for Display (e.g., "10:30 AM")
+        if t['created_at']:
+            t_dict['time_str'] = t['created_at'].strftime('%I:%M %p')
+        else:
+            t_dict['time_str'] = ""
+            
+        transactions.append(t_dict)
+        
+    # Reverse for display (Newest First)
+    transactions_reversed = transactions[::-1]
+
+    return render_template('emp_ledger.html', 
+                           employee=employee, 
+                           transactions=transactions_reversed, 
+                           final_balance=running_balance,
+                           total_debit=total_debit,
+                           total_credit=total_credit,
+                           has_opening_balance=has_opening_balance)
+
+
+
+@app.route('/add-opening-balance/<int:employee_id>', methods=['GET', 'POST'])
+def add_opening_balance(employee_id):
+    if 'loggedin' not in session: return redirect(url_for('login'))
+    
+    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    
+    if request.method == 'POST':
+        amount = float(request.form['amount'])
+        type_ = request.form['type']
+        date_ = request.form['date']
+        
+        cur.execute("SELECT id FROM employee_transactions WHERE employee_id=%s AND description='Opening Balance'", (employee_id,))
+        exists = cur.fetchone()
+        
+        if exists:
+            cur.execute("""
+                UPDATE employee_transactions 
+                SET amount=%s, type=%s, transaction_date=%s, created_at=NOW() 
+                WHERE id=%s
+            """, (amount, type_, date_, exists['id']))
+            flash('Opening Balance Updated!', 'info')
+        else:
+            cur.execute("""
+                INSERT INTO employee_transactions (employee_id, transaction_date, type, amount, description, created_at)
+                VALUES (%s, %s, %s, %s, 'Opening Balance', NOW())
+            """, (employee_id, date_, type_, amount))
+            flash('Opening Balance Added!', 'success')
+            
+        mysql.connection.commit()
+        cur.close()
+        return redirect(url_for('emp_ledger', employee_id=employee_id))
+        
+    cur.execute("SELECT * FROM employees WHERE id=%s", (employee_id,))
+    emp = cur.fetchone()
+    cur.execute("SELECT * FROM employee_transactions WHERE employee_id=%s AND description='Opening Balance'", (employee_id,))
+    existing = cur.fetchone()
+    cur.close()
+    
+    return render_template('add_opening_balance.html', employee=emp, existing=existing)
+
 
 @app.route('/add-transaction/<int:employee_id>', methods=['GET', 'POST'])
 def add_transaction(employee_id):
+    if 'loggedin' not in session: return redirect(url_for('login'))
+    
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    
     if request.method == 'POST':
-        trans_date = request.form['transaction_date']
+        trans_date = request.form['transaction_date'] # Gets YYYY-MM-DD
         trans_type = request.form['type'] 
         amount = request.form['amount']
         description = request.form['description']
+        
+        # We rely on the database's 'created_at' for the precise timestamp of entry.
+        # But if you want the transaction_date to store time, you'd need a DATETIME column.
+        # Assuming transaction_date is DATE, we use created_at for sorting/displaying time.
+        
         cur.execute("""
-            INSERT INTO employee_transactions (employee_id, transaction_date, type, amount, description)
-            VALUES (%s, %s, %s, %s, %s)
+            INSERT INTO employee_transactions (employee_id, transaction_date, type, amount, description, created_at)
+            VALUES (%s, %s, %s, %s, %s, NOW())
         """, (employee_id, trans_date, trans_type, amount, description))
+        
         mysql.connection.commit()
         cur.close()
         flash('Transaction Added Successfully!', 'success')
         return redirect(url_for('emp_ledger', employee_id=employee_id))
+    
     cur.execute("SELECT id, name FROM employees WHERE id = %s", [employee_id])
     employee = cur.fetchone()
     cur.close()
-    return render_template('add_transaction.html', employee=employee)
+    
+    selected_type = request.args.get('type', 'debit') 
+    
+    return render_template('add_transaction.html', employee=employee, selected_type=selected_type)
+
 
 @app.route('/edit-transaction/<int:transaction_id>', methods=['GET', 'POST'])
 def edit_transaction(transaction_id):
@@ -4936,234 +5140,3 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
