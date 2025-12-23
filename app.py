@@ -4581,18 +4581,24 @@ def product_sales():
 # ============================================================
 #  EMPLOYEE FINANCE LIST ROUTE (Update this in app.py)
 # ============================================================
-# 1. Employee List with KPI Cards (Unchanged)
 @app.route('/emp_list')
 def emp_list():
     if 'loggedin' not in session: return redirect(url_for('login'))
     
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
-    # Fetch Employees
-    cursor.execute("SELECT * FROM employees WHERE status = 'active' ORDER BY name")
+    # FETCH EMPLOYEES: Changed ORDER BY to 'id ASC'
+    # Also added LEFT JOIN to ensure position_name is fetched if position ID is used
+    cursor.execute("""
+        SELECT e.*, p.position_name 
+        FROM employees e
+        LEFT JOIN employee_positions p ON e.position_id = p.id 
+        WHERE e.status = 'active' 
+        ORDER BY e.id ASC
+    """)
     employees = cursor.fetchall()
     
-    # Calculate Global Stats
+    # Calculate Global Stats (Unchanged)
     cursor.execute("""
         SELECT 
             SUM(CASE WHEN type = 'debit' THEN amount ELSE 0 END) as total_debit,
@@ -5140,3 +5146,4 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
