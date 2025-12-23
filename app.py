@@ -3006,27 +3006,72 @@ def category_man():
     return render_template('expenses/category_man.html', categories=categories)
 
 
+# ==========================================
+# ROBUST DELETE ROUTES FOR EXPENSES
+# ==========================================
+
 @app.route('/delete_category/<int:category_id>', methods=['POST'])
 def delete_category(category_id):
     if 'loggedin' not in session: return redirect(url_for('login'))
+    
     cur = mysql.connection.cursor()
-    # Subcategories usually delete via CASCADE, but manual delete is safer if not set
-    cur.execute("DELETE FROM expensesubcategories WHERE category_id = %s", [category_id]) 
-    cur.execute("DELETE FROM expensecategories WHERE category_id = %s", [category_id])
-    mysql.connection.commit()
-    cur.close()
-    flash('Category Deleted', 'info')
+    try:
+        # 1. First, delete all EXPENSES linked to any SUBCATEGORY of this Main Category
+        # We need to find all subcategory_ids belonging to this category_id
+        cur.execute("SELECT subcategory_id FROM expensesubcategories WHERE category_id = %s", [category_id])
+        subcats = cur.fetchall()
+        
+        for sc in subcats:
+            # Delete expenses for each subcategory
+            cur.execute("DELETE FROM expenses WHERE subcategory_id = %s", [sc[0]])
+            
+        # 2. Delete all Expenses linked directly to this Main Category (if any)
+        cur.execute("DELETE FROM expenses WHERE category_id = %s", [category_id])
+
+        # 3. Now it is safe to delete the Subcategories
+        cur.execute("DELETE FROM expensesubcategories WHERE category_id = %s", [category_id])
+        
+        # 4. Finally, delete the Main Category
+        cur.execute("DELETE FROM expensecategories WHERE category_id = %s", [category_id])
+        
+        mysql.connection.commit()
+        flash('Category and all related expenses deleted successfully.', 'success')
+        
+    except Exception as e:
+        mysql.connection.rollback()
+        # Log the actual error for debugging
+        print(f"Delete Category Error: {e}")
+        flash(f'Error deleting category: {e}', 'danger')
+        
+    finally:
+        cur.close()
+        
     return redirect(url_for('category_man'))
 
 
 @app.route('/delete_subcategory/<int:subcategory_id>', methods=['POST'])
 def delete_subcategory(subcategory_id):
     if 'loggedin' not in session: return redirect(url_for('login'))
+    
     cur = mysql.connection.cursor()
-    cur.execute("DELETE FROM expensesubcategories WHERE subcategory_id = %s", [subcategory_id])
-    mysql.connection.commit()
-    cur.close()
-    flash('Subcategory Deleted', 'info')
+    try:
+        # 1. First, delete all EXPENSES that use this specific subcategory
+        cur.execute("DELETE FROM expenses WHERE subcategory_id = %s", [subcategory_id])
+        
+        # 2. Now it is safe to delete the Subcategory itself
+        cur.execute("DELETE FROM expensesubcategories WHERE subcategory_id = %s", [subcategory_id])
+        
+        mysql.connection.commit()
+        flash('Subcategory and associated expenses deleted successfully.', 'success')
+        
+    except Exception as e:
+        mysql.connection.rollback()
+        print(f"Delete Subcategory Error: {e}")
+        flash(f'Error deleting subcategory: {e}', 'danger')
+        
+    finally:
+        cur.close()
+        
     return redirect(url_for('category_man'))
 
 # REPLACE THIS ROUTE IN YOUR app.py
@@ -5162,6 +5207,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
