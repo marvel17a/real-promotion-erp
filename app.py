@@ -2477,8 +2477,7 @@ def employee_position_delete(id):
 
 
 
-# ... existing imports ...##
-####################################################################
+# Add employee route#
 @app.route("/add_employee", methods=["GET", "POST"])
 def add_employee():
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
@@ -2500,24 +2499,28 @@ def add_employee():
             
             # 3. Upload Document
             if doc_file and doc_file.filename != '':
-                # resource_type="auto" prevents 404s by correctly identifying PDFs vs Images
                 res = cloudinary.uploader.upload(doc_file, folder="erp_employee_docs", resource_type="auto")
-                doc_url = res.get('secure_url') # Store full URL
+                doc_url = res.get('secure_url')
         except Exception as e:
             app.logger.error(f"Upload error: {e}")
             flash(f"Upload warning: {e}", "warning")
 
-        # 4. Insert
+        # 4. Insert (UPDATED QUERY)
         try:
             cur.execute("""
-                INSERT INTO employees (name, email, phone, aadhar_no, emergency_contact, dob, position_id, department_id, address_line1, address_line2, pincode, city, district, state, image, document, status)
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'active')
+                INSERT INTO employees (
+                    name, email, phone, aadhar_no, emergency_contact, emergency_contact_person, 
+                    dob, position_id, department_id, address_line1, address_line2, 
+                    pincode, city, district, state, image, document, status
+                )
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'active')
             """, (
                 d.get("name"), 
                 d.get("email"), 
                 d.get("phone"), 
                 d.get("aadhar_no"), 
-                d.get("emergency_contact"), 
+                d.get("emergency_contact"),
+                d.get("emergency_contact_person"), # NEW FIELD
                 d.get("dob") if d.get("dob") else None,
                 d.get("position_id"), 
                 d.get("department_id"), 
@@ -2531,7 +2534,7 @@ def add_employee():
                 doc_url
             ))
             mysql.connection.commit()
-            flash("Employee Added!", "success")
+            flash("Employee Added Successfully!", "success")
             return redirect(url_for("employees"))
         except Exception as e:
             mysql.connection.rollback()
@@ -2593,12 +2596,13 @@ def employee_document(id):
 # ---------- ADMIN SIDE: EDIT EMPLOYEE (admin_master.html) ----------
 
 # 2. EDIT EMPLOYEE ROUTE
+
 @app.route("/edit_employee/<int:id>", methods=["GET", "POST"])
 def edit_employee(id):
     if "loggedin" not in session:
         return redirect(url_for("login"))
 
-    cur = mysql.connection.cursor(DictCursor)
+    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
     if request.method == "POST":
         form = request.form
@@ -2610,7 +2614,8 @@ def edit_employee(id):
         
         # Dates
         dob_str = form.get("dob", "").strip()
-        dob = parse_ddmmyyyy_to_date(dob_str) if dob_str else (form.get("dob") or None) # Try both formats
+        # Helper 'parse_ddmmyyyy_to_date' assumed to exist in your app.py, otherwise standard logic:
+        dob = form.get("dob") or None 
         
         # IDs
         position_id = form.get("position_id") or None
@@ -2618,9 +2623,10 @@ def edit_employee(id):
         
         # Extra Info
         emergency_contact = form.get("emergency_contact", "").strip()
+        emergency_contact_person = form.get("emergency_contact_person", "").strip() # NEW FIELD
         aadhar_no = form.get("aadhar_no", "").strip()
 
-        # Address Info (Updated logic for District/State)
+        # Address Info
         pincode = form.get("pincode", "").strip()
         city = form.get("city", "").strip()
         district = form.get("district", "").strip()
@@ -2636,11 +2642,15 @@ def edit_employee(id):
         doc_public_id = None
 
         try:
+            # Reusing your helper 'save_file_to_cloudinary' or standard logic
             if image_file and image_file.filename:
-                image_public_id = save_file_to_cloudinary(image_file, folder="erp_employees")
+                # Assuming save_file_to_cloudinary exists, else use uploader
+                res = cloudinary.uploader.upload(image_file, folder="erp_employees")
+                image_public_id = res.get('secure_url')
             
             if doc_file and doc_file.filename:
-                doc_public_id = save_file_to_cloudinary(doc_file, folder="erp_employee_docs", resource_type='raw')
+                res = cloudinary.uploader.upload(doc_file, folder="erp_employee_docs", resource_type='auto')
+                doc_public_id = res.get('secure_url')
 
             # Dynamic Update Query
             fields = [
@@ -2651,11 +2661,12 @@ def edit_employee(id):
                 ("position_id", position_id),
                 ("department_id", department_id),
                 ("emergency_contact", emergency_contact or None),
+                ("emergency_contact_person", emergency_contact_person or None), # NEW FIELD
                 ("aadhar_no", aadhar_no or None),
                 ("pincode", pincode or None),
                 ("city", city or None),
-                ("district", district or None), # Ensure SQL table has this
-                ("state", state or None),       # Ensure SQL table has this
+                ("district", district or None),
+                ("state", state or None),
                 ("address_line1", address1 or None),
                 ("address_line2", address2 or None)
             ]
@@ -4905,6 +4916,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
