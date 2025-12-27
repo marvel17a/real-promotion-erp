@@ -3,6 +3,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const ui = {
         employeeSelect: getEl("employee_id"),
         dateInput: getEl("date"),
+        timestampInput: getEl("timestampInput"),
+        clockDisplay: getEl("liveClock"),
         tableBody: document.querySelector("#productTable tbody"),
         addRowBtn: getEl("addRow"),
         fetchMsg: getEl("fetchMsg"),
@@ -30,6 +32,17 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    // --- 1. DIGITAL CLOCK ---
+    function updateClock() {
+        const now = new Date();
+        const timeString = now.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute:'2-digit', second:'2-digit' });
+        if(ui.clockDisplay) ui.clockDisplay.textContent = timeString;
+        if(ui.timestampInput) ui.timestampInput.value = now.toISOString().slice(0, 19).replace('T', ' ');
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    // --- 2. FETCH DATA ---
     async function fetchStockData() {
         const employeeId = ui.employeeSelect.value;
         const dateStr = ui.dateInput.value;
@@ -46,43 +59,48 @@ document.addEventListener("DOMContentLoaded", () => {
 
             if (data.error && response.status !== 500) {
                 isRestockMode = false;
-                ui.fetchMsg.innerHTML = '<span class="text-secondary small">New Allocation</span>';
+                ui.fetchMsg.innerHTML = '<span class="text-secondary small">Start New Allocation</span>';
                 createRow(); 
             } else {
+                // Determine Mode
                 isRestockMode = (data.mode === 'restock');
                 
-                if (data.opening_stock && data.opening_stock.length > 0) {
+                // 1. Auto-Fill Yesterday's Remaining (Only in Normal Mode)
+                // If Restock Mode, we DO NOT fill the table with old data, 
+                // because we want to add NEW items. Old items are shown in History Box.
+                if (!isRestockMode && data.opening_stock && data.opening_stock.length > 0) {
                     data.opening_stock.forEach(stockItem => {
                         createRow(stockItem); 
                     });
                     ui.fetchMsg.innerHTML = '<span class="text-success small"><i class="fa-solid fa-check"></i> Stock Loaded</span>';
                 } else {
                     createRow();
-                    ui.fetchMsg.innerHTML = '<span class="text-secondary small">No pending stock</span>';
+                    ui.fetchMsg.innerHTML = isRestockMode ? '' : '<span class="text-secondary small">No pending stock</span>';
                 }
 
+                // 2. Restock Mode History Box (Aggregated View)
                 if (isRestockMode) {
-                    ui.fetchMsg.innerHTML = '<span class="badge bg-warning text-dark">Restock Mode</span>';
+                    ui.fetchMsg.innerHTML = '<span class="badge bg-warning text-dark"><i class="fa-solid fa-rotate"></i> Restock Mode</span>';
+                    
                     if(data.existing_items && data.existing_items.length > 0) {
                         let historyHtml = `
                             <div class="card border-warning mb-3 shadow-sm">
-                                <div class="card-header bg-warning bg-opacity-10 text-warning fw-bold small">
-                                    <i class="fa-solid fa-clock-rotate-left"></i> ALREADY ALLOCATED TODAY
+                                <div class="card-header bg-warning bg-opacity-10 text-warning fw-bold small d-flex justify-content-between">
+                                    <span><i class="fa-solid fa-box-open"></i> CURRENTLY WITH EMPLOYEE (Aggregated)</span>
                                 </div>
-                                <div class="card-body p-2 d-flex flex-wrap gap-2">
+                                <div class="card-body p-3 d-flex flex-wrap gap-3">
                         `;
                         
                         data.existing_items.forEach(item => {
-                            const badgeClass = item.tag === "Morning" ? "bg-primary" : "bg-orange"; 
-                            // Using strict inline styles as well to force size
+                            // This item.qty is ALREADY aggregated (Sum of Opening + All Givens) by the backend
                             historyHtml += `
-                                <div class="d-flex align-items-center border rounded p-1 pe-3 bg-white shadow-sm">
-                                    <div class="img-box-small me-2" style="width:35px !important; height:35px !important; min-width:35px !important;">
-                                        <img src="${item.image}" style="width:100% !important; height:100% !important; object-fit:cover !important;">
+                                <div class="d-flex align-items-center border rounded p-2 pe-3 bg-white shadow-sm" style="min-width: 180px;">
+                                    <div class="img-box-small me-3" style="width:40px !important; height:40px !important; min-width:35px !important;">
+                                        <img src="${item.image}" style="width:100%; height:100%; object-fit:cover;">
                                     </div>
                                     <div>
-                                        <div class="fw-bold small text-dark">${item.name}</div>
-                                        <span class="badge ${badgeClass} rounded-pill">${item.qty}</span>
+                                        <div class="fw-bold small text-dark lh-1">${item.name}</div>
+                                        <span class="badge bg-primary rounded-pill mt-1">Total: ${item.qty}</span>
                                     </div>
                                 </div>
                             `;
@@ -90,16 +108,20 @@ document.addEventListener("DOMContentLoaded", () => {
                         historyHtml += '</div></div>';
                         if(ui.historyList) ui.historyList.innerHTML = historyHtml;
                     }
+                } else {
+                     ui.fetchMsg.innerHTML += '<span class="text-muted ms-2 small"> (Fresh Entry)</span>';
                 }
             }
             recalculateTotals();
 
         } catch (error) {
+            console.error(error);
             ui.fetchMsg.innerHTML = '<span class="text-danger small">Error</span>';
             createRow();
         }
     }
 
+    // --- 3. ROW CREATION ---
     function createRow(prefillData = null) {
         const tr = document.createElement("tr");
         
@@ -115,13 +137,11 @@ document.addEventListener("DOMContentLoaded", () => {
             if(prefillData.image) imgSrc = prefillData.image;
         }
 
-        // --- UPDATED HTML STRUCTURE TO MATCH ROBUST CSS ---
-        // Added inline styles to div and img as a failsafe against CSS specificity issues
         tr.innerHTML = `
             <td class="row-index ps-3 text-muted fw-bold small py-3"></td>
             <td class="text-center" style="vertical-align: middle;">
-                <div class="img-box-small" style="width: 50px !important; height: 50px !important; margin: 0 auto; overflow: hidden; border-radius: 8px;">
-                    <img src="${imgSrc}" class="product-thumb" alt="img" style="width: 100% !important; height: 100% !important; object-fit: cover !important; display: block;" onerror="this.src='${DEFAULT_IMG}'">
+                <div class="img-box-small">
+                    <img src="${imgSrc}" class="product-thumb" alt="img" onerror="this.src='${DEFAULT_IMG}'">
                 </div>
             </td>
             <td>
@@ -146,6 +166,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if(prefillData) recalculateRow(tr);
     }
 
+    // --- 4. CALCULATIONS ---
     function updateRowData(row, productId) {
         const priceInput = row.querySelector(".price");
         const img = row.querySelector(".product-thumb");
@@ -169,7 +190,6 @@ document.addEventListener("DOMContentLoaded", () => {
         const opening = parseInt(row.querySelector(".opening").value) || 0;
         const given = parseInt(row.querySelector(".given").value) || 0;
         const price = parseFloat(row.querySelector(".price").value) || 0;
-
         const total = opening + given;
         const amount = total * price;
 
@@ -201,6 +221,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    // --- 5. EVENTS ---
     ui.addRowBtn.addEventListener("click", (e) => {
         e.preventDefault();
         createRow();
@@ -231,6 +252,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
+    // Enter Key Navigation
     document.addEventListener("keydown", function (e) {
         if (e.key === "Enter" && e.target.tagName !== "BUTTON") {
             e.preventDefault();
