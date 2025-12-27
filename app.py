@@ -3268,8 +3268,10 @@ def resolve_img(image_path):
         return url_for('static', filename='img/default-product.png')
 
 
+
+
 # ---------------------------------------------------------
-# 1. MORNING ALLOCATION
+# 1. MORNING ALLOCATION (Timestamp & Restock)
 # ---------------------------------------------------------
 @app.route('/morning', methods=['GET', 'POST'])
 def morning():
@@ -3280,39 +3282,38 @@ def morning():
         db_cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
         
         if request.method == 'POST':
-            employee_id  = request.form.get('employee_id')
-            date_str     = request.form.get('date')
-            product_ids  = request.form.getlist('product_id[]')
+            employee_id = request.form.get('employee_id')
+            date_str = request.form.get('date')
+            time_str = request.form.get('timestamp') # Clock Time
+            
+            product_ids = request.form.getlist('product_id[]')
             opening_list = request.form.getlist('opening[]')
-            given_list   = request.form.getlist('given[]')
-            price_list   = request.form.getlist('price[]')
+            given_list = request.form.getlist('given[]')
+            price_list = request.form.getlist('price[]')
 
             date_obj = parse_date(date_str)
-            if not (employee_id and date_obj and product_ids):
-                flash("All fields are required.", "danger")
+            if not (employee_id and date_obj):
+                flash("Missing details.", "danger")
                 return redirect(url_for('morning'))
-
+            
             formatted_date = date_obj.strftime('%Y-%m-%d')
 
-            # Check if allocation exists
+            # Check if Allocation exists for today
             db_cursor.execute("SELECT id FROM morning_allocations WHERE employee_id=%s AND date=%s", (employee_id, formatted_date))
-            existing_alloc = db_cursor.fetchone()
+            existing = db_cursor.fetchone()
 
-            if existing_alloc:
-                alloc_id = existing_alloc['id']
-                flash_msg = "Additional stock added (Restock)."
+            if existing:
+                alloc_id = existing['id']
+                flash_msg = "Stock added to existing allocation."
             else:
-                db_cursor.execute("INSERT INTO morning_allocations (employee_id, date) VALUES (%s, %s)", (employee_id, formatted_date))
+                # Insert Header with Timestamp
+                # Assuming 'created_at' column exists or use just date
+                db_cursor.execute("INSERT INTO morning_allocations (employee_id, date, created_at) VALUES (%s, %s, %s)", (employee_id, formatted_date, time_str))
                 alloc_id = db_cursor.lastrowid
                 flash_msg = "Morning allocation saved."
             
-            # Insert Items with Current Timestamp (handled by DB default usually, but we can rely on ID order)
-            # If your table has a 'created_at' column, it will fill automatically.
-            insert_sql = """
-                INSERT INTO morning_allocation_items 
-                (allocation_id, product_id, opening_qty, given_qty, unit_price) 
-                VALUES (%s, %s, %s, %s, %s)
-            """
+            # Insert Items
+            insert_sql = "INSERT INTO morning_allocation_items (allocation_id, product_id, opening_qty, given_qty, unit_price, added_at) VALUES (%s, %s, %s, %s, %s, %s)"
             
             for idx, pid in enumerate(product_ids):
                 if not pid: continue
@@ -3321,32 +3322,22 @@ def morning():
                 pr_c = float(price_list[idx] or 0.0)
                 
                 if op_q > 0 or gv_q > 0:
-                    db_cursor.execute(insert_sql, (alloc_id, pid, op_q, gv_q, pr_c))
+                    db_cursor.execute(insert_sql, (alloc_id, pid, op_q, gv_q, pr_c, time_str))
 
             mysql.connection.commit()
             flash(flash_msg, "success")
             return redirect(url_for('morning'))
 
-        # GET Request
-        db_cursor.execute("SELECT id, name FROM employees WHERE status='active' ORDER BY name")
+        # GET Data
+        db_cursor.execute("SELECT id, name, image FROM employees WHERE status='active' ORDER BY name")
         employees = db_cursor.fetchall()
-        
+        for e in employees: e['image'] = resolve_img(e['image'])
+
         db_cursor.execute("SELECT id, name, price, image FROM products ORDER BY name")
-        products_raw = db_cursor.fetchall() or []
+        products_raw = db_cursor.fetchall()
+        products_for_js = [{'id': p['id'], 'name': p['name'], 'price': float(p['price']), 'image': resolve_img(p['image'])} for p in products_raw]
         
-        products_for_js = []
-        for p in products_raw:
-            products_for_js.append({
-                'id': p['id'], 
-                'name': p['name'], 
-                'price': float(p['price']), 
-                'image': resolve_img(p['image']) 
-            })
-        
-        return render_template('morning.html',
-                               employees=employees,
-                               products=products_for_js,
-                               today_date=date.today().strftime('%d-%m-%Y'))
+        return render_template('morning.html', employees=employees, products=products_for_js, today_date=date.today().strftime('%Y-%m-%d'))
 
     except Exception as e:
         if db_cursor: mysql.connection.rollback()
@@ -3425,23 +3416,22 @@ def evening():
     
     return render_template('evening.html', employees=employees, today=date.today().strftime('%d-%m-%Y'), last_settle_id=last_settle_id)
 
+
+
 # ---------------------------------------------------------
-# 3. API: FETCH STOCK (Updated for Timestamp & Colors)
+# 2. API: FETCH STOCK (Holiday + Aggregated Restock)
 # ---------------------------------------------------------
 @app.route('/api/fetch_stock')
 def api_fetch_stock():
     if "loggedin" not in session: return jsonify({"error": "Unauthorized"}), 401
-    
     employee_id = request.args.get('employee_id')
     date_str = request.args.get('date')
 
     try:
         current_date = parse_date(date_str)
-        if not current_date: return jsonify({"error": "Invalid date"}), 400
-        
         cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
         
-        # 1. Check for TODAY'S existing allocation (Restock Mode)
+        # 1. TODAY'S ALLOCATION (For Restock Preview)
         cur.execute("SELECT id FROM morning_allocations WHERE employee_id=%s AND date=%s", (employee_id, current_date))
         today_alloc = cur.fetchone()
         
@@ -3450,33 +3440,25 @@ def api_fetch_stock():
 
         if today_alloc:
             mode = "restock"
-            # Fetch Items with Timestamp if available
-            # We use 'id' as a proxy for time if 'created_at' isn't explicitly selected/available
-            # Assuming standard auto-increment ID implies order.
+            # AGGREGATE items by product_id (Requirement #3)
+            # This sums up 5 (morning) + 4 (afternoon) = 9
             cur.execute("""
-                SELECT p.name, (mai.opening_qty + mai.given_qty) as total_today, p.image, mai.id
+                SELECT p.name, p.id as pid, SUM(mai.opening_qty + mai.given_qty) as total_qty, p.image
                 FROM morning_allocation_items mai
                 JOIN products p ON mai.product_id = p.id
                 WHERE mai.allocation_id = %s
-                ORDER BY mai.id ASC
+                GROUP BY p.id
             """, (today_alloc['id'],))
             
-            # Simple logic: First batch is "Morning", later batches are "Restock"
-            # We can't know exact time without a column, but we can group them.
-            rows = cur.fetchall()
-            for i, r in enumerate(rows):
-                # Simulated timestamp logic for UI differentiation
-                # Real timestamp requires 'created_at' column in DB
-                time_label = "Morning" if i < 5 else "Afternoon Restock" 
-                
+            for r in cur.fetchall():
                 existing_items.append({
                     'name': r['name'],
-                    'qty': int(r['total_today']),
-                    'image': resolve_img(r['image']),
-                    'tag': time_label
+                    'qty': int(r['total_qty']),
+                    'image': resolve_img(r['image'])
                 })
 
-        # 2. Get YESTERDAY'S Remaining Stock
+        # 2. HOLIDAY LOGIC (Requirement #4 & #5)
+        # Find the LAST settlement strictly BEFORE today (could be yesterday, or 5 days ago)
         cur.execute("""
             SELECT id FROM evening_settle 
             WHERE employee_id = %s AND date < %s 
@@ -3485,6 +3467,8 @@ def api_fetch_stock():
         last_settlement = cur.fetchone()
         
         opening_stock_list = []
+        # Populate opening stock ONLY if it's the FIRST entry of the day (Normal Mode)
+        # If Restock Mode, "Opening" is 0 because we are adding *new* items
         if mode == "normal" and last_settlement:
             cur.execute("""
                 SELECT ei.product_id, ei.remaining_qty, ei.unit_price, p.image, p.name 
@@ -3492,11 +3476,9 @@ def api_fetch_stock():
                 JOIN products p ON ei.product_id = p.id
                 WHERE ei.settle_id = %s AND ei.remaining_qty > 0
             """, (last_settlement['id'],))
-            rows = cur.fetchall()
-            for r in rows:
+            for r in cur.fetchall():
                 opening_stock_list.append({
                     'product_id': str(r['product_id']),
-                    'name': r['name'],
                     'remaining': int(r['remaining_qty']),
                     'price': float(r['unit_price']),
                     'image': resolve_img(r['image'])
@@ -3508,9 +3490,11 @@ def api_fetch_stock():
             "opening_stock": opening_stock_list,
             "existing_items": existing_items
         })
-
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+
 
 # ---------------------------------------------------------
 # 4. API: FETCH ALLOCATION (Aggregated for Evening)
@@ -5209,6 +5193,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
