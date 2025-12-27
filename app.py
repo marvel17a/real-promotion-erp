@@ -186,6 +186,104 @@ def fix_image(image):
 
 
 
+# Morning pdf generation route:
+
+
+# ---------------------------------------------------------
+# 4. NEW: GENERATE PDF (Professional Morning Receipt)
+# ---------------------------------------------------------
+@app.route('/morning/pdf/<int:alloc_id>')
+def generate_morning_pdf(alloc_id):
+    db_cursor = None
+    try:
+        db_cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        
+        # Header Info
+        db_cursor.execute("""
+            SELECT ma.*, e.name as emp_name, e.phone 
+            FROM morning_allocations ma
+            JOIN employees e ON ma.employee_id = e.id
+            WHERE ma.id = %s
+        """, (alloc_id,))
+        header = db_cursor.fetchone()
+        
+        if not header: return "Not Found", 404
+
+        # Items (Aggregated)
+        db_cursor.execute("""
+            SELECT p.name, SUM(mai.opening_qty + mai.given_qty) as total_qty, mai.unit_price
+            FROM morning_allocation_items mai
+            JOIN products p ON mai.product_id = p.id
+            WHERE mai.allocation_id = %s
+            GROUP BY p.id
+        """, (alloc_id,))
+        items = db_cursor.fetchall()
+
+        # PDF Generation
+        pdf = FPDF()
+        pdf.add_page()
+        
+        # Logo/Title
+        pdf.set_font("Arial", 'B', 16)
+        pdf.cell(0, 10, "REAL PROMOTION", 0, 1, 'C')
+        pdf.set_font("Arial", '', 10)
+        pdf.cell(0, 5, "Daily Stock Allocation Challan", 0, 1, 'C')
+        pdf.ln(10)
+
+        # Info Block
+        pdf.set_font("Arial", 'B', 11)
+        pdf.cell(100, 8, f"Employee: {header['emp_name']}", 0, 0)
+        pdf.cell(0, 8, f"Date: {header['date']}", 0, 1, 'R')
+        pdf.cell(100, 8, f"Phone: {header['phone']}", 0, 1)
+        pdf.ln(5)
+
+        # Table Header
+        pdf.set_fill_color(230, 230, 230)
+        pdf.cell(10, 8, "#", 1, 0, 'C', 1)
+        pdf.cell(100, 8, "Product Name", 1, 0, 'L', 1)
+        pdf.cell(30, 8, "Quantity", 1, 0, 'C', 1)
+        pdf.cell(30, 8, "Price", 1, 0, 'R', 1)
+        pdf.cell(0, 8, "", 0, 1) # End line
+
+        # Table Rows
+        pdf.set_font("Arial", '', 10)
+        i = 1
+        grand_qty = 0
+        for item in items:
+            pdf.cell(10, 8, str(i), 1, 0, 'C')
+            pdf.cell(100, 8, str(item['name']), 1, 0, 'L')
+            pdf.cell(30, 8, str(item['total_qty']), 1, 0, 'C')
+            pdf.cell(30, 8, f"{item['unit_price']:.2f}", 1, 0, 'R')
+            pdf.ln()
+            i += 1
+            grand_qty += item['total_qty']
+
+        # Total
+        pdf.ln(5)
+        pdf.set_font("Arial", 'B', 11)
+        pdf.cell(110, 10, "Total Items:", 0, 0, 'R')
+        pdf.cell(30, 10, str(grand_qty), 0, 1, 'C')
+
+        # Signatures
+        pdf.ln(20)
+        pdf.cell(90, 10, "___________________", 0, 0, 'C')
+        pdf.cell(90, 10, "___________________", 0, 1, 'C')
+        pdf.cell(90, 5, "Store Manager", 0, 0, 'C')
+        pdf.cell(90, 5, "Receiver (Employee)", 0, 1, 'C')
+
+        response = make_response(pdf.output(dest='S').encode('latin1'))
+        response.headers['Content-Type'] = 'application/pdf'
+        response.headers['Content-Disposition'] = f'attachment; filename=Alloc_{alloc_id}.pdf'
+        return response
+
+    except Exception as e:
+        app.logger.error(f"PDF Error: {e}")
+        return str(e), 500
+    finally:
+        if db_cursor: db_cursor.close()
+
+
+
 @app.route("/")
 def index1():
     return redirect(url_for("login"))
@@ -5193,6 +5291,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
