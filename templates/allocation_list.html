@@ -1,108 +1,92 @@
 {% extends "base.html" %}
-{% block content %}
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
-<style>
-    .table-wrapper {
-        background: #fff;
-        border-radius: 10px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-        overflow: hidden;
-    }
-    .table th {
-        background-color: #f8f9fa;
-    }
-    .badge.bg-success {
-        background-color: #d1e7dd !important;
-        color: #0f5132 !important;
-    }
-    .badge.bg-warning {
-        background-color: #fff3cd !important;
-        color: #664d03 !important;
-    }
-    .btn-edit-disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-    }
-</style>
 
-<div class="container mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h2 class="fw-bold">Submitted Allocations</h2>
-        <!-- Link to your original form name -->
-        <a href="{{ url_for('morning') }}" class="btn btn-primary">
-            <i class="bi bi-plus-circle"></i> Create New
+{% block content %}
+<!-- FontAwesome for Icons -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+
+<div class="glass-container fade-in-up py-4">
+    
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h3 class="fw-bold text-primary mb-0">Allocation History</h3>
+            <p class="text-muted small mb-0">Manage submitted morning forms.</p>
+        </div>
+        <a href="{{ url_for('morning') }}" class="btn btn-outline-primary rounded-pill shadow-sm px-4">
+            <i class="fa-solid fa-plus me-2"></i> New Allocation
         </a>
     </div>
 
-    <!-- Filter Form -->
-    <div class="card shadow-sm">
-        <div class="card-body">
-            <!-- Form action points to this page's function -->
-            <form method="GET" action="{{ url_for('allocation_list') }}" class="row g-3 mb-3">
-                <div class="col-md-5">
-                    <label for="filter_date" class="form-label">Filter by Date</label>
-                    <input type="date" name="filter_date" id="filter_date" class="form-control" value="{{ filter_date }}">
-                </div>
-                <div class="col-md-5">
-                    <label for="filter_employee" class="form-label">Filter by Employee</label>
-                    <select name="filter_employee" id="filter_employee" class="form-select">
-                        <option value="all">All Employees</option>
-                        {% for emp in employees %}
-                        <option value="{{ emp.id }}" {% if filter_employee == emp.id|string %}selected{% endif %}>{{ emp.name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-md-2 d-flex align-items-end">
-                    <button type="submit" class="btn btn-primary w-100">Filter</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Results Table -->
-    <div class="table-wrapper mt-4">
+    <!-- History Table -->
+    <div class="card glass-card border-0 shadow-sm">
         <div class="table-responsive">
-            <table class="table table-striped table-hover align-middle">
-                <thead class="table-light">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light text-secondary small text-uppercase">
                     <tr>
-                        <th scope="col">Date</th>
-                        <th scope="col">Employee</th>
-                        <th scope="col">Status</th>
-                        <th scope="col" class="text-end">Actions</th>
+                        <th class="ps-4" style="width: 15%;">Date</th>
+                        <th style="width: 25%;">Employee</th>
+                        <th class="text-center" style="width: 15%;">Status</th>
+                        <th class="text-end pe-4">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for alloc in allocations %}
+                    {% for a in allocations %}
                     <tr>
-                        <td><strong>{{ alloc.date.strftime('%d-%m-%Y') }}</strong></td>
-                        <td>{{ alloc.employee_name }}</td>
+                        <td class="ps-4 fw-bold text-dark">{{ a.date }}</td>
                         <td>
-                            {% if alloc.evening_submitted %}
-                                <span class="badge bg-success rounded-pill px-3 py-2">
-                                    <i class="bi bi-check-circle-fill"></i> Evening Submitted
+                            <div class="d-flex flex-column">
+                                <span class="fw-bold text-primary">{{ a.emp_name }}</span>
+                                <small class="text-muted">Created: {{ a.created_at or '--' }}</small>
+                            </div>
+                        </td>
+                        <td class="text-center">
+                            {% if a.evening_submitted %}
+                                <span class="badge bg-success bg-opacity-10 text-success border border-success px-3 py-2 rounded-pill">
+                                    <i class="fa-solid fa-check-circle me-1"></i> Completed
                                 </span>
                             {% else %}
-                                <span class="badge bg-warning rounded-pill px-3 py-2">
-                                    <i class="bi bi-hourglass-split"></i> Pending
+                                <span class="badge bg-warning bg-opacity-10 text-warning border border-warning px-3 py-2 rounded-pill">
+                                    <i class="fa-solid fa-clock me-1"></i> Pending
                                 </span>
                             {% endif %}
                         </td>
-                        <td class="text-end">
-                            {% if not alloc.evening_submitted %}
-                                <!-- Link to new edit function name -->
-                                <a href="{{ url_for('edit_morning_allocation', allocation_id=alloc.id) }}" class="btn btn-sm btn-warning">
-                                    <i class="bi bi-pencil-fill"></i> Edit
+                        <td class="text-end pe-4">
+                            <div class="btn-group shadow-sm rounded-pill" role="group">
+                                <!-- PDF Button -->
+                                <a href="{{ url_for('generate_morning_pdf', alloc_id=a.id) }}" target="_blank" class="btn btn-sm btn-outline-danger" title="Download PDF">
+                                    <i class="fa-solid fa-file-pdf"></i>
                                 </a>
-                            {% else %}
-                                <a href="#" class="btn btn-sm btn-warning btn-edit-disabled" title="Cannot edit after evening form is submitted">
-                                    <i class="bi bi-pencil-fill"></i> Edit
-                                </a>
-                            {% endif %}
+
+                                <!-- WhatsApp Share -->
+                                {% if a.emp_phone %}
+                                    <a href="https://wa.me/{{ a.emp_phone }}?text=Hello {{ a.emp_name }}, here is your stock allocation for {{ a.date }}: {{ url_for('generate_morning_pdf', alloc_id=a.id, _external=True) }}" target="_blank" class="btn btn-sm btn-outline-success" title="Share on WhatsApp">
+                                        <i class="fa-brands fa-whatsapp"></i>
+                                    </a>
+                                {% else %}
+                                    <button class="btn btn-sm btn-outline-secondary" disabled title="No Phone Number">
+                                        <i class="fa-brands fa-whatsapp"></i>
+                                    </button>
+                                {% endif %}
+
+                                <!-- Edit/View Button -->
+                                {% if not a.evening_submitted %}
+                                    <a href="{{ url_for('edit_morning_allocation', allocation_id=a.id) }}" class="btn btn-sm btn-outline-primary" title="Edit Allocation">
+                                        <i class="fa-solid fa-pen-to-square"></i>
+                                    </a>
+                                {% else %}
+                                    <!-- View Only (Redirects to Edit page but could be readonly if you add logic there) -->
+                                    <a href="#" class="btn btn-sm btn-outline-secondary disabled" title="Closed (Evening Submitted)">
+                                        <i class="fa-solid fa-lock"></i>
+                                    </a>
+                                {% endif %}
+                            </div>
                         </td>
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="4" class="text-center p-4">No allocations found for the selected filters.</td>
+                        <td colspan="4" class="text-center py-5 text-muted">
+                            <i class="fa-regular fa-folder-open fa-2x mb-3 d-block"></i>
+                            No allocations found. Start a new one!
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -110,4 +94,34 @@
         </div>
     </div>
 </div>
+
+<style>
+    /* Glassmorphism Theme (Consistent with Morning Page) */
+    .glass-container { max-width: 1200px; margin: 2rem auto; padding: 0 15px; }
+    
+    .glass-card {
+        background: rgba(255, 255, 255, 0.9);
+        backdrop-filter: blur(16px);
+        border-radius: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.6);
+        box-shadow: 0 10px 40px rgba(0,0,0,0.06);
+    }
+
+    .table thead th {
+        background: #f8f9fa;
+        border-bottom: 2px solid #edf2f7;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+    }
+    
+    .table tbody tr { transition: all 0.2s ease; border-bottom: 1px solid #f1f5f9; }
+    .table tbody tr:hover { background-color: #f8fbff; transform: scale(1.005); }
+
+    .btn-group .btn { border: 1px solid #dee2e6; padding: 0.4rem 0.8rem; }
+    .btn-group .btn:hover { z-index: 2; }
+    
+    /* Animation */
+    .fade-in-up { animation: fadeInUp 0.6s ease-out forwards; }
+    @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+</style>
 {% endblock %}
