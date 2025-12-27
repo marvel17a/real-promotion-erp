@@ -3728,54 +3728,38 @@ def generate_pdf(settle_id):
 # =====================================================================
 # NEW ROUTES FOR LIST/EDIT FEATURE
 # =====================================================================
+# =============================================================================
+# COPY THIS INTO app.py - REPLACES allocation_list ROUTE
+# =============================================================================
 
-# NEW route to list all submitted forms
 @app.route('/allocation_list')
 def allocation_list():
-    if "loggedin" not in session:
-        return redirect(url_for("login"))
-
-    filter_date_str = request.args.get('filter_date', date.today().isoformat())
-    filter_employee = request.args.get('filter_employee', 'all')
+    if "loggedin" not in session: return redirect(url_for("login"))
+    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
-    db_cursor = None
-    try:
-        db_cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-        
-        # 3. ROBUST FIX: All table names are lowercase
-        db_cursor.execute("SELECT id, name FROM employees ORDER BY name")
-        employees = db_cursor.fetchall()
-        
-        # 3. ROBUST FIX: All table names are lowercase
-        query = """
-            SELECT ma.id, ma.date, e.name as employee_name, 
-                   (SELECT COUNT(id) FROM evening_settle WHERE allocation_id = ma.id) as evening_submitted
-            FROM morning_allocations ma
-            JOIN employees e ON ma.employee_id = e.id
-            WHERE ma.date = %s
-        """
-        params = [filter_date_str]
-        
-        if filter_employee != 'all':
-            query += " AND ma.employee_id = %s"
-            params.append(filter_employee)
-            
-        query += " ORDER BY e.name"
-        
-        db_cursor.execute(query, tuple(params))
-        allocations = db_cursor.fetchall()
-        
-        return render_template('allocation_list.html',
-                               allocations=allocations,
-                               employees=employees,
-                               filter_date=filter_date_str,
-                               filter_employee=filter_employee)
-    except Exception as e:
-        flash(f"Error loading allocations: {e}", "danger")
-        return redirect(url_for('morning')) 
-    finally:
-        if db_cursor:
-            db_cursor.close()
+    # Fetch Allocations with Employee Names and Evening Status
+    # We join with evening_settle to check if the allocation is "Closed" (Evening Submitted)
+    query = """
+        SELECT 
+            ma.id, 
+            ma.date, 
+            ma.created_at, 
+            e.name as emp_name, 
+            e.phone as emp_phone,
+            CASE 
+                WHEN es.id IS NOT NULL THEN 1 
+                ELSE 0 
+            END as evening_submitted
+        FROM morning_allocations ma 
+        JOIN employees e ON ma.employee_id = e.id 
+        LEFT JOIN evening_settle es ON ma.employee_id = es.employee_id AND ma.date = es.date
+        ORDER BY ma.date DESC
+    """
+    cur.execute(query)
+    allocations = cur.fetchall()
+    cur.close()
+    
+    return render_template('allocation_list.html', allocations=allocations)
 
 
 # NEW route to edit a submitted form
@@ -5291,6 +5275,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
