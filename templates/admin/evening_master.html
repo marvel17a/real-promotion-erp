@@ -8,11 +8,6 @@
             <h3 class="fw-bold text-dark mb-0">Evening Settlements</h3>
             <p class="text-muted small mb-0">Admin Control Panel</p>
         </div>
-        <div>
-            <a href="{{ url_for('admin_evening_export_pdf', start_date=filters.start, end_date=filters.end, employee_id=filters.emp) }}" target="_blank" class="btn btn-outline-danger shadow-sm">
-                <i class="fa-solid fa-file-pdf me-2"></i> PDF Summary
-            </a>
-        </div>
     </div>
 
     <!-- Stats Cards -->
@@ -37,7 +32,7 @@
         </div>
     </div>
 
-    <!-- Filter Bar -->
+    <!-- Filters -->
     <div class="card glass-card border-0 mb-4 p-3 shadow-sm">
         <form method="GET" class="row g-3 align-items-end">
             <div class="col-md-3">
@@ -58,7 +53,7 @@
                 </select>
             </div>
             <div class="col-md-3">
-                <button type="submit" class="btn btn-dark w-100"><i class="fa-solid fa-filter me-2"></i> Filter Data</button>
+                <button type="submit" class="btn btn-dark w-100"><i class="fa-solid fa-filter me-2"></i> Filter</button>
             </div>
         </form>
     </div>
@@ -82,9 +77,7 @@
                     {% for s in settlements %}
                     <tr>
                         <td class="ps-4 fw-bold text-muted">{{ s.date }}</td>
-                        <td>
-                            <span class="fw-bold text-primary">{{ s.emp_name }}</span>
-                        </td>
+                        <td><span class="fw-bold text-primary">{{ s.emp_name }}</span></td>
                         <td class="fw-bold">₹{{ "%.0f"|format(s.total_amount) }}</td>
                         <td class="text-success">₹{{ "%.0f"|format(s.cash_money) }}</td>
                         <td class="text-info">₹{{ "%.0f"|format(s.online_money) }}</td>
@@ -96,31 +89,23 @@
                             {% endif %}
                         </td>
                         <td class="text-end pe-4">
-                            <a href="{{ url_for('generate_pdf', settle_id=s.id) }}" target="_blank" class="btn btn-sm btn-light text-secondary border me-1" title="Print">
-                                <i class="fa-solid fa-print"></i>
-                            </a>
-                            <a href="{{ url_for('admin_edit_evening', settle_id=s.id) }}" class="btn btn-sm btn-primary me-1" title="Edit">
-                                <i class="fa-solid fa-pen"></i>
-                            </a>
-                            <form action="{{ url_for('admin_delete_evening', settle_id=s.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this record? Stock will be reverted.');">
-                                <button class="btn btn-sm btn-danger" title="Delete">
-                                    <i class="fa-solid fa-trash"></i>
-                                </button>
+                            <a href="{{ url_for('generate_pdf', settle_id=s.id) }}" target="_blank" class="btn btn-sm btn-light border me-1"><i class="fa-solid fa-print"></i></a>
+                            <a href="{{ url_for('admin_edit_evening', settle_id=s.id) }}" class="btn btn-sm btn-primary me-1"><i class="fa-solid fa-pen"></i></a>
+                            <form action="{{ url_for('admin_delete_evening', settle_id=s.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete? Stock will revert.');">
+                                <button class="btn btn-sm btn-danger"><i class="fa-solid fa-trash"></i></button>
                             </form>
                         </td>
                     </tr>
                     {% else %}
-                    <tr><td colspan="7" class="text-center py-5 text-muted">No records found.</td></tr>
+                    <tr><td colspan="7" class="text-center py-5 text-muted">No records.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
     </div>
-
 </div>
 
 <style>
     .glass-card { background: #fff; border-radius: 12px; }
-    .btn-sm { padding: 0.25rem 0.6rem; font-size: 0.85rem; }
 </style>
 {% endblock %}
