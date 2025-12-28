@@ -3369,7 +3369,7 @@ def resolve_img(image_path):
 
 
 # ---------------------------------------------------------
-# 1. MORNING ALLOCATION (Fixed Insert Error)
+# 1. MORNING ALLOCATION (Timestamp & Restock)
 # ---------------------------------------------------------
 @app.route('/morning', methods=['GET', 'POST'])
 def morning():
@@ -3382,7 +3382,7 @@ def morning():
         if request.method == 'POST':
             employee_id  = request.form.get('employee_id')
             date_str     = request.form.get('date')
-            time_str     = request.form.get('timestamp') # Clock Time
+            time_str     = request.form.get('timestamp') # Clock Time from JS
             
             product_ids  = request.form.getlist('product_id[]')
             opening_list = request.form.getlist('opening[]')
@@ -3404,18 +3404,23 @@ def morning():
                 alloc_id = existing['id']
                 flash_msg = "Stock added to existing allocation (Restock)."
             else:
-                # Insert Header
-                # We try to insert 'created_at' if column exists, else fallback
+                # Insert Header with Timestamp (created_at)
                 try:
                     db_cursor.execute("INSERT INTO morning_allocations (employee_id, date, created_at) VALUES (%s, %s, %s)", (employee_id, formatted_date, time_str))
                 except:
-                     db_cursor.execute("INSERT INTO morning_allocations (employee_id, date) VALUES (%s, %s)", (employee_id, formatted_date))
+                    # Fallback if column missing
+                    db_cursor.execute("INSERT INTO morning_allocations (employee_id, date) VALUES (%s, %s)", (employee_id, formatted_date))
                 
                 alloc_id = db_cursor.lastrowid
                 flash_msg = "Morning allocation saved."
             
-            # Insert Items (Fixed: Removed 'added_at' to prevent SQL Error 1054)
+            # Insert Items
             insert_sql = """
+                INSERT INTO morning_allocation_items 
+                (allocation_id, product_id, opening_qty, given_qty, unit_price, added_at) 
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """
+            fallback_sql = """
                 INSERT INTO morning_allocation_items 
                 (allocation_id, product_id, opening_qty, given_qty, unit_price) 
                 VALUES (%s, %s, %s, %s, %s)
@@ -3428,7 +3433,10 @@ def morning():
                 pr_c = float(price_list[idx] or 0.0)
                 
                 if op_q > 0 or gv_q > 0:
-                    db_cursor.execute(insert_sql, (alloc_id, pid, op_q, gv_q, pr_c))
+                    try:
+                        db_cursor.execute(insert_sql, (alloc_id, pid, op_q, gv_q, pr_c, time_str))
+                    except:
+                        db_cursor.execute(fallback_sql, (alloc_id, pid, op_q, gv_q, pr_c))
 
             mysql.connection.commit()
             flash(flash_msg, "success")
@@ -3451,7 +3459,6 @@ def morning():
                 'image': resolve_img(p['image'])
             })
         
-        # Send today as d-m-Y for frontend
         return render_template('morning.html',
                                employees=employees,
                                products=products_for_js,
@@ -3544,7 +3551,7 @@ def api_fetch_stock():
     if "loggedin" not in session: return jsonify({"error": "Unauthorized"}), 401
     
     employee_id = request.args.get('employee_id')
-    date_str = request.args.get('date') 
+    date_str = request.args.get('date') # Today's Date
 
     try:
         current_date = parse_date(date_str)
@@ -3552,7 +3559,7 @@ def api_fetch_stock():
         
         cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
         
-        # 1. Check for TODAY'S allocation (Restock Mode)
+        # 1. TODAY'S ALLOCATION (For Restock Preview)
         cur.execute("SELECT id FROM morning_allocations WHERE employee_id=%s AND date=%s", (employee_id, current_date))
         today_alloc = cur.fetchone()
         
@@ -3561,7 +3568,7 @@ def api_fetch_stock():
 
         if today_alloc:
             mode = "restock"
-            # AGGREGATE items by product_id
+            # SMART AGGREGATION: Group by Product ID to sum up multiple "gives"
             cur.execute("""
                 SELECT p.name, p.id as pid, SUM(mai.opening_qty + mai.given_qty) as total_qty, p.image
                 FROM morning_allocation_items mai
@@ -3578,7 +3585,8 @@ def api_fetch_stock():
                     'image': resolve_img(r['image'])
                 })
 
-        # 2. HOLIDAY LOGIC: Last known settlement before today
+        # 2. HOLIDAY LOGIC (Requirement #4 & #5)
+        # Find the LAST settlement strictly BEFORE today
         cur.execute("""
             SELECT id FROM evening_settle 
             WHERE employee_id = %s AND date < %s 
@@ -3755,35 +3763,47 @@ def generate_pdf(settle_id):
 # =============================================================================
 # COPY THIS INTO app.py - REPLACES allocation_list ROUTE
 # =============================================================================
-
 @app.route('/allocation_list')
 def allocation_list():
     if "loggedin" not in session: return redirect(url_for("login"))
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
-    # Fetch Allocations with Employee Names and Evening Status
-    # We join with evening_settle to check if the allocation is "Closed" (Evening Submitted)
+    # Filters
+    filter_date = request.args.get('date')
+    filter_emp = request.args.get('employee_id')
+
+    # Base Query
     query = """
-        SELECT 
-            ma.id, 
-            ma.date, 
-            ma.created_at, 
-            e.name as emp_name, 
-            e.phone as emp_phone,
-            CASE 
-                WHEN es.id IS NOT NULL THEN 1 
-                ELSE 0 
-            END as evening_submitted
+        SELECT ma.id, ma.date, ma.created_at, e.name as emp_name, e.phone as emp_phone
         FROM morning_allocations ma 
         JOIN employees e ON ma.employee_id = e.id 
-        LEFT JOIN evening_settle es ON ma.employee_id = es.employee_id AND ma.date = es.date
-        ORDER BY ma.date DESC
+        WHERE 1=1
     """
-    cur.execute(query)
+    params = []
+
+    if filter_date:
+        query += " AND ma.date = %s"
+        params.append(filter_date)
+    
+    if filter_emp and filter_emp != 'all':
+        query += " AND ma.employee_id = %s"
+        params.append(filter_emp)
+
+    query += " ORDER BY ma.date DESC"
+
+    cur.execute(query, tuple(params))
     allocations = cur.fetchall()
+    
+    # Fetch Employees for Filter Dropdown
+    cur.execute("SELECT id, name FROM employees ORDER BY name")
+    employees = cur.fetchall()
+    
     cur.close()
     
-    return render_template('allocation_list.html', allocations=allocations)
+    return render_template('allocation_list.html', 
+                           allocations=allocations, 
+                           employees=employees, 
+                           filters={'date': filter_date, 'emp': filter_emp})
 
 
 # NEW route to edit a submitted form
@@ -5299,6 +5319,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
