@@ -1,145 +1,144 @@
-/**
- * This is the JavaScript for 'morning_edit.html'.
- */
+{% extends "base.html" %}
 
-document.addEventListener("DOMContentLoaded", () => {
-    // --- 1. DOM Element Cache ---
-    const ui = {
-        tableBody: document.querySelector("#productTable tbody"),
-        addRowBtn: document.getElementById("addRow"),
-        totals: {
-            opening: document.getElementById("totalOpening"),
-            given: document.getElementById("totalGiven"),
-            all: document.getElementById("totalAll"),
-            grand: document.getElementById("grandTotal")
-        }
-    };
+{% block content %}
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+<div class="glass-container fade-in-up py-4">
     
-    // Use the new safe injection method
-    const productOptionsHtml = window.productOptions || "";
-    const productsMap = new Map((window.productsData || []).map(p => [String(p.id), p]));
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h3 class="fw-bold text-primary mb-0">Edit Allocation</h3>
+            <p class="text-muted small mb-0">Modify submitted morning stock.</p>
+        </div>
+        <a href="{{ url_for('allocation_list') }}" class="btn btn-outline-secondary rounded-pill px-4 shadow-sm">
+            <i class="fa-solid fa-arrow-left me-2"></i> Back to List
+        </a>
+    </div>
 
-    // --- 2. Core Functions ---
+    <div class="card glass-card border-0 p-4">
+        <form id="morningForm" method="POST" action="{{ url_for('edit_morning_allocation', allocation_id=allocation.id) }}">
 
-    function createRow(productData = {}) {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-            <td class="row-index"></td>
-            <td class="text-start">
-                <select name="product_id[]" class="form-select form-select-sm product-dropdown" required>
-                    <option value="">-- Select Product --</option>
-                    ${productOptionsHtml}
-                </select>
-                <!-- This hidden input tells the backend this is a NEW item -->
-                <input type="hidden" name="item_id[]" value="new_item">
-            </td>
-            <td><input type="number" name="opening[]" class="form-control form-control-sm opening" value="${productData.opening || 0}" readonly></td>
-            <td><input type="number" name="given[]" class="form-control form-control-sm given" min="0" value="" required></td>
-            <td><input type="number" name="total[]" class="form-control form-control-sm total" value="0" readonly></td>
-            <td><input type="number" name="price[]" class="form-control form-control-sm price" step="0.01" min="0" value="${productData.price || 0.00}" readonly></td>
-            <td><input type="number" name="amount[]" class="form-control form-control-sm amount" value="0" readonly></td>
-            <td><button type="button" class="btn-remove-row" title="Remove row">Delete</button></td>
-        `;
-        const select = tr.querySelector(".product-dropdown");
-        if (productData.id) {
-            select.value = productData.id;
-        }
-        ui.tableBody.appendChild(tr);
-        updateRowIndexes();
-    }
+            <!-- Header Info Card -->
+            <div class="d-flex align-items-center bg-light rounded-4 p-3 mb-4 shadow-sm border">
+                <div class="me-3" style="width: 50px; height: 50px; border-radius: 10px; overflow: hidden;">
+                    <img src="{{ allocation.emp_image }}" style="width: 100%; height: 100%; object-fit: cover;">
+                </div>
+                <div>
+                    <small class="text-uppercase text-secondary fw-bold" style="font-size: 0.7rem;">Employee</small>
+                    <div class="fw-bold text-dark fs-5">{{ allocation.employee_name }}</div>
+                </div>
+                <div class="vr mx-4"></div>
+                <div>
+                    <small class="text-uppercase text-secondary fw-bold" style="font-size: 0.7rem;">Date</small>
+                    <div class="fw-bold text-dark fs-5">{{ allocation.date.strftime('%d-%m-%Y') }}</div>
+                </div>
+                <div class="ms-auto">
+                    <span class="badge bg-warning text-dark px-3 py-2"><i class="fa-solid fa-pen-to-square me-1"></i> Editing Mode</span>
+                </div>
+            </div>
 
-    function recalculateTotals() {
-        let totalOpening = 0, totalGiven = 0, totalAll = 0, grandTotal = 0;
-        ui.tableBody.querySelectorAll("tr").forEach(row => {
-            const opening = parseInt(row.querySelector(".opening")?.value) || 0;
-            const given = parseInt(row.querySelector(".given")?.value) || 0;
-            const price = parseFloat(row.querySelector(".price")?.value) || 0;
-            if (!row.querySelector(".total")) return; 
+            <div class="table-responsive glass-table-container mb-4">
+                <table class="table table-hover align-middle mb-0" id="productTable">
+                    <thead class="bg-gradient-primary text-white">
+                        <tr>
+                            <th class="ps-3" style="width: 40px;">#</th>
+                            <th style="width: 70px; text-align: center;">Img</th>
+                            <th style="min-width: 200px;">Product</th>
+                            <th style="width: 90px;">Opening</th>
+                            <th style="width: 90px;">Given</th>
+                            <th style="width: 90px;">Total</th>
+                            <th style="width: 100px;">Price</th>
+                            <th style="width: 110px;">Amount</th>
+                            <th class="text-center" style="width: 60px;"><i class="fa-solid fa-trash"></i></th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white">
+                        {% for item in items %}
+                        <tr>
+                            <td class="row-index ps-3 text-muted fw-bold small">{{ loop.index }}</td>
+                            <td class="text-center">
+                                <div class="img-box-small">
+                                    <img src="{{ item.image }}" class="img-fixed-size">
+                                </div>
+                            </td>
+                            <td>
+                                <select name="product_id[]" class="form-select product-dropdown" required>
+                                    <option value="">-- Select --</option>
+                                    {% for p in products %}
+                                    <option value="{{ p.id }}" {% if p.id == item.product_id %}selected{% endif %}>{{ p.name }}</option>
+                                    {% endfor %}
+                                </select>
+                                <input type="hidden" name="item_id[]" value="{{ item.id }}">
+                            </td>
+                            <td><input type="number" name="opening[]" class="form-control opening" value="{{ item.opening_qty }}" readonly tabindex="-1"></td>
+                            <td><input type="number" name="given[]" class="form-control given" min="0" value="{{ item.given_qty }}" required></td>
+                            <td><input type="number" name="total[]" class="form-control total" value="{{ item.opening_qty + item.given_qty }}" readonly tabindex="-1"></td>
+                            <td><input type="number" name="price[]" class="form-control price" step="0.01" value="{{ item.unit_price }}" readonly tabindex="-1"></td>
+                            <td><input type="number" name="amount[]" class="form-control amount text-end" value="{{ (item.opening_qty + item.given_qty) * item.unit_price }}" readonly tabindex="-1"></td>
+                            <td class="text-center">
+                                <button type="button" class="btn btn-link text-danger p-0 btn-remove-row"><i class="fa-solid fa-trash-can"></i></button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot class="bg-light fw-bold text-dark" style="border-top: 3px solid #ddd;">
+                        <tr>
+                            <td colspan="4" class="text-end text-uppercase text-secondary pe-3">Totals:</td>
+                            <td id="totalOpening" class="text-info">0</td>
+                            <td id="totalGiven" class="text-primary">0</td>
+                            <td id="totalAll" class="text-dark">0</td>
+                            <td>-</td>
+                            <td id="grandTotal" class="text-success text-end pe-2">0.00</td>
+                            <td>-</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
 
-            const total = opening + given;
-            const amount = total * price;
+            <div class="d-flex justify-content-between">
+                <button type="button" id="addRow" class="btn btn-glass-light text-success fw-bold">
+                    <i class="fa-solid fa-plus me-2"></i> Add Item
+                </button>
+                <button type="submit" class="btn btn-gradient-primary btn-lg rounded-pill shadow hover-lift px-5">
+                    <i class="fa-solid fa-floppy-disk me-2"></i> Update Allocation
+                </button>
+            </div>
 
-            row.querySelector(".total").value = total;
-            row.querySelector(".amount").value = amount.toFixed(2);
+        </form>
+    </div>
+</div>
 
-            totalOpening += opening;
-            totalGiven += given;
-            totalAll += total;
-            grandTotal += amount;
-        });
-
-        ui.totals.opening.textContent = totalOpening;
-        ui.totals.given.textContent = totalGiven;
-        ui.totals.all.textContent = totalAll;
-        ui.totals.grand.textContent = grandTotal.toFixed(2);
-    }
-
-    function updateRowIndexes() {
-        ui.tableBody.querySelectorAll("tr").forEach((tr, i) => {
-            const indexCell = tr.querySelector(".row-index");
-            if (indexCell) indexCell.textContent = i + 1;
-        });
-    }
-
-    function validateDuplicates(currentSelect) {
-        const selectedValues = [...ui.tableBody.querySelectorAll(".product-dropdown")]
-            .map(s => s.value).filter(v => v);
-        if (selectedValues.filter(v => v === currentSelect.value).length > 1) {
-            alert("Duplicate product selected. Please choose a different product.");
-            currentSelect.value = "";
-        }
-    }
-
-    // --- 3. Event Listeners ---
+<style>
+    /* Shared Theme */
+    body { background: #f0f2f5; font-family: 'Poppins', sans-serif; }
+    .glass-container { max-width: 1200px; margin: 2rem auto; padding: 0 15px; }
+    .glass-card { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(16px); border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.6); box-shadow: 0 10px 40px rgba(0,0,0,0.06); }
+    .bg-gradient-primary { background: linear-gradient(135deg, #1a237e 0%, #0d47a1 100%); }
     
-    // Run totals once on page load to populate the footer
-    recalculateTotals();
+    /* Image Fix */
+    .img-box-small { display: block !important; width: 50px !important; height: 50px !important; border-radius: 8px !important; overflow: hidden !important; border: 1px solid #e0e0e0; background: #fff; margin: 0 auto; }
+    .img-fixed-size { width: 100% !important; height: 100% !important; object-fit: cover !important; }
 
-    ui.addRowBtn.addEventListener("click", () => {
-        createRow();
-        recalculateTotals();
-    });
+    /* Inputs */
+    .table input.form-control { background: transparent; border: 1px solid transparent; text-align: center; font-weight: 600; }
+    .table input.given { background: #ebf8ff; color: #2b6cb0; border-radius: 6px; }
 
-    ui.tableBody.addEventListener("input", e => {
-        if (e.target.matches(".given, .price")) {
-            recalculateTotals();
-        }
-    });
+    /* Buttons */
+    .btn-glass-light { background: #fff; border: 1px solid #e2e8f0; border-radius: 50px; padding: 0.5rem 1.5rem; transition: 0.3s; }
+    .btn-gradient-primary { background: linear-gradient(135deg, #1a237e 0%, #0d47a1 100%); color: white; border: none; transition: 0.3s; }
+    .hover-lift:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(13, 71, 161, 0.3); }
+    
+    /* Text Colors */
+    .text-info { color: #0dcaf0 !important; }
+    .text-primary { color: #0d6efd !important; }
+    .text-success { color: #198754 !important; }
+</style>
 
-    ui.tableBody.addEventListener("change", e => {
-        if (e.target.matches(".product-dropdown")) {
-            validateDuplicates(e.target);
-            const productSelect = e.target;
-            const productId = productSelect.value;
-            const row = productSelect.closest('tr');
-            if (!row) return;
-
-            const priceInput = row.querySelector('.price');
-            if (!priceInput) return;
-
-            if (productId) {
-                const product = productsMap.get(productId);
-                if (product) {
-                    priceInput.value = product.price;
-                }
-            } else {
-                priceInput.value = '0.00';
-            }
-            recalculateTotals();
-        }
-    });
-
-    ui.tableBody.addEventListener("click", e => {
-        if (e.target.closest(".btn-remove-row")) {
-            // =========================================
-            //  DELETE POPUP ADDED (FIXED)
-            // =========================================
-            if (confirm("Are you sure you want to delete this row?")) {
-                e.target.closest("tr").remove();
-                updateRowIndexes();
-                recalculateTotals();
-            }
-        }
-    });
-});
-// SYNTAX ERROR FIXED: No extra '}' at the end.
+<script>
+    // Data Injection
+    try { window.productsData = {{ products | tojson | safe }}; } 
+    catch(e) { window.productsData = []; }
+    window.productOptions = `{{ productOptions | safe }}`;
+</script>
+<script src="{{ url_for('static', filename='js/morning_edit.js') }}"></script>
+{% endblock %}
