@@ -8,9 +8,9 @@
 <div class="glass-container fade-in-up mb-5">
 
     <!-- Header -->
-    <div class="glass-header text-center mb-4 p-4 position-relative">
+    <div class="glass-header text-center mb-4 p-4">
         <h1 class="company-name text-gradient fw-bold mb-1">REAL PROMOTION</h1>
-        <p class="since-text text-secondary mb-2 small letter-spacing-2">SINCE 2005</p>
+        <p class="since-text text-secondary mb-3 small letter-spacing-2">SINCE 2005</p>
         <div class="address-block text-muted small mx-auto bg-white bg-opacity-50 p-2 rounded-3" style="max-width: 600px;">
             <i class="fa-solid fa-location-dot text-primary me-1"></i>
             Real Promotion, G/12, Tulsimangalam Complex, B/h. Trimurti Complex, Ghodiya Bazar, Nadiad-387001, Gujarat, India
@@ -23,7 +23,7 @@
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h4 class="fw-bold text-dark mb-0"><i class="fa-solid fa-sun text-warning me-2"></i>Morning Allocation</h4>
             <a href="{{ url_for('allocation_list') }}" class="btn btn-outline-dark rounded-pill px-4 btn-sm">
-                <i class="fa-solid fa-clock-rotate-left me-2"></i> History / View Submitted
+                <i class="fa-solid fa-clock-rotate-left me-2"></i> History
             </a>
         </div>
 
@@ -33,16 +33,15 @@
 
             <div class="row g-3 align-items-end">
                 <!-- Employee Selection with Photo -->
-                <div class="col-md-5">
+                <div class="col-md-6">
                     <label class="form-label text-uppercase small fw-bold text-secondary">Sales Representative</label>
                     <div class="d-flex align-items-center">
-                        <!-- Profile Photo Box -->
                         <div class="me-3" style="width: 70px; height: 70px; border-radius: 12px; overflow: hidden; border: 2px solid #fff; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
                             <img src="{{ url_for('static', filename='img/default-user.png') }}" id="empPhoto" style="width: 100%; height: 100%; object-fit: cover;">
                         </div>
                         <div class="input-group input-group-glass flex-grow-1">
                             <span class="input-group-text"><i class="fa-solid fa-user-tie"></i></span>
-                            <select name="employee_id" id="employee_id" class="form-select" required>
+                            <select name="employee_id" id="employee_id" class="form-select form-control-lg" required>
                                 <option value="" data-img="">-- Select --</option>
                                 {% for emp in employees %}
                                 <option value="{{ emp.id }}" data-img="{{ emp.image }}">{{ emp.name }}</option>
@@ -53,23 +52,17 @@
                 </div>
 
                 <!-- Date & Clock -->
-                <div class="col-md-4">
+                <div class="col-md-6">
                     <label class="form-label text-uppercase small fw-bold text-secondary">Date & Time</label>
                     <div class="d-flex gap-2">
-                        <!-- Date Picker -->
                         <div class="input-group input-group-glass flex-grow-1">
-                             <span class="input-group-text"><i class="fa-solid fa-calendar"></i></span>
-                             <input type="text" name="date" id="date" class="form-control" value="{{ today_date }}" required>
+                            <span class="input-group-text"><i class="fa-solid fa-calendar"></i></span>
+                            <input type="text" name="date" id="date" class="form-control form-control-lg" value="{{ today_date }}" required>
                         </div>
-                        <!-- Digital Clock -->
-                        <div class="badge bg-dark text-white shadow d-flex align-items-center justify-content-center px-3" id="liveClock" style="font-size: 1.1rem; border-radius: 8px; min-width: 100px;">
+                        <div class="badge bg-dark text-white shadow d-flex align-items-center justify-content-center px-3" id="liveClock" style="font-size: 1.1rem; border-radius: 8px; min-width: 120px;">
                             00:00:00
                         </div>
                     </div>
-                </div>
-
-                <div class="col-md-3">
-                    <div id="fetchMsg" class="w-100 text-center mt-2"></div>
                 </div>
             </div>
 
@@ -130,6 +123,10 @@
     .text-gradient { background: linear-gradient(45deg, #1a237e, #0d47a1); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
     .bg-gradient-primary { background: linear-gradient(135deg, #1a237e 0%, #0d47a1 100%); }
     .bg-orange { background-color: #fd7e14 !important; color: white; }
+
+    /* Inputs */
+    .input-group-glass .input-group-text { background: #f8f9fa; border: 1px solid #e0e0e0; }
+    .input-group-glass .form-control, .input-group-glass .form-select { background: #fff; border: 1px solid #e0e0e0; }
 
     /* Image Box */
     .img-box-small {
