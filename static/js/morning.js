@@ -37,7 +37,16 @@ document.addEventListener("DOMContentLoaded", () => {
         const now = new Date();
         const timeString = now.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute:'2-digit', second:'2-digit' });
         if(ui.clockDisplay) ui.clockDisplay.textContent = timeString;
-        if(ui.timestampInput) ui.timestampInput.value = now.toISOString().slice(0, 19).replace('T', ' ');
+        
+        // Format for DB (YYYY-MM-DD HH:MM:SS)
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        const seconds = String(now.getSeconds()).padStart(2, '0');
+        
+        if(ui.timestampInput) ui.timestampInput.value = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
     }
     setInterval(updateClock, 1000);
     updateClock();
@@ -62,7 +71,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 ui.fetchMsg.innerHTML = '<span class="text-secondary small">Start New Allocation</span>';
                 createRow(); 
             } else {
-                // Determine Mode
                 isRestockMode = (data.mode === 'restock');
                 
                 // 1. Auto-Fill Yesterday's Remaining (Only in Normal Mode)
@@ -76,15 +84,15 @@ document.addEventListener("DOMContentLoaded", () => {
                     ui.fetchMsg.innerHTML = isRestockMode ? '' : '<span class="text-secondary small">No pending stock</span>';
                 }
 
-                // 2. Restock Mode History Box (Aggregated View)
+                // 2. Restock Mode History
                 if (isRestockMode) {
-                    ui.fetchMsg.innerHTML = '<span class="badge bg-warning text-dark"><i class="fa-solid fa-rotate"></i> Restock Mode</span>';
+                    ui.fetchMsg.innerHTML = '<span class="badge bg-warning text-dark">Restock Mode</span>';
                     
                     if(data.existing_items && data.existing_items.length > 0) {
                         let historyHtml = `
                             <div class="card border-warning mb-3 shadow-sm">
                                 <div class="card-header bg-warning bg-opacity-10 text-warning fw-bold small d-flex justify-content-between">
-                                    <span><i class="fa-solid fa-box-open"></i> CURRENT STOCK WITH EMPLOYEE (Aggregated)</span>
+                                    <span><i class="fa-solid fa-box-open"></i> CURRENT STOCK WITH EMPLOYEE</span>
                                 </div>
                                 <div class="card-body p-3 d-flex flex-wrap gap-3">
                         `;
@@ -110,7 +118,6 @@ document.addEventListener("DOMContentLoaded", () => {
             recalculateTotals();
 
         } catch (error) {
-            console.error(error);
             ui.fetchMsg.innerHTML = '<span class="text-danger small">Error</span>';
             createRow();
         }
@@ -161,7 +168,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if(prefillData) recalculateRow(tr);
     }
 
-    // --- 4. CALCULATIONS ---
+    // --- 4. CALCULATIONS & EVENTS ---
     function updateRowData(row, productId) {
         const priceInput = row.querySelector(".price");
         const img = row.querySelector(".product-thumb");
@@ -217,7 +224,6 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // --- 5. EVENTS ---
     ui.addRowBtn.addEventListener("click", (e) => {
         e.preventDefault();
         createRow();
@@ -248,7 +254,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    // Enter Key Navigation
     document.addEventListener("keydown", function (e) {
         if (e.key === "Enter" && e.target.tagName !== "BUTTON") {
             e.preventDefault();
