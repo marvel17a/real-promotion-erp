@@ -80,7 +80,7 @@
 <script>
     document.addEventListener("DOMContentLoaded", function() {
         flatpickr("#datePicker", {
-            dateFormat: "Y-m-d", // Format sent to backend
+            dateFormat: "d-m-Y", // Format sent to backend
             altInput: true,      // Show user-friendly format
             altFormat: "F j, Y", // e.g. October 15, 2023
             defaultDate: "today", // Set default to today
@@ -89,3 +89,4 @@
     });
 </script>
 {% endblock %}
+
