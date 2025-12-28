@@ -66,8 +66,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 isRestockMode = (data.mode === 'restock');
                 
                 // 1. Auto-Fill Yesterday's Remaining (Only in Normal Mode)
-                // If Restock Mode, we DO NOT fill the table with old data, 
-                // because we want to add NEW items. Old items are shown in History Box.
                 if (!isRestockMode && data.opening_stock && data.opening_stock.length > 0) {
                     data.opening_stock.forEach(stockItem => {
                         createRow(stockItem); 
@@ -86,13 +84,12 @@ document.addEventListener("DOMContentLoaded", () => {
                         let historyHtml = `
                             <div class="card border-warning mb-3 shadow-sm">
                                 <div class="card-header bg-warning bg-opacity-10 text-warning fw-bold small d-flex justify-content-between">
-                                    <span><i class="fa-solid fa-box-open"></i> CURRENTLY WITH EMPLOYEE (Aggregated)</span>
+                                    <span><i class="fa-solid fa-box-open"></i> CURRENT STOCK WITH EMPLOYEE (Aggregated)</span>
                                 </div>
                                 <div class="card-body p-3 d-flex flex-wrap gap-3">
                         `;
                         
                         data.existing_items.forEach(item => {
-                            // This item.qty is ALREADY aggregated (Sum of Opening + All Givens) by the backend
                             historyHtml += `
                                 <div class="d-flex align-items-center border rounded p-2 pe-3 bg-white shadow-sm" style="min-width: 180px;">
                                     <div class="img-box-small me-3" style="width:40px !important; height:40px !important; min-width:35px !important;">
@@ -108,8 +105,6 @@ document.addEventListener("DOMContentLoaded", () => {
                         historyHtml += '</div></div>';
                         if(ui.historyList) ui.historyList.innerHTML = historyHtml;
                     }
-                } else {
-                     ui.fetchMsg.innerHTML += '<span class="text-muted ms-2 small"> (Fresh Entry)</span>';
                 }
             }
             recalculateTotals();
@@ -190,6 +185,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const opening = parseInt(row.querySelector(".opening").value) || 0;
         const given = parseInt(row.querySelector(".given").value) || 0;
         const price = parseFloat(row.querySelector(".price").value) || 0;
+
         const total = opening + given;
         const amount = total * price;
 
