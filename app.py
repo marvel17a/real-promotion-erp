@@ -3340,9 +3340,12 @@ def exp_report():
 # COPY THIS INTO app.py - REPLACES MORNING & API ROUTES
 # =============================================================================
 
+
 from datetime import datetime, date, timedelta
 
+
 # --- Helper: Robust Date Parsing ---
+
 def parse_date(date_str):
     if not date_str: return None
     try:
@@ -3382,7 +3385,7 @@ def morning():
         if request.method == 'POST':
             employee_id  = request.form.get('employee_id')
             date_str     = request.form.get('date')
-            time_str     = request.form.get('timestamp') # Clock Time from JS
+            time_str     = request.form.get('timestamp') # Clock Time
             
             product_ids  = request.form.getlist('product_id[]')
             opening_list = request.form.getlist('opening[]')
@@ -3408,7 +3411,7 @@ def morning():
                 try:
                     db_cursor.execute("INSERT INTO morning_allocations (employee_id, date, created_at) VALUES (%s, %s, %s)", (employee_id, formatted_date, time_str))
                 except:
-                    # Fallback if column missing
+                     # Fallback if column missing
                     db_cursor.execute("INSERT INTO morning_allocations (employee_id, date) VALUES (%s, %s)", (employee_id, formatted_date))
                 
                 alloc_id = db_cursor.lastrowid
@@ -3420,6 +3423,8 @@ def morning():
                 (allocation_id, product_id, opening_qty, given_qty, unit_price, added_at) 
                 VALUES (%s, %s, %s, %s, %s, %s)
             """
+            
+            # Fallback SQL if 'added_at' column is missing in DB
             fallback_sql = """
                 INSERT INTO morning_allocation_items 
                 (allocation_id, product_id, opening_qty, given_qty, unit_price) 
@@ -3551,7 +3556,7 @@ def api_fetch_stock():
     if "loggedin" not in session: return jsonify({"error": "Unauthorized"}), 401
     
     employee_id = request.args.get('employee_id')
-    date_str = request.args.get('date') # Today's Date
+    date_str = request.args.get('date') 
 
     try:
         current_date = parse_date(date_str)
@@ -3568,7 +3573,7 @@ def api_fetch_stock():
 
         if today_alloc:
             mode = "restock"
-            # SMART AGGREGATION: Group by Product ID to sum up multiple "gives"
+            # AGGREGATE items by product_id
             cur.execute("""
                 SELECT p.name, p.id as pid, SUM(mai.opening_qty + mai.given_qty) as total_qty, p.image
                 FROM morning_allocation_items mai
@@ -3585,8 +3590,7 @@ def api_fetch_stock():
                     'image': resolve_img(r['image'])
                 })
 
-        # 2. HOLIDAY LOGIC (Requirement #4 & #5)
-        # Find the LAST settlement strictly BEFORE today
+        # 2. HOLIDAY LOGIC: Last known settlement before today
         cur.execute("""
             SELECT id FROM evening_settle 
             WHERE employee_id = %s AND date < %s 
@@ -3596,6 +3600,9 @@ def api_fetch_stock():
         
         opening_stock_list = []
         
+        # In 'restock' mode, we usually don't pre-fill the table with opening stock 
+        # because the user is adding *new* items. 
+        # But if you want to see previous items, they are in 'existing_items'.
         if mode == "normal" and last_settlement:
             cur.execute("""
                 SELECT ei.product_id, ei.remaining_qty, ei.unit_price, p.image, p.name 
@@ -5319,6 +5326,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
