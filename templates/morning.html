@@ -10,7 +10,7 @@
     <!-- Header -->
     <div class="glass-header text-center mb-4 p-4">
         <h1 class="company-name text-gradient fw-bold mb-1">REAL PROMOTION</h1>
-        <p class="since-text text-secondary mb-3 small letter-spacing-2">SINCE 2005</p>
+        <p class="since-text text-secondary mb-2 small letter-spacing-2">SINCE 2005</p>
         <div class="address-block text-muted small mx-auto bg-white bg-opacity-50 p-2 rounded-3" style="max-width: 600px;">
             <i class="fa-solid fa-location-dot text-primary me-1"></i>
             Real Promotion, G/12, Tulsimangalam Complex, B/h. Trimurti Complex, Ghodiya Bazar, Nadiad-387001, Gujarat, India
@@ -32,7 +32,8 @@
             <input type="hidden" name="timestamp" id="timestampInput">
 
             <div class="row g-3 align-items-end">
-                <!-- Employee Selection with Photo -->
+                
+                <!-- Employee Selection (Left) -->
                 <div class="col-md-6">
                     <label class="form-label text-uppercase small fw-bold text-secondary">Sales Representative</label>
                     <div class="d-flex align-items-center">
@@ -51,7 +52,7 @@
                     </div>
                 </div>
 
-                <!-- Date & Clock -->
+                <!-- Date & Clock (Right) -->
                 <div class="col-md-6">
                     <label class="form-label text-uppercase small fw-bold text-secondary">Date & Time</label>
                     <div class="d-flex gap-2">
@@ -66,7 +67,10 @@
                 </div>
             </div>
 
-            <!-- SMART RESTOCK PREVIEW (Aggregated Items) -->
+            <!-- Status Message -->
+            <div id="fetchMsg" class="w-100 text-center mt-3 fw-bold"></div>
+
+            <!-- RESTOCK HISTORY AREA -->
             <div id="historyList" class="mt-4"></div>
 
             <!-- Table -->
