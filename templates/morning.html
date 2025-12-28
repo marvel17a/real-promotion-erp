@@ -8,9 +8,9 @@
 <div class="glass-container fade-in-up mb-5">
 
     <!-- Header -->
-    <div class="glass-header text-center mb-4 p-4">
+    <div class="glass-header text-center mb-4 p-4 position-relative">
         <h1 class="company-name text-gradient fw-bold mb-1">REAL PROMOTION</h1>
-        <p class="since-text text-secondary mb-3 small letter-spacing-2">SINCE 2005</p>
+        <p class="since-text text-secondary mb-2 small letter-spacing-2">SINCE 2005</p>
         <div class="address-block text-muted small mx-auto bg-white bg-opacity-50 p-2 rounded-3" style="max-width: 600px;">
             <i class="fa-solid fa-location-dot text-primary me-1"></i>
             Real Promotion, G/12, Tulsimangalam Complex, B/h. Trimurti Complex, Ghodiya Bazar, Nadiad-387001, Gujarat, India
@@ -20,10 +20,10 @@
     <!-- Main Card -->
     <div class="glass-panel p-4 mb-4">
         
-        <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <div class="d-flex justify-content-between align-items-center mb-4">
             <h4 class="fw-bold text-dark mb-0"><i class="fa-solid fa-sun text-warning me-2"></i>Morning Allocation</h4>
             <a href="{{ url_for('allocation_list') }}" class="btn btn-outline-dark rounded-pill px-4 btn-sm">
-                <i class="fa-solid fa-clock-rotate-left me-2"></i> History
+                <i class="fa-solid fa-clock-rotate-left me-2"></i> History / View Submitted
             </a>
         </div>
 
@@ -32,15 +32,17 @@
             <input type="hidden" name="timestamp" id="timestampInput">
 
             <div class="row g-3 align-items-end">
-                <!-- Employee -->
+                <!-- Employee Selection with Photo -->
                 <div class="col-md-5">
-                    <label class="form-label text-uppercase small fw-bold text-secondary">Sales Person</label>
+                    <label class="form-label text-uppercase small fw-bold text-secondary">Sales Representative</label>
                     <div class="d-flex align-items-center">
+                        <!-- Profile Photo Box -->
                         <div class="me-3" style="width: 70px; height: 70px; border-radius: 12px; overflow: hidden; border: 2px solid #fff; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
                             <img src="{{ url_for('static', filename='img/default-user.png') }}" id="empPhoto" style="width: 100%; height: 100%; object-fit: cover;">
                         </div>
-                        <div class="flex-grow-1">
-                            <select name="employee_id" id="employee_id" class="form-select form-control-lg" required>
+                        <div class="input-group input-group-glass flex-grow-1">
+                            <span class="input-group-text"><i class="fa-solid fa-user-tie"></i></span>
+                            <select name="employee_id" id="employee_id" class="form-select" required>
                                 <option value="" data-img="">-- Select --</option>
                                 {% for emp in employees %}
                                 <option value="{{ emp.id }}" data-img="{{ emp.image }}">{{ emp.name }}</option>
@@ -54,8 +56,13 @@
                 <div class="col-md-4">
                     <label class="form-label text-uppercase small fw-bold text-secondary">Date & Time</label>
                     <div class="d-flex gap-2">
-                        <input type="text" name="date" id="date" class="form-control" value="{{ today_date }}" required style="max-width: 140px;">
-                        <div class="badge bg-dark text-white shadow d-flex align-items-center justify-content-center flex-grow-1" id="liveClock" style="font-size: 1.1rem; border-radius: 8px;">
+                        <!-- Date Picker -->
+                        <div class="input-group input-group-glass flex-grow-1">
+                             <span class="input-group-text"><i class="fa-solid fa-calendar"></i></span>
+                             <input type="text" name="date" id="date" class="form-control" value="{{ today_date }}" required>
+                        </div>
+                        <!-- Digital Clock -->
+                        <div class="badge bg-dark text-white shadow d-flex align-items-center justify-content-center px-3" id="liveClock" style="font-size: 1.1rem; border-radius: 8px; min-width: 100px;">
                             00:00:00
                         </div>
                     </div>
@@ -66,7 +73,7 @@
                 </div>
             </div>
 
-            <!-- RESTOCK HISTORY AREA -->
+            <!-- SMART RESTOCK PREVIEW (Aggregated Items) -->
             <div id="historyList" class="mt-4"></div>
 
             <!-- Table -->
@@ -74,8 +81,8 @@
                 <table class="table table-hover align-middle mb-0" id="productTable">
                     <thead class="bg-gradient-primary text-white">
                         <tr>
-                            <th class="ps-3" style="width: 40px;">No:</th>
-                            <th style="width: 80px; text-align: center;">Img</th>
+                            <th class="ps-3" style="width: 40px;">#</th>
+                            <th style="width: 60px; text-align: center;">Img</th>
                             <th style="min-width: 200px;">Product</th>
                             <th style="width: 90px;">Opening</th>
                             <th style="width: 90px;">Given</th>
@@ -90,7 +97,7 @@
                     <!-- FOOTER -->
                     <tfoot class="bg-light fw-bold" style="border-top: 3px solid #ddd;">
                         <tr style="font-size: 1.1rem;">
-                            <td colspan="3" class="text-end text-uppercase text-secondary pe-3" style="letter-spacing: 1px;">Total:</td>
+                            <td colspan="3" class="text-end text-uppercase text-secondary pe-3" style="letter-spacing: 1px;">Totals:</td>
                             <td class="text-center text-info"><span id="totalOpening">0</span></td>
                             <td class="text-center text-primary"><span id="totalGiven">0</span></td>
                             <td class="text-center text-dark"><span id="totalAll">0</span></td>
