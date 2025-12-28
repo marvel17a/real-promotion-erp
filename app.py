@@ -3489,6 +3489,7 @@ def evening():
             allocation_id = request.form.get('allocation_id')
             employee_id = request.form.get('h_employee')
             date_str = request.form.get('h_date')
+            time_str = request.form.get('timestamp') # New Timestamp
             
             date_obj = parse_date(date_str)
             if not date_obj: raise ValueError("Invalid Date")
@@ -3507,10 +3508,18 @@ def evening():
 
             db_cursor = mysql.connection.cursor()
 
-            db_cursor.execute("""
-                INSERT INTO evening_settle (allocation_id, employee_id, date, total_amount, online_money, cash_money, discount)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
-            """, (allocation_id, employee_id, formatted_date, total_amount, online, cash, discount))
+            # Try inserting with created_at if column exists
+            try:
+                db_cursor.execute("""
+                    INSERT INTO evening_settle (allocation_id, employee_id, date, total_amount, online_money, cash_money, discount, created_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                """, (allocation_id, employee_id, formatted_date, total_amount, online, cash, discount, time_str))
+            except:
+                db_cursor.execute("""
+                    INSERT INTO evening_settle (allocation_id, employee_id, date, total_amount, online_money, cash_money, discount)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                """, (allocation_id, employee_id, formatted_date, total_amount, online, cash, discount))
+            
             settle_id = db_cursor.lastrowid
 
             item_sql = "INSERT INTO evening_item (settle_id, product_id, total_qty, sold_qty, return_qty, unit_price, remaining_qty) VALUES (%s, %s, %s, %s, %s, %s, %s)"
@@ -3519,11 +3528,11 @@ def evening():
                 if not pid: continue
                 sold = int(s_qtys[i] or 0)
                 rem = int(t_qtys[i] or 0) - sold - int(r_qtys[i] or 0)
-                if rem < 0: rem = 0 # Safety check
+                if rem < 0: rem = 0
 
                 db_cursor.execute(item_sql, (settle_id, pid, t_qtys[i], sold, r_qtys[i], prices[i], rem))
                 
-                # Reduce Main Inventory Stock
+                # Reduce Stock
                 if sold > 0:
                     db_cursor.execute("UPDATE products SET stock = stock - %s WHERE id = %s", (sold, pid))
 
@@ -3538,10 +3547,14 @@ def evening():
         finally:
             if db_cursor: db_cursor.close()
 
+    # GET Request
     last_settle_id = request.args.get('last_settle_id')
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    cur.execute("SELECT id, name FROM employees WHERE status='active' ORDER BY name")
+    
+    cur.execute("SELECT id, name, image FROM employees WHERE status='active' ORDER BY name")
     employees = cur.fetchall()
+    for e in employees: e['image'] = resolve_img(e['image'])
+
     cur.close()
     
     return render_template('evening.html', employees=employees, today=date.today().strftime('%d-%m-%Y'), last_settle_id=last_settle_id)
@@ -3938,64 +3951,49 @@ def edit_morning_allocation(allocation_id):
 @app.route('/admin/evening_master')
 def admin_evening_master():
     if "loggedin" not in session: return redirect(url_for("login"))
-    
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
-    # Filters
-    start_date = request.args.get('start_date', date.today().isoformat())
-    end_date = request.args.get('end_date', date.today().isoformat())
-    emp_id = request.args.get('employee_id')
-
-    # Main Query
-    query = """
-        SELECT es.*, e.name as emp_name 
-        FROM evening_settle es
-        JOIN employees e ON es.employee_id = e.id
-        WHERE es.date BETWEEN %s AND %s
-    """
-    params = [start_date, end_date]
-
-    if emp_id and emp_id != 'all':
-        query += " AND es.employee_id = %s"
-        params.append(emp_id)
+    start = request.args.get('start_date', date.today().isoformat())
+    end = request.args.get('end_date', date.today().isoformat())
+    emp = request.args.get('employee_id')
     
-    query += " ORDER BY es.date DESC, es.id DESC"
-
-    cur.execute(query, tuple(params))
+    # Updated query to potentially fetch timestamp if available
+    sql = "SELECT es.*, e.name as emp_name FROM evening_settle es JOIN employees e ON es.employee_id=e.id WHERE es.date BETWEEN %s AND %s"
+    p = [start, end]
+    if emp and emp != 'all':
+        sql += " AND es.employee_id=%s"
+        p.append(emp)
+    sql += " ORDER BY es.date DESC"
+    
+    cur.execute(sql, tuple(p))
     settlements = cur.fetchall()
-
-    # Summary Stats
-    total_sales = sum(s['total_amount'] for s in settlements)
-    total_cash = sum(s['cash_money'] for s in settlements)
-    total_online = sum(s['online_money'] for s in settlements)
-
-    # Employee List for Filter
-    cur.execute("SELECT id, name FROM employees ORDER BY name")
-    employees = cur.fetchall()
     
+    cur.execute("SELECT id, name FROM employees")
+    emps = cur.fetchall()
     cur.close()
+    
+    stats = {
+        'sales': sum(x['total_amount'] for x in settlements),
+        'cash': sum(x['cash_money'] for x in settlements),
+        'online': sum(x['online_money'] for x in settlements)
+    }
+    
+    return render_template('admin/evening_master.html', settlements=settlements, employees=emps, stats=stats, filters={'start':start, 'end':end, 'emp':emp})
 
-    return render_template('admin/evening_master.html', 
-                           settlements=settlements,
-                           employees=employees,
-                           stats={'sales': total_sales, 'cash': total_cash, 'online': total_online},
-                           filters={'start': start_date, 'end': end_date, 'emp': emp_id})
 
 
 # --- 2. EDIT SETTLEMENT (Logic Critical) ---
+
 @app.route('/admin/evening/edit/<int:settle_id>', methods=['GET', 'POST'])
 def admin_edit_evening(settle_id):
     if "loggedin" not in session: return redirect(url_for("login"))
-
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-
     if request.method == 'POST':
         try:
-            # 1. Fetch OLD Items (To calculate stock difference)
+            # Revert stock logic for old items
             cur.execute("SELECT * FROM evening_item WHERE settle_id = %s", (settle_id,))
             old_items = {item['product_id']: item for item in cur.fetchall()}
-
-            # 2. Get Form Data
+            
             total_amt = request.form.get('totalAmount')
             cash = request.form.get('cash')
             online = request.form.get('online')
@@ -4004,77 +4002,46 @@ def admin_edit_evening(settle_id):
             p_ids = request.form.getlist('product_id[]')
             sold_qtys = request.form.getlist('sold[]')
             return_qtys = request.form.getlist('return[]')
-            # 'total_qty' is read-only from Allocation, usually doesn't change here
-            # But we need it to recalc 'remaining'
-
-            # 3. Update Inventory (Delta Logic) & Evening Items
+            # Prices might not change, but good to have
+            
             for i, pid in enumerate(p_ids):
                 pid = int(pid)
                 new_sold = int(sold_qtys[i] or 0)
                 new_ret = int(return_qtys[i] or 0)
                 
                 old_item = old_items.get(pid)
-                
                 if old_item:
-                    # Calculate Stock Adjustment
-                    # If I sold MORE now than before -> Stock decreases
-                    # If I sold LESS -> Stock increases (returns to inventory)
                     diff_sold = new_sold - old_item['sold_qty']
-                    
-                    # Update Main Stock
                     if diff_sold != 0:
                         cur.execute("UPDATE products SET stock = stock - %s WHERE id = %s", (diff_sold, pid))
-
-                    # Recalculate Remaining for this specific allocation day
-                    # remaining = total - new_sold - new_ret
+                    
                     new_remain = old_item['total_qty'] - new_sold - new_ret
                     if new_remain < 0: new_remain = 0
-
-                    # Update Row
+                    
                     cur.execute("""
                         UPDATE evening_item 
                         SET sold_qty=%s, return_qty=%s, remaining_qty=%s 
                         WHERE id=%s
                     """, (new_sold, new_ret, new_remain, old_item['id']))
-
-            # 4. Update Header
-            cur.execute("""
-                UPDATE evening_settle 
-                SET total_amount=%s, cash_money=%s, online_money=%s, discount=%s 
-                WHERE id=%s
-            """, (total_amt, cash, online, discount, settle_id))
-
+            
+            cur.execute("UPDATE evening_settle SET total_amount=%s, cash_money=%s, online_money=%s, discount=%s WHERE id=%s", (total_amt, cash, online, discount, settle_id))
             mysql.connection.commit()
-            flash("Settlement Updated Successfully!", "success")
+            flash("Updated", "success")
             return redirect(url_for('admin_evening_master'))
-
         except Exception as e:
             mysql.connection.rollback()
-            flash(f"Update Error: {e}", "danger")
             return redirect(url_for('admin_evening_master'))
-
-    # GET Request: Load Data
-    cur.execute("""
-        SELECT es.*, e.name as emp_name 
-        FROM evening_settle es 
-        JOIN employees e ON es.employee_id = e.id 
-        WHERE es.id = %s
-    """, (settle_id,))
+            
+    cur.execute("SELECT es.*, e.name as emp_name FROM evening_settle es JOIN employees e ON es.employee_id = e.id WHERE es.id = %s", (settle_id,))
     settlement = cur.fetchone()
-
-    # Join with Products to get Image/Name
-    cur.execute("""
-        SELECT ei.*, p.name as product_name, p.image 
-        FROM evening_item ei 
-        JOIN products p ON ei.product_id = p.id 
-        WHERE ei.settle_id = %s
-    """, (settle_id,))
-    items = []
-    for row in cur.fetchall():
-        row['image'] = resolve_img(row['image']) # Use existing helper
-        items.append(row)
     
+    cur.execute("SELECT ei.*, p.name as product_name, p.image FROM evening_item ei JOIN products p ON ei.product_id = p.id WHERE ei.settle_id = %s", (settle_id,))
+    items = []
+    for r in cur.fetchall():
+        r['image'] = resolve_img(r['image'])
+        items.append(r)
     cur.close()
+    
     return render_template('admin/edit_evening_settle.html', settlement=settlement, items=items)
 
 
@@ -5326,6 +5293,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
