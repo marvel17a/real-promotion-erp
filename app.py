@@ -3477,7 +3477,7 @@ def morning():
         if db_cursor: db_cursor.close()
 
 # ---------------------------------------------------------
-# 2. EVENING SETTLEMENT
+# 2. EVENING SETTLEMENT (Timestamp & Holiday Logic)
 # ---------------------------------------------------------
 @app.route('/evening', methods=['GET', 'POST'])
 def evening():
@@ -3488,8 +3488,9 @@ def evening():
         try:
             allocation_id = request.form.get('allocation_id')
             employee_id = request.form.get('h_employee')
-            date_str = request.form.get('h_date')
-            time_str = request.form.get('timestamp') # New Timestamp
+            # This 'h_date' is the SETTLEMENT date (Today), not necessarily alloc date
+            date_str = request.form.get('h_date') 
+            time_str = request.form.get('timestamp') 
             
             date_obj = parse_date(date_str)
             if not date_obj: raise ValueError("Invalid Date")
@@ -3508,7 +3509,7 @@ def evening():
 
             db_cursor = mysql.connection.cursor()
 
-            # Try inserting with created_at if column exists
+            # Insert Evening Header
             try:
                 db_cursor.execute("""
                     INSERT INTO evening_settle (allocation_id, employee_id, date, total_amount, online_money, cash_money, discount, created_at)
@@ -3532,7 +3533,7 @@ def evening():
 
                 db_cursor.execute(item_sql, (settle_id, pid, t_qtys[i], sold, r_qtys[i], prices[i], rem))
                 
-                # Reduce Stock
+                # Reduce Main Inventory
                 if sold > 0:
                     db_cursor.execute("UPDATE products SET stock = stock - %s WHERE id = %s", (sold, pid))
 
@@ -3550,14 +3551,13 @@ def evening():
     # GET Request
     last_settle_id = request.args.get('last_settle_id')
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    
     cur.execute("SELECT id, name, image FROM employees WHERE status='active' ORDER BY name")
     employees = cur.fetchall()
     for e in employees: e['image'] = resolve_img(e['image'])
-
     cur.close()
     
     return render_template('evening.html', employees=employees, today=date.today().strftime('%d-%m-%Y'), last_settle_id=last_settle_id)
+
 
 
 
@@ -3647,34 +3647,50 @@ def api_fetch_stock():
 
 
 # ---------------------------------------------------------
-# 4. API: FETCH ALLOCATION (Aggregated for Evening)
+# 4. API: FETCH ALLOCATION (Updated for Holiday Return)
 # ---------------------------------------------------------
 @app.route('/api/fetch_morning_allocation')
 def api_fetch_morning_allocation():
     if "loggedin" not in session: return jsonify({"error": "Unauthorized"}), 401
     
     employee_id = request.args.get('employee_id')
-    date_str = request.args.get('date')
+    date_str = request.args.get('date') # This is the "Settlement Date" (Today)
 
     try:
-        date_obj = parse_date(date_str)
-        formatted_date = date_obj.strftime('%Y-%m-%d') if date_obj else date_str
-
+        settlement_date = parse_date(date_str)
+        if not settlement_date: return jsonify({"error": "Invalid Date"}), 400
+        
         cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
         
-        cur.execute("SELECT id FROM evening_settle WHERE employee_id=%s AND date=%s", (employee_id, formatted_date))
-        if cur.fetchone():
-            cur.close()
-            return jsonify({"error": "Settlement already done."}), 400
-
-        cur.execute("SELECT id FROM morning_allocations WHERE employee_id=%s AND date=%s", (employee_id, formatted_date))
+        # 1. Find the LATEST Morning Allocation that hasn't been settled yet.
+        # Logic: Find morning_alloc where date <= settlement_date AND id NOT IN evening_settle
+        # We order by date DESC to get the most recent one.
+        
+        cur.execute("""
+            SELECT ma.id, ma.date 
+            FROM morning_allocations ma
+            LEFT JOIN evening_settle es ON ma.id = es.allocation_id
+            WHERE ma.employee_id = %s 
+              AND ma.date <= %s 
+              AND es.id IS NULL
+            ORDER BY ma.date DESC 
+            LIMIT 1
+        """, (employee_id, settlement_date))
+        
         alloc = cur.fetchone()
         
         if not alloc:
-            cur.close()
-            return jsonify({"error": "No allocation found."}), 404
+            # Fallback check: Did they already settle today?
+            cur.execute("SELECT id FROM evening_settle WHERE employee_id=%s AND date=%s", (employee_id, settlement_date))
+            if cur.fetchone():
+                 cur.close()
+                 return jsonify({"error": "Settlement already done for today."})
             
-        # AGGREGATE: Sum up multiple entries for the same product (Mid-day restock logic)
+            cur.close()
+            return jsonify({"error": "No pending allocation found."}), 404
+            
+        # Found pending allocation (could be from 5 days ago)
+        # Fetch Aggregated Items
         cur.execute("""
             SELECT mai.product_id, p.name AS product_name, p.image, 
                    SUM(mai.opening_qty + mai.given_qty) as total_qty, 
@@ -3682,7 +3698,7 @@ def api_fetch_morning_allocation():
             FROM morning_allocation_items mai
             JOIN products p ON mai.product_id = p.id
             WHERE mai.allocation_id = %s
-            GROUP BY mai.product_id, mai.unit_price
+            GROUP BY mai.product_id
         """, (alloc['id'],))
         items = cur.fetchall()
         cur.close()
@@ -3697,7 +3713,11 @@ def api_fetch_morning_allocation():
                 'unit_price': float(i['unit_price'])
             })
             
-        return jsonify({"allocation_id": alloc['id'], "items": clean_items})
+        return jsonify({
+            "allocation_id": alloc['id'], 
+            "allocation_date": alloc['date'].strftime('%d-%m-%Y'), # Send back actual alloc date
+            "items": clean_items
+        })
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -5293,6 +5313,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
