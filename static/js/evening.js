@@ -2,7 +2,7 @@ document.addEventListener("DOMContentLoaded", () => {
     
     const getEl = (id) => document.getElementById(id);
     const ui = {
-        employeeSelect: getEl("employee_id"), 
+        employeeSelect: getEl("employee"), 
         dateInput: getEl("date"),
         fetchButton: getEl("btnFetch"),
         tableBody: getEl("rowsArea"),
@@ -13,7 +13,10 @@ document.addEventListener("DOMContentLoaded", () => {
             date: getEl('h_date'),
         },
         footer: {
+            total: getEl('totTotal'),
             sold: getEl('totSold'),
+            return: getEl('totReturn'),
+            remain: getEl('totRemain'),
             amount: getEl('totAmount')
         },
         payment: {
@@ -27,17 +30,17 @@ document.addEventListener("DOMContentLoaded", () => {
     
     if (!ui.fetchButton) return;
 
-    const DEFAULT_IMG = "https://via.placeholder.com/55?text=Img";
+    const DEFAULT_IMG = "https://via.placeholder.com/50?text=Img";
 
     async function fetchMorningAllocation() {
         const employeeId = ui.employeeSelect.value;
         const dateStr = ui.dateInput.value;
 
-        ui.tableBody.innerHTML = '<tr><td colspan="7" class="text-center p-4"><div class="spinner-border text-primary" role="status"></div></td></tr>';
+        ui.tableBody.innerHTML = '<tr><td colspan="9" class="text-center p-4"><div class="spinner-border text-primary" role="status"></div></td></tr>';
         if(ui.fetchMsg) ui.fetchMsg.textContent = "";
 
         if (!employeeId || !dateStr) {
-            ui.tableBody.innerHTML = '<tr><td colspan="7" class="text-center text-muted p-4">Select Employee and Date.</td></tr>';
+            ui.tableBody.innerHTML = '<tr><td colspan="9" class="text-center text-muted p-4">Select Employee and Date.</td></tr>';
             return;
         }
 
@@ -53,7 +56,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if(ui.hidden.allocationId) ui.hidden.allocationId.value = data.allocation_id;
             
             if (!data.items || data.items.length === 0) {
-                ui.tableBody.innerHTML = '<tr><td colspan="7" class="text-center text-warning p-4 fw-bold">No items found.</td></tr>';
+                ui.tableBody.innerHTML = '<tr><td colspan="9" class="text-center text-warning p-4 fw-bold">No items found.</td></tr>';
                 return;
             }
 
@@ -61,7 +64,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if(ui.fetchMsg) ui.fetchMsg.innerHTML = '<span class="text-success"><i class="fa-solid fa-check"></i> Data loaded</span>';
 
         } catch (error) {
-            ui.tableBody.innerHTML = `<tr><td colspan="7" class="text-center text-danger p-4">${error.message}</td></tr>`;
+            ui.tableBody.innerHTML = `<tr><td colspan="9" class="text-center text-danger p-4">${error.message}</td></tr>`;
             if(ui.fetchMsg) ui.fetchMsg.textContent = error.message;
         }
     }
@@ -69,7 +72,7 @@ document.addEventListener("DOMContentLoaded", () => {
     function renderTable(items) {
         ui.tableBody.innerHTML = '';
         
-        items.forEach(item => {
+        items.forEach((item, index) => {
             const totalQty = parseInt(item.total_qty);
             const price = parseFloat(item.unit_price);
             
@@ -77,32 +80,34 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const rowHtml = `
                 <tr class="item-row">
-                    <td class="ps-4 text-center">
-                        <div class="img-box">
-                            <img src="${imgSrc}" class="product-thumb" alt="Product" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='${DEFAULT_IMG}'">
+                    <td class="ps-3 text-muted fw-bold">${index + 1}</td>
+                    <td class="text-center">
+                        <div class="img-box-small">
+                            <img src="${imgSrc}" class="product-thumb" alt="img" onerror="this.src='${DEFAULT_IMG}'">
                         </div>
                     </td>
                     <td>
-                        <div class="fw-bold text-dark text-start">${item.product_name}</div>
+                        <div class="fw-bold text-dark">${item.product_name}</div>
                         <input type="hidden" name="product_id[]" value="${item.product_id}">
                         <input type="hidden" name="total_qty[]" value="${totalQty}">
                         <input type="hidden" name="price[]" class="price-input" value="${price.toFixed(2)}">
                     </td>
                     <td class="text-center">
-                        <span class="badge bg-light text-dark border px-3 py-2 rounded-pill">${totalQty}</span>
+                        <span class="badge bg-secondary bg-opacity-25 text-dark border px-3 py-2 rounded-pill fs-6">${totalQty}</span>
                     </td>
                     <td>
                         <input type="number" name="sold[]" class="form-control sold" min="0" max="${totalQty}" placeholder="0">
                     </td>
                     <td>
+                        <input type="text" class="form-control-plaintext text-center" value="${price.toFixed(2)}" readonly>
+                    </td>
+                    <td class="text-end pe-3 fw-bold text-success amount-display">0.00</td>
+                    <td>
                         <input type="number" name="return[]" class="form-control return" min="0" max="${totalQty}" placeholder="0">
                     </td>
                     <td class="text-center">
-                        <input type="number" name="remaining[]" class="form-control-plaintext text-center fw-bold text-muted remain-input" 
+                        <input type="number" name="remaining[]" class="form-control-plaintext text-center fw-bold text-warning remain-input" 
                                value="${totalQty}" readonly>
-                    </td>
-                    <td class="text-end pe-4">
-                        <span class="fw-bold text-dark">₹ <span class="amount-display">0.00</span></span>
                     </td>
                 </tr>
             `;
@@ -113,7 +118,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function recalculateTotals() {
-        let grandTotalSold = 0, grandTotalAmount = 0;
+        let gTotal = 0, gSold = 0, gReturn = 0, gRemain = 0, gAmount = 0;
         const rows = ui.tableBody.querySelectorAll('.item-row');
 
         rows.forEach(row => {
@@ -127,6 +132,7 @@ document.addEventListener("DOMContentLoaded", () => {
             let ret = parseInt(returnInput.value) || 0;
 
             if ((sold + ret) > totalQty) {
+                // Adjust Return to fit logic
                 ret = totalQty - sold;
                 if(ret < 0) { sold = totalQty; ret = 0; }
                 soldInput.value = sold || '';
@@ -134,17 +140,25 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             const revenue = sold * price;
-            remainInput.value = totalQty - sold - ret;
+            const remaining = totalQty - sold - ret;
+
+            remainInput.value = remaining;
             row.querySelector('.amount-display').textContent = revenue.toFixed(2);
 
-            grandTotalSold += sold;
-            grandTotalAmount += revenue;
+            gTotal += totalQty;
+            gSold += sold;
+            gReturn += ret;
+            gRemain += remaining;
+            gAmount += revenue;
         });
 
-        if(ui.footer.sold) ui.footer.sold.textContent = grandTotalSold;
-        if(ui.footer.amount) ui.footer.amount.textContent = grandTotalAmount.toFixed(2);
+        if(ui.footer.total) ui.footer.total.textContent = gTotal;
+        if(ui.footer.sold) ui.footer.sold.textContent = gSold;
+        if(ui.footer.return) ui.footer.return.textContent = gReturn;
+        if(ui.footer.remain) ui.footer.remain.textContent = gRemain;
+        if(ui.footer.amount) ui.footer.amount.textContent = gAmount.toFixed(2);
         
-        if(ui.payment.totalAmount) ui.payment.totalAmount.value = grandTotalAmount.toFixed(2);
+        if(ui.payment.totalAmount) ui.payment.totalAmount.value = gAmount.toFixed(2);
         
         calculateDue();
     }
