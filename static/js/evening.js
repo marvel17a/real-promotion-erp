@@ -55,13 +55,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
             if(ui.hidden.allocationId) ui.hidden.allocationId.value = data.allocation_id;
             
+            // Show if we fetched an old allocation
+            if(data.allocation_date && data.allocation_date !== dateStr) {
+                ui.fetchMsg.innerHTML = `<span class="text-info small fw-bold"><i class="fa-solid fa-clock-rotate-left"></i> Fetched pending allocation from: ${data.allocation_date}</span>`;
+            } else {
+                ui.fetchMsg.innerHTML = '<span class="text-success small fw-bold"><i class="fa-solid fa-check"></i> Data loaded</span>';
+            }
+            
             if (!data.items || data.items.length === 0) {
                 ui.tableBody.innerHTML = '<tr><td colspan="9" class="text-center text-warning p-4 fw-bold">No items found.</td></tr>';
                 return;
             }
 
             renderTable(data.items);
-            if(ui.fetchMsg) ui.fetchMsg.innerHTML = '<span class="text-success"><i class="fa-solid fa-check"></i> Data loaded</span>';
 
         } catch (error) {
             ui.tableBody.innerHTML = `<tr><td colspan="9" class="text-center text-danger p-4">${error.message}</td></tr>`;
@@ -82,7 +88,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 <tr class="item-row">
                     <td class="ps-3 text-muted fw-bold">${index + 1}</td>
                     <td class="text-center">
-                        <div class="img-box-small">
+                         <div class="img-box-small">
                             <img src="${imgSrc}" class="product-thumb" alt="img" onerror="this.src='${DEFAULT_IMG}'">
                         </div>
                     </td>
