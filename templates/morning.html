@@ -10,7 +10,7 @@
     <!-- Header -->
     <div class="glass-header text-center mb-4 p-4 position-relative">
         <h1 class="company-name text-gradient fw-bold mb-1">REAL PROMOTION</h1>
-        <p class="since-text text-secondary mb-3 small letter-spacing-2">SINCE 2005</p>
+        <p class="since-text text-secondary mb-2 small letter-spacing-2">SINCE 2005</p>
         <div class="address-block text-muted small mx-auto bg-white bg-opacity-50 p-2 rounded-3" style="max-width: 600px;">
             <i class="fa-solid fa-location-dot text-primary me-1"></i>
             Real Promotion, G/12, Tulsimangalam Complex, B/h. Trimurti Complex, Ghodiya Bazar, Nadiad-387001, Gujarat, India
@@ -170,6 +170,7 @@
             empSelect.addEventListener('change', function() {
                 const selectedOption = this.options[this.selectedIndex];
                 const img = selectedOption.getAttribute('data-img');
+                // Use a default if empty or None
                 if(img && img !== 'None' && img !== "") empPhoto.src = img;
                 else empPhoto.src = "{{ url_for('static', filename='img/default-user.png') }}";
             });
