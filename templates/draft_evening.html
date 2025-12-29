@@ -21,7 +21,7 @@
                         <th class="ps-4">Date</th>
                         <th>Employee</th>
                         <th class="text-center">Total Amount</th>
-                        <th class="text-center">Saved At</th>
+                        <th class="text-center">Created At</th>
                         <th class="text-end pe-4">Action</th>
                     </tr>
                 </thead>
@@ -31,7 +31,9 @@
                         <td class="ps-4 fw-bold">{{ d.date }}</td>
                         <td>
                             <div class="d-flex align-items-center">
-                                <img src="{{ d.emp_image }}" class="rounded-circle me-2 border" width="35" height="35">
+                                <!-- Photo removed or kept small for drafts? Let's keep small or remove if strictly requested. -->
+                                <!-- Keeping small for context -->
+                                <img src="{{ d.emp_image }}" class="rounded-circle me-2 border" width="35" height="35" onerror="this.style.display='none'">
                                 <span class="fw-bold">{{ d.emp_name }}</span>
                             </div>
                         </td>
