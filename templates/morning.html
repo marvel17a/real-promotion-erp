@@ -1,155 +1,131 @@
 {% extends "base.html" %}
 
 {% block content %}
+<!-- Dependencies -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/morning.css') }}">
+<!-- Custom CSS -->
+<link rel="stylesheet" href="{{ url_for('static', filename='css/morning_custom.css') }}">
 
-<div class="glass-container fade-in-up mb-5">
+<div class="container-fluid fade-in-up mb-5" style="max-width: 1400px;">
 
-    <!-- Header -->
-    <div class="glass-header text-center mb-4 p-4">
-        <h1 class="company-name text-gradient fw-bold mb-1">REAL PROMOTION</h1>
-        <p class="since-text text-secondary mb-2 small letter-spacing-2">SINCE 2005</p>
-        <div class="address-block text-muted small mx-auto bg-white bg-opacity-50 p-2 rounded-3" style="max-width: 600px;">
-            <i class="fa-solid fa-location-dot text-primary me-1"></i>
-            Real Promotion, G/12, Tulsimangalam Complex, B/h. Trimurti Complex, Ghodiya Bazar, Nadiad-387001, Gujarat, India
-        </div>
-    </div>
-
-    <!-- Main Card -->
-    <div class="glass-panel p-4 mb-4">
-        
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h4 class="fw-bold text-dark mb-0">
-                <i class="fa-solid fa-sun text-warning me-2"></i>Morning Allocation
-            </h4>
-            <a href="{{ url_for('allocation_list') }}" class="btn btn-outline-dark rounded-pill px-4 btn-sm">
-                <i class="fa-solid fa-clock-rotate-left me-2"></i> History
-            </a>
-        </div>
-
+    <!-- HEADER PANEL -->
+    <div class="glass-panel p-4 mb-4 mt-4">
         <form id="morningForm" method="POST" action="{{ url_for('morning') }}">
+            <!-- Hidden Fields -->
             <input type="hidden" name="timestamp" id="timestampInput">
 
-            <div class="row g-3 align-items-end">
-                
-                <!-- Employee Selection -->
-                <div class="col-md-6">
-                    <label class="form-label text-uppercase small fw-bold text-secondary">Sales Representative</label>
-                    <div class="d-flex align-items-center">
-                        <div class="me-3 emp-photo-box">
-                            <img src="{{ url_for('static', filename='img/default-user.png') }}" id="empPhoto">
-                        </div>
-                        <div class="input-group input-group-glass flex-grow-1">
-                            <span class="input-group-text"><i class="fa-solid fa-user-tie"></i></span>
-                            <select name="employee_id" id="employee_id" class="form-select form-control-lg" required>
-                                <option value="" data-img="">-- Select --</option>
-                                {% for emp in employees %}
-                                <option value="{{ emp.id }}" data-img="{{ emp.image }}">{{ emp.name }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
+            <div class="row align-items-center g-3">
+                <!-- Profile Photo -->
+                <div class="col-auto">
+                    <div class="user-img-box">
+                        <img id="empPhoto" src="{{ url_for('static', filename='img/default-user.png') }}" alt="User">
                     </div>
                 </div>
 
-                <!-- Date & Clock -->
-                <div class="col-md-6">
-                    <label class="form-label text-uppercase small fw-bold text-secondary">Date & Time</label>
-                    <div class="d-flex gap-2">
-                        <div class="input-group input-group-glass flex-grow-1">
-                            <span class="input-group-text"><i class="fa-solid fa-calendar"></i></span>
-                            <input type="text" name="date" id="date" class="form-control form-control-lg" value="{{ today_date }}" required>
-                        </div>
-                        <div class="badge bg-dark text-white shadow clock-badge" id="liveClock">
-                            00:00:00
-                        </div>
+                <!-- Employee Select -->
+                <div class="col-md-3">
+                    <label class="small fw-bold text-muted mb-1">EMPLOYEE</label>
+                    <select id="employee_id" name="employee_id" class="form-select border-0 shadow-sm fw-bold py-2" required>
+                        <option value="">-- Select --</option>
+                        {% for emp in employees %}
+                        <option value="{{ emp.id }}" data-img="{{ emp.image }}">{{ emp.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Date -->
+                <div class="col-md-2">
+                    <label class="small fw-bold text-muted mb-1">DATE</label>
+                    <input type="text" id="date" name="date" class="form-control border-0 shadow-sm fw-bold py-2 text-center" value="{{ today_date }}" required>
+                </div>
+
+                <!-- Clock -->
+                <div class="col-md-2">
+                    <label class="small fw-bold text-muted mb-1">TIME</label>
+                    <div class="bg-white shadow-sm rounded-3 py-2 px-3 fw-bold text-center">
+                        <span id="liveClock" class="font-monospace">00:00:00</span>
                     </div>
                 </div>
+
+                <!-- Add Item Button (Location Preserved/Aligned Right) -->
+                <div class="col-md-3 ms-auto">
+                    <label class="d-none d-md-block text-transparent small mb-1">Action</label>
+                    <button type="button" id="addRow" class="btn btn-dark w-100 py-2 fw-bold shadow-lg rounded-3">
+                        <i class="fa-solid fa-plus me-2"></i> Add Item
+                    </button>
+                </div>
             </div>
-
-            <div id="fetchMsg" class="w-100 text-center mt-3 fw-bold"></div>
-            <div id="historyList" class="mt-4"></div>
-
-            <!-- Table -->
-            <div class="table-responsive glass-table-container mt-4">
-                <table class="table table-hover align-middle mb-0" id="productTable">
-                    <thead class="bg-gradient-primary text-white">
-                        <tr>
-                            <th class="ps-3">#</th>
-                            <th class="text-center">Img</th>
-                            <th>Product</th>
-                            <th>Opening</th>
-                            <th>Given</th>
-                            <th>Total</th>
-                            <th>Price</th>
-                            <th>Amount</th>
-                            <th class="text-center"><i class="fa-solid fa-trash"></i></th>
-                        </tr>
-                    </thead>
-
-                    <tbody class="bg-white"></tbody>
-
-                    <!-- ✅ REDESIGNED FOOTER (SUMMARY BOXES) -->
-                    <tfoot class="summary-footer">
-                        <tr>
-                            <td colspan="9">
-                                <div class="summary-grid">
-                                    <div class="summary-box info">
-                                        Opening
-                                        <strong id="totalOpening">0</strong>
-                                    </div>
-                                    <div class="summary-box primary">
-                                        Given
-                                        <strong id="totalGiven">0</strong>
-                                    </div>
-                                    <div class="summary-box dark">
-                                        Total
-                                        <strong id="totalAll">0</strong>
-                                    </div>
-                                    <div class="summary-box success">
-                                        Amount
-                                        <strong>₹ <span id="grandTotal">0.00</span></strong>
-                                    </div>
-                                </div>
-                            </td>
-                        </tr>
-                    </tfoot>
-                </table>
-            </div>
-
-            <div class="d-flex justify-content-between align-items-center mt-4">
-                <button type="button" id="addRow" class="btn btn-glass-light text-success fw-bold">
-                    <i class="fa-solid fa-plus-circle me-2"></i> Add Item
-                </button>
-                <button type="submit" class="btn btn-gradient-primary px-5 rounded-pill shadow-lg hover-lift">
-                    <i class="fa-solid fa-check me-2"></i> Save / Update Allocation
-                </button>
-            </div>
-        </form>
+            
+            <div id="fetchMsg" class="alert alert-info d-none mt-3 rounded-3 fw-bold small"></div>
     </div>
+
+    <!-- TABLE SECTION -->
+    <div class="glass-panel p-0 mb-4 overflow-hidden">
+        <div class="table-responsive">
+            <table class="custom-table" id="productTable">
+                <thead>
+                    <tr>
+                        <th class="ps-4" style="width: 50px;">#</th>
+                        <th style="width: 70px;">Img</th>
+                        <th>Product Name</th>
+                        <th class="text-center" style="width: 120px;">Opening</th>
+                        <th class="text-center" style="width: 120px;">Given</th>
+                        <th class="text-center" style="width: 120px;">Total</th> <!-- Colored Box -->
+                        <th class="text-center" style="width: 80px;">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Rows generated by JS -->
+                </tbody>
+                <!-- LAST ROW (Footer) -->
+                <tfoot class="table-footer">
+                    <tr>
+                        <td colspan="3" class="text-end ps-4 text-white-50">TOTALS:</td>
+                        
+                        <!-- Opening Total -->
+                        <td class="text-center">
+                            <span id="totalOpening">0</span>
+                        </td>
+                        
+                        <!-- Given Total (Warning Color Text) -->
+                        <td class="text-center text-warning">
+                            <span id="totalGiven">0</span>
+                        </td>
+                        
+                        <!-- Total All (Info Color Text) -->
+                        <td class="text-center text-info">
+                            <span id="totalAll">0</span>
+                        </td>
+                        
+                        <!-- Empty Action -->
+                        <td></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+
+    <!-- SUBMIT BUTTON -->
+    <div class="text-center pb-5">
+        <button type="submit" class="btn btn-primary px-5 py-3 rounded-pill fw-bold shadow-lg hover-lift">
+            <i class="fa-solid fa-check-circle me-2"></i> Submit Allocation
+        </button>
+    </div>
+
+    </form>
 </div>
 
+<!-- Data Pass to JS -->
 <script>
     try { window.productsData = {{ products | tojson | safe }}; } 
     catch(e) { window.productsData = []; }
-
-    document.addEventListener("DOMContentLoaded", function() {
-        flatpickr("#date", { dateFormat: "d-m-Y", defaultDate: "{{ today_date }}", allowInput: true });
-
-        const empSelect = document.getElementById('employee_id');
-        const empPhoto = document.getElementById('empPhoto');
-        if(empSelect) {
-            empSelect.addEventListener('change', function() {
-                const selectedOption = this.options[this.selectedIndex];
-                const img = selectedOption.getAttribute('data-img');
-                empPhoto.src = img && img !== 'None' ? img : "{{ url_for('static', filename='img/default-user.png') }}";
-            });
-        }
-    });
 </script>
 
+<!-- Existing Logic -->
 <script src="{{ url_for('static', filename='js/morning.js') }}"></script>
-{% endblock %}
 
+<style>
+    .hover-lift:hover { transform: translateY(-3px); box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+</style>
+{% endblock %}
