@@ -1,35 +1,18 @@
 {% extends "base.html" %}
 
 {% block content %}
+<!-- Dependencies -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+<!-- Custom CSS -->
 <link rel="stylesheet" href="{{ url_for('static', filename='css/evening.css') }}">
 
-<div class="glass-container fade-in-up mb-5">
+<div class="container-fluid fade-in-up mb-5" style="max-width: 1400px;">
 
-    <!-- Header -->
-    <div class="glass-header text-center mb-4 p-4 position-relative">
-        <h1 class="company-name text-gradient fw-bold mb-1">REAL PROMOTION</h1>
-        <p class="since-text text-secondary mb-2 small letter-spacing-2">SINCE 2005</p>
-        <div class="address-block text-muted small mx-auto bg-white bg-opacity-50 p-2 rounded-3" style="max-width: 600px;">
-            <i class="fa-solid fa-location-dot text-primary me-1"></i>
-            Real Promotion, G/12, Tulsimangalam Complex, B/h. Trimurti Complex,
-            Ghodiya Bazar, Nadiad-387001, Gujarat, India
-        </div>
-    </div>
-
-    <!-- Main Card -->
-    <div class="glass-panel p-3 p-md-4 mb-4">
-        
-        <!-- TOP CONTROLS ROW (UNCHANGED) -->
-        {{ super() }}
-
-        <div id="fetchMsg" class="alert alert-info d-none rounded-3 border-0 shadow-sm"></div>
-
+    <!-- HEADER PANEL -->
+    <div class="glass-panel p-4 mb-4 mt-4">
         <form method="POST" action="{{ url_for('evening') }}" id="eveningForm">
-
-            <!-- HIDDEN FIELDS (UNCHANGED) -->
+            <!-- Hidden Fields -->
             <input type="hidden" name="allocation_id" id="allocation_id" value="{{ draft_data.allocation_id if draft_data else '' }}">
             <input type="hidden" name="h_employee" id="h_employee" value="{{ draft_data.employee_id if draft_data else '' }}">
             <input type="hidden" name="h_date" id="h_date" value="{{ draft_data.date if draft_data else '' }}">
@@ -37,132 +20,284 @@
             <input type="hidden" name="status" id="formStatus" value="final">
             <input type="hidden" name="draft_id" value="{{ draft_data.id if draft_data and not last_settle_id else '' }}">
 
-            <!-- TABLE -->
-            <div class="table-responsive rounded-4 shadow-sm mb-4 bg-white border">
-                <table class="table table-hover align-middle mb-0 text-nowrap" id="stockTable">
-                    <thead class="bg-light text-secondary small text-uppercase">
-                        <tr>
-                            <th class="ps-4">#</th>
-                            <th>Img</th>
-                            <th>Product Name</th>
-                            <th class="text-center">Total</th>
-                            <th class="text-center">Sold</th>
-                            <th class="text-end">Price</th>
-                            <th class="text-end fw-bold text-primary">Amount</th>
-                            <th class="text-center">Return</th>
-                            <th class="text-center text-muted">Left</th>
-                        </tr>
-                    </thead>
+            <div class="row align-items-center g-3">
+                <!-- Profile Photo -->
+                <div class="col-auto">
+                    <div class="user-img-box">
+                        <img id="empPhoto" src="{{ employee_img if employee_img else url_for('static', filename='img/default-user.png') }}" alt="User">
+                    </div>
+                </div>
 
-                    <tbody id="rowsArea"></tbody>
+                <!-- Controls -->
+                <div class="col-md-3">
+                    <label class="small fw-bold text-muted mb-1">EMPLOYEE</label>
+                    <select id="employee" class="form-select border-0 shadow-sm fw-bold py-2" {% if last_settle_id %}disabled{% endif %}>
+                        <option value="">-- Select --</option>
+                        {% for emp in employees %}
+                        <option value="{{ emp.id }}" data-img="{{ emp.image }}" {% if selected_emp_id|string == emp.id|string %}selected{% endif %}>{{ emp.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
 
-                    <!-- ✅ SUMMARY BOX FOOTER -->
-                    <tfoot class="summary-footer">
+                <div class="col-md-2">
+                    <label class="small fw-bold text-muted mb-1">DATE</label>
+                    <input type="text" id="date" class="form-control border-0 shadow-sm fw-bold py-2 text-center" value="{{ today }}" {% if last_settle_id %}disabled{% endif %}>
+                </div>
+
+                <div class="col-md-2">
+                    <label class="small fw-bold text-muted mb-1">TIME</label>
+                    <div class="bg-white shadow-sm rounded-3 py-2 px-3 fw-bold text-center">
+                        <span id="liveClock" class="font-monospace">00:00:00</span>
+                    </div>
+                </div>
+
+                <div class="col-md-3 ms-auto">
+                    <label class="d-none d-md-block text-transparent small mb-1">Action</label>
+                    {% if last_settle_id %}
+                        <a href="{{ url_for('evening') }}" class="btn btn-dark w-100 py-2 fw-bold shadow-lg rounded-3">
+                            <i class="fa-solid fa-plus me-2"></i> New Entry
+                        </a>
+                    {% else %}
+                        <button id="btnFetch" class="btn btn-primary w-100 py-2 fw-bold shadow-lg rounded-3">
+                            <i class="fa-solid fa-download me-2"></i> Fetch Stock
+                        </button>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div id="fetchMsg" class="alert alert-info d-none mt-3 rounded-3 fw-bold small"></div>
+    </div>
+
+    <!-- TABLE SECTION -->
+    <div class="glass-panel p-0 mb-4 overflow-hidden">
+        <div class="table-responsive">
+            <table class="custom-table" id="stockTable">
+                <thead>
+                    <tr>
+                        <th class="ps-4">#</th>
+                        <th>Img</th>
+                        <th>Product Name</th>
+                        <th class="text-center">Total</th> <!-- Colored Box -->
+                        <th class="text-center" style="width: 100px;">Sold</th>
+                        <th class="text-end">Price</th>
+                        <th class="text-end pe-4">Amount</th>
+                        <th class="text-center">Return</th>
+                        <th class="text-center">Left</th>
+                    </tr>
+                </thead>
+                <tbody id="rowsArea">
+                    {% if draft_items %}
+                        {% for item in draft_items %}
                         <tr>
-                            <td colspan="9">
-                                <div class="summary-grid">
-                                    <div class="summary-box total">
-                                        Total<br><strong id="totTotal">0</strong>
-                                    </div>
-                                    <div class="summary-box sold">
-                                        Sold<br><strong id="totSold">0</strong>
-                                    </div>
-                                    <div class="summary-box amount">
-                                        Amount<br><strong>₹ <span id="totAmount">0.00</span></strong>
-                                    </div>
-                                    <div class="summary-box return">
-                                        Return<br><strong id="totReturn">0</strong>
-                                    </div>
-                                    <div class="summary-box remain">
-                                        Left<br><strong id="totRemain">0</strong>
-                                    </div>
+                            <td class="ps-4 text-muted row-index">{{ loop.index }}</td>
+                            <td>
+                                <div class="img-box-small">
+                                    <img src="{{ item.image }}" class="img-fixed-size" onerror="this.src='/static/img/no-img.png'">
                                 </div>
                             </td>
+                            <td>
+                                <span class="d-block text-dark">{{ item.product_name }}</span>
+                                <input type="hidden" name="product_id[]" value="{{ item.product_id }}">
+                            </td>
+                            <td class="text-center">
+                                <span class="total-box">{{ item.total_qty }}</span>
+                                <input type="hidden" name="total_qty[]" class="total-qty" value="{{ item.total_qty }}">
+                            </td>
+                            <td class="text-center">
+                                <input type="number" name="sold[]" class="table-input sold" value="{{ item.sold_qty }}" min="0" {% if last_settle_id %}readonly{% endif %}>
+                            </td>
+                            <td class="text-center">
+                                <input type="number" name="price[]" class="form-control-plaintext text-end fw-bold unit-price" value="{{ item.unit_price }}" readonly>
+                            </td>
+                            <td class="text-end pe-4 text-primary fw-bold row-amount">
+                                {{ "%.2f"|format(item.sold_qty * item.unit_price) }}
+                            </td>
+                            <td class="text-center">
+                                <input type="number" name="return[]" class="table-input return" value="{{ item.return_qty }}" min="0" {% if last_settle_id %}readonly{% endif %}>
+                            </td>
+                            <td class="text-center text-muted fw-bold remaining-qty">{{ item.remaining_qty }}</td>
                         </tr>
-                    </tfoot>
-                </table>
-            </div>
-
-            <!-- BOTTOM SECTION -->
-            <div class="row g-4 equal-height">
-
-                <!-- EMPLOYEE FINANCE -->
-                <div class="col-lg-6">
-                    <div class="glass-panel p-4 h-100 finance-panel">
-                        <h5 class="section-title">
-                            <i class="fa-solid fa-wallet"></i> Employee Finance
-                        </h5>
-
-                        {% if not last_settle_id %}
-                        <div class="finance-box credit">
-                            <label>CREDIT</label>
-                            <input type="number" name="emp_credit_amount" placeholder="Amount ₹">
-                            <input type="text" name="emp_credit_note" placeholder="Note">
-                        </div>
-
-                        <div class="finance-box debit">
-                            <label>DEBIT</label>
-                            <input type="number" name="emp_debit_amount" placeholder="Amount ₹">
-                            <input type="text" name="emp_debit_note" placeholder="Note">
-                        </div>
-                        {% else %}
-                        <div class="alert alert-light text-center">
-                            Finance data saved
-                        </div>
-                        {% endif %}
-                    </div>
-                </div>
-
-                <!-- COLLECTION -->
-                <div class="col-lg-6">
-                    <div class="glass-panel p-4 h-100">
-                        <h5 class="section-title">
-                            <i class="fa-solid fa-coins"></i> Collection & Settlement
-                        </h5>
-
-                        <div class="settlement-row">
-                            <span>Total Sales</span>
-                            <span>₹ <input type="number" id="totalAmount" name="totalAmount" readonly></span>
-                        </div>
-
-                        <div class="settlement-row">
-                            <span>Discount</span>
-                            <span><input type="number" id="discount" name="discount"></span>
-                        </div>
-
-                        <div class="settlement-row">
-                            <span>Online</span>
-                            <span><input type="number" id="online" name="online"></span>
-                        </div>
-
-                        <div class="settlement-row">
-                            <span>Cash</span>
-                            <span><input type="number" id="cash" name="cash"></span>
-                        </div>
-
-                        <div class="settlement-row balance-due">
-                            <span>Balance Due</span>
-                            <strong id="dueAmount">0.00</strong>
-                        </div>
-                    </div>
-                </div>
-
-            </div>
-
-            <!-- ACTION BUTTONS (UNCHANGED) -->
-            <div class="d-flex justify-content-center gap-3 mt-5">
-                <button type="button" onclick="submitForm('draft')" class="btn btn-outline-secondary btn-lg px-5 rounded-pill">
-                    Save Draft
-                </button>
-                <button type="button" onclick="submitForm('final')" class="btn btn-dark btn-lg px-5 rounded-pill">
-                    Submit Final
-                </button>
-            </div>
-
-        </form>
+                        {% endfor %}
+                    {% else %}
+                        <tr><td colspan="9" class="text-center p-5 text-muted fw-bold">Select Employee & Fetch Stock to begin...</td></tr>
+                    {% endif %}
+                </tbody>
+                <!-- LAST ROW (Footer) -->
+                <tfoot class="table-footer">
+                    <tr>
+                        <td colspan="3" class="text-end ps-4">TOTALS:</td>
+                        <td class="text-center" id="totTotal">0</td>
+                        <td class="text-center text-warning" id="totSold">0</td>
+                        <td></td>
+                        <td class="text-end pe-4 text-warning" id="totAmount">0.00</td>
+                        <td class="text-center text-danger" id="totReturn">0</td>
+                        <td class="text-center opacity-50" id="totRemain">0</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
     </div>
+
+    <!-- VERTICAL SECTIONS: FINANCE & CASH SETTLEMENT -->
+    <div class="row g-4 mb-5">
+        
+        <!-- 1. EMPLOYEE FINANCE (Vertical) -->
+        <div class="col-lg-6">
+            <div class="glass-panel p-4 h-100">
+                <div class="section-title">
+                    <i class="fa-solid fa-wallet text-primary"></i> Employee Finance
+                </div>
+
+                <!-- CREDIT ROW (Red) -->
+                <div class="vertical-row">
+                    <div style="flex: 1;">
+                        <div class="v-label text-credit"><i class="fa-solid fa-circle-down"></i> CREDIT</div>
+                        <input type="text" name="emp_credit_note" class="v-note" placeholder="Add Note..." {% if last_settle_id %}readonly{% endif %}>
+                    </div>
+                    <div class="v-amount-wrapper">
+                        <input type="number" step="0.01" name="emp_credit_amount" class="v-input input-credit" placeholder="0.00" {% if last_settle_id %}readonly{% endif %}>
+                    </div>
+                </div>
+
+                <!-- DEBIT ROW (Green) -->
+                <div class="vertical-row">
+                    <div style="flex: 1;">
+                        <div class="v-label text-debit"><i class="fa-solid fa-circle-up"></i> DEBIT</div>
+                        <input type="text" name="emp_debit_note" class="v-note" placeholder="Add Note..." {% if last_settle_id %}readonly{% endif %}>
+                    </div>
+                    <div class="v-amount-wrapper">
+                        <input type="number" step="0.01" name="emp_debit_amount" class="v-input input-debit" placeholder="0.00" {% if last_settle_id %}readonly{% endif %}>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- 2. CASH SETTLEMENT (Vertical) -->
+        <div class="col-lg-6">
+            <div class="glass-panel p-4 h-100">
+                <div class="section-title">
+                    <i class="fa-solid fa-cash-register text-warning"></i> Cash Settlement
+                </div>
+
+                <!-- Total Sales -->
+                <div class="vertical-row">
+                    <span class="v-label"><i class="fa-solid fa-chart-line"></i> Total Sales</span>
+                    <div class="v-amount-wrapper">
+                        <input type="number" name="totalAmount" id="totalAmount" class="v-input" readonly value="{{ draft_data.total_amount if draft_data else '0.00' }}">
+                    </div>
+                </div>
+
+                <!-- Discount -->
+                <div class="vertical-row">
+                    <span class="v-label"><i class="fa-solid fa-percent"></i> Discount</span>
+                    <div class="v-amount-wrapper">
+                        <input type="number" step="0.01" name="discount" id="discount" class="v-input" placeholder="0.00" value="{{ draft_data.discount if draft_data else '' }}" {% if last_settle_id %}readonly{% endif %}>
+                    </div>
+                </div>
+
+                <!-- Online -->
+                <div class="vertical-row">
+                    <span class="v-label"><i class="fa-solid fa-qrcode"></i> Online</span>
+                    <div class="v-amount-wrapper">
+                        <input type="number" step="0.01" name="online" id="online" class="v-input" placeholder="0.00" value="{{ draft_data.online_money if draft_data else '' }}" {% if last_settle_id %}readonly{% endif %}>
+                    </div>
+                </div>
+
+                <!-- Cash -->
+                <div class="vertical-row">
+                    <span class="v-label"><i class="fa-solid fa-money-bill-wave"></i> Cash</span>
+                    <div class="v-amount-wrapper">
+                        <input type="number" step="0.01" name="cash" id="cash" class="v-input" placeholder="0.00" value="{{ draft_data.cash_money if draft_data else '' }}" {% if last_settle_id %}readonly{% endif %}>
+                    </div>
+                </div>
+
+                <!-- Balance Due (Red) -->
+                <div class="vertical-row" style="border-top: 2px solid #e2e8f0; margin-top: 10px;">
+                    <span class="v-label text-due"><i class="fa-solid fa-scale-unbalanced"></i> Due</span>
+                    <div class="v-amount-wrapper">
+                        <span id="dueAmount" class="v-input text-due" style="display:block;">0.00</span>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ACTION BUTTONS -->
+    <div class="d-flex justify-content-center gap-3 pb-5">
+        {% if not last_settle_id %}
+            <button type="button" onclick="submitForm('draft')" class="btn btn-light border px-5 py-3 rounded-pill fw-bold shadow-sm">
+                Save Draft
+            </button>
+            <button type="button" onclick="submitForm('final')" class="btn btn-dark px-5 py-3 rounded-pill fw-bold shadow-lg">
+                <i class="fa-solid fa-check-circle me-2"></i> Submit Final
+            </button>
+        {% else %}
+            <a href="{{ url_for('evening') }}" class="btn btn-primary px-5 py-3 rounded-pill fw-bold shadow">
+                <i class="fa-solid fa-check me-2"></i> Done
+            </a>
+        {% endif %}
+    </div>
+
+    </form>
 </div>
 
+<!-- JS -->
 <script src="{{ url_for('static', filename='js/evening.js') }}"></script>
-{% endblock %}
+<script>
+    function submitForm(status) {
+        document.getElementById('formStatus').value = status;
+        const form = document.getElementById('eveningForm');
+        const emp = document.getElementById('employee').value;
 
+        if(!emp) { alert("Please select an employee first."); return; }
+
+        if(status === 'final') {
+            if(!confirm("Are you sure you want to SUBMIT this settlement? Inventory will be deducted.")) return;
+        } 
+        form.submit();
+    }
+
+    document.addEventListener("DOMContentLoaded", function() {
+        flatpickr("#date", { dateFormat: "d-m-Y", defaultDate: "{{ today }}", allowInput: true });
+        
+        // Employee Photo
+        const empSelect = document.getElementById('employee');
+        const empPhoto = document.getElementById('empPhoto');
+        if(empSelect) {
+            empSelect.addEventListener('change', function() {
+                const selectedOption = this.options[this.selectedIndex];
+                const img = selectedOption.getAttribute('data-img');
+                if(img && img !== 'None' && img !== "") empPhoto.src = img;
+                else empPhoto.src = "{{ url_for('static', filename='img/default-user.png') }}";
+            });
+        }
+        
+        // Trigger calculations
+        if(document.getElementById('totalAmount').value > 0) {
+            const event = new Event('input', { bubbles: true });
+            const cashInput = document.getElementById('cash');
+            if(cashInput) cashInput.dispatchEvent(event);
+        }
+
+        // Clock
+        function updateClock() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute:'2-digit', second:'2-digit' });
+            if(document.getElementById('liveClock')) document.getElementById('liveClock').textContent = timeString;
+            // Timestamp
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            if(document.getElementById('timestampInput')) document.getElementById('timestampInput').value = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+    });
+</script>
+{% endblock %}
