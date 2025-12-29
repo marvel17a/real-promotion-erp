@@ -3479,6 +3479,102 @@ def morning():
 
 
 # ---------------------------------------------------------
+# API: FETCH EVENING DATA (Logic Update for Holiday/Return)
+# ---------------------------------------------------------
+@app.route('/api/fetch_evening_data', methods=['POST'])
+def fetch_evening_data():
+    if "loggedin" not in session: return jsonify({'status': 'error', 'message': 'Unauthorized'})
+
+    try:
+        employee_id = request.form.get('employee_id')
+        date_str = request.form.get('date')
+        
+        if not employee_id or not date_str:
+            return jsonify({'status': 'error', 'message': 'Missing parameters'})
+
+        # Parse Date
+        target_date = parse_date(date_str)
+        if not target_date:
+            return jsonify({'status': 'error', 'message': 'Invalid Date Format'})
+        
+        formatted_date = target_date.strftime('%Y-%m-%d')
+        cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+        # 1. Check if Settlement ALREADY exists for this specific date/employee
+        # (Prevent double entry)
+        cur.execute("SELECT id FROM evening_settle WHERE employee_id=%s AND date=%s", (employee_id, formatted_date))
+        existing_settle = cur.fetchone()
+        if existing_settle:
+            return jsonify({'status': 'error', 'message': 'Settlement already exists for this date!'})
+
+        # 2. HOLIDAY/RETURN LOGIC: Find the Correct Allocation
+        # Priority A: Allocation on the EXACT Date (Normal Workflow)
+        cur.execute("""
+            SELECT id FROM morning_allocations 
+            WHERE employee_id = %s AND date = %s 
+            LIMIT 1
+        """, (employee_id, formatted_date))
+        allocation = cur.fetchone()
+
+        # Priority B: If no allocation today, find the LAST UNSETTLED allocation
+        # (Employee took stock days ago, was absent, and is now settling)
+        if not allocation:
+            cur.execute("""
+                SELECT ma.id, ma.date 
+                FROM morning_allocations ma
+                LEFT JOIN evening_settle es ON ma.id = es.allocation_id
+                WHERE ma.employee_id = %s 
+                  AND es.id IS NULL  -- Ensure it hasn't been settled yet
+                  AND ma.date < %s   -- Must be in the past
+                ORDER BY ma.date DESC 
+                LIMIT 1
+            """, (employee_id, formatted_date))
+            allocation = cur.fetchone()
+            
+            if allocation:
+                # Optional: You might want to warn the user "Fetching stock from [Date]"
+                # For now, we silently use this allocation ID.
+                pass
+            else:
+                 return jsonify({'status': 'error', 'message': 'No pending stock allocation found for this employee.'})
+
+        alloc_id = allocation['id']
+
+        # 3. Fetch Products for this Allocation
+        # We need: Product Info + Total Qty (Opening + Given)
+        query = """
+            SELECT 
+                p.id, 
+                p.name, 
+                p.image, 
+                p.price,
+                (COALESCE(mi.opening_qty, 0) + COALESCE(mi.given_qty, 0)) as total_qty
+            FROM morning_items mi
+            JOIN products p ON mi.product_id = p.id
+            WHERE mi.allocation_id = %s
+            HAVING total_qty > 0  -- Only show items they actually have
+        """
+        cur.execute(query, (alloc_id,))
+        products = cur.fetchall()
+        
+        for p in products:
+            p['image'] = resolve_img(p['image'])
+            p['price'] = float(p['price'])
+            p['total_qty'] = int(p['total_qty'])
+
+        return jsonify({
+            'status': 'success',
+            'allocation_id': alloc_id,
+            'products': products
+        })
+
+    except Exception as e:
+        app.logger.error(f"Fetch Error: {e}")
+        return jsonify({'status': 'error', 'message': str(e)})
+    finally:
+        if 'cur' in locals(): cur.close()
+
+# ---------------------------------------------------------
 # 2. EVENING SETTLEMENT (Final, Drafts, Finance)
 # ---------------------------------------------------------
 @app.route('/evening', methods=['GET', 'POST'])
@@ -3594,6 +3690,7 @@ def evening():
                 return redirect(url_for('draft_evening_list')) 
             else:
                 flash("Settlement submitted successfully!", "success")
+                # Redirect to view the submitted data (Summary View)
                 return redirect(url_for('evening', last_settle_id=settle_id))
 
         except Exception as e:
@@ -3604,7 +3701,7 @@ def evening():
         finally:
             if db_cursor: db_cursor.close()
 
-    # --- GET REQUEST (Load Page or Resume Draft) ---
+    # --- GET REQUEST (Load Page or Resume Draft or View Submitted) ---
     draft_id = request.args.get('draft_id')
     last_settle_id = request.args.get('last_settle_id')
     
@@ -3615,24 +3712,19 @@ def evening():
     employees = cur.fetchall()
     for e in employees: e['image'] = resolve_img(e['image'])
 
-    # 2. Logic to Load Draft Data if draft_id provided
+    # Data Containers
     draft_data = None
     draft_items = None
     selected_emp_id = None
     employee_img = None
     
+    # CASE A: RESUMING DRAFT
     if draft_id:
-        # Fetch Header
         cur.execute("SELECT * FROM evening_settle WHERE id = %s", (draft_id,))
         draft_data = cur.fetchone()
         
         if draft_data:
             selected_emp_id = draft_data['employee_id']
-            # Fetch Employee Image for UI
-            for emp in employees:
-                if str(emp['id']) == str(selected_emp_id):
-                    employee_img = emp['image']
-            
             # Fetch Items
             cur.execute("""
                 SELECT ei.*, p.name as product_name, p.image 
@@ -3641,6 +3733,29 @@ def evening():
                 WHERE ei.settle_id = %s
             """, (draft_id,))
             draft_items = cur.fetchall()
+
+    # CASE B: VIEWING SUBMITTED DATA (ReadOnly View)
+    elif last_settle_id:
+        cur.execute("SELECT * FROM evening_settle WHERE id = %s", (last_settle_id,))
+        draft_data = cur.fetchone() # We reuse 'draft_data' variable structure for header info
+        
+        if draft_data:
+            selected_emp_id = draft_data['employee_id']
+            cur.execute("""
+                SELECT ei.*, p.name as product_name, p.image 
+                FROM evening_item ei 
+                JOIN products p ON ei.product_id = p.id 
+                WHERE ei.settle_id = %s
+            """, (last_settle_id,))
+            draft_items = cur.fetchall()
+
+    # Match Image
+    if selected_emp_id:
+        for emp in employees:
+            if str(emp['id']) == str(selected_emp_id):
+                employee_img = emp['image']
+        # Also process item images
+        if draft_items:
             for item in draft_items: item['image'] = resolve_img(item['image'])
 
     cur.close()
@@ -5428,6 +5543,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
