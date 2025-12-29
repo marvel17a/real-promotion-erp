@@ -5002,6 +5002,7 @@ def add_opening_balance(employee_id):
     
     return render_template('add_opening_balance.html', employee=emp, existing=existing)
 
+# Paste this into your app.py, replacing the existing add_transaction route
 
 @app.route('/add-transaction/<int:employee_id>', methods=['GET', 'POST'])
 def add_transaction(employee_id):
@@ -5015,10 +5016,8 @@ def add_transaction(employee_id):
         amount = request.form['amount']
         description = request.form['description']
         
-        # We rely on the database's 'created_at' for the precise timestamp of entry.
-        # But if you want the transaction_date to store time, you'd need a DATETIME column.
-        # Assuming transaction_date is DATE, we use created_at for sorting/displaying time.
-        
+        # INSERT with NOW() for the created_at timestamp
+        # transaction_date is the "Accounting Date", created_at is the "System Date/Time"
         cur.execute("""
             INSERT INTO employee_transactions (employee_id, transaction_date, type, amount, description, created_at)
             VALUES (%s, %s, %s, %s, %s, NOW())
@@ -5033,7 +5032,8 @@ def add_transaction(employee_id):
     employee = cur.fetchone()
     cur.close()
     
-    selected_type = request.args.get('type', 'debit') 
+    # Get 'type' from URL query param (e.g., ?type=credit)
+    selected_type = request.args.get('type', 'credit') 
     
     return render_template('add_transaction.html', employee=employee, selected_type=selected_type)
 
@@ -5313,6 +5313,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
