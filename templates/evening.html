@@ -1,171 +1,15 @@
 {% extends "base.html" %}
 
 {% block content %}
-<!-- Modern Font & Datepicker -->
+<!-- External Libs -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+<!-- Custom CSS for Evening Page -->
+<link rel="stylesheet" href="{{ url_for('static', filename='css/evening_custom.css') }}">
 
-<style>
-    :root {
-        --primary-color: #2563eb;
-        --secondary-color: #475569;
-        --accent-color: #f59e0b;
-        --danger-color: #dc2626;
-        --success-color: #16a34a;
-        --bg-glass: rgba(255, 255, 255, 0.95);
-        --shadow-soft: 0 10px 40px -10px rgba(0,0,0,0.08);
-    }
-    
-    body { font-family: 'Manrope', sans-serif; background-color: #f1f5f9; }
-    
-    .glass-panel {
-        background: var(--bg-glass);
-        backdrop-filter: blur(20px);
-        border: 1px solid rgba(255,255,255,0.8);
-        border-radius: 24px;
-        box-shadow: var(--shadow-soft);
-    }
+<div class="container-fluid fade-in-up mb-5" style="max-width: 1400px;">
 
-    /* --- TABLE DESIGN --- */
-    .custom-table thead th {
-        background: #f8fafc;
-        color: #64748b;
-        font-weight: 700;
-        text-transform: uppercase;
-        font-size: 0.75rem;
-        letter-spacing: 0.05em;
-        border-bottom: 2px solid #e2e8f0;
-        padding: 1rem;
-    }
-    
-    .custom-table tbody td {
-        padding: 0.8rem 1rem;
-        vertical-align: middle;
-        border-bottom: 1px solid #f1f5f9;
-        font-weight: 600;
-        color: #334155;
-    }
-    
-    /* Total Column Box */
-    .total-col-box {
-        background: #fff7ed; /* Light Orange */
-        color: #c2410c;
-        border-radius: 8px;
-        padding: 6px 10px;
-        font-weight: 800;
-        display: inline-block;
-        min-width: 40px;
-        text-align: center;
-    }
-    
-    /* Inputs in Table */
-    .table-input {
-        background: #f8fafc;
-        border: 1px solid #e2e8f0;
-        border-radius: 8px;
-        text-align: center;
-        font-weight: 700;
-        color: #0f172a;
-        padding: 6px;
-        width: 100%;
-        transition: all 0.2s;
-    }
-    .table-input:focus {
-        background: #fff;
-        border-color: var(--primary-color);
-        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
-        outline: none;
-    }
-
-    /* Last Row (Footer) */
-    .table-footer-row td {
-        background: #1e293b;
-        color: #fff !important;
-        padding: 1rem !important;
-        font-size: 1rem;
-        font-weight: 700;
-        border: none;
-    }
-
-    /* --- FINANCE SECTIONS --- */
-    .finance-card {
-        background: #fff;
-        border-radius: 20px;
-        padding: 1.5rem;
-        height: 100%;
-        border: 1px solid #e2e8f0;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-        transition: transform 0.2s;
-    }
-    
-    .finance-card h5 {
-        font-weight: 800;
-        color: #0f172a;
-        margin-bottom: 1.5rem;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
-
-    .finance-input-group {
-        background: #f8fafc;
-        border: 1px solid #e2e8f0;
-        border-radius: 12px;
-        padding: 10px;
-        margin-bottom: 1rem;
-    }
-
-    .finance-label {
-        font-size: 0.75rem;
-        font-weight: 800;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        margin-bottom: 4px;
-        display: block;
-    }
-    
-    .finance-input {
-        border: none;
-        background: transparent;
-        font-weight: 700;
-        color: #0f172a;
-        width: 100%;
-        padding: 0;
-    }
-    .finance-input:focus { outline: none; }
-
-    /* Balance Due Box */
-    .balance-due-box {
-        background: #fef2f2;
-        border: 2px dashed #ef4444;
-        border-radius: 16px;
-        padding: 1rem;
-        text-align: center;
-        margin-top: 1rem;
-    }
-    .balance-due-val {
-        font-size: 2rem;
-        font-weight: 900;
-        color: #dc2626;
-        line-height: 1;
-        display: block;
-        margin-top: 5px;
-    }
-    
-    .img-box-lg { width: 65px; height: 65px; border-radius: 16px; overflow: hidden; background: #fff; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-    .img-cover { width: 100%; height: 100%; object-fit: cover; }
-    
-    /* Responsive Helpers */
-    @media (max-width: 768px) {
-        .table-responsive { border-radius: 16px; }
-        .balance-due-val { font-size: 1.5rem; }
-    }
-</style>
-
-<div class="container-fluid glass-container fade-in-up mb-5" style="max-width: 1300px;">
-
-    <!-- Top Controls Panel -->
+    <!-- HEADER PANEL -->
     <div class="glass-panel p-4 mb-4 mt-4">
         <form method="POST" action="{{ url_for('evening') }}" id="eveningForm">
             <!-- Hidden Fields -->
@@ -179,15 +23,15 @@
             <div class="row align-items-center g-3">
                 <!-- Profile Photo -->
                 <div class="col-auto">
-                    <div class="img-box-lg">
-                        <img id="empPhoto" src="{{ employee_img if employee_img else url_for('static', filename='img/default-user.png') }}" class="img-cover" alt="User">
+                    <div class="user-img-box">
+                        <img id="empPhoto" src="{{ employee_img if employee_img else url_for('static', filename='img/default-user.png') }}" alt="User">
                     </div>
                 </div>
 
-                <!-- Select Employee -->
+                <!-- Controls -->
                 <div class="col-md-3">
-                    <label class="text-secondary small fw-bold mb-1">EMPLOYEE</label>
-                    <select id="employee" class="form-select border-0 bg-white shadow-sm fw-bold py-2" {% if last_settle_id %}disabled{% endif %}>
+                    <label class="small fw-bold text-muted mb-1">EMPLOYEE</label>
+                    <select id="employee" class="form-select border-0 shadow-sm fw-bold py-2" {% if last_settle_id %}disabled{% endif %}>
                         <option value="">-- Select --</option>
                         {% for emp in employees %}
                         <option value="{{ emp.id }}" data-img="{{ emp.image }}" {% if selected_emp_id|string == emp.id|string %}selected{% endif %}>{{ emp.name }}</option>
@@ -195,25 +39,22 @@
                     </select>
                 </div>
 
-                <!-- Date -->
                 <div class="col-md-2">
-                    <label class="text-secondary small fw-bold mb-1">DATE</label>
-                    <input type="text" id="date" class="form-control border-0 bg-white shadow-sm fw-bold py-2 text-center" value="{{ today }}" {% if last_settle_id %}disabled{% endif %}>
+                    <label class="small fw-bold text-muted mb-1">DATE</label>
+                    <input type="text" id="date" class="form-control border-0 shadow-sm fw-bold py-2 text-center" value="{{ today }}" {% if last_settle_id %}disabled{% endif %}>
                 </div>
 
-                <!-- Clock -->
                 <div class="col-md-2">
-                    <label class="text-secondary small fw-bold mb-1">TIME</label>
-                    <div class="bg-white shadow-sm rounded-3 py-2 px-3 fw-bold text-center border-0">
+                    <label class="small fw-bold text-muted mb-1">TIME</label>
+                    <div class="bg-white shadow-sm rounded-3 py-2 px-3 fw-bold text-center">
                         <span id="liveClock" class="font-monospace">00:00:00</span>
                     </div>
                 </div>
 
-                <!-- Fetch Button -->
                 <div class="col-md-3 ms-auto">
                     <label class="d-none d-md-block text-transparent small mb-1">Action</label>
                     {% if last_settle_id %}
-                        <a href="{{ url_for('evening') }}" class="btn btn-dark w-100 py-2 fw-bold shadow-lg rounded-3">
+                        <a href="{{ url_for('evening') }}" class="btn btn-dark w-100 py-2 fw-bold shadow-sm rounded-3">
                             <i class="fa-solid fa-plus me-2"></i>New Entry
                         </a>
                     {% else %}
@@ -224,23 +65,23 @@
                 </div>
             </div>
             
-            <div id="fetchMsg" class="alert alert-soft-danger d-none mt-3 rounded-3 fw-bold small"></div>
+            <div id="fetchMsg" class="alert alert-danger d-none mt-3 rounded-3 fw-bold small"></div>
     </div>
 
-    <!-- MAIN TABLE SECTION -->
+    <!-- TABLE SECTION -->
     <div class="glass-panel p-0 mb-4 overflow-hidden">
         <div class="table-responsive">
-            <table class="table custom-table mb-0" id="stockTable">
+            <table class="custom-table" id="stockTable">
                 <thead>
                     <tr>
                         <th class="ps-4">#</th>
                         <th>Img</th>
                         <th>Product Name</th>
-                        <th class="text-center">Total</th> <!-- Colored Box -->
-                        <th class="text-center" style="width: 100px;">Sold</th>
+                        <th class="text-center">Total</th> <!-- Box Here -->
+                        <th class="text-center">Sold</th>
                         <th class="text-end">Price</th>
                         <th class="text-end pe-4">Amount</th>
-                        <th class="text-center" style="width: 100px;">Return</th>
+                        <th class="text-center">Return</th>
                         <th class="text-center">Left</th>
                     </tr>
                 </thead>
@@ -259,13 +100,10 @@
                                 <input type="hidden" name="product_id[]" value="{{ item.product_id }}">
                             </td>
                             <td class="text-center">
-                                <!-- Highlighted Total Box -->
-                                <span class="total-col-box">
-                                    {{ item.total_qty }}
-                                </span>
+                                <span class="total-box">{{ item.total_qty }}</span>
                                 <input type="hidden" name="total_qty[]" class="total-qty" value="{{ item.total_qty }}">
                             </td>
-                            <td>
+                            <td class="text-center">
                                 <input type="number" name="sold[]" class="table-input sold" value="{{ item.sold_qty }}" min="0" {% if last_settle_id %}readonly{% endif %}>
                             </td>
                             <td>
@@ -274,7 +112,7 @@
                             <td class="text-end pe-4 text-primary fw-bold row-amount">
                                 {{ "%.2f"|format(item.sold_qty * item.unit_price) }}
                             </td>
-                            <td>
+                            <td class="text-center">
                                 <input type="number" name="return[]" class="table-input return" value="{{ item.return_qty }}" min="0" {% if last_settle_id %}readonly{% endif %}>
                             </td>
                             <td class="text-center text-muted fw-bold remaining-qty">{{ item.remaining_qty }}</td>
@@ -285,7 +123,7 @@
                     {% endif %}
                 </tbody>
                 <!-- LAST ROW (Footer) -->
-                <tfoot class="table-footer-row">
+                <tfoot class="table-footer">
                     <tr>
                         <td colspan="3" class="text-end ps-4">TOTALS:</td>
                         <td class="text-center" id="totTotal">0</td>
@@ -300,98 +138,99 @@
         </div>
     </div>
 
-    <!-- BOTTOM SECTIONS: FINANCE & COLLECTION -->
+    <!-- FINANCE & COLLECTION (Vertical Design) -->
     <div class="row g-4 mb-5">
         
-        <!-- 1. EMPLOYEE FINANCE SECTION -->
+        <!-- 1. EMPLOYEE FINANCE (Left) -->
         <div class="col-lg-6">
-            <div class="finance-card">
-                <h5>
-                    <span class="bg-primary bg-opacity-10 text-primary p-2 rounded-3"><i class="fa-solid fa-wallet"></i></span>
-                    Employee Finance
-                </h5>
+            <div class="glass-panel p-4 h-100">
+                <div class="finance-section-title">
+                    <i class="fa-solid fa-wallet text-primary"></i> Employee Finance
+                </div>
 
-                <!-- Credit Input -->
-                <div class="finance-input-group">
-                    <label class="finance-label text-success"><i class="fa-solid fa-arrow-down me-1"></i> Credit (Salary / Received)</label>
-                    <div class="d-flex gap-2">
-                        <div style="flex: 1;">
-                            <input type="number" step="0.01" name="emp_credit_amount" class="finance-input fs-5" placeholder="₹ 0.00" {% if last_settle_id %}readonly{% endif %}>
-                        </div>
-                        <div style="flex: 2; border-left: 2px solid #e2e8f0; padding-left: 10px;">
-                            <input type="text" name="emp_credit_note" class="finance-input small text-muted" placeholder="Add Note..." {% if last_settle_id %}readonly{% endif %}>
-                        </div>
+                <!-- Credit Row (Red) -->
+                <div class="finance-row">
+                    <div class="d-flex flex-column">
+                        <span class="finance-label text-credit"><i class="fa-solid fa-circle-down"></i> CREDIT</span>
+                        <input type="text" name="emp_credit_note" class="note-input" placeholder="Add Note (e.g. Salary)..." {% if last_settle_id %}readonly{% endif %}>
+                    </div>
+                    <div class="finance-input-wrapper">
+                        <input type="number" step="0.01" name="emp_credit_amount" class="finance-input-field text-credit" placeholder="0.00" {% if last_settle_id %}readonly{% endif %}>
                     </div>
                 </div>
 
-                <!-- Debit Input -->
-                <div class="finance-input-group">
-                    <label class="finance-label text-danger"><i class="fa-solid fa-arrow-up me-1"></i> Debit (Advance Given)</label>
-                    <div class="d-flex gap-2">
-                        <div style="flex: 1;">
-                            <input type="number" step="0.01" name="emp_debit_amount" class="finance-input fs-5" placeholder="₹ 0.00" {% if last_settle_id %}readonly{% endif %}>
-                        </div>
-                        <div style="flex: 2; border-left: 2px solid #e2e8f0; padding-left: 10px;">
-                            <input type="text" name="emp_debit_note" class="finance-input small text-muted" placeholder="Add Note..." {% if last_settle_id %}readonly{% endif %}>
-                        </div>
+                <!-- Debit Row (Green) -->
+                <div class="finance-row">
+                    <div class="d-flex flex-column">
+                        <span class="finance-label text-debit"><i class="fa-solid fa-circle-up"></i> DEBIT</span>
+                        <input type="text" name="emp_debit_note" class="note-input" placeholder="Add Note (e.g. Advance)..." {% if last_settle_id %}readonly{% endif %}>
                     </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- 2. COLLECTION SECTION -->
-        <div class="col-lg-6">
-            <div class="finance-card">
-                <h5>
-                    <span class="bg-warning bg-opacity-10 text-warning p-2 rounded-3"><i class="fa-solid fa-cash-register"></i></span>
-                    Cash Settlement
-                </h5>
-
-                <div class="row g-3">
-                    <div class="col-6">
-                        <div class="finance-input-group mb-0">
-                            <label class="finance-label text-muted">Total Sales</label>
-                            <input type="number" name="totalAmount" id="totalAmount" class="finance-input fs-5" readonly value="{{ draft_data.total_amount if draft_data else '0.00' }}">
-                        </div>
+                    <div class="finance-input-wrapper">
+                        <input type="number" step="0.01" name="emp_debit_amount" class="finance-input-field text-debit" placeholder="0.00" {% if last_settle_id %}readonly{% endif %}>
                     </div>
-                    <div class="col-6">
-                        <div class="finance-input-group mb-0">
-                            <label class="finance-label text-danger">Discount</label>
-                            <input type="number" step="0.01" name="discount" id="discount" class="finance-input fs-5" placeholder="0" value="{{ draft_data.discount if draft_data else '' }}" {% if last_settle_id %}readonly{% endif %}>
-                        </div>
-                    </div>
-                    <div class="col-6">
-                         <div class="finance-input-group mb-0">
-                            <label class="finance-label text-info">Online Rec.</label>
-                            <input type="number" step="0.01" name="online" id="online" class="finance-input fs-5" placeholder="0" value="{{ draft_data.online_money if draft_data else '' }}" {% if last_settle_id %}readonly{% endif %}>
-                        </div>
-                    </div>
-                    <div class="col-6">
-                         <div class="finance-input-group mb-0">
-                            <label class="finance-label text-success">Cash Coll.</label>
-                            <input type="number" step="0.01" name="cash" id="cash" class="finance-input fs-5" placeholder="0" value="{{ draft_data.cash_money if draft_data else '' }}" {% if last_settle_id %}readonly{% endif %}>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- RED BOLD BALANCE DUE -->
-                <div class="balance-due-box">
-                    <span class="text-uppercase small fw-bold text-danger letter-spacing-1">Balance Due</span>
-                    <span id="dueAmount" class="balance-due-val">0.00</span>
                 </div>
 
             </div>
         </div>
 
+        <!-- 2. COLLECTION (Right - Exact Design requested) -->
+        <div class="col-lg-6">
+            <div class="glass-panel p-4 h-100">
+                <div class="finance-section-title">
+                    <i class="fa-solid fa-cash-register text-warning"></i> Cash Settlement
+                </div>
+
+                <!-- Total Sales -->
+                <div class="finance-row">
+                    <span class="finance-label"><i class="fa-solid fa-chart-line"></i> Total Sales</span>
+                    <div class="finance-input-wrapper">
+                        <input type="number" name="totalAmount" id="totalAmount" class="finance-input-field" readonly value="{{ draft_data.total_amount if draft_data else '0.00' }}">
+                    </div>
+                </div>
+
+                <!-- Discount -->
+                <div class="finance-row">
+                    <span class="finance-label"><i class="fa-solid fa-percent"></i> Discount</span>
+                    <div class="finance-input-wrapper">
+                        <input type="number" step="0.01" name="discount" id="discount" class="finance-input-field" placeholder="0.00" value="{{ draft_data.discount if draft_data else '' }}" {% if last_settle_id %}readonly{% endif %}>
+                    </div>
+                </div>
+
+                <!-- Online -->
+                <div class="finance-row">
+                    <span class="finance-label"><i class="fa-solid fa-qrcode"></i> Online Rec.</span>
+                    <div class="finance-input-wrapper">
+                        <input type="number" step="0.01" name="online" id="online" class="finance-input-field" placeholder="0.00" value="{{ draft_data.online_money if draft_data else '' }}" {% if last_settle_id %}readonly{% endif %}>
+                    </div>
+                </div>
+
+                <!-- Cash -->
+                <div class="finance-row">
+                    <span class="finance-label"><i class="fa-solid fa-money-bill-wave"></i> Cash Coll.</span>
+                    <div class="finance-input-wrapper">
+                        <input type="number" step="0.01" name="cash" id="cash" class="finance-input-field" placeholder="0.00" value="{{ draft_data.cash_money if draft_data else '' }}" {% if last_settle_id %}readonly{% endif %}>
+                    </div>
+                </div>
+
+                <!-- Balance Due (Red, Bold, Box) -->
+                <div class="finance-row balance-row">
+                    <span class="balance-label">BALANCE DUE</span>
+                    <div class="finance-input-wrapper">
+                        <span id="dueAmount" class="balance-value">0.00</span>
+                    </div>
+                </div>
+
+            </div>
+        </div>
     </div>
 
     <!-- ACTION BUTTONS -->
     <div class="d-flex justify-content-center gap-3 pb-5">
         {% if not last_settle_id %}
-            <button type="button" onclick="submitForm('draft')" class="btn btn-white border px-5 py-3 rounded-pill fw-bold shadow-sm">
+            <button type="button" onclick="submitForm('draft')" class="btn btn-light border px-5 py-3 rounded-pill fw-bold shadow-sm">
                 Save Draft
             </button>
-            <button type="button" onclick="submitForm('final')" class="btn btn-dark px-5 py-3 rounded-pill fw-bold shadow-lg hover-lift">
+            <button type="button" onclick="submitForm('final')" class="btn btn-dark px-5 py-3 rounded-pill fw-bold shadow-lg">
                 <i class="fa-solid fa-check-circle me-2"></i> Submit Final
             </button>
         {% else %}
@@ -404,6 +243,7 @@
     </form>
 </div>
 
+<!-- Linking JS -->
 <script src="{{ url_for('static', filename='js/evening.js') }}"></script>
 <script>
     function submitForm(status) {
@@ -422,7 +262,7 @@
     document.addEventListener("DOMContentLoaded", function() {
         flatpickr("#date", { dateFormat: "d-m-Y", defaultDate: "{{ today }}", allowInput: true });
         
-        // Employee Photo Logic
+        // Employee Photo
         const empSelect = document.getElementById('employee');
         const empPhoto = document.getElementById('empPhoto');
         if(empSelect) {
@@ -434,7 +274,7 @@
             });
         }
         
-        // Trigger calc if draft data exists
+        // Trigger calculations
         if(document.getElementById('totalAmount').value > 0) {
             const event = new Event('input', { bubbles: true });
             const cashInput = document.getElementById('cash');
@@ -446,7 +286,7 @@
             const now = new Date();
             const timeString = now.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute:'2-digit', second:'2-digit' });
             if(document.getElementById('liveClock')) document.getElementById('liveClock').textContent = timeString;
-            // DB Timestamp
+            // Timestamp
             const year = now.getFullYear();
             const month = String(now.getMonth() + 1).padStart(2, '0');
             const day = String(now.getDate()).padStart(2, '0');
@@ -459,17 +299,4 @@
         updateClock();
     });
 </script>
-
-<style>
-    .hover-lift:hover { transform: translateY(-3px); box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
-    .letter-spacing-1 { letter-spacing: 1px; }
-    
-    @media (max-width: 768px) {
-        .glass-panel { padding: 1rem; border-radius: 16px; }
-        .custom-table thead { display: none; } /* Hide headers on mobile for cleaner look if standard row styling is used, or keep standard. Keeping standard for now. */
-        .custom-table thead { display: table-header-group; } /* Restore headers */
-        
-        .finance-card { margin-bottom: 1rem; }
-    }
-</style>
 {% endblock %}
