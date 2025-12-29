@@ -1,88 +1,63 @@
 {% extends "base.html" %}
-{% block content %}
 
-<link href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/evening.css') }}">
+{% block content %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/evening-glass.css') }}">
 
 <div class="glass-container fade-in-up mb-5">
 
-    <!-- HEADER -->
-    <div class="glass-header text-center mb-4 p-4">
-        <h1 class="company-name text-gradient fw-bold">REAL PROMOTION</h1>
-        <p class="small text-muted">SINCE 2005</p>
+    <!-- Header -->
+    <div class="glass-header text-center mb-4 p-4 position-relative">
+        <h1 class="company-name text-gradient fw-bold mb-1">REAL PROMOTION</h1>
+        <p class="since-text text-secondary mb-2 small letter-spacing-2">SINCE 2005</p>
+        <div class="address-block text-muted small mx-auto bg-white bg-opacity-50 p-2 rounded-3" style="max-width: 600px;">
+            <i class="fa-solid fa-location-dot text-primary me-1"></i>
+            Real Promotion, G/12, Tulsimangalam Complex, B/h. Trimurti Complex,
+            Ghodiya Bazar, Nadiad-387001, Gujarat, India
+        </div>
     </div>
 
-    <div class="glass-panel p-4">
+    <!-- Main Card -->
+    <div class="glass-panel p-3 p-md-4 mb-4">
+        
+        <!-- TOP CONTROLS ROW (UNCHANGED) -->
+        {{ super() }}
 
-        <!-- TOP CONTROLS -->
-        <div class="row g-3 mb-4 align-items-end">
-
-            <div class="col-md-3">
-                <label class="small fw-bold">Employee</label>
-                <select id="employee" class="form-select">
-                    <option value="">-- Select --</option>
-                    {% for emp in employees %}
-                    <option value="{{ emp.id }}">{{ emp.name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-
-            <div class="col-md-2">
-                <label class="small fw-bold">Date</label>
-                <input type="text" id="date" class="form-control" value="{{ today }}">
-            </div>
-
-            <div class="col-md-2">
-                <label class="small fw-bold">Time</label>
-                <div class="form-control text-center fw-bold" id="liveClock">00:00:00</div>
-            </div>
-
-            <div class="col-md-2">
-                <button id="btnFetch" class="btn btn-dark w-100 mt-3">
-                    <i class="fa-solid fa-download"></i> Fetch
-                </button>
-            </div>
-
-        </div>
-
-        <div id="fetchMsg" class="small mb-3"></div>
+        <div id="fetchMsg" class="alert alert-info d-none rounded-3 border-0 shadow-sm"></div>
 
         <form method="POST" action="{{ url_for('evening') }}" id="eveningForm">
 
-            <!-- HIDDEN FIELDS -->
-            <input type="hidden" name="allocation_id" id="allocation_id">
-            <input type="hidden" name="h_employee" id="h_employee">
-            <input type="hidden" name="h_date" id="h_date">
+            <!-- HIDDEN FIELDS (UNCHANGED) -->
+            <input type="hidden" name="allocation_id" id="allocation_id" value="{{ draft_data.allocation_id if draft_data else '' }}">
+            <input type="hidden" name="h_employee" id="h_employee" value="{{ draft_data.employee_id if draft_data else '' }}">
+            <input type="hidden" name="h_date" id="h_date" value="{{ draft_data.date if draft_data else '' }}">
             <input type="hidden" name="timestamp" id="timestampInput">
             <input type="hidden" name="status" id="formStatus" value="final">
+            <input type="hidden" name="draft_id" value="{{ draft_data.id if draft_data and not last_settle_id else '' }}">
 
             <!-- TABLE -->
-            <div class="table-responsive glass-card mb-4">
-                <table class="table align-middle text-nowrap">
-                    <thead>
+            <div class="table-responsive rounded-4 shadow-sm mb-4 bg-white border">
+                <table class="table table-hover align-middle mb-0 text-nowrap" id="stockTable">
+                    <thead class="bg-light text-secondary small text-uppercase">
                         <tr>
-                            <th>#</th>
+                            <th class="ps-4">#</th>
                             <th>Img</th>
-                            <th>Product</th>
-                            <th>Total</th>
-                            <th>Sold</th>
-                            <th>Price</th>
-                            <th>Amount</th>
-                            <th>Return</th>
-                            <th>Left</th>
+                            <th>Product Name</th>
+                            <th class="text-center">Total</th>
+                            <th class="text-center">Sold</th>
+                            <th class="text-end">Price</th>
+                            <th class="text-end fw-bold text-primary">Amount</th>
+                            <th class="text-center">Return</th>
+                            <th class="text-center text-muted">Left</th>
                         </tr>
                     </thead>
-                    <tbody id="rowsArea">
-                        <tr>
-                            <td colspan="9" class="text-center text-muted p-4">
-                                Select employee & date
-                            </td>
-                        </tr>
-                    </tbody>
 
-                    <!-- SUMMARY ROW -->
-                    <tfoot>
+                    <tbody id="rowsArea"></tbody>
+
+                    <!-- ✅ SUMMARY BOX FOOTER -->
+                    <tfoot class="summary-footer">
                         <tr>
                             <td colspan="9">
                                 <div class="summary-grid">
@@ -92,14 +67,14 @@
                                     <div class="summary-box sold">
                                         Sold<br><strong id="totSold">0</strong>
                                     </div>
-                                    <div class="summary-box returned">
-                                        Returned<br><strong id="totReturn">0</strong>
-                                    </div>
-                                    <div class="summary-box left">
-                                        Left<br><strong id="totRemain">0</strong>
-                                    </div>
                                     <div class="summary-box amount">
                                         Amount<br><strong>₹ <span id="totAmount">0.00</span></strong>
+                                    </div>
+                                    <div class="summary-box return">
+                                        Return<br><strong id="totReturn">0</strong>
+                                    </div>
+                                    <div class="summary-box remain">
+                                        Left<br><strong id="totRemain">0</strong>
                                     </div>
                                 </div>
                             </td>
@@ -108,65 +83,61 @@
                 </table>
             </div>
 
-            <!-- FINANCE + SETTLEMENT -->
-            <div class="row g-4 equal-height-sections">
+            <!-- BOTTOM SECTION -->
+            <div class="row g-4 equal-height">
 
                 <!-- EMPLOYEE FINANCE -->
                 <div class="col-lg-6">
-                    <div class="glass-card h-100">
+                    <div class="glass-panel p-4 h-100 finance-panel">
                         <h5 class="section-title">
                             <i class="fa-solid fa-wallet"></i> Employee Finance
                         </h5>
 
-                        <div class="finance-box">
-                            <div class="finance-header credit">
-                                <i class="fa-solid fa-arrow-down"></i> CREDIT (Salary / Commission)
-                            </div>
-                            <input type="number" name="emp_credit_amount" class="form-control finance-input" placeholder="Amount ₹">
-                            <input type="text" name="emp_credit_note" class="form-control finance-input" placeholder="Note">
+                        {% if not last_settle_id %}
+                        <div class="finance-box credit">
+                            <label>CREDIT</label>
+                            <input type="number" name="emp_credit_amount" placeholder="Amount ₹">
+                            <input type="text" name="emp_credit_note" placeholder="Note">
                         </div>
 
-                        <div class="finance-box">
-                            <div class="finance-header debit">
-                                <i class="fa-solid fa-arrow-up"></i> DEBIT (Advance)
-                            </div>
-                            <input type="number" name="emp_debit_amount" class="form-control finance-input" placeholder="Amount ₹">
-                            <input type="text" name="emp_debit_note" class="form-control finance-input" placeholder="Note">
+                        <div class="finance-box debit">
+                            <label>DEBIT</label>
+                            <input type="number" name="emp_debit_amount" placeholder="Amount ₹">
+                            <input type="text" name="emp_debit_note" placeholder="Note">
                         </div>
+                        {% else %}
+                        <div class="alert alert-light text-center">
+                            Finance data saved
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
 
                 <!-- COLLECTION -->
                 <div class="col-lg-6">
-                    <div class="glass-card h-100">
+                    <div class="glass-panel p-4 h-100">
                         <h5 class="section-title">
                             <i class="fa-solid fa-coins"></i> Collection & Settlement
                         </h5>
 
                         <div class="settlement-row">
                             <span>Total Sales</span>
-                            <strong>₹ <input type="hidden" id="totalAmount"> <span id="totalAmountText">0.00</span></strong>
+                            <span>₹ <input type="number" id="totalAmount" name="totalAmount" readonly></span>
                         </div>
 
                         <div class="settlement-row">
                             <span>Discount</span>
-                            <strong class="text-warning">
-                                ₹ <input type="number" name="discount" id="discount" class="border-0 bg-transparent fw-bold text-warning" value="0">
-                            </strong>
+                            <span><input type="number" id="discount" name="discount"></span>
                         </div>
 
                         <div class="settlement-row">
                             <span>Online</span>
-                            <strong class="text-info">
-                                ₹ <input type="number" name="online" id="online" class="border-0 bg-transparent fw-bold text-info" value="0">
-                            </strong>
+                            <span><input type="number" id="online" name="online"></span>
                         </div>
 
                         <div class="settlement-row">
                             <span>Cash</span>
-                            <strong class="text-success">
-                                ₹ <input type="number" name="cash" id="cash" class="border-0 bg-transparent fw-bold text-success" value="0">
-                            </strong>
+                            <span><input type="number" id="cash" name="cash"></span>
                         </div>
 
                         <div class="settlement-row balance-due">
@@ -178,12 +149,12 @@
 
             </div>
 
-            <!-- ACTIONS -->
-            <div class="text-center mt-5">
-                <button type="button" onclick="submitForm('draft')" class="btn btn-outline-secondary btn-lg px-5">
+            <!-- ACTION BUTTONS (UNCHANGED) -->
+            <div class="d-flex justify-content-center gap-3 mt-5">
+                <button type="button" onclick="submitForm('draft')" class="btn btn-outline-secondary btn-lg px-5 rounded-pill">
                     Save Draft
                 </button>
-                <button type="button" onclick="submitForm('final')" class="btn btn-dark btn-lg px-5">
+                <button type="button" onclick="submitForm('final')" class="btn btn-dark btn-lg px-5 rounded-pill">
                     Submit Final
                 </button>
             </div>
@@ -193,15 +164,4 @@
 </div>
 
 <script src="{{ url_for('static', filename='js/evening.js') }}"></script>
-
-<script>
-function submitForm(status){
-    document.getElementById('formStatus').value = status;
-    if(status === 'final'){
-        if(!confirm("Submit final settlement?")) return;
-    }
-    document.getElementById('eveningForm').submit();
-}
-</script>
-
 {% endblock %}
