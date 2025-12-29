@@ -4,6 +4,7 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/morning-glass.css') }}">
 
 <div class="glass-container fade-in-up mb-5">
 
@@ -21,24 +22,25 @@
     <div class="glass-panel p-4 mb-4">
         
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h4 class="fw-bold text-dark mb-0"><i class="fa-solid fa-sun text-warning me-2"></i>Morning Allocation</h4>
+            <h4 class="fw-bold text-dark mb-0">
+                <i class="fa-solid fa-sun text-warning me-2"></i>Morning Allocation
+            </h4>
             <a href="{{ url_for('allocation_list') }}" class="btn btn-outline-dark rounded-pill px-4 btn-sm">
                 <i class="fa-solid fa-clock-rotate-left me-2"></i> History
             </a>
         </div>
 
         <form id="morningForm" method="POST" action="{{ url_for('morning') }}">
-            <!-- Hidden Timestamp -->
             <input type="hidden" name="timestamp" id="timestampInput">
 
             <div class="row g-3 align-items-end">
                 
-                <!-- Employee Selection (Left) -->
+                <!-- Employee Selection -->
                 <div class="col-md-6">
                     <label class="form-label text-uppercase small fw-bold text-secondary">Sales Representative</label>
                     <div class="d-flex align-items-center">
-                        <div class="me-3" style="width: 70px; height: 70px; border-radius: 12px; overflow: hidden; border: 2px solid #fff; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
-                            <img src="{{ url_for('static', filename='img/default-user.png') }}" id="empPhoto" style="width: 100%; height: 100%; object-fit: cover;">
+                        <div class="me-3 emp-photo-box">
+                            <img src="{{ url_for('static', filename='img/default-user.png') }}" id="empPhoto">
                         </div>
                         <div class="input-group input-group-glass flex-grow-1">
                             <span class="input-group-text"><i class="fa-solid fa-user-tie"></i></span>
@@ -52,7 +54,7 @@
                     </div>
                 </div>
 
-                <!-- Date & Clock (Right) -->
+                <!-- Date & Clock -->
                 <div class="col-md-6">
                     <label class="form-label text-uppercase small fw-bold text-secondary">Date & Time</label>
                     <div class="d-flex gap-2">
@@ -60,17 +62,14 @@
                             <span class="input-group-text"><i class="fa-solid fa-calendar"></i></span>
                             <input type="text" name="date" id="date" class="form-control form-control-lg" value="{{ today_date }}" required>
                         </div>
-                        <div class="badge bg-dark text-white shadow d-flex align-items-center justify-content-center px-3" id="liveClock" style="font-size: 1.1rem; border-radius: 8px; min-width: 120px;">
+                        <div class="badge bg-dark text-white shadow clock-badge" id="liveClock">
                             00:00:00
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Status Message -->
             <div id="fetchMsg" class="w-100 text-center mt-3 fw-bold"></div>
-
-            <!-- RESTOCK HISTORY AREA -->
             <div id="historyList" class="mt-4"></div>
 
             <!-- Table -->
@@ -78,29 +77,43 @@
                 <table class="table table-hover align-middle mb-0" id="productTable">
                     <thead class="bg-gradient-primary text-white">
                         <tr>
-                            <th class="ps-3" style="width: 40px;">#</th>
-                            <th style="width: 60px; text-align: center;">Img</th>
-                            <th style="min-width: 200px;">Product</th>
-                            <th style="width: 90px;">Opening</th>
-                            <th style="width: 90px;">Given</th>
-                            <th style="width: 90px;">Total</th>
-                            <th style="width: 100px;">Price</th>
-                            <th style="width: 110px;">Amount</th>
-                            <th class="text-center" style="width: 60px;"><i class="fa-solid fa-trash"></i></th>
+                            <th class="ps-3">#</th>
+                            <th class="text-center">Img</th>
+                            <th>Product</th>
+                            <th>Opening</th>
+                            <th>Given</th>
+                            <th>Total</th>
+                            <th>Price</th>
+                            <th>Amount</th>
+                            <th class="text-center"><i class="fa-solid fa-trash"></i></th>
                         </tr>
                     </thead>
+
                     <tbody class="bg-white"></tbody>
-                    
-                    <!-- FOOTER -->
-                    <tfoot class="bg-light fw-bold" style="border-top: 3px solid #ddd;">
-                        <tr style="font-size: 1.1rem;">
-                            <td colspan="3" class="text-end text-uppercase text-secondary pe-3" style="letter-spacing: 1px;">Totals:</td>
-                            <td class="text-center text-info"><span id="totalOpening">0</span></td>
-                            <td class="text-center text-primary"><span id="totalGiven">0</span></td>
-                            <td class="text-center text-dark"><span id="totalAll">0</span></td>
-                            <td>-</td>
-                            <td class="text-end text-success pe-2">₹ <span id="grandTotal">0.00</span></td>
-                            <td>-</td>
+
+                    <!-- ✅ REDESIGNED FOOTER (SUMMARY BOXES) -->
+                    <tfoot class="summary-footer">
+                        <tr>
+                            <td colspan="9">
+                                <div class="summary-grid">
+                                    <div class="summary-box info">
+                                        Opening
+                                        <strong id="totalOpening">0</strong>
+                                    </div>
+                                    <div class="summary-box primary">
+                                        Given
+                                        <strong id="totalGiven">0</strong>
+                                    </div>
+                                    <div class="summary-box dark">
+                                        Total
+                                        <strong id="totalAll">0</strong>
+                                    </div>
+                                    <div class="summary-box success">
+                                        Amount
+                                        <strong>₹ <span id="grandTotal">0.00</span></strong>
+                                    </div>
+                                </div>
+                            </td>
                         </tr>
                     </tfoot>
                 </table>
@@ -118,63 +131,24 @@
     </div>
 </div>
 
-<style>
-    /* Theme */
-    body { background: #f0f2f5; font-family: 'Poppins', sans-serif; }
-    .glass-container { max-width: 1200px; margin: 2rem auto; padding: 0 15px; }
-    .glass-header { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); border-radius: 20px; box-shadow: 0 8px 32px rgba(0,0,0,0.05); border: 1px solid #fff; }
-    .glass-panel { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(16px); border-radius: 24px; box-shadow: 0 10px 40px rgba(0,0,0,0.06); border: 1px solid rgba(255, 255, 255, 0.6); }
-    .text-gradient { background: linear-gradient(45deg, #1a237e, #0d47a1); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-    .bg-gradient-primary { background: linear-gradient(135deg, #1a237e 0%, #0d47a1 100%); }
-    .bg-orange { background-color: #fd7e14 !important; color: white; }
-
-    /* Inputs */
-    .input-group-glass .input-group-text { background: #f8f9fa; border: 1px solid #e0e0e0; }
-    .input-group-glass .form-control, .input-group-glass .form-select { background: #fff; border: 1px solid #e0e0e0; }
-
-    /* Image Box */
-    .img-box-small {
-        display: block !important; width: 50px !important; height: 50px !important;
-        border-radius: 8px !important; overflow: hidden !important;
-        border: 1px solid #e0e0e0; background: #fff; margin: 0 auto;
-    }
-    .img-box-small img { width: 100% !important; height: 100% !important; object-fit: cover !important; }
-
-    /* Buttons */
-    .btn-glass-light { background: #fff; border: 1px solid #e2e8f0; border-radius: 50px; padding: 0.5rem 1.5rem; transition: 0.3s; }
-    .btn-gradient-primary { background: linear-gradient(135deg, #1a237e 0%, #0d47a1 100%); color: white; border: none; transition: 0.3s; }
-    
-    .table input.form-control { background: transparent; border: 1px solid transparent; text-align: center; font-weight: 600; }
-    .table input.given { background: #ebf8ff; color: #2b6cb0; border-radius: 6px; }
-    
-    /* Footer Colors */
-    .text-info { color: #0dcaf0 !important; }
-    .text-primary { color: #0d6efd !important; }
-    .text-success { color: #198754 !important; }
-    
-    .flatpickr-calendar { box-shadow: 0 10px 30px rgba(0,0,0,0.1) !important; border: none !important; }
-</style>
-
 <script>
     try { window.productsData = {{ products | tojson | safe }}; } 
     catch(e) { window.productsData = []; }
-    
+
     document.addEventListener("DOMContentLoaded", function() {
         flatpickr("#date", { dateFormat: "d-m-Y", defaultDate: "{{ today_date }}", allowInput: true });
-        
-        // Employee Photo Logic
+
         const empSelect = document.getElementById('employee_id');
         const empPhoto = document.getElementById('empPhoto');
         if(empSelect) {
             empSelect.addEventListener('change', function() {
                 const selectedOption = this.options[this.selectedIndex];
                 const img = selectedOption.getAttribute('data-img');
-                if(img && img !== 'None' && img !== "") empPhoto.src = img;
-                else empPhoto.src = "{{ url_for('static', filename='img/default-user.png') }}";
+                empPhoto.src = img && img !== 'None' ? img : "{{ url_for('static', filename='img/default-user.png') }}";
             });
         }
     });
 </script>
+
 <script src="{{ url_for('static', filename='js/morning.js') }}"></script>
 {% endblock %}
-
