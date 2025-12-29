@@ -4180,9 +4180,13 @@ def edit_morning_allocation(allocation_id):
 # ---------------------------------------------------------
 # 3. EVENING MASTER (History & Drafts) - WITH FILTERS
 # ---------------------------------------------------------
+# ---------------------------------------------------------
+# 3. EVENING MASTER (History & Drafts) - WITH FILTERS
+# ---------------------------------------------------------
 @app.route('/evening/master')
 def evening_master():
-    if "loggedin" not in session: return redirect(url_for("login"))
+    if "loggedin" not in session:
+        return redirect(url_for("login"))
     
     # Get Filter Parameters
     start_date = request.args.get('start_date')
@@ -4203,12 +4207,34 @@ def evening_master():
 
     # Apply Filters
     if start_date:
-        query += " AND s.date >= %s"
-        params.append(parse_date(start_date).strftime('%Y-%m-%d'))
+        # Check if parse_date function exists, otherwise use strptime
+        try:
+            dt = parse_date(start_date)
+            if dt:
+                query += " AND s.date >= %s"
+                params.append(dt.strftime('%Y-%m-%d'))
+        except NameError:
+            # Fallback if parse_date is missing
+            try:
+                dt = datetime.strptime(start_date, '%d-%m-%Y')
+                query += " AND s.date >= %s"
+                params.append(dt.strftime('%Y-%m-%d'))
+            except ValueError:
+                pass
     
     if end_date:
-        query += " AND s.date <= %s"
-        params.append(parse_date(end_date).strftime('%Y-%m-%d'))
+        try:
+            dt = parse_date(end_date)
+            if dt:
+                query += " AND s.date <= %s"
+                params.append(dt.strftime('%Y-%m-%d'))
+        except NameError:
+            try:
+                dt = datetime.strptime(end_date, '%d-%m-%Y')
+                query += " AND s.date <= %s"
+                params.append(dt.strftime('%Y-%m-%d'))
+            except ValueError:
+                pass
 
     if employee_id and employee_id != 'all':
         query += " AND s.employee_id = %s"
@@ -4220,8 +4246,9 @@ def evening_master():
         cur.execute("SHOW COLUMNS FROM evening_settle LIKE 'status'")
         if cur.fetchone():
             query += " AND (s.status = 'final' OR s.status IS NULL)"
-    except:
-        pass # If check fails, assume all are final or legacy
+    except Exception:
+        # If check fails, assume all are final or legacy
+        pass 
 
     query += " ORDER BY s.date DESC, s.id DESC"
     
@@ -4233,18 +4260,29 @@ def evening_master():
         if isinstance(s['date'], (date, datetime)):
             s['formatted_date'] = s['date'].strftime('%d-%m-%Y')
         else:
-             # Handle if it's a string
-             try: s['formatted_date'] = datetime.strptime(str(s['date']), '%Y-%m-%d').strftime('%d-%m-%Y')
-             except: s['formatted_date'] = str(s['date'])
-             
-        s['due_amount'] = float(s['total_amount']) - (float(s['online_money']) + float(s['cash_money']) + float(s['discount']))
+            # Handle if it's a string
+            try:
+                s['formatted_date'] = datetime.strptime(str(s['date']), '%Y-%m-%d').strftime('%d-%m-%Y')
+            except ValueError:
+                s['formatted_date'] = str(s['date'])
+        
+        # Calculate Due Amount safely
+        try:
+            total = float(s.get('total_amount') or 0)
+            paid = float(s.get('online_money') or 0) + float(s.get('cash_money') or 0) + float(s.get('discount') or 0)
+            s['due_amount'] = total - paid
+        except ValueError:
+            s['due_amount'] = 0.0
 
     # 2. Stats Calculation (Filtered)
     stats = {'sales': 0, 'cash': 0, 'online': 0}
     for s in settlements:
-        stats['sales'] += float(s['total_amount'])
-        stats['cash'] += float(s['cash_money'])
-        stats['online'] += float(s['online_money'])
+        try:
+            stats['sales'] += float(s.get('total_amount') or 0)
+            stats['cash'] += float(s.get('cash_money') or 0)
+            stats['online'] += float(s.get('online_money') or 0)
+        except ValueError:
+            pass
 
     # 3. Fetch Employees for Filter Dropdown
     cur.execute("SELECT id, name FROM employees WHERE status='active' ORDER BY name")
@@ -4257,39 +4295,6 @@ def evening_master():
                            stats=stats, 
                            employees=employees,
                            filters={'start': start_date, 'end': end_date, 'emp': employee_id})
-        # 3. Fetch Products
-        # CORRECT TABLE: morning_allocation_items
-        query = """
-            SELECT 
-                p.id, 
-                p.name, 
-                p.image, 
-                p.price,
-                (COALESCE(mai.opening_qty, 0) + COALESCE(mai.given_qty, 0)) as total_qty
-            FROM morning_allocation_items mai
-            JOIN products p ON mai.product_id = p.id
-            WHERE mai.allocation_id = %s
-            HAVING total_qty > 0
-        """
-        cur.execute(query, (alloc_id,))
-        products = cur.fetchall()
-        
-        for p in products:
-            p['image'] = resolve_img(p['image'])
-            p['price'] = float(p['price'])
-            p['total_qty'] = int(p['total_qty'])
-
-        return jsonify({
-            'status': 'success',
-            'allocation_id': alloc_id,
-            'products': products
-        })
-
-    except Exception as e:
-        app.logger.error(f"Fetch Error: {e}")
-        return jsonify({'status': 'error', 'message': str(e)})
-    finally:
-        if 'cur' in locals(): cur.close()
 
 
 
@@ -5604,6 +5609,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
