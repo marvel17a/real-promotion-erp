@@ -3480,6 +3480,7 @@ def morning():
 
 # API: FETCH EVENING DATA (Logic Update for Holiday/Return)
 # ---------------------------------------------------------
+
 @app.route('/api/fetch_evening_data', methods=['POST'])
 def fetch_evening_data():
     if "loggedin" not in session: return jsonify({'status': 'error', 'message': 'Unauthorized'})
@@ -3499,19 +3500,29 @@ def fetch_evening_data():
         formatted_date = target_date.strftime('%Y-%m-%d')
         cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
-        # 1. Check if Settlement ALREADY exists for this specific date/employee (Final only)
-        # Modified check: If a draft exists, we actually want to allow fetching it to Resume (handled by GET route usually),
-        # but if we are fetching fresh stock, we check for conflicting final settlements.
-        cur.execute("SELECT id, status FROM evening_settle WHERE employee_id=%s AND date=%s", (employee_id, formatted_date))
-        existing_settle = cur.fetchone()
-        
-        # If a FINAL settlement exists, block. If DRAFT exists, we might technically allow re-fetching or warn.
-        # For now, simplistic block.
-        if existing_settle and existing_settle.get('status') == 'final':
-             return jsonify({'status': 'error', 'message': 'Settlement already completed for this date!'})
+        # 1. Check if Settlement ALREADY exists for this specific date/employee
+        # FIX: We try to select 'status' but if it fails (1054), we fallback to selecting just 'id'
+        try:
+            cur.execute("SELECT id, status FROM evening_settle WHERE employee_id=%s AND date=%s", (employee_id, formatted_date))
+            existing_settle = cur.fetchone()
+            
+            # If status column exists, we check it.
+            if existing_settle and existing_settle.get('status') == 'final':
+                return jsonify({'status': 'error', 'message': 'Settlement already completed for this date!'})
+            elif existing_settle and existing_settle.get('status') == 'draft':
+                 pass # Allow fetching if it's just a draft (logic can be improved to resume draft)
+                 
+        except MySQLdb.OperationalError as e:
+            if e.args[0] == 1054: # Unknown column 'status'
+                # Re-run query without status
+                cur.execute("SELECT id FROM evening_settle WHERE employee_id=%s AND date=%s", (employee_id, formatted_date))
+                existing_settle = cur.fetchone()
+                if existing_settle:
+                    return jsonify({'status': 'error', 'message': 'Settlement already exists for this date!'})
+            else:
+                raise e
 
         # 2. HOLIDAY/RETURN LOGIC: Find the Correct Allocation
-        # Priority A: Allocation on the EXACT Date
         cur.execute("""
             SELECT id FROM morning_allocations 
             WHERE employee_id = %s AND date = %s 
@@ -3519,14 +3530,16 @@ def fetch_evening_data():
         """, (employee_id, formatted_date))
         allocation = cur.fetchone()
 
-        # Priority B: If no allocation today, find the LAST UNSETTLED allocation
+        # If no allocation today, find the LAST UNSETTLED allocation
         if not allocation:
+            # FIX: We need to be careful with the 'status' check in the LEFT JOIN too.
+            # Simplified query that assumes if it's in evening_settle, it is settled.
             cur.execute("""
                 SELECT ma.id, ma.date 
                 FROM morning_allocations ma
                 LEFT JOIN evening_settle es ON ma.id = es.allocation_id
                 WHERE ma.employee_id = %s 
-                  AND (es.id IS NULL OR es.status = 'draft') -- Consider unsetttled if no record or only draft
+                  AND es.id IS NULL -- Only fetch if NOT in evening_settle table at all
                   AND ma.date < %s
                 ORDER BY ma.date DESC 
                 LIMIT 1
@@ -3538,8 +3551,8 @@ def fetch_evening_data():
 
         alloc_id = allocation['id']
 
-        # 3. Fetch Products for this Allocation
-        # CORRECT TABLE NAME: morning_allocation_items
+        # 3. Fetch Products
+        # CORRECT TABLE: morning_allocation_items
         query = """
             SELECT 
                 p.id, 
@@ -3575,6 +3588,7 @@ def fetch_evening_data():
 # ---------------------------------------------------------
 # 2. EVENING SETTLEMENT (Final, Drafts, Finance)
 # ---------------------------------------------------------
+
 @app.route('/evening', methods=['GET', 'POST'])
 def evening():
     if "loggedin" not in session: return redirect(url_for("login"))
@@ -3582,8 +3596,8 @@ def evening():
     if request.method == 'POST':
         db_cursor = None
         try:
-            status = request.form.get('status', 'final') # 'final' or 'draft'
-            draft_id = request.form.get('draft_id')      # If updating an existing draft
+            status = request.form.get('status', 'final')
+            draft_id = request.form.get('draft_id')
             
             allocation_id = request.form.get('allocation_id')
             employee_id = request.form.get('h_employee')
@@ -3607,38 +3621,48 @@ def evening():
 
             db_cursor = mysql.connection.cursor()
 
-            # --- A. HANDLE DRAFT UPDATE vs NEW INSERT ---
+            # --- A. HANDLE INSERT (Try with status, fallback without) ---
             settle_id = None
             
             if draft_id and draft_id.strip():
                 # Update existing draft
                 settle_id = draft_id
-                # 1. Update Header
-                # Try updating status column (assuming it exists, if not code will fail and go to except)
-                update_sql = """
-                    UPDATE evening_settle 
-                    SET total_amount=%s, online_money=%s, cash_money=%s, discount=%s, status=%s, created_at=%s 
-                    WHERE id=%s
-                """
-                db_cursor.execute(update_sql, (total_amount, online, cash, discount, status, time_str, settle_id))
+                # Attempt update with status
+                try:
+                    update_sql = """
+                        UPDATE evening_settle 
+                        SET total_amount=%s, online_money=%s, cash_money=%s, discount=%s, status=%s, created_at=%s 
+                        WHERE id=%s
+                    """
+                    db_cursor.execute(update_sql, (total_amount, online, cash, discount, status, time_str, settle_id))
+                except MySQLdb.OperationalError as e:
+                    if e.args[0] == 1054: # Missing status col
+                         update_sql = """
+                            UPDATE evening_settle 
+                            SET total_amount=%s, online_money=%s, cash_money=%s, discount=%s, created_at=%s 
+                            WHERE id=%s
+                        """
+                         db_cursor.execute(update_sql, (total_amount, online, cash, discount, time_str, settle_id))
+                    else: raise e
                 
-                # 2. Delete old items (easier than updating line by line)
                 db_cursor.execute("DELETE FROM evening_item WHERE settle_id=%s", (settle_id,))
             else:
                 # Insert New
-                # Try inserting status
                 try:
                     db_cursor.execute("""
                         INSERT INTO evening_settle (allocation_id, employee_id, date, total_amount, online_money, cash_money, discount, created_at, status)
                         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                     """, (allocation_id, employee_id, formatted_date, total_amount, online, cash, discount, time_str, status))
-                except:
-                    # Fallback if 'status' column missing in DB
-                    if status == 'draft': raise Exception("Database missing 'status' column. Please contact admin.")
-                    db_cursor.execute("""
-                        INSERT INTO evening_settle (allocation_id, employee_id, date, total_amount, online_money, cash_money, discount, created_at)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                    """, (allocation_id, employee_id, formatted_date, total_amount, online, cash, discount, time_str))
+                except MySQLdb.OperationalError as e:
+                    # Fallback if 'status' column missing
+                    if e.args[0] == 1054:
+                        if status == 'draft': 
+                            flash("Drafts not supported yet (DB update required). Submitted as Final.", "warning")
+                        db_cursor.execute("""
+                            INSERT INTO evening_settle (allocation_id, employee_id, date, total_amount, online_money, cash_money, discount, created_at)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                        """, (allocation_id, employee_id, formatted_date, total_amount, online, cash, discount, time_str))
+                    else: raise e
                 
                 settle_id = db_cursor.lastrowid
 
@@ -3654,11 +3678,13 @@ def evening():
 
                 db_cursor.execute(item_sql, (settle_id, pid, t_qtys[i], sold, ret_qty, prices[i], rem))
                 
-                # --- C. STOCK DEDUCTION (ONLY IF FINAL) ---
-                if status == 'final' and sold > 0:
-                    db_cursor.execute("UPDATE products SET stock = stock - %s WHERE id = %s", (sold, pid))
+                # --- C. STOCK DEDUCTION (If Final or fallback) ---
+                # If we couldn't save status='draft', we assume it's final
+                if status == 'final' or (status == 'draft' and 'status' not in str(e)):
+                    if sold > 0:
+                        db_cursor.execute("UPDATE products SET stock = stock - %s WHERE id = %s", (sold, pid))
 
-            # --- D. FINANCE INTEGRATION (ONLY IF FINAL) ---
+            # --- D. FINANCE INTEGRATION (Final Only) ---
             if status == 'final':
                 emp_credit_amt = request.form.get('emp_credit_amount')
                 emp_credit_note = request.form.get('emp_credit_note')
@@ -3683,13 +3709,8 @@ def evening():
 
             mysql.connection.commit()
             
-            if status == 'draft':
-                flash("Draft saved successfully!", "info")
-                return redirect(url_for('draft_evening_list')) 
-            else:
-                flash("Settlement submitted successfully!", "success")
-                # Redirect to view the submitted data (Summary View)
-                return redirect(url_for('evening', last_settle_id=settle_id))
+            flash("Settlement submitted successfully!", "success")
+            return redirect(url_for('evening', last_settle_id=settle_id))
 
         except Exception as e:
             if db_cursor: mysql.connection.rollback()
@@ -3699,43 +3720,22 @@ def evening():
         finally:
             if db_cursor: db_cursor.close()
 
-    # --- GET REQUEST (Load Page or Resume Draft or View Submitted) ---
-    draft_id = request.args.get('draft_id')
+    # --- GET REQUEST (Load Page) ---
     last_settle_id = request.args.get('last_settle_id')
-    
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
-    # 1. Fetch Employees
     cur.execute("SELECT id, name, image FROM employees WHERE status='active' ORDER BY name")
     employees = cur.fetchall()
     for e in employees: e['image'] = resolve_img(e['image'])
 
-    # Data Containers
     draft_data = None
     draft_items = None
     selected_emp_id = None
     employee_img = None
     
-    # CASE A: RESUMING DRAFT
-    if draft_id:
-        cur.execute("SELECT * FROM evening_settle WHERE id = %s", (draft_id,))
-        draft_data = cur.fetchone()
-        
-        if draft_data:
-            selected_emp_id = draft_data['employee_id']
-            # Fetch Items
-            cur.execute("""
-                SELECT ei.*, p.name as product_name, p.image 
-                FROM evening_item ei 
-                JOIN products p ON ei.product_id = p.id 
-                WHERE ei.settle_id = %s
-            """, (draft_id,))
-            draft_items = cur.fetchall()
-
-    # CASE B: VIEWING SUBMITTED DATA (ReadOnly View)
-    elif last_settle_id:
+    if last_settle_id:
         cur.execute("SELECT * FROM evening_settle WHERE id = %s", (last_settle_id,))
-        draft_data = cur.fetchone() # We reuse 'draft_data' variable structure for header info
+        draft_data = cur.fetchone()
         
         if draft_data:
             selected_emp_id = draft_data['employee_id']
@@ -3747,12 +3747,10 @@ def evening():
             """, (last_settle_id,))
             draft_items = cur.fetchall()
 
-    # Match Image
     if selected_emp_id:
         for emp in employees:
             if str(emp['id']) == str(selected_emp_id):
                 employee_img = emp['image']
-        # Also process item images
         if draft_items:
             for item in draft_items: item['image'] = resolve_img(item['image'])
 
@@ -5528,6 +5526,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
