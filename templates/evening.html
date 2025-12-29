@@ -18,20 +18,20 @@
     </div>
 
     <!-- Main Card -->
-    <div class="glass-panel p-4 mb-4">
+    <div class="glass-panel p-3 p-md-4 mb-4">
         
         <!-- TOP CONTROLS ROW -->
         <div class="row align-items-center g-2 mb-4">
             
             <!-- 1. Profile Photo (70px) -->
-            <div class="col-md-auto">
-                 <div class="img-box-large shadow-sm bg-white p-1 rounded-3">
+            <div class="col-12 col-md-auto text-center text-md-start mb-2 mb-md-0">
+                 <div class="img-box-large shadow-sm bg-white p-1 rounded-3 d-inline-block">
                     <img id="empPhoto" src="{{ employee_img if employee_img else url_for('static', filename='img/default-user.png') }}" class="img-fluid rounded-2" alt="User">
                 </div>
             </div>
 
             <!-- 2. Employee Select -->
-            <div class="col-md-3">
+            <div class="col-12 col-md-3">
                 <label class="form-label fw-bold text-muted small text-uppercase mb-1">Select Employee</label>
                 <div class="input-group shadow-sm rounded-3 overflow-hidden">
                     <span class="input-group-text bg-white border-0"><i class="fa-solid fa-user-tie text-primary"></i></span>
@@ -45,7 +45,7 @@
             </div>
             
             <!-- 3. Date Input -->
-            <div class="col-md-2">
+            <div class="col-6 col-md-2">
                 <label class="form-label fw-bold text-muted small text-uppercase mb-1">Date</label>
                 <div class="input-group shadow-sm rounded-3 overflow-hidden">
                     <span class="input-group-text bg-white border-0"><i class="fa-regular fa-calendar text-primary"></i></span>
@@ -54,7 +54,7 @@
             </div>
 
             <!-- 4. Live Clock -->
-            <div class="col-md-2">
+            <div class="col-6 col-md-2">
                 <label class="form-label fw-bold text-muted small text-uppercase mb-1">Time</label>
                 <div class="bg-white shadow-sm rounded-3 py-2 px-3 text-center border d-flex align-items-center justify-content-center" style="height: 45px;">
                      <i class="fa-regular fa-clock me-2 text-primary small"></i> 
@@ -63,8 +63,8 @@
             </div>
             
             <!-- 5. Fetch Button -->
-            <div class="col-md-2">
-                <label class="form-label d-block text-transparent small mb-1">Action</label>
+            <div class="col-12 col-md-2 mt-2 mt-md-0">
+                <label class="form-label d-none d-md-block text-transparent small mb-1">Action</label>
                 {% if last_settle_id %}
                     <a href="{{ url_for('evening') }}" class="btn btn-outline-dark w-100 py-2 shadow-sm fw-bold rounded-3" style="height: 45px;">
                         <i class="fa-solid fa-plus me-1"></i> New
@@ -89,9 +89,9 @@
             <!-- If resuming a draft -->
             <input type="hidden" name="draft_id" value="{{ draft_data.id if draft_data and not last_settle_id else '' }}">
 
-            <!-- Stock Table -->
-            <div class="table-responsive rounded-4 shadow-sm mb-4 bg-white">
-                <table class="table table-hover align-middle mb-0" id="stockTable">
+            <!-- Stock Table (Responsive Wrapper) -->
+            <div class="table-responsive rounded-4 shadow-sm mb-4 bg-white border">
+                <table class="table table-hover align-middle mb-0 text-nowrap" id="stockTable">
                     <thead class="bg-light text-secondary small text-uppercase">
                         <tr>
                             <th class="ps-4" style="width: 50px;">#</th>
@@ -154,9 +154,8 @@
             <!-- BOTTOM SECTION -->
             <div class="row g-4">
                 
-                <!-- 1. EMPLOYEE FINANCE (LEFT) - MODIFIED BACKGROUND -->
+                <!-- 1. EMPLOYEE FINANCE (LEFT) -->
                 <div class="col-lg-6">
-                    <!-- Added bg-gradient-finance custom class or direct style -->
                     <div class="glass-panel p-4 h-100 border border-secondary border-opacity-10" style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); box-shadow: inset 0 0 20px rgba(0,0,0,0.02);">
                         <h5 class="fw-bold text-dark mb-3 border-bottom pb-2">
                             <i class="fa-solid fa-wallet me-2 text-primary"></i>Employee Finance
@@ -353,6 +352,7 @@
     .letter-spacing-2 { letter-spacing: 3px; }
 
     /* Table Styles */
+    .table-responsive { overflow-x: auto; }
     .table thead th { border-bottom: none; font-weight: 600; padding: 1rem 0.5rem; vertical-align: middle; }
     .table tbody td { padding: 0.8rem 0.5rem; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
     
@@ -367,6 +367,7 @@
     .table input.sold, .table input.return { 
         background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px; 
         text-align: center; font-weight: 600; padding: 0.4rem; transition: 0.2s;
+        min-width: 60px; /* Prevent shrinking too much */
     }
     .table input.sold:focus, .table input.return:focus { background: #fff; border-color: #0d6efd; box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.1); outline: none; }
     
@@ -376,5 +377,10 @@
     /* Form Controls */
     .form-control:focus, .form-select:focus { box-shadow: none; border-color: #0d6efd; }
     .input-group-text { color: #6c757d; }
+
+    @media (max-width: 768px) {
+        .glass-header .company-name { font-size: 1.8rem; }
+        .glass-panel { padding: 1rem; }
+    }
 </style>
 {% endblock %}
