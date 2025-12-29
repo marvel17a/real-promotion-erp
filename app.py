@@ -3478,7 +3478,6 @@ def morning():
 
 
 
-# ---------------------------------------------------------
 # API: FETCH EVENING DATA (Logic Update for Holiday/Return)
 # ---------------------------------------------------------
 @app.route('/api/fetch_evening_data', methods=['POST'])
@@ -3501,14 +3500,13 @@ def fetch_evening_data():
         cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
         # 1. Check if Settlement ALREADY exists for this specific date/employee
-        # (Prevent double entry)
         cur.execute("SELECT id FROM evening_settle WHERE employee_id=%s AND date=%s", (employee_id, formatted_date))
         existing_settle = cur.fetchone()
         if existing_settle:
             return jsonify({'status': 'error', 'message': 'Settlement already exists for this date!'})
 
         # 2. HOLIDAY/RETURN LOGIC: Find the Correct Allocation
-        # Priority A: Allocation on the EXACT Date (Normal Workflow)
+        # Priority A: Allocation on the EXACT Date
         cur.execute("""
             SELECT id FROM morning_allocations 
             WHERE employee_id = %s AND date = %s 
@@ -3517,42 +3515,37 @@ def fetch_evening_data():
         allocation = cur.fetchone()
 
         # Priority B: If no allocation today, find the LAST UNSETTLED allocation
-        # (Employee took stock days ago, was absent, and is now settling)
         if not allocation:
             cur.execute("""
                 SELECT ma.id, ma.date 
                 FROM morning_allocations ma
                 LEFT JOIN evening_settle es ON ma.id = es.allocation_id
                 WHERE ma.employee_id = %s 
-                  AND es.id IS NULL  -- Ensure it hasn't been settled yet
-                  AND ma.date < %s   -- Must be in the past
+                  AND es.id IS NULL
+                  AND ma.date < %s
                 ORDER BY ma.date DESC 
                 LIMIT 1
             """, (employee_id, formatted_date))
             allocation = cur.fetchone()
             
-            if allocation:
-                # Optional: You might want to warn the user "Fetching stock from [Date]"
-                # For now, we silently use this allocation ID.
-                pass
-            else:
+            if not allocation:
                  return jsonify({'status': 'error', 'message': 'No pending stock allocation found for this employee.'})
 
         alloc_id = allocation['id']
 
         # 3. Fetch Products for this Allocation
-        # We need: Product Info + Total Qty (Opening + Given)
+        # FIX: Table name is 'allocation_items', NOT 'morning_items'
         query = """
             SELECT 
                 p.id, 
                 p.name, 
                 p.image, 
                 p.price,
-                (COALESCE(mi.opening_qty, 0) + COALESCE(mi.given_qty, 0)) as total_qty
-            FROM morning_items mi
-            JOIN products p ON mi.product_id = p.id
-            WHERE mi.allocation_id = %s
-            HAVING total_qty > 0  -- Only show items they actually have
+                (COALESCE(ai.opening_qty, 0) + COALESCE(ai.given_qty, 0)) as total_qty
+            FROM allocation_items ai
+            JOIN products p ON ai.product_id = p.id
+            WHERE ai.allocation_id = %s
+            HAVING total_qty > 0
         """
         cur.execute(query, (alloc_id,))
         products = cur.fetchall()
@@ -3880,46 +3873,30 @@ def api_fetch_stock():
 # API: FETCH MORNING STOCK (With Holiday Logic)
 # ---------------------------------------------------------
 @app.route('/api/fetch_morning_allocation', methods=['POST']) 
-# NOTE: Check if your JS calls '/api/fetch_stock' or '/api/fetch_morning_allocation' and name this matching that.
 def fetch_morning_allocation(): 
     if "loggedin" not in session: return jsonify({'status': 'error', 'message': 'Unauthorized'})
 
     try:
         employee_id = request.form.get('employee_id')
-        date_str = request.form.get('date') # Today's Date
+        date_str = request.form.get('date') 
         
         if not employee_id or not date_str:
             return jsonify({'status': 'error', 'message': 'Missing parameters'})
 
         cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-        
-        # 1. Check if Allocation ALREADY exists for TODAY (Edit Mode)
-        # -----------------------------------------------------------
         formatted_date = parse_date(date_str).strftime('%Y-%m-%d')
         
-        cur.execute("""
-            SELECT id FROM morning_allocations 
-            WHERE employee_id = %s AND date = %s
-        """, (employee_id, formatted_date))
-        existing = cur.fetchone()
-        
-        if existing:
-            # If exists, we might return "Already Allocated" or handle Restock logic
-            # For this specific API, usually we want the OPENING stock calculation
-            pass 
-
-        # 2. HOLIDAY LOGIC: Fetch LAST Closing Stock (Opening for Today)
-        # -----------------------------------------------------------
+        # HOLIDAY LOGIC: Fetch LAST Closing Stock (Opening for Today)
         # Instead of searching for "Yesterday", search for "Last Record < Today"
         
+        # FIX: Ensure we join correctly to get the latest closing stock
         cur.execute("""
             SELECT ei.product_id, ei.remaining_qty 
             FROM evening_settle es
             JOIN evening_item ei ON es.id = ei.settle_id
             WHERE es.employee_id = %s 
-              AND es.date < %s  -- Strictly BEFORE today
+              AND es.date < %s
             AND es.id = (
-                -- Subquery to find the very last settlement ID for this employee
                 SELECT id FROM evening_settle 
                 WHERE employee_id = %s AND date < %s 
                 ORDER BY date DESC, id DESC LIMIT 1
@@ -3928,7 +3905,6 @@ def fetch_morning_allocation():
         
         last_closing_stock = cur.fetchall()
         
-        # Convert list to dictionary for easier JS handling: {product_id: qty}
         stock_map = {item['product_id']: item['remaining_qty'] for item in last_closing_stock}
 
         return jsonify({
@@ -5534,6 +5510,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
