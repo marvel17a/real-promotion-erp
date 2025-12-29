@@ -1,0 +1,55 @@
+{% extends "admin_master.html" %}
+
+{% block page_content %}
+<div class="container-fluid fade-in-up py-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h3 class="fw-bold text-dark mb-0">Draft Settlements</h3>
+            <p class="text-muted small mb-0">Incomplete evening forms</p>
+        </div>
+        <a href="{{ url_for('evening_master') }}" class="btn btn-light rounded-pill border shadow-sm px-4">
+            <i class="fa-solid fa-arrow-left me-2"></i> Back to Master
+        </a>
+    </div>
+
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light text-secondary small text-uppercase">
+                    <tr>
+                        <th class="ps-4">Date</th>
+                        <th>Employee</th>
+                        <th class="text-center">Total Amount</th>
+                        <th class="text-center">Saved At</th>
+                        <th class="text-end pe-4">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for d in drafts %}
+                    <tr>
+                        <td class="ps-4 fw-bold">{{ d.date }}</td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <img src="{{ d.emp_image }}" class="rounded-circle me-2 border" width="35" height="35">
+                                <span class="fw-bold">{{ d.emp_name }}</span>
+                            </div>
+                        </td>
+                        <td class="text-center">₹{{ "%.2f"|format(d.total_amount) }}</td>
+                        <td class="text-center text-muted small">{{ d.created_at }}</td>
+                        <td class="text-end pe-4">
+                            <!-- RESUME BUTTON -->
+                            <a href="{{ url_for('evening', draft_id=d.id) }}" class="btn btn-warning btn-sm rounded-pill px-3 shadow-sm fw-bold">
+                                Resume <i class="fa-solid fa-arrow-right ms-1"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="5" class="text-center py-5 text-muted">No drafts found.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
