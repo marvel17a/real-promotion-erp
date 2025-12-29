@@ -3477,8 +3477,9 @@ def morning():
         if db_cursor: db_cursor.close()
 
 
+
 # ---------------------------------------------------------
-# 2. EVENING SETTLEMENT (Timestamp & Holiday Logic & Finance)
+# 2. EVENING SETTLEMENT (Timestamp & Holiday Logic & Finance & Drafts)
 # ---------------------------------------------------------
 @app.route('/evening', methods=['GET', 'POST'])
 def evening():
@@ -3487,6 +3488,8 @@ def evening():
     if request.method == 'POST':
         db_cursor = None
         try:
+            status = request.form.get('status', 'final') # 'final' or 'draft'
+            
             allocation_id = request.form.get('allocation_id')
             employee_id = request.form.get('h_employee')
             # This 'h_date' is the SETTLEMENT date (Today)
@@ -3510,17 +3513,19 @@ def evening():
 
             db_cursor = mysql.connection.cursor()
 
-            # 1. Insert Evening Header
+            # 1. Insert Evening Header (Added status column handling if exists, else standard)
+            # We use a try-catch to handle if 'status' column doesn't exist in your DB yet
             try:
+                db_cursor.execute("""
+                    INSERT INTO evening_settle (allocation_id, employee_id, date, total_amount, online_money, cash_money, discount, created_at, status)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """, (allocation_id, employee_id, formatted_date, total_amount, online, cash, discount, time_str, status))
+            except:
+                # Fallback if no status column
                 db_cursor.execute("""
                     INSERT INTO evening_settle (allocation_id, employee_id, date, total_amount, online_money, cash_money, discount, created_at)
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                 """, (allocation_id, employee_id, formatted_date, total_amount, online, cash, discount, time_str))
-            except:
-                db_cursor.execute("""
-                    INSERT INTO evening_settle (allocation_id, employee_id, date, total_amount, online_money, cash_money, discount)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
-                """, (allocation_id, employee_id, formatted_date, total_amount, online, cash, discount))
             
             settle_id = db_cursor.lastrowid
 
@@ -3530,45 +3535,53 @@ def evening():
             for i, pid in enumerate(p_ids):
                 if not pid: continue
                 sold = int(s_qtys[i] or 0)
-                rem = int(t_qtys[i] or 0) - sold - int(r_qtys[i] or 0)
+                ret_qty = int(r_qtys[i] or 0)
+                rem = int(t_qtys[i] or 0) - sold - ret_qty
                 if rem < 0: rem = 0
 
-                db_cursor.execute(item_sql, (settle_id, pid, t_qtys[i], sold, r_qtys[i], prices[i], rem))
+                db_cursor.execute(item_sql, (settle_id, pid, t_qtys[i], sold, ret_qty, prices[i], rem))
                 
-                # Reduce Main Inventory
-                if sold > 0:
+                # ONLY DEDUCT STOCK IF STATUS IS 'FINAL'
+                if status == 'final' and sold > 0:
                     db_cursor.execute("UPDATE products SET stock = stock - %s WHERE id = %s", (sold, pid))
 
             # -------------------------------------------------------------
-            # 3. NEW: EMPLOYEE FINANCE INTEGRATION (Credit/Debit)
+            # 3. FINANCE INTEGRATION (Only if Final?) 
+            # Usually drafts shouldn't affect ledger, but user might want to record it.
+            # Lets allow it for now, or you can restrict with `if status == 'final':`
             # -------------------------------------------------------------
-            emp_credit_amt = request.form.get('emp_credit_amount')
-            emp_credit_note = request.form.get('emp_credit_note')
-            emp_debit_amt = request.form.get('emp_debit_amount')
-            emp_debit_note = request.form.get('emp_debit_note')
+            if status == 'final':
+                emp_credit_amt = request.form.get('emp_credit_amount')
+                emp_credit_note = request.form.get('emp_credit_note')
+                emp_debit_amt = request.form.get('emp_debit_amount')
+                emp_debit_note = request.form.get('emp_debit_note')
 
-            # Credit Transaction (Salary/Payment Received)
-            if emp_credit_amt and float(emp_credit_amt) > 0:
-                credit_note_final = emp_credit_note if emp_credit_note else "Credit Entry via Evening Settlement"
-                db_cursor.execute("""
-                    INSERT INTO employee_transactions
-                    (employee_id, transaction_date, type, amount, description, created_at)
-                    VALUES (%s, %s, 'credit', %s, %s, %s)
-                """, (employee_id, formatted_date, emp_credit_amt, credit_note_final, time_str))
+                # Credit Transaction
+                if emp_credit_amt and float(emp_credit_amt) > 0:
+                    credit_note_final = emp_credit_note if emp_credit_note else "Credit Entry via Evening Settlement"
+                    db_cursor.execute("""
+                        INSERT INTO employee_transactions
+                        (employee_id, transaction_date, type, amount, description, created_at)
+                        VALUES (%s, %s, 'credit', %s, %s, %s)
+                    """, (employee_id, formatted_date, emp_credit_amt, credit_note_final, time_str))
 
-            # Debit Transaction (Advance Given)
-            if emp_debit_amt and float(emp_debit_amt) > 0:
-                debit_note_final = emp_debit_note if emp_debit_note else "Debit Entry via Evening Settlement"
-                db_cursor.execute("""
-                    INSERT INTO employee_transactions
-                    (employee_id, transaction_date, type, amount, description, created_at)
-                    VALUES (%s, %s, 'debit', %s, %s, %s)
-                """, (employee_id, formatted_date, emp_debit_amt, debit_note_final, time_str))
-            # -------------------------------------------------------------
+                # Debit Transaction
+                if emp_debit_amt and float(emp_debit_amt) > 0:
+                    debit_note_final = emp_debit_note if emp_debit_note else "Debit Entry via Evening Settlement"
+                    db_cursor.execute("""
+                        INSERT INTO employee_transactions
+                        (employee_id, transaction_date, type, amount, description, created_at)
+                        VALUES (%s, %s, 'debit', %s, %s, %s)
+                    """, (employee_id, formatted_date, emp_debit_amt, debit_note_final, time_str))
 
             mysql.connection.commit()
-            flash("Settlement and financial records submitted successfully!", "success")
-            return redirect(url_for('evening', last_settle_id=settle_id))
+            
+            if status == 'draft':
+                flash("Draft saved successfully!", "info")
+                return redirect(url_for('evening_master')) # Redirect to Drafts/List page
+            else:
+                flash("Settlement submitted successfully!", "success")
+                return redirect(url_for('evening', last_settle_id=settle_id))
 
         except Exception as e:
             if db_cursor: mysql.connection.rollback()
@@ -3587,7 +3600,6 @@ def evening():
     cur.close()
     
     return render_template('evening.html', employees=employees, today=date.today().strftime('%d-%m-%Y'), last_settle_id=last_settle_id)
-
 
 # ---------------------------------------------------------
 # 2. API: FETCH STOCK (Holiday + Aggregated Restock)
@@ -5341,6 +5353,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
