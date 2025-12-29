@@ -38,7 +38,6 @@ document.addEventListener("DOMContentLoaded", () => {
         const timeString = now.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute:'2-digit', second:'2-digit' });
         if(ui.clockDisplay) ui.clockDisplay.textContent = timeString;
         
-        // Format for DB (YYYY-MM-DD HH:MM:SS)
         const year = now.getFullYear();
         const month = String(now.getMonth() + 1).padStart(2, '0');
         const day = String(now.getDate()).padStart(2, '0');
@@ -51,171 +50,143 @@ document.addEventListener("DOMContentLoaded", () => {
     setInterval(updateClock, 1000);
     updateClock();
 
-    // --- 2. FETCH DATA ---
+    // --- 2. FETCH STOCK ---
     async function fetchStockData() {
-        const employeeId = ui.employeeSelect.value;
-        const dateStr = ui.dateInput.value;
+        const empId = ui.employeeSelect.value;
+        const dateVal = ui.dateInput.value;
+        
+        if (!empId || !dateVal) return;
 
-        if (!employeeId || !dateStr) return;
-
-        ui.fetchMsg.innerHTML = '<span class="text-primary"><i class="fas fa-spinner fa-spin"></i> Checking...</span>';
-        if(ui.historyList) ui.historyList.innerHTML = '';
-        ui.tableBody.innerHTML = '';
+        ui.fetchMsg.classList.remove('d-none', 'alert-danger', 'alert-success');
+        ui.fetchMsg.classList.add('alert-info');
+        ui.fetchMsg.textContent = "Fetching data...";
+        
+        // Clear table except if manual rows added? No, usually clear all.
+        ui.tableBody.innerHTML = ''; 
 
         try {
-            const response = await fetch(`/api/fetch_stock?employee_id=${employeeId}&date=${dateStr}`);
+            const formData = new FormData();
+            formData.append('employee_id', empId);
+            formData.append('date', dateVal);
+
+            const response = await fetch('/api/fetch_morning_allocation', {
+                method: 'POST',
+                body: formData
+            });
             const data = await response.json();
 
-            if (data.error && response.status !== 500) {
-                isRestockMode = false;
-                ui.fetchMsg.innerHTML = '<span class="text-secondary small">Start New Allocation</span>';
-                createRow(); 
-            } else {
-                isRestockMode = (data.mode === 'restock');
+            if (data.status === 'success') {
+                const stockMap = data.opening_stock || {};
                 
-                // 1. Auto-Fill Yesterday's Remaining (Only in Normal Mode)
-                if (!isRestockMode && data.opening_stock && data.opening_stock.length > 0) {
-                    data.opening_stock.forEach(stockItem => {
-                        createRow(stockItem); 
-                    });
-                    ui.fetchMsg.innerHTML = '<span class="text-success small"><i class="fa-solid fa-check"></i> Stock Loaded</span>';
-                } else {
-                    createRow();
-                    ui.fetchMsg.innerHTML = isRestockMode ? '' : '<span class="text-secondary small">No pending stock</span>';
-                }
-
-                // 2. Restock Mode History
-                if (isRestockMode) {
-                    ui.fetchMsg.innerHTML = '<span class="badge bg-warning text-dark">Restock Mode</span>';
+                // If we have opening stock, pre-fill rows
+                if (Object.keys(stockMap).length > 0) {
+                    ui.fetchMsg.textContent = "Loaded previous closing stock.";
+                    ui.fetchMsg.classList.replace('alert-info', 'alert-success');
                     
-                    if(data.existing_items && data.existing_items.length > 0) {
-                        let historyHtml = `
-                            <div class="card border-warning mb-3 shadow-sm">
-                                <div class="card-header bg-warning bg-opacity-10 text-warning fw-bold small d-flex justify-content-between">
-                                    <span><i class="fa-solid fa-box-open"></i> CURRENT STOCK WITH EMPLOYEE</span>
-                                </div>
-                                <div class="card-body p-3 d-flex flex-wrap gap-3">
-                        `;
-                        
-                        data.existing_items.forEach(item => {
-                            historyHtml += `
-                                <div class="d-flex align-items-center border rounded p-2 pe-3 bg-white shadow-sm" style="min-width: 180px;">
-                                    <div class="img-box-small me-3" style="width:40px !important; height:40px !important; min-width:35px !important;">
-                                        <img src="${item.image}" style="width:100%; height:100%; object-fit:cover;">
-                                    </div>
-                                    <div>
-                                        <div class="fw-bold small text-dark lh-1">${item.name}</div>
-                                        <span class="badge bg-primary rounded-pill mt-1">Total: ${item.qty}</span>
-                                    </div>
-                                </div>
-                            `;
-                        });
-                        historyHtml += '</div></div>';
-                        if(ui.historyList) ui.historyList.innerHTML = historyHtml;
+                    for (const [pid, qty] of Object.entries(stockMap)) {
+                        createRow(pid, qty); 
                     }
+                } else {
+                    ui.fetchMsg.textContent = "No previous stock found. Start fresh.";
+                    ui.fetchMsg.classList.replace('alert-info', 'alert-warning');
+                    // Add one empty row to start
+                    createRow();
                 }
+            } else {
+                ui.fetchMsg.textContent = data.message;
+                ui.fetchMsg.classList.replace('alert-info', 'alert-danger');
             }
-            recalculateTotals();
-
-        } catch (error) {
-            ui.fetchMsg.innerHTML = '<span class="text-danger small">Error</span>';
-            createRow();
+        } catch (err) {
+            console.error(err);
+            ui.fetchMsg.textContent = "Error fetching data.";
         }
     }
 
-    // --- 3. ROW CREATION ---
-    function createRow(prefillData = null) {
+    // --- 3. ROW MANAGEMENT ---
+    function createRow(preSelectedPid = null, openingQty = 0) {
         const tr = document.createElement("tr");
         
-        let productId = "";
-        let openingVal = 0;
-        let priceVal = 0.00;
-        let imgSrc = DEFAULT_IMG;
-
-        if (prefillData) {
-            productId = prefillData.product_id;
-            openingVal = prefillData.remaining;
-            priceVal = prefillData.price;
-            if(prefillData.image) imgSrc = prefillData.image;
+        let imgUrl = DEFAULT_IMG;
+        let selectedHtml = productOptionsHtml;
+        
+        if (preSelectedPid) {
+            const p = productsMap.get(String(preSelectedPid));
+            if (p) {
+                imgUrl = p.image || DEFAULT_IMG;
+                // We select the option in HTML string
+                selectedHtml = selectedHtml.replace(`value="${preSelectedPid}"`, `value="${preSelectedPid}" selected`);
+            }
         }
 
+        // VALIDATION: Given Stock limited to 2 digits, not required
         tr.innerHTML = `
-            <td class="row-index ps-3 text-muted fw-bold small py-3"></td>
-            <td class="text-center" style="vertical-align: middle;">
+            <td class="ps-4 text-muted row-index"></td>
+            <td>
                 <div class="img-box-small">
-                    <img src="${imgSrc}" class="product-thumb" alt="img" onerror="this.src='${DEFAULT_IMG}'">
+                    <img src="${imgUrl}" class="img-fixed-size product-img">
                 </div>
             </td>
             <td>
-                <select name="product_id[]" class="form-select product-dropdown" required>
-                    ${productOptionsHtml}
+                <select name="product_id[]" class="form-select border-0 shadow-sm fw-bold product-dropdown" required>
+                    ${selectedHtml}
                 </select>
             </td>
-            <td><input type="number" name="opening[]" class="form-control opening" value="${openingVal}" readonly tabindex="-1"></td>
-            <td><input type="number" name="given[]" class="form-control given" min="0" placeholder="0" required></td>
-            <td><input type="number" name="total[]" class="form-control total" value="${openingVal}" readonly tabindex="-1"></td>
-            <td><input type="number" name="price[]" class="form-control price" step="0.01" value="${priceVal.toFixed(2)}" readonly tabindex="-1"></td>
-            <td><input type="number" name="amount[]" class="form-control amount text-end" value="0.00" readonly tabindex="-1"></td>
+            <td>
+                <input type="number" name="opening_stock[]" class="table-input opening" value="${openingQty}" readonly>
+            </td>
+            <td>
+                <input type="number" name="given_stock[]" class="table-input given" placeholder="0" min="0" max="99" 
+                       oninput="if(this.value.length > 2) this.value = this.value.slice(0, 2); recalculateRow(this.closest('tr'))">
+            </td>
+            <td>
+                <input type="number" name="total_stock[]" class="table-input total" value="${openingQty}" readonly>
+            </td>
             <td class="text-center">
-                <button type="button" class="btn btn-link text-danger p-0 btn-remove-row"><i class="fa-solid fa-trash-can"></i></button>
+                <button type="button" class="btn-remove-row">
+                    <i class="fa-solid fa-times"></i>
+                </button>
             </td>
         `;
         
         ui.tableBody.appendChild(tr);
-        if(productId) tr.querySelector('.product-dropdown').value = productId;
-        
         updateRowIndexes();
-        if(prefillData) recalculateRow(tr);
-    }
-
-    // --- 4. CALCULATIONS & EVENTS ---
-    function updateRowData(row, productId) {
-        const priceInput = row.querySelector(".price");
-        const img = row.querySelector(".product-thumb");
-        
-        const product = productsMap.get(productId);
-        if (product) {
-            priceInput.value = parseFloat(product.price).toFixed(2);
-            if(product.image) {
-                img.src = product.image;
-            } else {
-                img.src = DEFAULT_IMG;
-            }
-        } else {
-            img.src = DEFAULT_IMG;
-            priceInput.value = "0.00";
-        }
-        recalculateRow(row);
-    }
-
-    function recalculateRow(row) {
-        const opening = parseInt(row.querySelector(".opening").value) || 0;
-        const given = parseInt(row.querySelector(".given").value) || 0;
-        const price = parseFloat(row.querySelector(".price").value) || 0;
-
-        const total = opening + given;
-        const amount = total * price;
-
-        row.querySelector(".total").value = total;
-        row.querySelector(".amount").value = amount.toFixed(2);
-        
         recalculateTotals();
     }
 
+    // --- 4. CALCULATIONS ---
+    window.recalculateRow = function(tr) {
+        const open = parseInt(tr.querySelector(".opening").value) || 0;
+        const given = parseInt(tr.querySelector(".given").value) || 0;
+        const totalInput = tr.querySelector(".total");
+        
+        totalInput.value = open + given;
+        recalculateTotals();
+    };
+
+    function updateRowData(tr, productId) {
+        const img = tr.querySelector(".product-img");
+        if (!productId) {
+            img.src = DEFAULT_IMG;
+            return;
+        }
+        const p = productsMap.get(String(productId));
+        if (p) {
+            img.src = p.image || DEFAULT_IMG;
+        }
+    }
+
     function recalculateTotals() {
-        let tOpening = 0, tGiven = 0, tAll = 0, tGrand = 0;
-        ui.tableBody.querySelectorAll("tr").forEach(row => {
-            if(!row.querySelector(".opening")) return;
-            tOpening += parseInt(row.querySelector(".opening").value) || 0;
-            tGiven += parseInt(row.querySelector(".given").value) || 0;
-            tAll += parseInt(row.querySelector(".total").value) || 0;
-            tGrand += parseFloat(row.querySelector(".amount").value) || 0;
+        let tOpen = 0, tGiven = 0, tAll = 0;
+        
+        ui.tableBody.querySelectorAll("tr").forEach(tr => {
+            tOpen += parseInt(tr.querySelector(".opening")?.value) || 0;
+            tGiven += parseInt(tr.querySelector(".given")?.value) || 0;
+            tAll += parseInt(tr.querySelector(".total")?.value) || 0;
         });
 
-        ui.totals.opening.textContent = tOpening;
-        ui.totals.given.textContent = tGiven;
-        ui.totals.all.textContent = tAll;
-        ui.totals.grand.textContent = tGrand.toFixed(2);
+        if(ui.totals.opening) ui.totals.opening.textContent = tOpen;
+        if(ui.totals.given) ui.totals.given.textContent = tGiven;
+        if(ui.totals.all) ui.totals.all.textContent = tAll;
     }
 
     function updateRowIndexes() {
@@ -257,11 +228,6 @@ document.addEventListener("DOMContentLoaded", () => {
     document.addEventListener("keydown", function (e) {
         if (e.key === "Enter" && e.target.tagName !== "BUTTON") {
             e.preventDefault();
-            const inputs = Array.from(document.querySelectorAll("input:not([readonly]), select"));
-            const index = inputs.indexOf(e.target);
-            if (index > -1 && index < inputs.length - 1) {
-                inputs[index + 1].focus();
-            }
         }
     });
 });
