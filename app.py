@@ -3479,7 +3479,7 @@ def morning():
 
 
 # ---------------------------------------------------------
-# 2. EVENING SETTLEMENT (Timestamp & Holiday Logic & Finance & Drafts)
+# 2. EVENING SETTLEMENT (Final, Drafts, Finance)
 # ---------------------------------------------------------
 @app.route('/evening', methods=['GET', 'POST'])
 def evening():
@@ -3489,10 +3489,10 @@ def evening():
         db_cursor = None
         try:
             status = request.form.get('status', 'final') # 'final' or 'draft'
+            draft_id = request.form.get('draft_id')      # If updating an existing draft
             
             allocation_id = request.form.get('allocation_id')
             employee_id = request.form.get('h_employee')
-            # This 'h_date' is the SETTLEMENT date (Today)
             date_str = request.form.get('h_date') 
             time_str = request.form.get('timestamp') 
             
@@ -3513,23 +3513,42 @@ def evening():
 
             db_cursor = mysql.connection.cursor()
 
-            # 1. Insert Evening Header (Added status column handling if exists, else standard)
-            # We use a try-catch to handle if 'status' column doesn't exist in your DB yet
-            try:
-                db_cursor.execute("""
-                    INSERT INTO evening_settle (allocation_id, employee_id, date, total_amount, online_money, cash_money, discount, created_at, status)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-                """, (allocation_id, employee_id, formatted_date, total_amount, online, cash, discount, time_str, status))
-            except:
-                # Fallback if no status column
-                db_cursor.execute("""
-                    INSERT INTO evening_settle (allocation_id, employee_id, date, total_amount, online_money, cash_money, discount, created_at)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                """, (allocation_id, employee_id, formatted_date, total_amount, online, cash, discount, time_str))
+            # --- A. HANDLE DRAFT UPDATE vs NEW INSERT ---
+            settle_id = None
             
-            settle_id = db_cursor.lastrowid
+            if draft_id and draft_id.strip():
+                # Update existing draft
+                settle_id = draft_id
+                # 1. Update Header
+                # Try updating status column (assuming it exists, if not code will fail and go to except)
+                update_sql = """
+                    UPDATE evening_settle 
+                    SET total_amount=%s, online_money=%s, cash_money=%s, discount=%s, status=%s, created_at=%s 
+                    WHERE id=%s
+                """
+                db_cursor.execute(update_sql, (total_amount, online, cash, discount, status, time_str, settle_id))
+                
+                # 2. Delete old items (easier than updating line by line)
+                db_cursor.execute("DELETE FROM evening_item WHERE settle_id=%s", (settle_id,))
+            else:
+                # Insert New
+                # Try inserting status
+                try:
+                    db_cursor.execute("""
+                        INSERT INTO evening_settle (allocation_id, employee_id, date, total_amount, online_money, cash_money, discount, created_at, status)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    """, (allocation_id, employee_id, formatted_date, total_amount, online, cash, discount, time_str, status))
+                except:
+                    # Fallback if 'status' column missing in DB
+                    if status == 'draft': raise Exception("Database missing 'status' column. Please contact admin.")
+                    db_cursor.execute("""
+                        INSERT INTO evening_settle (allocation_id, employee_id, date, total_amount, online_money, cash_money, discount, created_at)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    """, (allocation_id, employee_id, formatted_date, total_amount, online, cash, discount, time_str))
+                
+                settle_id = db_cursor.lastrowid
 
-            # 2. Insert Items & Update Inventory
+            # --- B. INSERT ITEMS ---
             item_sql = "INSERT INTO evening_item (settle_id, product_id, total_qty, sold_qty, return_qty, unit_price, remaining_qty) VALUES (%s, %s, %s, %s, %s, %s, %s)"
             
             for i, pid in enumerate(p_ids):
@@ -3541,36 +3560,30 @@ def evening():
 
                 db_cursor.execute(item_sql, (settle_id, pid, t_qtys[i], sold, ret_qty, prices[i], rem))
                 
-                # ONLY DEDUCT STOCK IF STATUS IS 'FINAL'
+                # --- C. STOCK DEDUCTION (ONLY IF FINAL) ---
                 if status == 'final' and sold > 0:
                     db_cursor.execute("UPDATE products SET stock = stock - %s WHERE id = %s", (sold, pid))
 
-            # -------------------------------------------------------------
-            # 3. FINANCE INTEGRATION (Only if Final?) 
-            # Usually drafts shouldn't affect ledger, but user might want to record it.
-            # Lets allow it for now, or you can restrict with `if status == 'final':`
-            # -------------------------------------------------------------
+            # --- D. FINANCE INTEGRATION (ONLY IF FINAL) ---
             if status == 'final':
                 emp_credit_amt = request.form.get('emp_credit_amount')
                 emp_credit_note = request.form.get('emp_credit_note')
                 emp_debit_amt = request.form.get('emp_debit_amount')
                 emp_debit_note = request.form.get('emp_debit_note')
 
-                # Credit Transaction
+                # Credit
                 if emp_credit_amt and float(emp_credit_amt) > 0:
                     credit_note_final = emp_credit_note if emp_credit_note else "Credit Entry via Evening Settlement"
                     db_cursor.execute("""
-                        INSERT INTO employee_transactions
-                        (employee_id, transaction_date, type, amount, description, created_at)
+                        INSERT INTO employee_transactions (employee_id, transaction_date, type, amount, description, created_at)
                         VALUES (%s, %s, 'credit', %s, %s, %s)
                     """, (employee_id, formatted_date, emp_credit_amt, credit_note_final, time_str))
 
-                # Debit Transaction
+                # Debit
                 if emp_debit_amt and float(emp_debit_amt) > 0:
                     debit_note_final = emp_debit_note if emp_debit_note else "Debit Entry via Evening Settlement"
                     db_cursor.execute("""
-                        INSERT INTO employee_transactions
-                        (employee_id, transaction_date, type, amount, description, created_at)
+                        INSERT INTO employee_transactions (employee_id, transaction_date, type, amount, description, created_at)
                         VALUES (%s, %s, 'debit', %s, %s, %s)
                     """, (employee_id, formatted_date, emp_debit_amt, debit_note_final, time_str))
 
@@ -3578,7 +3591,7 @@ def evening():
             
             if status == 'draft':
                 flash("Draft saved successfully!", "info")
-                return redirect(url_for('evening_master')) # Redirect to Drafts/List page
+                return redirect(url_for('draft_evening_list')) 
             else:
                 flash("Settlement submitted successfully!", "success")
                 return redirect(url_for('evening', last_settle_id=settle_id))
@@ -3591,16 +3604,78 @@ def evening():
         finally:
             if db_cursor: db_cursor.close()
 
-    # GET Request
+    # --- GET REQUEST (Load Page or Resume Draft) ---
+    draft_id = request.args.get('draft_id')
     last_settle_id = request.args.get('last_settle_id')
+    
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    
+    # 1. Fetch Employees
     cur.execute("SELECT id, name, image FROM employees WHERE status='active' ORDER BY name")
     employees = cur.fetchall()
     for e in employees: e['image'] = resolve_img(e['image'])
+
+    # 2. Logic to Load Draft Data if draft_id provided
+    draft_data = None
+    draft_items = None
+    selected_emp_id = None
+    employee_img = None
+    
+    if draft_id:
+        # Fetch Header
+        cur.execute("SELECT * FROM evening_settle WHERE id = %s", (draft_id,))
+        draft_data = cur.fetchone()
+        
+        if draft_data:
+            selected_emp_id = draft_data['employee_id']
+            # Fetch Employee Image for UI
+            for emp in employees:
+                if str(emp['id']) == str(selected_emp_id):
+                    employee_img = emp['image']
+            
+            # Fetch Items
+            cur.execute("""
+                SELECT ei.*, p.name as product_name, p.image 
+                FROM evening_item ei 
+                JOIN products p ON ei.product_id = p.id 
+                WHERE ei.settle_id = %s
+            """, (draft_id,))
+            draft_items = cur.fetchall()
+            for item in draft_items: item['image'] = resolve_img(item['image'])
+
     cur.close()
     
-    return render_template('evening.html', employees=employees, today=date.today().strftime('%d-%m-%Y'), last_settle_id=last_settle_id)
+    return render_template('evening.html', 
+                           employees=employees, 
+                           today=date.today().strftime('%d-%m-%Y'), 
+                           last_settle_id=last_settle_id,
+                           draft_data=draft_data,
+                           draft_items=draft_items,
+                           selected_emp_id=selected_emp_id,
+                           employee_img=employee_img)
 
+# --- NEW ROUTE: DRAFT LIST PAGE ---
+@app.route('/evening/drafts')
+def draft_evening_list():
+    if "loggedin" not in session: return redirect(url_for("login"))
+    
+    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    # Check if status column exists first via try/catch in query
+    try:
+        cur.execute("""
+            SELECT s.*, e.name as emp_name, e.image as emp_image 
+            FROM evening_settle s 
+            JOIN employees e ON s.employee_id = e.id 
+            WHERE s.status = 'draft' 
+            ORDER BY s.date DESC, s.id DESC
+        """)
+        drafts = cur.fetchall()
+        for d in drafts: d['emp_image'] = resolve_img(d['emp_image'])
+    except:
+        drafts = [] # Fallback if table doesn't have status col yet
+        
+    cur.close()
+    return render_template('draft_evening.html', drafts=drafts)
 # ---------------------------------------------------------
 # 2. API: FETCH STOCK (Holiday + Aggregated Restock)
 # ---------------------------------------------------------
@@ -5353,6 +5428,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
