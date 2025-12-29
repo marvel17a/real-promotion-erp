@@ -28,17 +28,22 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     };
     
-    if (!ui.fetchButton) return;
-
-    // Check if we have draft data loaded (rows exist)
-    if (ui.tableBody.querySelectorAll('tr td.row-index').length > 0) {
-        recalculateTotals();
+    // Calculate Due automatically if data exists (e.g., resumed draft)
+    if(ui.payment.totalAmount && ui.payment.totalAmount.value > 0) {
         calculateDue();
+        recalculateTotals();
     }
+
+    if (!ui.fetchButton) return;
 
     async function fetchMorningAllocation() {
         const employeeId = ui.employeeSelect.value;
         const dateStr = ui.dateInput.value;
+
+        if(!employeeId) {
+            alert("Please select an employee first.");
+            return;
+        }
 
         ui.tableBody.innerHTML = '<tr><td colspan="9" class="text-center p-5"><div class="spinner-border text-primary"></div></td></tr>';
         
@@ -62,17 +67,20 @@ document.addEventListener("DOMContentLoaded", () => {
                 ui.hidden.employee.value = employeeId;
                 ui.hidden.date.value = dateStr;
 
-                // Build Table Rows - UPDATED ORDER
+                // Build Table Rows
                 ui.tableBody.innerHTML = '';
                 data.products.forEach((p, index) => {
                     const row = document.createElement('tr');
                     
                     // Order: #, Img, Product Name, Total, Sold, Price, Amount, Return, Left
+                    // Fix Image: Use backend URL or fallback
+                    const imgUrl = p.image && p.image !== 'None' ? p.image : '/static/img/no-img.png';
+
                     row.innerHTML = `
                         <td class="ps-4 text-muted row-index">${index + 1}</td>
                         <td>
                             <div class="img-box-small">
-                                <img src="${p.image}" class="img-fixed-size" onerror="this.src='/static/img/no-img.png'">
+                                <img src="${imgUrl}" class="img-fixed-size" onerror="this.src='/static/img/no-img.png'">
                             </div>
                         </td>
                         <td class="fw-bold text-dark">
@@ -104,7 +112,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         } catch (error) {
             console.error("Error:", error);
-            ui.tableBody.innerHTML = `<tr><td colspan="9" class="text-center p-5 text-danger">Error fetching data.</td></tr>`;
+            ui.tableBody.innerHTML = `<tr><td colspan="9" class="text-center p-5 text-danger">Network Error or Server Issue.</td></tr>`;
         }
     }
 
@@ -113,23 +121,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const rows = ui.tableBody.querySelectorAll('tr');
         rows.forEach(row => {
-            const total = parseInt(row.querySelector('.total-qty')?.value) || 0;
-            const price = parseFloat(row.querySelector('.unit-price')?.value) || 0;
-            
-            const soldInput = row.querySelector('.sold');
-            const returnInput = row.querySelector('.return');
-            
-            if(!soldInput) return; // Skip if not a data row
+            if(!row.querySelector('.sold')) return;
 
-            let sold = parseInt(soldInput.value) || 0;
-            let ret = parseInt(returnInput.value) || 0;
-
-            // Logic: Remaining = Total - Sold - Return
-            // Prevent negative logic: usually Sold + Return <= Total
-            // Auto adjust logic could go here, keeping simple for now
+            const total = parseInt(row.querySelector('.total-qty').value) || 0;
+            const price = parseFloat(row.querySelector('.unit-price').value) || 0;
             
+            let sold = parseInt(row.querySelector('.sold').value) || 0;
+            let ret = parseInt(row.querySelector('.return').value) || 0;
+
             let remain = total - sold - ret;
-            if (remain < 0) remain = 0; // Prevent negative stock
+            if (remain < 0) remain = 0; 
 
             // Update row display
             row.querySelector('.remaining-qty').textContent = remain;
@@ -184,7 +185,6 @@ document.addEventListener("DOMContentLoaded", () => {
         if(el) el.addEventListener('input', calculateDue);
     });
 
-    // Disable Enter Key submitting form, move focus instead?
     document.addEventListener("keydown", function (e) {
         if (e.key === "Enter" && e.target.tagName !== "BUTTON") {
             e.preventDefault();
