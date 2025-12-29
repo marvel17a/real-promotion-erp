@@ -3589,7 +3589,6 @@ def evening():
     return render_template('evening.html', employees=employees, today=date.today().strftime('%d-%m-%Y'), last_settle_id=last_settle_id)
 
 
-
 # ---------------------------------------------------------
 # 2. API: FETCH STOCK (Holiday + Aggregated Restock)
 # ---------------------------------------------------------
@@ -5342,6 +5341,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
