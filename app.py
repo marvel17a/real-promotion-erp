@@ -4177,41 +4177,119 @@ def edit_morning_allocation(allocation_id):
             db_cursor.close()
 
 
-
-# =========================================================
-#  PHASE 2: ADMIN EVENING SETTLEMENT MANAGER
-# =========================================================
-@app.route('/admin/evening_master')
-def admin_evening_master():
+# ---------------------------------------------------------
+# 3. EVENING MASTER (History & Drafts) - WITH FILTERS
+# ---------------------------------------------------------
+@app.route('/evening/master')
+def evening_master():
     if "loggedin" not in session: return redirect(url_for("login"))
+    
+    # Get Filter Parameters
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    employee_id = request.args.get('employee_id')
+
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    # 1. Base Query for FINAL Settlements
+    # Note: We join employees to get names
+    query = """
+        SELECT s.*, e.name as emp_name, e.image as emp_image 
+        FROM evening_settle s 
+        JOIN employees e ON s.employee_id = e.id 
+        WHERE 1=1 
+    """
+    params = []
+
+    # Apply Filters
+    if start_date:
+        query += " AND s.date >= %s"
+        params.append(parse_date(start_date).strftime('%Y-%m-%d'))
     
-    start = request.args.get('start_date', date.today().isoformat())
-    end = request.args.get('end_date', date.today().isoformat())
-    emp = request.args.get('employee_id')
+    if end_date:
+        query += " AND s.date <= %s"
+        params.append(parse_date(end_date).strftime('%Y-%m-%d'))
+
+    if employee_id and employee_id != 'all':
+        query += " AND s.employee_id = %s"
+        params.append(employee_id)
     
-    # Updated query to potentially fetch timestamp if available
-    sql = "SELECT es.*, e.name as emp_name FROM evening_settle es JOIN employees e ON es.employee_id=e.id WHERE es.date BETWEEN %s AND %s"
-    p = [start, end]
-    if emp and emp != 'all':
-        sql += " AND es.employee_id=%s"
-        p.append(emp)
-    sql += " ORDER BY es.date DESC"
+    # Exclude drafts from main list (handled in draft page)
+    # Check if 'status' column exists first (prevent crash)
+    try:
+        cur.execute("SHOW COLUMNS FROM evening_settle LIKE 'status'")
+        if cur.fetchone():
+            query += " AND (s.status = 'final' OR s.status IS NULL)"
+    except:
+        pass # If check fails, assume all are final or legacy
+
+    query += " ORDER BY s.date DESC, s.id DESC"
     
-    cur.execute(sql, tuple(p))
+    cur.execute(query, tuple(params))
     settlements = cur.fetchall()
+
+    # Format Data for View
+    for s in settlements:
+        if isinstance(s['date'], (date, datetime)):
+            s['formatted_date'] = s['date'].strftime('%d-%m-%Y')
+        else:
+             # Handle if it's a string
+             try: s['formatted_date'] = datetime.strptime(str(s['date']), '%Y-%m-%d').strftime('%d-%m-%Y')
+             except: s['formatted_date'] = str(s['date'])
+             
+        s['due_amount'] = float(s['total_amount']) - (float(s['online_money']) + float(s['cash_money']) + float(s['discount']))
+
+    # 2. Stats Calculation (Filtered)
+    stats = {'sales': 0, 'cash': 0, 'online': 0}
+    for s in settlements:
+        stats['sales'] += float(s['total_amount'])
+        stats['cash'] += float(s['cash_money'])
+        stats['online'] += float(s['online_money'])
+
+    # 3. Fetch Employees for Filter Dropdown
+    cur.execute("SELECT id, name FROM employees WHERE status='active' ORDER BY name")
+    employees = cur.fetchall()
     
-    cur.execute("SELECT id, name FROM employees")
-    emps = cur.fetchall()
     cur.close()
-    
-    stats = {
-        'sales': sum(x['total_amount'] for x in settlements),
-        'cash': sum(x['cash_money'] for x in settlements),
-        'online': sum(x['online_money'] for x in settlements)
-    }
-    
-    return render_template('admin/evening_master.html', settlements=settlements, employees=emps, stats=stats, filters={'start':start, 'end':end, 'emp':emp})
+
+    return render_template('admin/evening_master.html', 
+                           settlements=settlements, 
+                           stats=stats, 
+                           employees=employees,
+                           filters={'start': start_date, 'end': end_date, 'emp': employee_id})
+        # 3. Fetch Products
+        # CORRECT TABLE: morning_allocation_items
+        query = """
+            SELECT 
+                p.id, 
+                p.name, 
+                p.image, 
+                p.price,
+                (COALESCE(mai.opening_qty, 0) + COALESCE(mai.given_qty, 0)) as total_qty
+            FROM morning_allocation_items mai
+            JOIN products p ON mai.product_id = p.id
+            WHERE mai.allocation_id = %s
+            HAVING total_qty > 0
+        """
+        cur.execute(query, (alloc_id,))
+        products = cur.fetchall()
+        
+        for p in products:
+            p['image'] = resolve_img(p['image'])
+            p['price'] = float(p['price'])
+            p['total_qty'] = int(p['total_qty'])
+
+        return jsonify({
+            'status': 'success',
+            'allocation_id': alloc_id,
+            'products': products
+        })
+
+    except Exception as e:
+        app.logger.error(f"Fetch Error: {e}")
+        return jsonify({'status': 'error', 'message': str(e)})
+    finally:
+        if 'cur' in locals(): cur.close()
 
 
 
@@ -5526,6 +5604,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
