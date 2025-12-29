@@ -8,18 +8,15 @@ document.addEventListener("DOMContentLoaded", () => {
         tableBody: document.querySelector("#productTable tbody"),
         addRowBtn: getEl("addRow"),
         fetchMsg: getEl("fetchMsg"),
-        historyList: getEl("historyList"),
         totals: {
             opening: getEl("totalOpening"),
             given: getEl("totalGiven"),
-            all: getEl("totalAll"),
-            grand: getEl("grandTotal")
+            all: getEl("totalAll")
         }
     };
 
     if (!ui.employeeSelect || !ui.tableBody) return;
 
-    let isRestockMode = false;
     const productsData = window.productsData || [];
     const productsMap = new Map();
     const DEFAULT_IMG = "https://via.placeholder.com/50?text=Img";
@@ -61,7 +58,6 @@ document.addEventListener("DOMContentLoaded", () => {
         ui.fetchMsg.classList.add('alert-info');
         ui.fetchMsg.textContent = "Fetching data...";
         
-        // Clear table except if manual rows added? No, usually clear all.
         ui.tableBody.innerHTML = ''; 
 
         try {
@@ -78,7 +74,6 @@ document.addEventListener("DOMContentLoaded", () => {
             if (data.status === 'success') {
                 const stockMap = data.opening_stock || {};
                 
-                // If we have opening stock, pre-fill rows
                 if (Object.keys(stockMap).length > 0) {
                     ui.fetchMsg.textContent = "Loaded previous closing stock.";
                     ui.fetchMsg.classList.replace('alert-info', 'alert-success');
@@ -89,7 +84,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 } else {
                     ui.fetchMsg.textContent = "No previous stock found. Start fresh.";
                     ui.fetchMsg.classList.replace('alert-info', 'alert-warning');
-                    // Add one empty row to start
                     createRow();
                 }
             } else {
@@ -113,7 +107,6 @@ document.addEventListener("DOMContentLoaded", () => {
             const p = productsMap.get(String(preSelectedPid));
             if (p) {
                 imgUrl = p.image || DEFAULT_IMG;
-                // We select the option in HTML string
                 selectedHtml = selectedHtml.replace(`value="${preSelectedPid}"`, `value="${preSelectedPid}" selected`);
             }
         }
