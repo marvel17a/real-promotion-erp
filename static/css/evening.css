@@ -1,103 +1,194 @@
-/* --- Google Font --- */
-@import url(&#39;https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&amp;display=swap&#39;);
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap');
 
-/\* --- General Body & Theme Styles --- */
+:root {
+    --primary-color: #0f172a;
+    --text-dark: #1e293b;
+    --text-light: #64748b;
+    --bg-light: #f1f5f9;
+    --red-bold: #dc2626;
+    --green-bold: #16a34a;
+    --glass-bg: rgba(255, 255, 255, 0.95);
+    --border-color: #e2e8f0;
+}
+
 body {
-font-family: 'Poppins', sans-serif;
-background-color: \#f4f7f6; /* A soft, light gray background \*/
+    font-family: 'Manrope', sans-serif;
+    background-color: #f8fafc;
+    color: var(--text-dark);
 }
 
-.card {
-border: none;
-border-radius: 0.75rem;
-transition: all 0.3s ease-in-out;
+/* Glass Panel */
+.glass-panel {
+    background: var(--glass-bg);
+    backdrop-filter: blur(12px);
+    border: 1px solid #fff;
+    border-radius: 20px;
+    box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.05);
 }
 
-.card-header {
-border-bottom: 0;
-background-color: \#f8f9fa;
-border-top-left-radius: 0.75rem;
-border-top-right-radius: 0.75rem;
+/* --- TABLE STYLES --- */
+.custom-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
 }
 
-.form-control, .form-select {
-border-radius: 0.5rem;
+.custom-table thead th {
+    background: #f1f5f9;
+    color: #475569;
+    font-weight: 800;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    padding: 1rem;
+    letter-spacing: 0.5px;
+    border-bottom: 2px solid #cbd5e1;
 }
 
-.form-control:focus, .form-select:focus {
-border-color: \#4f46e5;
-box-shadow: 0 0 0 0.25rem rgba(79, 70, 229, 0.25);
+.custom-table tbody td {
+    padding: 1rem;
+    vertical-align: middle;
+    font-weight: 600;
+    border-bottom: 1px solid #f1f5f9;
 }
 
-/\* --- Table Styles --- */
-\#productTable thead {
-/* A vibrant gradient for the header \*/
-background: linear-gradient(45deg, \#4f46e5, \#7c3aed);
-color: white;
-vertical-align: middle;
+/* Highlighted Total Box (Orange/Yellow) */
+.total-box {
+    background: #fff7ed;
+    color: #c2410c;
+    border: 1px solid #ffedd5;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-weight: 800;
+    display: inline-block;
+    min-width: 45px;
+    text-align: center;
 }
 
-\#productTable th {
-padding: 0.9rem 0.75rem;
+/* Table Inputs */
+.table-input {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 8px;
+    text-align: center;
+    font-weight: 700;
+    width: 80px;
+    transition: all 0.2s;
+}
+.table-input:focus {
+    background: #fff;
+    border-color: #3b82f6;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
-\#productTable tbody tr:nth-child(even) {
-background-color: \#f8f9fa; /\* Zebra striping for readability \*/
+/* Footer Row */
+.table-footer {
+    background: #1e293b;
+    color: #fff;
+}
+.table-footer td {
+    padding: 1.2rem 1rem;
+    font-weight: 800;
+    font-size: 1rem;
 }
 
-\#productTable tbody tr:hover {
-background-color: \#e9ecef; /\* Hover effect for rows \*/
-cursor: pointer;
+/* --- FINANCE & COLLECTION SECTIONS --- */
+.finance-section-title {
+    font-size: 1.1rem;
+    font-weight: 800;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--text-dark);
+    border-bottom: 2px solid #f1f5f9;
+    padding-bottom: 10px;
 }
 
-\#productTable td {
-padding: 0.75rem;
-vertical-align: middle;
+/* Vertical Row Layout */
+.finance-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    padding: 12px 15px;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    transition: transform 0.2s;
+}
+.finance-row:hover {
+    transform: translateX(5px);
+    border-color: #cbd5e1;
 }
 
-\#productTable .form-control-sm {
-text-align: center;
-font-weight: 500;
+.finance-label {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
-\#productTable .sold-qty {
-font-weight: 600;
-color: \#1d4ed8; /\* Make the sold quantity stand out \*/
+.finance-input-wrapper {
+    width: 140px;
+    text-align: right;
 }
 
-\#productTable .remaining-qty {
-color: \#166534; /\* Green for remaining stock \*/
+.finance-input-field {
+    width: 100%;
+    border: none;
+    background: transparent;
+    text-align: right;
+    font-weight: 800;
+    font-size: 1.1rem;
+    color: #0f172a;
+    padding: 0;
+}
+.finance-input-field:focus { outline: none; }
+.finance-input-field::placeholder { color: #cbd5e1; }
+
+/* Specific Colors requested */
+.text-credit { color: var(--red-bold) !important; } /* Red for Credit */
+.text-debit { color: var(--green-bold) !important; } /* Green for Debit */
+
+/* Balance Due Special Styling */
+.balance-row {
+    margin-top: 20px;
+    background: #fef2f2; /* Light Red BG */
+    border: 2px dashed #fecaca;
+}
+.balance-label {
+    color: #ef4444;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+.balance-value {
+    color: #dc2626; /* Strong Red */
+    font-size: 1.5rem;
+    font-weight: 900;
 }
 
-\#productTable .row-amount {
-color: \#be123c; /\* A distinct color for the amount \*/
+/* Helper for Note inputs */
+.note-input {
+    font-size: 0.8rem;
+    border: none;
+    background: transparent;
+    border-bottom: 1px solid #e2e8f0;
+    width: 100%;
+    margin-top: 5px;
+    color: #64748b;
 }
+.note-input:focus { outline: none; border-bottom-color: #94a3b8; }
 
-/\* --- Payment Settlement Section --- \*/
-.payment-input {
-font-size: 1.1rem;
-font-weight: 500;
+/* Image */
+.user-img-box {
+    width: 70px;
+    height: 70px;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
 }
-
-\#due\_amount {
-font-size: 1.25rem;
-font-weight: 600;
-text-align: center;
-}
-
-/\* --- Buttons --- \*/
-.btn-primary {
-background-color: \#4f46e5;
-border-color: \#4f46e5;
-padding: 0.75rem 1.5rem;
-font-weight: 600;
-border-radius: 0.5rem;
-transition: all 0.2s ease-in-out;
-}
-
-.btn-primary:hover {
-background-color: \#4338ca;
-border-color: \#4338ca;
-transform: translateY(-2px);
-box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-}
+.user-img-box img { width: 100%; height: 100%; object-fit: cover; }
