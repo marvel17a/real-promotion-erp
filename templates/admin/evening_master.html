@@ -8,6 +8,48 @@
             <h3 class="fw-bold text-dark mb-0">Evening Settlements</h3>
             <p class="text-muted small mb-0">Admin Control Panel</p>
         </div>
+        <div>
+             <a href="{{ url_for('evening') }}" class="btn btn-dark rounded-pill shadow px-4">
+                <i class="fa-solid fa-plus me-2"></i>New Settlement
+            </a>
+        </div>
+    </div>
+
+    <!-- DRAFTS SECTION (Only show if drafts exist) -->
+    <!-- You will need to filter this in your route logic, but here is the UI -->
+    <div class="card glass-card border-0 mb-5 shadow-sm">
+        <div class="card-header bg-warning bg-opacity-10 border-0 p-3">
+             <h5 class="fw-bold text-warning-emphasis mb-0"><i class="fa-regular fa-file-lines me-2"></i>Drafts</h5>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light">
+                    <tr>
+                        <th class="ps-4">Date</th>
+                        <th>Employee</th>
+                        <th>Status</th>
+                        <th class="text-end pe-4">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for s in settlements if s.status == 'draft' %}
+                    <tr>
+                        <td class="ps-4">{{ s.date }}</td>
+                        <td class="fw-bold">{{ s.emp_name }}</td>
+                        <td><span class="badge bg-warning text-dark">Draft</span></td>
+                        <td class="text-end pe-4">
+                            <!-- Link to Edit Page to Resume Draft -->
+                            <a href="{{ url_for('admin_edit_evening', settle_id=s.id) }}" class="btn btn-sm btn-primary rounded-pill px-3">
+                                Resume <i class="fa-solid fa-arrow-right ms-1"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="4" class="text-center text-muted small py-3">No drafts found.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
 
     <!-- Stats Cards -->
@@ -32,55 +74,39 @@
         </div>
     </div>
 
-    <!-- Filters -->
-    <div class="card glass-card border-0 mb-4 p-3 shadow-sm">
-        <form method="GET" class="row g-3 align-items-end">
-            <div class="col-md-3">
-                <label class="small fw-bold text-secondary">Start Date</label>
-                <input type="date" name="start_date" class="form-control" value="{{ filters.start }}">
-            </div>
-            <div class="col-md-3">
-                <label class="small fw-bold text-secondary">End Date</label>
-                <input type="date" name="end_date" class="form-control" value="{{ filters.end }}">
-            </div>
-            <div class="col-md-3">
-                <label class="small fw-bold text-secondary">Employee</label>
-                <select name="employee_id" class="form-select">
-                    <option value="all">All Employees</option>
-                    {% for e in employees %}
-                    <option value="{{ e.id }}" {% if filters.emp == e.id|string %}selected{% endif %}>{{ e.name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-md-3">
-                <button type="submit" class="btn btn-dark w-100"><i class="fa-solid fa-filter me-2"></i> Filter</button>
-            </div>
-        </form>
-    </div>
-
-    <!-- Table -->
+    <!-- MAIN HISTORY TABLE -->
     <div class="card glass-card border-0 shadow-sm">
+        <div class="card-header bg-white border-0 p-3">
+            <h5 class="fw-bold text-dark mb-0">History</h5>
+        </div>
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
                 <thead class="bg-light text-secondary small text-uppercase">
                     <tr>
                         <th class="ps-4">Date</th>
                         <th>Employee</th>
-                        <th>Sales</th>
-                        <th>Cash</th>
-                        <th>Online</th>
+                        <th class="text-center">Total</th>
+                        <th class="text-center">Cash</th>
+                        <th class="text-center">Online</th>
                         <th>Due</th>
                         <th class="text-end pe-4">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for s in settlements %}
+                    {% for s in settlements if s.status != 'draft' %}
                     <tr>
-                        <td class="ps-4 fw-bold text-muted">{{ s.date }}</td>
-                        <td><span class="fw-bold text-primary">{{ s.emp_name }}</span></td>
-                        <td class="fw-bold">₹{{ "%.0f"|format(s.total_amount) }}</td>
-                        <td class="text-success">₹{{ "%.0f"|format(s.cash_money) }}</td>
-                        <td class="text-info">₹{{ "%.0f"|format(s.online_money) }}</td>
+                        <td class="ps-4 fw-bold">{{ s.date }}</td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div style="width: 35px; height: 35px; border-radius: 50%; overflow: hidden;" class="me-2 bg-light border">
+                                    <img src="{{ s.emp_image }}" style="width:100%; height:100%; object-fit:cover;">
+                                </div>
+                                <span>{{ s.emp_name }}</span>
+                            </div>
+                        </td>
+                        <td class="text-center fw-bold">₹{{ "%.0f"|format(s.total_amount) }}</td>
+                        <td class="text-center text-success">₹{{ "%.0f"|format(s.cash_money) }}</td>
+                        <td class="text-center text-info">₹{{ "%.0f"|format(s.online_money) }}</td>
                         <td>
                             {% if s.due_amount > 1 %}
                                 <span class="badge bg-danger-subtle text-danger">₹{{ "%.0f"|format(s.due_amount) }}</span>
@@ -97,7 +123,7 @@
                         </td>
                     </tr>
                     {% else %}
-                    <tr><td colspan="7" class="text-center py-5 text-muted">No records.</td></tr>
+                    <tr><td colspan="7" class="text-center py-5 text-muted">No submitted records found.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
