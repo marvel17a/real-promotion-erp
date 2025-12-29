@@ -1,91 +1,44 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+body { font-family:'Poppins',sans-serif; background:#f8f9fa; }
 
-body {
-    font-family: 'Inter', sans-serif;
-}
-
-/* Glass Card */
-.glass-card {
-    background: rgba(255,255,255,0.85);
-    backdrop-filter: blur(14px);
-    border-radius: 18px;
-    padding: 20px;
-    box-shadow: 0 8px 25px rgba(0,0,0,0.08);
-}
-
-.section-title {
-    font-weight: 800;
-    margin-bottom: 16px;
-    display: flex;
-    gap: 10px;
-    align-items: center;
-}
-
-/* Finance */
-.finance-box {
-    margin-bottom: 18px;
-}
-
-.finance-header {
-    font-weight: 800;
-    padding: 8px 12px;
-    border-radius: 10px;
-    margin-bottom: 8px;
-}
-
-.finance-header.credit {
-    background: #ffe5e5;
-    color: #c62828;
-}
-
-.finance-header.debit {
-    background: #e8f5e9;
-    color: #2e7d32;
-}
-
-.finance-input {
-    font-weight: 700;
-    margin-bottom: 6px;
-}
-
-/* Settlement */
-.settlement-row {
-    display: flex;
-    justify-content: space-between;
-    font-weight: 700;
-    padding: 10px 0;
-    border-bottom: 1px dashed #ddd;
-}
-
-.balance-due {
-    font-size: 1.4rem;
-    color: red;
-    font-weight: 900;
-}
-
-/* Summary Row */
 .summary-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit,minmax(120px,1fr));
-    gap: 12px;
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
+    gap:12px;
+    padding:12px;
 }
-
 .summary-box {
-    padding: 14px;
-    border-radius: 14px;
-    text-align: center;
-    font-weight: 800;
+    border-radius:14px;
+    padding:14px;
+    text-align:center;
+    font-weight:700;
 }
-
 .summary-box.total { background:#e3f2fd; }
 .summary-box.sold { background:#e8f5e9; }
-.summary-box.returned { background:#ffebee; }
-.summary-box.left { background:#fffde7; }
 .summary-box.amount { background:#ede7f6; }
+.summary-box.return { background:#ffebee; }
+.summary-box.remain { background:#fffde7; }
 
-/* Responsive */
-@media(max-width:768px){
-    .summary-grid {
-        grid-template-columns: 1fr 1fr;
-    }
+.finance-panel label { font-weight:700; }
+.finance-box { margin-bottom:16px; }
+.finance-box.credit { background:#ffe5e5; padding:12px; border-radius:12px; }
+.finance-box.debit { background:#e8f5e9; padding:12px; border-radius:12px; }
+
+.finance-box input {
+    width:100%;
+    border:none;
+    margin-top:6px;
+    padding:8px;
+    border-radius:8px;
+}
+
+.settlement-row {
+    display:flex;
+    justify-content:space-between;
+    margin-bottom:12px;
+    font-weight:700;
+}
+.balance-due {
+    color:red;
+    font-size:1.6rem;
+    font-weight:900;
 }
