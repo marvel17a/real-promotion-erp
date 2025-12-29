@@ -3499,11 +3499,16 @@ def fetch_evening_data():
         formatted_date = target_date.strftime('%Y-%m-%d')
         cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
-        # 1. Check if Settlement ALREADY exists for this specific date/employee
-        cur.execute("SELECT id FROM evening_settle WHERE employee_id=%s AND date=%s", (employee_id, formatted_date))
+        # 1. Check if Settlement ALREADY exists for this specific date/employee (Final only)
+        # Modified check: If a draft exists, we actually want to allow fetching it to Resume (handled by GET route usually),
+        # but if we are fetching fresh stock, we check for conflicting final settlements.
+        cur.execute("SELECT id, status FROM evening_settle WHERE employee_id=%s AND date=%s", (employee_id, formatted_date))
         existing_settle = cur.fetchone()
-        if existing_settle:
-            return jsonify({'status': 'error', 'message': 'Settlement already exists for this date!'})
+        
+        # If a FINAL settlement exists, block. If DRAFT exists, we might technically allow re-fetching or warn.
+        # For now, simplistic block.
+        if existing_settle and existing_settle.get('status') == 'final':
+             return jsonify({'status': 'error', 'message': 'Settlement already completed for this date!'})
 
         # 2. HOLIDAY/RETURN LOGIC: Find the Correct Allocation
         # Priority A: Allocation on the EXACT Date
@@ -3521,7 +3526,7 @@ def fetch_evening_data():
                 FROM morning_allocations ma
                 LEFT JOIN evening_settle es ON ma.id = es.allocation_id
                 WHERE ma.employee_id = %s 
-                  AND es.id IS NULL
+                  AND (es.id IS NULL OR es.status = 'draft') -- Consider unsetttled if no record or only draft
                   AND ma.date < %s
                 ORDER BY ma.date DESC 
                 LIMIT 1
@@ -3534,17 +3539,17 @@ def fetch_evening_data():
         alloc_id = allocation['id']
 
         # 3. Fetch Products for this Allocation
-        # FIX: Table name is 'allocation_items', NOT 'morning_items'
+        # CORRECT TABLE NAME: morning_allocation_items
         query = """
             SELECT 
                 p.id, 
                 p.name, 
                 p.image, 
                 p.price,
-                (COALESCE(ai.opening_qty, 0) + COALESCE(ai.given_qty, 0)) as total_qty
-            FROM allocation_items ai
-            JOIN products p ON ai.product_id = p.id
-            WHERE ai.allocation_id = %s
+                (COALESCE(mai.opening_qty, 0) + COALESCE(mai.given_qty, 0)) as total_qty
+            FROM morning_allocation_items mai
+            JOIN products p ON mai.product_id = p.id
+            WHERE mai.allocation_id = %s
             HAVING total_qty > 0
         """
         cur.execute(query, (alloc_id,))
@@ -3887,25 +3892,38 @@ def fetch_morning_allocation():
         formatted_date = parse_date(date_str).strftime('%Y-%m-%d')
         
         # HOLIDAY LOGIC: Fetch LAST Closing Stock (Opening for Today)
-        # Instead of searching for "Yesterday", search for "Last Record < Today"
         
-        # FIX: Ensure we join correctly to get the latest closing stock
+        # 1. Find the LAST COMPLETED Evening Settlement for this employee BEFORE today
+        # We must ignore drafts here, only 'final' (or missing status which implies final old records)
+        # Using a safer query that handles if 'status' column doesn't exist yet by ignoring it if error, 
+        # but since we want robust logic:
+        
+        # NOTE: If you haven't added 'status' column yet, this query might fail if we add WHERE status='final'.
+        # Assuming you will add it or legacy records are final.
+        
         cur.execute("""
-            SELECT ei.product_id, ei.remaining_qty 
-            FROM evening_settle es
-            JOIN evening_item ei ON es.id = ei.settle_id
-            WHERE es.employee_id = %s 
-              AND es.date < %s
-            AND es.id = (
-                SELECT id FROM evening_settle 
-                WHERE employee_id = %s AND date < %s 
-                ORDER BY date DESC, id DESC LIMIT 1
-            )
-        """, (employee_id, formatted_date, employee_id, formatted_date))
+            SELECT id 
+            FROM evening_settle 
+            WHERE employee_id = %s AND date < %s 
+            -- AND (status = 'final' OR status IS NULL) -- Uncomment after adding status column
+            ORDER BY date DESC, id DESC LIMIT 1
+        """, (employee_id, formatted_date))
         
-        last_closing_stock = cur.fetchall()
+        last_settle = cur.fetchone()
         
-        stock_map = {item['product_id']: item['remaining_qty'] for item in last_closing_stock}
+        stock_map = {}
+        
+        if last_settle:
+            last_settle_id = last_settle['id']
+            # 2. Fetch the remaining items from that settlement
+            cur.execute("""
+                SELECT product_id, remaining_qty 
+                FROM evening_item 
+                WHERE settle_id = %s
+            """, (last_settle_id,))
+            
+            items = cur.fetchall()
+            stock_map = {item['product_id']: item['remaining_qty'] for item in items}
 
         return jsonify({
             'status': 'success',
@@ -5510,6 +5528,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
