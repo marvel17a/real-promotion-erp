@@ -7,7 +7,7 @@
 
 <div class="glass-container fade-in-up mb-5">
 
-    <!-- Header -->
+    <!-- Header (Clock Removed from here) -->
     <div class="glass-header text-center mb-4 p-4 position-relative">
         <h1 class="company-name text-gradient fw-bold mb-1">REAL PROMOTION</h1>
         <p class="since-text text-secondary mb-2 small letter-spacing-2">SINCE 2005</p>
@@ -15,24 +15,21 @@
             <i class="fa-solid fa-location-dot text-primary me-1"></i>
             Real Promotion, G/12, Tulsimangalam Complex, B/h. Trimurti Complex, Ghodiya Bazar, Nadiad-387001, Gujarat, India
         </div>
-        <!-- Digital Clock -->
-        <div class="position-absolute top-0 end-0 p-3">
-            <div class="badge bg-white text-dark shadow-sm p-2 rounded-pill border">
-                <i class="fa-regular fa-clock me-1 text-primary"></i> <span id="liveClock" class="fw-bold font-monospace">00:00:00</span>
-            </div>
-        </div>
     </div>
 
     <!-- Main Card -->
     <div class="glass-panel p-4 mb-4">
         
-        <div class="row align-items-end g-3 mb-4">
-            <div class="col-md-4">
+        <!-- TOP CONTROLS ROW -->
+        <div class="row align-items-end g-2 mb-4">
+            
+            <!-- 1. Employee Select -->
+            <div class="col-md-3">
                 <label class="form-label fw-bold text-muted small text-uppercase">Select Employee</label>
                 <div class="input-group shadow-sm rounded-3 overflow-hidden">
                     <span class="input-group-text bg-white border-0"><i class="fa-solid fa-user-tie text-primary"></i></span>
                     <select id="employee" class="form-select border-0 py-2">
-                        <option value="">-- Choose Employee --</option>
+                        <option value="">-- Choose --</option>
                         {% for emp in employees %}
                         <option value="{{ emp.id }}" data-img="{{ emp.image }}">{{ emp.name }}</option>
                         {% endfor %}
@@ -40,6 +37,7 @@
                 </div>
             </div>
             
+            <!-- 2. Date Input -->
             <div class="col-md-3">
                 <label class="form-label fw-bold text-muted small text-uppercase">Date</label>
                 <div class="input-group shadow-sm rounded-3 overflow-hidden">
@@ -48,16 +46,28 @@
                 </div>
             </div>
 
+            <!-- 3. Live Clock (Next to Date) -->
             <div class="col-md-2">
-                 <div class="img-box-small shadow-sm">
-                    <img id="empPhoto" src="{{ url_for('static', filename='img/default-user.png') }}" class="img-fluid img-fixed-size" alt="User">
+                <label class="form-label fw-bold text-muted small text-uppercase">Time</label>
+                <div class="bg-white shadow-sm rounded-3 py-2 px-3 text-center border">
+                     <i class="fa-regular fa-clock me-1 text-primary small"></i> 
+                     <span id="liveClock" class="fw-bold font-monospace small">00:00:00</span>
                 </div>
             </div>
             
-            <div class="col-md-3 text-end">
-                <button id="btnFetch" class="btn btn-gradient-primary w-100 py-2 shadow fw-bold rounded-pill">
-                    <i class="fa-solid fa-download me-2"></i> Fetch Stock
+            <!-- 4. Fetch Button (After Clock) -->
+            <div class="col-md-2">
+                <label class="form-label d-block text-transparent small">Action</label>
+                <button id="btnFetch" class="btn btn-gradient-primary w-100 py-2 shadow fw-bold rounded-3">
+                    <i class="fa-solid fa-download me-1"></i> Fetch
                 </button>
+            </div>
+
+            <!-- 5. Profile Photo (Kept as requested) -->
+            <div class="col-md-2">
+                 <div class="img-box-small shadow-sm ms-auto">
+                    <img id="empPhoto" src="{{ url_for('static', filename='img/default-user.png') }}" class="img-fluid img-fixed-size" alt="User">
+                </div>
             </div>
         </div>
 
@@ -69,17 +79,17 @@
             <input type="hidden" name="h_date" id="h_date">
             <input type="hidden" name="timestamp" id="timestampInput">
 
-            <!-- Stock Table -->
+            <!-- Stock Table (Unchanged) -->
             <div class="table-responsive rounded-4 shadow-sm mb-4 bg-white">
                 <table class="table table-hover align-middle mb-0" id="stockTable">
                     <thead class="bg-light text-secondary small text-uppercase">
                         <tr>
-                            <th class="ps-4" style="width: 60px;">#</th>
-                            <th style="width: 80px;">Img</th>
+                            <th class="ps-4" style="width: 50px;">#</th>
+                            <th style="width: 60px;">Img</th>
                             <th>Product Name</th>
                             <th class="text-center bg-warning bg-opacity-10 text-dark">Total</th>
-                            <th class="text-center" style="width: 120px;">Sold</th>
-                            <th class="text-center" style="width: 120px;">Return</th>
+                            <th class="text-center" style="width: 100px;">Sold</th>
+                            <th class="text-center" style="width: 100px;">Return</th>
                             <th class="text-center text-muted">Left</th>
                             <th class="text-end">Price</th>
                             <th class="text-end pe-4 fw-bold text-primary">Amount</th>
@@ -102,10 +112,52 @@
                 </table>
             </div>
 
-            <!-- Money Collection & Finance Section -->
+            <!-- BOTTOM SECTION -->
             <div class="row g-4">
                 
-                <!-- Payment Collection -->
+                <!-- 1. EMPLOYEE FINANCE (FIRST SECTION) -->
+                <div class="col-lg-6">
+                    <div class="glass-panel p-4 h-100 border border-primary border-opacity-25 bg-primary bg-opacity-0">
+                        <h5 class="fw-bold text-dark mb-3 border-bottom pb-2">
+                            <i class="fa-solid fa-wallet me-2 text-primary"></i>Employee Finance
+                        </h5>
+                        <p class="text-muted small mb-3">Record transactions (Salary/Advance) for today.</p>
+
+                        <div class="row g-3">
+                            <!-- Credit (Salary/Payment) -->
+                            <div class="col-12">
+                                <div class="p-3 rounded-3 bg-success bg-opacity-10 border border-success border-opacity-25">
+                                    <label class="form-label fw-bold text-success small mb-1"><i class="fa-solid fa-arrow-down me-1"></i> CREDIT (Salary / Payment Received)</label>
+                                    <div class="row g-2">
+                                        <div class="col-5">
+                                            <input type="number" step="0.01" name="emp_credit_amount" class="form-control border-0 shadow-sm" placeholder="Amount ₹">
+                                        </div>
+                                        <div class="col-7">
+                                            <input type="text" name="emp_credit_note" class="form-control border-0 shadow-sm" placeholder="Note (e.g. Salary)">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Debit (Advance) -->
+                            <div class="col-12">
+                                <div class="p-3 rounded-3 bg-danger bg-opacity-10 border border-danger border-opacity-25">
+                                    <label class="form-label fw-bold text-danger small mb-1"><i class="fa-solid fa-arrow-up me-1"></i> DEBIT (Advance Given)</label>
+                                    <div class="row g-2">
+                                        <div class="col-5">
+                                            <input type="number" step="0.01" name="emp_debit_amount" class="form-control border-0 shadow-sm" placeholder="Amount ₹">
+                                        </div>
+                                        <div class="col-7">
+                                            <input type="text" name="emp_debit_note" class="form-control border-0 shadow-sm" placeholder="Note (e.g. Advance)">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. COLLECTION SECTION (SECOND SECTION) -->
                 <div class="col-lg-6">
                     <div class="glass-panel p-4 h-100">
                         <h5 class="fw-bold text-dark mb-3 border-bottom pb-2"><i class="fa-solid fa-cash-register me-2 text-primary"></i>Collection</h5>
@@ -146,48 +198,6 @@
                             <div class="col-12 mt-3 pt-3 border-top d-flex justify-content-between align-items-center">
                                 <span class="fw-bold text-muted text-uppercase small">Pending / Due:</span>
                                 <span id="dueAmount" class="fw-bold fs-4 text-danger">0.00</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Employee Ledger Integration (NEW) -->
-                <div class="col-lg-6">
-                    <div class="glass-panel p-4 h-100 border border-primary border-opacity-25 bg-primary bg-opacity-0">
-                        <h5 class="fw-bold text-dark mb-3 border-bottom pb-2">
-                            <i class="fa-solid fa-wallet me-2 text-primary"></i>Employee Finance
-                        </h5>
-                        <p class="text-muted small mb-3">Record Salary, Payments, or Advances directly here.</p>
-
-                        <div class="row g-3">
-                            <!-- Credit (Salary/Payment) -->
-                            <div class="col-12">
-                                <div class="p-3 rounded-3 bg-success bg-opacity-10 border border-success border-opacity-25">
-                                    <label class="form-label fw-bold text-success small mb-1"><i class="fa-solid fa-arrow-down me-1"></i> CREDIT (Salary / Payment Received)</label>
-                                    <div class="row g-2">
-                                        <div class="col-5">
-                                            <input type="number" step="0.01" name="emp_credit_amount" class="form-control border-0 shadow-sm" placeholder="Amount ₹">
-                                        </div>
-                                        <div class="col-7">
-                                            <input type="text" name="emp_credit_note" class="form-control border-0 shadow-sm" placeholder="Note (e.g. Salary)">
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Debit (Advance) -->
-                            <div class="col-12">
-                                <div class="p-3 rounded-3 bg-danger bg-opacity-10 border border-danger border-opacity-25">
-                                    <label class="form-label fw-bold text-danger small mb-1"><i class="fa-solid fa-arrow-up me-1"></i> DEBIT (Advance Given)</label>
-                                    <div class="row g-2">
-                                        <div class="col-5">
-                                            <input type="number" step="0.01" name="emp_debit_amount" class="form-control border-0 shadow-sm" placeholder="Amount ₹">
-                                        </div>
-                                        <div class="col-7">
-                                            <input type="text" name="emp_debit_note" class="form-control border-0 shadow-sm" placeholder="Note (e.g. Advance)">
-                                        </div>
-                                    </div>
-                                </div>
                             </div>
                         </div>
                     </div>
