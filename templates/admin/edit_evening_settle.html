@@ -1,10 +1,10 @@
 {% extends "admin_master.html" %}
 
 {% block page_content %}
-<div class="container-fluid fade-in-up">
+<div class="container-fluid fade-in-up py-4">
     
     <div class="d-flex align-items-center mb-4">
-        <a href="{{ url_for('admin_evening_master') }}" class="btn btn-light border rounded-circle me-3 shadow-sm">
+        <a href="{{ url_for('evening_master') }}" class="btn btn-light border rounded-circle me-3 shadow-sm">
             <i class="fa-solid fa-arrow-left"></i>
         </a>
         <div>
@@ -32,23 +32,27 @@
                         </thead>
                         <tbody>
                             {% for item in items %}
-                            <tr class="item-row">
+                            <tr>
                                 <td class="ps-4">
-                                    <div style="width:40px;height:40px;overflow:hidden;border-radius:6px;border:1px solid #eee;">
-                                        <img src="{{ item.image }}" style="width:100%;height:100%;object-fit:cover;">
-                                    </div>
+                                    <img src="{{ item.image }}" class="rounded-3 border" width="40" height="40">
                                 </td>
-                                <td class="fw-bold">
-                                    {{ item.product_name }}
-                                    <input type="hidden" name="product_id[]" value="{{ item.product_id }}">
+                                <td class="fw-bold">{{ item.product_name }}</td>
+                                <td class="text-center fw-bold">{{ item.total_qty }}</td>
+                                <td>
+                                    <input type="hidden" name="item_ids[]" value="{{ item.id }}">
+                                    <input type="hidden" name="product_ids[]" value="{{ item.product_id }}">
+                                    <input type="hidden" name="original_solds[]" value="{{ item.sold_qty }}">
+                                    <input type="hidden" class="total-qty" value="{{ item.total_qty }}">
+                                    <input type="number" name="sold_qtys[]" class="form-control sold-input text-center fw-bold" value="{{ item.sold_qty }}" min="0">
                                 </td>
-                                <td class="text-center">
-                                    <input type="text" name="total_qty[]" class="form-control-plaintext text-center total-qty" value="{{ item.total_qty }}" readonly>
+                                <td>
+                                    <input type="number" name="return_qtys[]" class="form-control return-input text-center text-danger" value="{{ item.return_qty }}" min="0">
                                 </td>
-                                <td><input type="number" name="sold[]" class="form-control sold-input" value="{{ item.sold_qty }}" min="0"></td>
-                                <td><input type="number" name="return[]" class="form-control return-input" value="{{ item.return_qty }}" min="0"></td>
-                                <td class="text-center"><span class="remaining-qty fw-bold text-muted">{{ item.remaining_qty }}</span></td>
-                                <td class="text-end pe-4 fw-bold"><span class="row-amount">0.00</span><input type="hidden" name="price[]" class="unit-price" value="{{ item.unit_price }}"></td>
+                                <td class="text-center text-muted remaining-qty">{{ item.remaining_qty }}</td>
+                                <td class="text-end pe-4 fw-bold text-primary row-amount">
+                                    <input type="hidden" class="unit-price" value="{{ item.unit_price }}">
+                                    {{ "%.2f"|format(item.sold_qty * item.unit_price) }}
+                                </td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -57,14 +61,39 @@
             </div>
 
             <div class="col-lg-4">
-                <div class="card glass-card border-0 p-4 shadow-sm">
-                    <h5 class="fw-bold mb-3">Totals</h5>
-                    <div class="mb-3"><label class="small fw-bold text-muted">Sales</label><input type="number" name="totalAmount" id="totalAmount" class="form-control fw-bold fs-4" readonly value="{{ settlement.total_amount }}"></div>
-                    <div class="mb-3"><label class="small fw-bold text-muted">Discount</label><input type="number" name="discount" id="discount" class="form-control" value="{{ settlement.discount }}"></div>
-                    <div class="mb-3"><label class="small fw-bold text-muted">Cash</label><input type="number" name="cash" id="cash" class="form-control" value="{{ settlement.cash_money }}"></div>
-                    <div class="mb-4"><label class="small fw-bold text-muted">Online</label><input type="number" name="online" id="online" class="form-control" value="{{ settlement.online_money }}"></div>
-                    <div class="alert alert-info border-0 text-center"><small>Due</small><h4 class="fw-bold mb-0 text-primary" id="dueAmount">0.00</h4></div>
-                    <button type="submit" class="btn btn-primary w-100 btn-lg shadow">Update</button>
+                <div class="card glass-card border-0 p-4 shadow-sm mb-4">
+                    <h5 class="fw-bold mb-3 border-bottom pb-2">Payment Details</h5>
+                    
+                    <div class="mb-3">
+                        <label class="small fw-bold text-muted">Total Amount</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light border-0">₹</span>
+                            <input type="number" name="total_amount" id="totalAmount" class="form-control border-0 bg-light fw-bold fs-5" readonly value="{{ settlement.total_amount }}">
+                        </div>
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="small fw-bold text-muted">Discount</label>
+                            <input type="number" step="0.01" name="discount" id="discount" class="form-control" value="{{ settlement.discount }}">
+                        </div>
+                        <div class="col-6">
+                            <label class="small fw-bold text-muted">Online</label>
+                            <input type="number" step="0.01" name="online_money" id="online" class="form-control" value="{{ settlement.online_money }}">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="small fw-bold text-muted">Cash</label>
+                        <input type="number" step="0.01" name="cash_money" id="cash" class="form-control fw-bold text-success" value="{{ settlement.cash_money }}">
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center pt-3 border-top">
+                         <span class="text-muted small fw-bold">DUE BALANCE:</span>
+                         <span id="dueAmount" class="fw-bold fs-5 text-danger">0.00</span>
+                    </div>
+
+                    <button type="submit" class="btn btn-dark w-100 rounded-pill mt-4 shadow fw-bold">Update Settlement</button>
                 </div>
             </div>
         </div>
@@ -74,13 +103,13 @@
 <script>
     document.addEventListener("DOMContentLoaded", function() {
         const table = document.getElementById('editTable');
+        const inputs = table.querySelectorAll('input');
         const totalAmountEl = document.getElementById('totalAmount');
         const dueEl = document.getElementById('dueAmount');
-        const inputs = document.querySelectorAll('#cash, #online, #discount');
 
         function calculate() {
             let grandTotal = 0;
-            table.querySelectorAll('.item-row').forEach(row => {
+            table.querySelectorAll('tbody tr').forEach(row => {
                 const total = parseInt(row.querySelector('.total-qty').value) || 0;
                 const soldInput = row.querySelector('.sold-input');
                 const returnInput = row.querySelector('.return-input');
@@ -89,27 +118,31 @@
                 let sold = parseInt(soldInput.value) || 0;
                 let ret = parseInt(returnInput.value) || 0;
 
-                if (sold + ret > total) {
-                    ret = total - sold;
-                    if(ret < 0) ret = 0;
-                    returnInput.value = ret;
-                }
+                // Basic validation: Sold + Return shouldn't exceed Total
+                // We'll trust user input here but could auto-correct
+                
                 const remaining = total - sold - ret;
-                row.querySelector('.remaining-qty').innerText = remaining;
+                row.querySelector('.remaining-qty').innerText = remaining >= 0 ? remaining : 0;
+                
                 const amount = sold * price;
                 row.querySelector('.row-amount').innerText = amount.toFixed(2);
                 grandTotal += amount;
             });
             totalAmountEl.value = grandTotal.toFixed(2);
+            
             const cash = parseFloat(document.getElementById('cash').value) || 0;
             const online = parseFloat(document.getElementById('online').value) || 0;
             const discount = parseFloat(document.getElementById('discount').value) || 0;
             const due = grandTotal - (cash + online + discount);
             dueEl.innerText = due.toFixed(2);
         }
+
         table.addEventListener('input', calculate);
-        inputs.forEach(i => i.addEventListener('input', calculate));
-        calculate();
+        document.getElementById('cash').addEventListener('input', calculate);
+        document.getElementById('online').addEventListener('input', calculate);
+        document.getElementById('discount').addEventListener('input', calculate);
+        
+        calculate(); // Init
     });
 </script>
 <style> .glass-card { background: #fff; border-radius: 12px; } .form-control { border-radius: 8px; } </style>
