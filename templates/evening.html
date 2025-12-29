@@ -23,7 +23,14 @@
         <!-- TOP CONTROLS ROW -->
         <div class="row align-items-end g-2 mb-4">
             
-            <!-- 1. Employee Select -->
+            <!-- 1. Profile Photo (Now First) -->
+            <div class="col-md-2">
+                 <div class="img-box-small shadow-sm">
+                    <img id="empPhoto" src="{{ url_for('static', filename='img/default-user.png') }}" class="img-fluid img-fixed-size" alt="User">
+                </div>
+            </div>
+
+            <!-- 2. Employee Select -->
             <div class="col-md-3">
                 <label class="form-label fw-bold text-muted small text-uppercase">Select Employee</label>
                 <div class="input-group shadow-sm rounded-3 overflow-hidden">
@@ -37,7 +44,7 @@
                 </div>
             </div>
             
-            <!-- 2. Date Input -->
+            <!-- 3. Date Input -->
             <div class="col-md-3">
                 <label class="form-label fw-bold text-muted small text-uppercase">Date</label>
                 <div class="input-group shadow-sm rounded-3 overflow-hidden">
@@ -46,7 +53,7 @@
                 </div>
             </div>
 
-            <!-- 3. Live Clock (Next to Date) -->
+            <!-- 4. Live Clock (Next to Date) -->
             <div class="col-md-2">
                 <label class="form-label fw-bold text-muted small text-uppercase">Time</label>
                 <div class="bg-white shadow-sm rounded-3 py-2 px-3 text-center border">
@@ -55,19 +62,12 @@
                 </div>
             </div>
             
-            <!-- 4. Fetch Button (After Clock) -->
+            <!-- 5. Fetch Button (Last) -->
             <div class="col-md-2">
                 <label class="form-label d-block text-transparent small">Action</label>
                 <button id="btnFetch" class="btn btn-gradient-primary w-100 py-2 shadow fw-bold rounded-3">
                     <i class="fa-solid fa-download me-1"></i> Fetch
                 </button>
-            </div>
-
-            <!-- 5. Profile Photo (Kept as requested) -->
-            <div class="col-md-2">
-                 <div class="img-box-small shadow-sm ms-auto">
-                    <img id="empPhoto" src="{{ url_for('static', filename='img/default-user.png') }}" class="img-fluid img-fixed-size" alt="User">
-                </div>
             </div>
         </div>
 
