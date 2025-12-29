@@ -1,179 +1,131 @@
 {% extends "base.html" %}
 
 {% block content %}
+<!-- External Libs -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+<!-- Custom CSS for Morning Page -->
+<link rel="stylesheet" href="{{ url_for('static', filename='css/morning.css') }}">
 
-<div class="glass-container fade-in-up mb-5">
+<div class="container-fluid fade-in-up mb-5" style="max-width: 1400px;">
 
-    <!-- Header -->
-    <div class="glass-header text-center mb-4 p-4">
-        <h1 class="company-name text-gradient fw-bold mb-1">REAL PROMOTION</h1>
-        <p class="since-text text-secondary mb-2 small letter-spacing-2">SINCE 2005</p>
-        <div class="address-block text-muted small mx-auto bg-white bg-opacity-50 p-2 rounded-3" style="max-width: 600px;">
-            <i class="fa-solid fa-location-dot text-primary me-1"></i>
-            Real Promotion, G/12, Tulsimangalam Complex, B/h. Trimurti Complex, Ghodiya Bazar, Nadiad-387001, Gujarat, India
-        </div>
-    </div>
-
-    <!-- Main Card -->
-    <div class="glass-panel p-4 mb-4">
-        
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h4 class="fw-bold text-dark mb-0"><i class="fa-solid fa-sun text-warning me-2"></i>Morning Allocation</h4>
-            <a href="{{ url_for('allocation_list') }}" class="btn btn-outline-dark rounded-pill px-4 btn-sm">
-                <i class="fa-solid fa-clock-rotate-left me-2"></i> History
-            </a>
-        </div>
-
+    <!-- HEADER PANEL -->
+    <div class="glass-panel p-4 mb-4 mt-4">
         <form id="morningForm" method="POST" action="{{ url_for('morning') }}">
-            <!-- Hidden Timestamp -->
+            <!-- Hidden Fields required by your JS/Backend -->
             <input type="hidden" name="timestamp" id="timestampInput">
 
-            <div class="row g-3 align-items-end">
-                
-                <!-- Employee Selection (Left) -->
-                <div class="col-md-6">
-                    <label class="form-label text-uppercase small fw-bold text-secondary">Sales Representative</label>
-                    <div class="d-flex align-items-center">
-                        <div class="me-3" style="width: 70px; height: 70px; border-radius: 12px; overflow: hidden; border: 2px solid #fff; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
-                            <img src="{{ url_for('static', filename='img/default-user.png') }}" id="empPhoto" style="width: 100%; height: 100%; object-fit: cover;">
-                        </div>
-                        <div class="input-group input-group-glass flex-grow-1">
-                            <span class="input-group-text"><i class="fa-solid fa-user-tie"></i></span>
-                            <select name="employee_id" id="employee_id" class="form-select form-control-lg" required>
-                                <option value="" data-img="">-- Select --</option>
-                                {% for emp in employees %}
-                                <option value="{{ emp.id }}" data-img="{{ emp.image }}">{{ emp.name }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
+            <div class="row align-items-center g-3">
+                <!-- Profile Photo -->
+                <div class="col-auto">
+                    <div class="user-img-box">
+                        <img id="empPhoto" src="{{ url_for('static', filename='img/default-user.png') }}" alt="User">
                     </div>
                 </div>
 
-                <!-- Date & Clock (Right) -->
-                <div class="col-md-6">
-                    <label class="form-label text-uppercase small fw-bold text-secondary">Date & Time</label>
-                    <div class="d-flex gap-2">
-                        <div class="input-group input-group-glass flex-grow-1">
-                            <span class="input-group-text"><i class="fa-solid fa-calendar"></i></span>
-                            <input type="text" name="date" id="date" class="form-control form-control-lg" value="{{ today_date }}" required>
-                        </div>
-                        <div class="badge bg-dark text-white shadow d-flex align-items-center justify-content-center px-3" id="liveClock" style="font-size: 1.1rem; border-radius: 8px; min-width: 120px;">
-                            00:00:00
-                        </div>
+                <!-- Employee Select -->
+                <div class="col-md-3">
+                    <label class="small fw-bold text-muted mb-1">EMPLOYEE</label>
+                    <select id="employee_id" name="employee_id" class="form-select border-0 shadow-sm fw-bold py-2" required>
+                        <option value="">-- Select --</option>
+                        {% for emp in employees %}
+                        <option value="{{ emp.id }}" data-img="{{ emp.image }}">{{ emp.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Date -->
+                <div class="col-md-2">
+                    <label class="small fw-bold text-muted mb-1">DATE</label>
+                    <input type="text" id="date" name="date" class="form-control border-0 shadow-sm fw-bold py-2 text-center" value="{{ today_date }}" required>
+                </div>
+
+                <!-- Clock -->
+                <div class="col-md-2">
+                    <label class="small fw-bold text-muted mb-1">TIME</label>
+                    <div class="bg-white shadow-sm rounded-3 py-2 px-3 fw-bold text-center">
+                        <span id="liveClock" class="font-monospace">00:00:00</span>
                     </div>
                 </div>
+
+                <!-- Action Button -->
+                <div class="col-md-3 ms-auto">
+                    <label class="d-none d-md-block text-transparent small mb-1">Action</label>
+                    <button type="button" id="addRow" class="btn btn-dark w-100 py-2 fw-bold shadow-lg rounded-3">
+                        <i class="fa-solid fa-plus me-2"></i> Add Row
+                    </button>
+                </div>
             </div>
-
-            <!-- Status Message -->
-            <div id="fetchMsg" class="w-100 text-center mt-3 fw-bold"></div>
-
-            <!-- RESTOCK HISTORY AREA -->
-            <div id="historyList" class="mt-4"></div>
-
-            <!-- Table -->
-            <div class="table-responsive glass-table-container mt-4">
-                <table class="table table-hover align-middle mb-0" id="productTable">
-                    <thead class="bg-gradient-primary text-white">
-                        <tr>
-                            <th class="ps-3" style="width: 40px;">#</th>
-                            <th style="width: 60px; text-align: center;">Img</th>
-                            <th style="min-width: 200px;">Product</th>
-                            <th style="width: 90px;">Opening</th>
-                            <th style="width: 90px;">Given</th>
-                            <th style="width: 90px;">Total</th>
-                            <th style="width: 100px;">Price</th>
-                            <th style="width: 110px;">Amount</th>
-                            <th class="text-center" style="width: 60px;"><i class="fa-solid fa-trash"></i></th>
-                        </tr>
-                    </thead>
-                    <tbody class="bg-white"></tbody>
-                    
-                    <!-- FOOTER -->
-                    <tfoot class="bg-light fw-bold" style="border-top: 3px solid #ddd;">
-                        <tr style="font-size: 1.1rem;">
-                            <td colspan="3" class="text-end text-uppercase text-secondary pe-3" style="letter-spacing: 1px;">Totals:</td>
-                            <td class="text-center text-info"><span id="totalOpening">0</span></td>
-                            <td class="text-center text-primary"><span id="totalGiven">0</span></td>
-                            <td class="text-center text-dark"><span id="totalAll">0</span></td>
-                            <td>-</td>
-                            <td class="text-end text-success pe-2">₹ <span id="grandTotal">0.00</span></td>
-                            <td>-</td>
-                        </tr>
-                    </tfoot>
-                </table>
-            </div>
-
-            <div class="d-flex justify-content-between align-items-center mt-4">
-                <button type="button" id="addRow" class="btn btn-glass-light text-success fw-bold">
-                    <i class="fa-solid fa-plus-circle me-2"></i> Add Item
-                </button>
-                <button type="submit" class="btn btn-gradient-primary px-5 rounded-pill shadow-lg hover-lift">
-                    <i class="fa-solid fa-check me-2"></i> Save / Update Allocation
-                </button>
-            </div>
-        </form>
+            
+            <div id="fetchMsg" class="alert alert-info d-none mt-3 rounded-3 fw-bold small"></div>
     </div>
+
+    <!-- TABLE SECTION -->
+    <div class="glass-panel p-0 mb-4 overflow-hidden">
+        <div class="table-responsive">
+            <table class="custom-table" id="productTable">
+                <thead>
+                    <tr>
+                        <th class="ps-4" style="width: 50px;">#</th>
+                        <th style="width: 70px;">Img</th>
+                        <th>Product Name</th>
+                        <th class="text-center" style="width: 120px;">Opening</th>
+                        <th class="text-center" style="width: 120px;">Given</th>
+                        <th class="text-center" style="width: 120px;">Total</th>
+                        <th class="text-center" style="width: 80px;">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Rows generated by morning.js -->
+                </tbody>
+                <!-- FOOTER ROW (Last Row) -->
+                <tfoot class="table-footer">
+                    <tr>
+                        <td colspan="3" class="text-end ps-4 text-uppercase text-muted small" style="color: #94a3b8 !important;">Subtotals:</td>
+                        
+                        <!-- Opening Total -->
+                        <td class="text-center">
+                            <span id="totalOpening">0</span>
+                        </td>
+                        
+                        <!-- Given Total -->
+                        <td class="text-center text-warning">
+                            <span id="totalGiven">0</span>
+                        </td>
+                        
+                        <!-- Total All -->
+                        <td class="text-center text-info">
+                            <span id="totalAll">0</span>
+                        </td>
+                        
+                        <!-- Empty Action Col -->
+                        <td></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+
+    <!-- SUBMIT BUTTON -->
+    <div class="text-center pb-5">
+        <button type="submit" class="btn btn-primary px-5 py-3 rounded-pill fw-bold shadow-lg hover-lift">
+            <i class="fa-solid fa-check-circle me-2"></i> Submit Allocation
+        </button>
+    </div>
+
+    </form>
 </div>
 
-<style>
-    /* Theme */
-    body { background: #f0f2f5; font-family: 'Poppins', sans-serif; }
-    .glass-container { max-width: 1200px; margin: 2rem auto; padding: 0 15px; }
-    .glass-header { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); border-radius: 20px; box-shadow: 0 8px 32px rgba(0,0,0,0.05); border: 1px solid #fff; }
-    .glass-panel { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(16px); border-radius: 24px; box-shadow: 0 10px 40px rgba(0,0,0,0.06); border: 1px solid rgba(255, 255, 255, 0.6); }
-    .text-gradient { background: linear-gradient(45deg, #1a237e, #0d47a1); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-    .bg-gradient-primary { background: linear-gradient(135deg, #1a237e 0%, #0d47a1 100%); }
-    .bg-orange { background-color: #fd7e14 !important; color: white; }
-
-    /* Inputs */
-    .input-group-glass .input-group-text { background: #f8f9fa; border: 1px solid #e0e0e0; }
-    .input-group-glass .form-control, .input-group-glass .form-select { background: #fff; border: 1px solid #e0e0e0; }
-
-    /* Image Box */
-    .img-box-small {
-        display: block !important; width: 50px !important; height: 50px !important;
-        border-radius: 8px !important; overflow: hidden !important;
-        border: 1px solid #e0e0e0; background: #fff; margin: 0 auto;
-    }
-    .img-box-small img { width: 100% !important; height: 100% !important; object-fit: cover !important; }
-
-    /* Buttons */
-    .btn-glass-light { background: #fff; border: 1px solid #e2e8f0; border-radius: 50px; padding: 0.5rem 1.5rem; transition: 0.3s; }
-    .btn-gradient-primary { background: linear-gradient(135deg, #1a237e 0%, #0d47a1 100%); color: white; border: none; transition: 0.3s; }
-    
-    .table input.form-control { background: transparent; border: 1px solid transparent; text-align: center; font-weight: 600; }
-    .table input.given { background: #ebf8ff; color: #2b6cb0; border-radius: 6px; }
-    
-    /* Footer Colors */
-    .text-info { color: #0dcaf0 !important; }
-    .text-primary { color: #0d6efd !important; }
-    .text-success { color: #198754 !important; }
-    
-    .flatpickr-calendar { box-shadow: 0 10px 30px rgba(0,0,0,0.1) !important; border: none !important; }
-</style>
-
+<!-- Products Data for JS -->
 <script>
     try { window.productsData = {{ products | tojson | safe }}; } 
     catch(e) { window.productsData = []; }
-    
-    document.addEventListener("DOMContentLoaded", function() {
-        flatpickr("#date", { dateFormat: "d-m-Y", defaultDate: "{{ today_date }}", allowInput: true });
-        
-        // Employee Photo Logic
-        const empSelect = document.getElementById('employee_id');
-        const empPhoto = document.getElementById('empPhoto');
-        if(empSelect) {
-            empSelect.addEventListener('change', function() {
-                const selectedOption = this.options[this.selectedIndex];
-                const img = selectedOption.getAttribute('data-img');
-                if(img && img !== 'None' && img !== "") empPhoto.src = img;
-                else empPhoto.src = "{{ url_for('static', filename='img/default-user.png') }}";
-            });
-        }
-    });
 </script>
+
+<!-- Link to existing JS -->
 <script src="{{ url_for('static', filename='js/morning.js') }}"></script>
+
+<style>
+    .hover-lift:hover { transform: translateY(-3px); box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+</style>
 {% endblock %}
