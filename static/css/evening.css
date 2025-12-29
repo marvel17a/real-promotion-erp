@@ -1,44 +1,189 @@
-body { font-family:'Poppins',sans-serif; background:#f8f9fa; }
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap');
 
-.summary-grid {
-    display:grid;
-    grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
-    gap:12px;
-    padding:12px;
-}
-.summary-box {
-    border-radius:14px;
-    padding:14px;
-    text-align:center;
-    font-weight:700;
-}
-.summary-box.total { background:#e3f2fd; }
-.summary-box.sold { background:#e8f5e9; }
-.summary-box.amount { background:#ede7f6; }
-.summary-box.return { background:#ffebee; }
-.summary-box.remain { background:#fffde7; }
-
-.finance-panel label { font-weight:700; }
-.finance-box { margin-bottom:16px; }
-.finance-box.credit { background:#ffe5e5; padding:12px; border-radius:12px; }
-.finance-box.debit { background:#e8f5e9; padding:12px; border-radius:12px; }
-
-.finance-box input {
-    width:100%;
-    border:none;
-    margin-top:6px;
-    padding:8px;
-    border-radius:8px;
+:root {
+    --primary-dark: #0f172a;
+    --text-main: #334155;
+    --glass-bg: rgba(255, 255, 255, 0.95);
+    /* As per instructions */
+    --color-credit: #dc2626; /* RED */
+    --color-debit: #16a34a;  /* GREEN */
+    --color-due: #dc2626;    /* RED */
 }
 
-.settlement-row {
-    display:flex;
-    justify-content:space-between;
-    margin-bottom:12px;
-    font-weight:700;
+body {
+    font-family: 'Manrope', sans-serif;
+    background-color: #f1f5f9;
+    color: var(--text-main);
 }
-.balance-due {
-    color:red;
-    font-size:1.6rem;
-    font-weight:900;
+
+/* Glass Panel */
+.glass-panel {
+    background: var(--glass-bg);
+    backdrop-filter: blur(12px);
+    border: 1px solid #fff;
+    border-radius: 20px;
+    box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.05);
+}
+
+/* --- TABLE DESIGN --- */
+.custom-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.custom-table thead th {
+    background: #f8fafc;
+    color: #475569;
+    font-weight: 800;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.5px;
+    padding: 1rem;
+    border-bottom: 2px solid #e2e8f0;
+    vertical-align: middle;
+}
+
+.custom-table tbody td {
+    padding: 0.8rem 1rem;
+    vertical-align: middle;
+    font-weight: 700;
+    border-bottom: 1px solid #f1f5f9;
+    color: #1e293b;
+}
+
+/* Total Column Box (Colored) */
+.total-box {
+    background: #fff7ed; /* Light Orange */
+    color: #c2410c;      /* Dark Orange Text */
+    border: 1px solid #ffedd5;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-weight: 800;
+    display: inline-block;
+    min-width: 45px;
+    text-align: center;
+}
+
+/* Table Inputs */
+.table-input {
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 8px;
+    text-align: center;
+    font-weight: 700;
+    width: 80px;
+    transition: 0.2s;
+}
+.table-input:focus {
+    background: #fff;
+    border-color: #000;
+    outline: none;
+}
+
+/* Last Row (Footer) */
+.table-footer {
+    background: #1e293b; /* Dark Footer */
+    color: #fff;
+}
+.table-footer td {
+    padding: 1rem !important;
+    font-weight: 800;
+    font-size: 1rem;
+    border: none;
+    color: #fff;
+}
+
+/* --- SECTIONS (Vertical Layout) --- */
+.section-title {
+    font-size: 1.2rem;
+    font-weight: 800;
+    color: #0f172a;
+    margin-bottom: 1.5rem;
+    border-bottom: 2px solid #e2e8f0;
+    padding-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* Vertical Row Container */
+.vertical-row {
+    display: flex;
+    justify-content: space-between; /* Space between Label and Amount */
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px dashed #e2e8f0;
+}
+.vertical-row:last-child { border-bottom: none; }
+
+/* Label Styling */
+.v-label {
+    font-weight: 800;
+    font-size: 0.95rem;
+    color: #475569;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Amount Input Styling */
+.v-amount-wrapper {
+    width: 150px;
+    text-align: right;
+}
+.v-input {
+    width: 100%;
+    text-align: right;
+    border: none;
+    background: transparent;
+    font-weight: 800;
+    font-size: 1.1rem;
+    color: #0f172a;
+    padding: 0;
+}
+.v-input:focus { outline: none; }
+.v-input::placeholder { color: #cbd5e1; }
+
+/* --- SPECIFIC COLORS (Requested) --- */
+/* Credit = Red */
+.text-credit { color: var(--color-credit) !important; }
+.input-credit { color: var(--color-credit) !important; }
+
+/* Debit = Green */
+.text-debit { color: var(--color-debit) !important; }
+.input-debit { color: var(--color-debit) !important; }
+
+/* Balance Due = Red */
+.text-due { color: var(--color-due) !important; font-size: 1.4rem; }
+
+/* Note Input (Small text below label) */
+.v-note {
+    font-size: 0.75rem;
+    border: none;
+    background: #f8fafc;
+    padding: 4px 8px;
+    border-radius: 4px;
+    width: 100%;
+    margin-top: 4px;
+    color: #64748b;
+}
+
+/* Header Elements */
+.user-img-box {
+    width: 65px; height: 65px;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    background: #fff;
+}
+.user-img-box img { width: 100%; height: 100%; object-fit: cover; }
+
+.img-box-small {
+    width: 45px; height: 45px;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #eee;
+    border: 1px solid #e2e8f0;
 }
