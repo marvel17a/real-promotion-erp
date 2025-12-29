@@ -28,13 +28,14 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     };
     
-    // Calculate Due automatically if data exists (e.g., resumed draft)
     if(ui.payment.totalAmount && ui.payment.totalAmount.value > 0) {
         calculateDue();
         recalculateTotals();
     }
 
     if (!ui.fetchButton) return;
+
+    const DEFAULT_IMG = "https://via.placeholder.com/50?text=Img";
 
     async function fetchMorningAllocation() {
         const employeeId = ui.employeeSelect.value;
@@ -62,20 +63,17 @@ document.addEventListener("DOMContentLoaded", () => {
             if (data.status === 'success') {
                 ui.fetchMsg.classList.add('d-none');
                 
-                // Set Hidden Fields
                 ui.hidden.allocationId.value = data.allocation_id;
                 ui.hidden.employee.value = employeeId;
                 ui.hidden.date.value = dateStr;
 
-                // Build Table Rows
                 ui.tableBody.innerHTML = '';
                 data.products.forEach((p, index) => {
                     const row = document.createElement('tr');
                     
-                    // Order: #, Img, Product Name, Total, Sold, Price, Amount, Return, Left
-                    // Fix Image: Use backend URL or fallback
                     const imgUrl = p.image && p.image !== 'None' ? p.image : '/static/img/no-img.png';
 
+                    // VALIDATION ADDED: sold/return limited to 3 digits
                     row.innerHTML = `
                         <td class="ps-4 text-muted row-index">${index + 1}</td>
                         <td>
@@ -88,31 +86,34 @@ document.addEventListener("DOMContentLoaded", () => {
                             <input type="hidden" name="product_id[]" value="${p.id}">
                         </td>
                         <td class="text-center">
-                            <input type="number" name="total_qty[]" class="form-control-plaintext text-center fw-bold total-qty" value="${p.total_qty}" readonly>
+                            <span class="total-box">${p.total_qty}</span>
+                            <input type="hidden" name="total_qty[]" class="total-qty" value="${p.total_qty}">
                         </td>
                         <td>
-                            <input type="number" name="sold[]" class="form-control sold" placeholder="0" min="0">
+                            <input type="number" name="sold[]" class="table-input sold" placeholder="0" min="0" max="999"
+                                   oninput="if(this.value.length > 3) this.value = this.value.slice(0, 3);">
                         </td>
                         <td>
-                            <input type="number" name="price[]" class="form-control-plaintext text-end unit-price" value="${p.price}" readonly>
+                            <input type="number" name="price[]" class="form-control-plaintext text-end fw-bold unit-price" value="${p.price}" readonly>
                         </td>
                         <td class="text-end fw-bold text-primary row-amount">0.00</td>
                         <td>
-                            <input type="number" name="return[]" class="form-control return" placeholder="0" min="0">
+                            <input type="number" name="return[]" class="table-input return" placeholder="0" min="0" max="999"
+                                   oninput="if(this.value.length > 3) this.value = this.value.slice(0, 3);">
                         </td>
-                        <td class="text-center text-muted remaining-qty">${p.total_qty}</td>
+                        <td class="text-center text-muted remaining-qty fw-bold">${p.total_qty}</td>
                     `;
                     ui.tableBody.appendChild(row);
                 });
                 recalculateTotals();
 
             } else {
-                ui.tableBody.innerHTML = `<tr><td colspan="9" class="text-center p-5 text-danger">${data.message}</td></tr>`;
+                ui.tableBody.innerHTML = `<tr><td colspan="9" class="text-center p-5 text-danger fw-bold">${data.message}</td></tr>`;
                 ui.hidden.allocationId.value = "";
             }
         } catch (error) {
             console.error("Error:", error);
-            ui.tableBody.innerHTML = `<tr><td colspan="9" class="text-center p-5 text-danger">Network Error or Server Issue.</td></tr>`;
+            ui.tableBody.innerHTML = `<tr><td colspan="9" class="text-center p-5 text-danger fw-bold">Network Error or Server Issue.</td></tr>`;
         }
     }
 
@@ -130,15 +131,18 @@ document.addEventListener("DOMContentLoaded", () => {
             let ret = parseInt(row.querySelector('.return').value) || 0;
 
             let remain = total - sold - ret;
-            if (remain < 0) remain = 0; 
+            if (remain < 0) {
+               // Optional: visual warning handled via CSS or kept negative
+            } 
 
-            // Update row display
-            row.querySelector('.remaining-qty').textContent = remain;
+            const remainEl = row.querySelector('.remaining-qty');
+            remainEl.textContent = remain;
+            if(remain < 0) remainEl.classList.add('text-danger');
+            else remainEl.classList.remove('text-danger');
             
             const amount = sold * price;
             row.querySelector('.row-amount').textContent = amount.toFixed(2);
 
-            // Accumulate
             gTotal += total;
             gSold += sold;
             gReturn += ret;
@@ -146,17 +150,15 @@ document.addEventListener("DOMContentLoaded", () => {
             gAmount += amount;
         });
 
-        // Update Footer
         if(ui.footer.total) ui.footer.total.textContent = gTotal;
         if(ui.footer.sold) ui.footer.sold.textContent = gSold;
         if(ui.footer.return) ui.footer.return.textContent = gReturn;
         if(ui.footer.remain) ui.footer.remain.textContent = gRemain;
         if(ui.footer.amount) ui.footer.amount.textContent = gAmount.toFixed(2);
 
-        // Update Form Total Field
         if(ui.payment.totalAmount) {
             ui.payment.totalAmount.value = gAmount.toFixed(2);
-            calculateDue(); // Trigger Due Calc
+            calculateDue(); 
         }
     }
 
@@ -170,6 +172,9 @@ document.addEventListener("DOMContentLoaded", () => {
         const due = total - (disc + cash + online);
         
         if(ui.payment.due) ui.payment.due.textContent = due.toFixed(2);
+        
+        const sticky = document.getElementById('stickyDue');
+        if(sticky) sticky.innerText = due.toFixed(2);
     }
 
     ui.fetchButton.addEventListener("click", (e) => {
@@ -181,8 +186,12 @@ document.addEventListener("DOMContentLoaded", () => {
         if (e.target.matches('.sold, .return')) recalculateTotals();
     });
     
+    // Validation for money inputs
     [ui.payment.discount, ui.payment.cash, ui.payment.online].forEach(el => {
-        if(el) el.addEventListener('input', calculateDue);
+        if(el) {
+            el.addEventListener('input', calculateDue);
+            el.setAttribute("oninput", "if(this.value.length > 8) this.value = this.value.slice(0, 8); calculateDue()");
+        }
     });
 
     document.addEventListener("keydown", function (e) {
