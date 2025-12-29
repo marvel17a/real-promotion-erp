@@ -3476,8 +3476,9 @@ def morning():
     finally:
         if db_cursor: db_cursor.close()
 
+
 # ---------------------------------------------------------
-# 2. EVENING SETTLEMENT (Timestamp & Holiday Logic)
+# 2. EVENING SETTLEMENT (Timestamp & Holiday Logic & Finance)
 # ---------------------------------------------------------
 @app.route('/evening', methods=['GET', 'POST'])
 def evening():
@@ -3488,7 +3489,7 @@ def evening():
         try:
             allocation_id = request.form.get('allocation_id')
             employee_id = request.form.get('h_employee')
-            # This 'h_date' is the SETTLEMENT date (Today), not necessarily alloc date
+            # This 'h_date' is the SETTLEMENT date (Today)
             date_str = request.form.get('h_date') 
             time_str = request.form.get('timestamp') 
             
@@ -3509,7 +3510,7 @@ def evening():
 
             db_cursor = mysql.connection.cursor()
 
-            # Insert Evening Header
+            # 1. Insert Evening Header
             try:
                 db_cursor.execute("""
                     INSERT INTO evening_settle (allocation_id, employee_id, date, total_amount, online_money, cash_money, discount, created_at)
@@ -3523,6 +3524,7 @@ def evening():
             
             settle_id = db_cursor.lastrowid
 
+            # 2. Insert Items & Update Inventory
             item_sql = "INSERT INTO evening_item (settle_id, product_id, total_qty, sold_qty, return_qty, unit_price, remaining_qty) VALUES (%s, %s, %s, %s, %s, %s, %s)"
             
             for i, pid in enumerate(p_ids):
@@ -3537,13 +3539,41 @@ def evening():
                 if sold > 0:
                     db_cursor.execute("UPDATE products SET stock = stock - %s WHERE id = %s", (sold, pid))
 
+            # -------------------------------------------------------------
+            # 3. NEW: EMPLOYEE FINANCE INTEGRATION (Credit/Debit)
+            # -------------------------------------------------------------
+            emp_credit_amt = request.form.get('emp_credit_amount')
+            emp_credit_note = request.form.get('emp_credit_note')
+            emp_debit_amt = request.form.get('emp_debit_amount')
+            emp_debit_note = request.form.get('emp_debit_note')
+
+            # Credit Transaction (Salary/Payment Received)
+            if emp_credit_amt and float(emp_credit_amt) > 0:
+                credit_note_final = emp_credit_note if emp_credit_note else "Credit Entry via Evening Settlement"
+                db_cursor.execute("""
+                    INSERT INTO employee_transactions
+                    (employee_id, transaction_date, type, amount, description, created_at)
+                    VALUES (%s, %s, 'credit', %s, %s, %s)
+                """, (employee_id, formatted_date, emp_credit_amt, credit_note_final, time_str))
+
+            # Debit Transaction (Advance Given)
+            if emp_debit_amt and float(emp_debit_amt) > 0:
+                debit_note_final = emp_debit_note if emp_debit_note else "Debit Entry via Evening Settlement"
+                db_cursor.execute("""
+                    INSERT INTO employee_transactions
+                    (employee_id, transaction_date, type, amount, description, created_at)
+                    VALUES (%s, %s, 'debit', %s, %s, %s)
+                """, (employee_id, formatted_date, emp_debit_amt, debit_note_final, time_str))
+            # -------------------------------------------------------------
+
             mysql.connection.commit()
-            flash("Settlement submitted!", "success")
+            flash("Settlement and financial records submitted successfully!", "success")
             return redirect(url_for('evening', last_settle_id=settle_id))
 
         except Exception as e:
             if db_cursor: mysql.connection.rollback()
             flash(f"Error: {e}", "danger")
+            app.logger.error(f"Evening Settle Error: {e}")
             return redirect(url_for('evening'))
         finally:
             if db_cursor: db_cursor.close()
@@ -3557,7 +3587,6 @@ def evening():
     cur.close()
     
     return render_template('evening.html', employees=employees, today=date.today().strftime('%d-%m-%Y'), last_settle_id=last_settle_id)
-
 
 
 
@@ -5313,6 +5342,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
