@@ -3877,80 +3877,71 @@ def api_fetch_stock():
 
 
 # ---------------------------------------------------------
-# 4. API: FETCH ALLOCATION (Updated for Holiday Return)
+# API: FETCH MORNING STOCK (With Holiday Logic)
 # ---------------------------------------------------------
-@app.route('/api/fetch_morning_allocation')
-def api_fetch_morning_allocation():
-    if "loggedin" not in session: return jsonify({"error": "Unauthorized"}), 401
-    
-    employee_id = request.args.get('employee_id')
-    date_str = request.args.get('date') # This is the "Settlement Date" (Today)
+@app.route('/api/fetch_morning_allocation', methods=['POST']) 
+# NOTE: Check if your JS calls '/api/fetch_stock' or '/api/fetch_morning_allocation' and name this matching that.
+def fetch_morning_allocation(): 
+    if "loggedin" not in session: return jsonify({'status': 'error', 'message': 'Unauthorized'})
 
     try:
-        settlement_date = parse_date(date_str)
-        if not settlement_date: return jsonify({"error": "Invalid Date"}), 400
+        employee_id = request.form.get('employee_id')
+        date_str = request.form.get('date') # Today's Date
         
+        if not employee_id or not date_str:
+            return jsonify({'status': 'error', 'message': 'Missing parameters'})
+
         cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
         
-        # 1. Find the LATEST Morning Allocation that hasn't been settled yet.
-        # Logic: Find morning_alloc where date <= settlement_date AND id NOT IN evening_settle
-        # We order by date DESC to get the most recent one.
+        # 1. Check if Allocation ALREADY exists for TODAY (Edit Mode)
+        # -----------------------------------------------------------
+        formatted_date = parse_date(date_str).strftime('%Y-%m-%d')
         
         cur.execute("""
-            SELECT ma.id, ma.date 
-            FROM morning_allocations ma
-            LEFT JOIN evening_settle es ON ma.id = es.allocation_id
-            WHERE ma.employee_id = %s 
-              AND ma.date <= %s 
-              AND es.id IS NULL
-            ORDER BY ma.date DESC 
-            LIMIT 1
-        """, (employee_id, settlement_date))
+            SELECT id FROM morning_allocations 
+            WHERE employee_id = %s AND date = %s
+        """, (employee_id, formatted_date))
+        existing = cur.fetchone()
         
-        alloc = cur.fetchone()
+        if existing:
+            # If exists, we might return "Already Allocated" or handle Restock logic
+            # For this specific API, usually we want the OPENING stock calculation
+            pass 
+
+        # 2. HOLIDAY LOGIC: Fetch LAST Closing Stock (Opening for Today)
+        # -----------------------------------------------------------
+        # Instead of searching for "Yesterday", search for "Last Record < Today"
         
-        if not alloc:
-            # Fallback check: Did they already settle today?
-            cur.execute("SELECT id FROM evening_settle WHERE employee_id=%s AND date=%s", (employee_id, settlement_date))
-            if cur.fetchone():
-                 cur.close()
-                 return jsonify({"error": "Settlement already done for today."})
-            
-            cur.close()
-            return jsonify({"error": "No pending allocation found."}), 404
-            
-        # Found pending allocation (could be from 5 days ago)
-        # Fetch Aggregated Items
         cur.execute("""
-            SELECT mai.product_id, p.name AS product_name, p.image, 
-                   SUM(mai.opening_qty + mai.given_qty) as total_qty, 
-                   mai.unit_price
-            FROM morning_allocation_items mai
-            JOIN products p ON mai.product_id = p.id
-            WHERE mai.allocation_id = %s
-            GROUP BY mai.product_id
-        """, (alloc['id'],))
-        items = cur.fetchall()
-        cur.close()
+            SELECT ei.product_id, ei.remaining_qty 
+            FROM evening_settle es
+            JOIN evening_item ei ON es.id = ei.settle_id
+            WHERE es.employee_id = %s 
+              AND es.date < %s  -- Strictly BEFORE today
+            AND es.id = (
+                -- Subquery to find the very last settlement ID for this employee
+                SELECT id FROM evening_settle 
+                WHERE employee_id = %s AND date < %s 
+                ORDER BY date DESC, id DESC LIMIT 1
+            )
+        """, (employee_id, formatted_date, employee_id, formatted_date))
         
-        clean_items = []
-        for i in items:
-            clean_items.append({
-                'product_id': i['product_id'],
-                'product_name': i['product_name'],
-                'image': resolve_img(i['image']),
-                'total_qty': int(i['total_qty']),
-                'unit_price': float(i['unit_price'])
-            })
-            
+        last_closing_stock = cur.fetchall()
+        
+        # Convert list to dictionary for easier JS handling: {product_id: qty}
+        stock_map = {item['product_id']: item['remaining_qty'] for item in last_closing_stock}
+
         return jsonify({
-            "allocation_id": alloc['id'], 
-            "allocation_date": alloc['date'].strftime('%d-%m-%Y'), # Send back actual alloc date
-            "items": clean_items
+            'status': 'success',
+            'opening_stock': stock_map,
+            'message': 'Fetched last available closing stock.'
         })
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        app.logger.error(f"Morning Fetch Error: {e}")
+        return jsonify({'status': 'error', 'message': str(e)})
+    finally:
+        if 'cur' in locals(): cur.close()
 
 # ---------------------------------------------------------
 # 5. GENERATE PDF 
@@ -5543,6 +5534,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
