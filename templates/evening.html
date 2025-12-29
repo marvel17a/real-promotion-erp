@@ -35,7 +35,7 @@
                 <label class="form-label fw-bold text-muted small text-uppercase mb-1">Select Employee</label>
                 <div class="input-group shadow-sm rounded-3 overflow-hidden">
                     <span class="input-group-text bg-white border-0"><i class="fa-solid fa-user-tie text-primary"></i></span>
-                    <select id="employee" class="form-select border-0 py-2">
+                    <select id="employee" class="form-select border-0 py-2" {% if last_settle_id %}disabled{% endif %}>
                         <option value="">-- Choose --</option>
                         {% for emp in employees %}
                         <option value="{{ emp.id }}" data-img="{{ emp.image }}" {% if selected_emp_id|string == emp.id|string %}selected{% endif %}>{{ emp.name }}</option>
@@ -49,7 +49,7 @@
                 <label class="form-label fw-bold text-muted small text-uppercase mb-1">Date</label>
                 <div class="input-group shadow-sm rounded-3 overflow-hidden">
                     <span class="input-group-text bg-white border-0"><i class="fa-regular fa-calendar text-primary"></i></span>
-                    <input type="text" id="date" class="form-control border-0 py-2" value="{{ today }}">
+                    <input type="text" id="date" class="form-control border-0 py-2" value="{{ today }}" {% if last_settle_id %}disabled{% endif %}>
                 </div>
             </div>
 
@@ -65,9 +65,15 @@
             <!-- 5. Fetch Button -->
             <div class="col-md-2">
                 <label class="form-label d-block text-transparent small mb-1">Action</label>
-                <button id="btnFetch" class="btn btn-gradient-primary w-100 py-2 shadow fw-bold rounded-3" style="height: 45px;">
-                    <i class="fa-solid fa-download me-1"></i> Fetch
-                </button>
+                {% if last_settle_id %}
+                    <a href="{{ url_for('evening') }}" class="btn btn-outline-dark w-100 py-2 shadow-sm fw-bold rounded-3" style="height: 45px;">
+                        <i class="fa-solid fa-plus me-1"></i> New
+                    </a>
+                {% else %}
+                    <button id="btnFetch" class="btn btn-gradient-primary w-100 py-2 shadow fw-bold rounded-3" style="height: 45px;">
+                        <i class="fa-solid fa-download me-1"></i> Fetch
+                    </button>
+                {% endif %}
             </div>
         </div>
 
@@ -80,10 +86,10 @@
             <input type="hidden" name="h_date" id="h_date" value="{{ draft_data.date if draft_data else '' }}">
             <input type="hidden" name="timestamp" id="timestampInput">
             <input type="hidden" name="status" id="formStatus" value="final">
-            <!-- If resuming a draft, we send the draft ID to update it instead of creating new -->
-            <input type="hidden" name="draft_id" value="{{ draft_data.id if draft_data else '' }}">
+            <!-- If resuming a draft -->
+            <input type="hidden" name="draft_id" value="{{ draft_data.id if draft_data and not last_settle_id else '' }}">
 
-            <!-- Stock Table (Reordered Columns) -->
+            <!-- Stock Table -->
             <div class="table-responsive rounded-4 shadow-sm mb-4 bg-white">
                 <table class="table table-hover align-middle mb-0" id="stockTable">
                     <thead class="bg-light text-secondary small text-uppercase">
@@ -99,7 +105,6 @@
                             <th class="text-center text-muted" style="width: 80px;">Left</th>
                         </tr>
                     </thead>
-                    <!-- The body is populated by JS, or by Server if Draft -->
                     <tbody id="rowsArea" class="border-top-0">
                         {% if draft_items %}
                             {% for item in draft_items %}
@@ -114,7 +119,7 @@
                                     <input type="number" name="total_qty[]" class="form-control-plaintext text-center fw-bold total-qty" value="{{ item.total_qty }}" readonly>
                                 </td>
                                 <td>
-                                    <input type="number" name="sold[]" class="form-control sold" value="{{ item.sold_qty }}" min="0">
+                                    <input type="number" name="sold[]" class="form-control sold" value="{{ item.sold_qty }}" min="0" {% if last_settle_id %}readonly{% endif %}>
                                 </td>
                                 <td>
                                     <input type="number" name="price[]" class="form-control-plaintext text-end unit-price" value="{{ item.unit_price }}" readonly>
@@ -123,7 +128,7 @@
                                     {{ "%.2f"|format(item.sold_qty * item.unit_price) }}
                                 </td>
                                 <td>
-                                    <input type="number" name="return[]" class="form-control return" value="{{ item.return_qty }}" min="0">
+                                    <input type="number" name="return[]" class="form-control return" value="{{ item.return_qty }}" min="0" {% if last_settle_id %}readonly{% endif %}>
                                 </td>
                                 <td class="text-center text-muted remaining-qty">{{ item.remaining_qty }}</td>
                             </tr>
@@ -149,49 +154,55 @@
             <!-- BOTTOM SECTION -->
             <div class="row g-4">
                 
-                <!-- 1. EMPLOYEE FINANCE (LEFT) -->
+                <!-- 1. EMPLOYEE FINANCE (LEFT) - MODIFIED BACKGROUND -->
                 <div class="col-lg-6">
-                    <div class="glass-panel p-4 h-100 border border-primary border-opacity-25 bg-primary bg-opacity-0">
+                    <!-- Added bg-gradient-finance custom class or direct style -->
+                    <div class="glass-panel p-4 h-100 border border-secondary border-opacity-10" style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); box-shadow: inset 0 0 20px rgba(0,0,0,0.02);">
                         <h5 class="fw-bold text-dark mb-3 border-bottom pb-2">
                             <i class="fa-solid fa-wallet me-2 text-primary"></i>Employee Finance
                         </h5>
+                        
+                        {% if not last_settle_id %}
                         <p class="text-muted small mb-3">Record transactions (Salary/Advance) for today.</p>
-
                         <div class="row g-3">
                             <!-- Credit -->
                             <div class="col-12">
-                                <div class="p-3 rounded-3 bg-success bg-opacity-10 border border-success border-opacity-25">
+                                <div class="p-3 rounded-3 bg-white border border-success border-opacity-25 shadow-sm">
                                     <label class="form-label fw-bold text-success small mb-1"><i class="fa-solid fa-arrow-down me-1"></i> CREDIT (Received)</label>
                                     <div class="row g-2">
                                         <div class="col-5">
-                                            <input type="number" step="0.01" name="emp_credit_amount" class="form-control border-0 shadow-sm" placeholder="Amount ₹">
+                                            <input type="number" step="0.01" name="emp_credit_amount" class="form-control border-0 bg-light" placeholder="Amount ₹">
                                         </div>
                                         <div class="col-7">
-                                            <input type="text" name="emp_credit_note" class="form-control border-0 shadow-sm" placeholder="Note (e.g. Salary)">
+                                            <input type="text" name="emp_credit_note" class="form-control border-0 bg-light" placeholder="Note (e.g. Salary)">
                                         </div>
                                     </div>
                                 </div>
                             </div>
-
                             <!-- Debit -->
                             <div class="col-12">
-                                <div class="p-3 rounded-3 bg-danger bg-opacity-10 border border-danger border-opacity-25">
+                                <div class="p-3 rounded-3 bg-white border border-danger border-opacity-25 shadow-sm">
                                     <label class="form-label fw-bold text-danger small mb-1"><i class="fa-solid fa-arrow-up me-1"></i> DEBIT (Advance)</label>
                                     <div class="row g-2">
                                         <div class="col-5">
-                                            <input type="number" step="0.01" name="emp_debit_amount" class="form-control border-0 shadow-sm" placeholder="Amount ₹">
+                                            <input type="number" step="0.01" name="emp_debit_amount" class="form-control border-0 bg-light" placeholder="Amount ₹">
                                         </div>
                                         <div class="col-7">
-                                            <input type="text" name="emp_debit_note" class="form-control border-0 shadow-sm" placeholder="Note (e.g. Advance)">
+                                            <input type="text" name="emp_debit_note" class="form-control border-0 bg-light" placeholder="Note (e.g. Advance)">
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
+                        {% else %}
+                        <div class="alert alert-light border shadow-sm text-center py-5">
+                            <p class="text-muted mb-0"><i class="fa-solid fa-lock me-2"></i>Finance data saved.</p>
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
 
-                <!-- 2. COLLECTION SECTION (RIGHT - VERTICAL STYLE) -->
+                <!-- 2. COLLECTION SECTION (RIGHT) -->
                 <div class="col-lg-6">
                     <div class="glass-panel p-4 h-100">
                         <h5 class="fw-bold text-dark mb-3 border-bottom pb-2"><i class="fa-solid fa-coins me-2 text-warning"></i>Collection & Settlement</h5>
@@ -210,7 +221,7 @@
                             <label class="small text-muted fw-bold text-uppercase mb-1">Discount</label>
                             <div class="input-group shadow-sm">
                                 <span class="input-group-text bg-white border-0 text-danger">-</span>
-                                <input type="number" step="0.01" name="discount" id="discount" class="form-control border-0" placeholder="0.00" value="{{ draft_data.discount if draft_data else '' }}">
+                                <input type="number" step="0.01" name="discount" id="discount" class="form-control border-0" placeholder="0.00" value="{{ draft_data.discount if draft_data else '' }}" {% if last_settle_id %}readonly{% endif %}>
                             </div>
                         </div>
 
@@ -219,7 +230,7 @@
                             <label class="small text-muted fw-bold text-uppercase mb-1">Online Received</label>
                             <div class="input-group shadow-sm">
                                 <span class="input-group-text bg-white border-0 text-info"><i class="fa-solid fa-qrcode"></i></span>
-                                <input type="number" step="0.01" name="online" id="online" class="form-control border-0 text-info fw-bold" placeholder="0.00" value="{{ draft_data.online_money if draft_data else '' }}">
+                                <input type="number" step="0.01" name="online" id="online" class="form-control border-0 text-info fw-bold" placeholder="0.00" value="{{ draft_data.online_money if draft_data else '' }}" {% if last_settle_id %}readonly{% endif %}>
                             </div>
                         </div>
 
@@ -228,7 +239,7 @@
                             <label class="small text-muted fw-bold text-uppercase mb-1">Cash Collected</label>
                             <div class="input-group shadow-sm">
                                 <span class="input-group-text bg-white border-0 text-success"><i class="fa-solid fa-money-bill"></i></span>
-                                <input type="number" step="0.01" name="cash" id="cash" class="form-control border-0 fw-bold text-success fs-5" placeholder="0.00" value="{{ draft_data.cash_money if draft_data else '' }}">
+                                <input type="number" step="0.01" name="cash" id="cash" class="form-control border-0 fw-bold text-success fs-5" placeholder="0.00" value="{{ draft_data.cash_money if draft_data else '' }}" {% if last_settle_id %}readonly{% endif %}>
                             </div>
                         </div>
 
@@ -245,15 +256,22 @@
 
             <!-- ACTION BUTTONS -->
             <div class="d-flex justify-content-center gap-3 mt-5">
-                <!-- Draft Button -->
-                <button type="button" onclick="submitForm('draft')" class="btn btn-outline-secondary btn-lg px-5 py-3 rounded-pill shadow-sm fw-bold">
-                    <i class="fa-regular fa-floppy-disk me-2"></i> Save Draft
-                </button>
-                
-                <!-- Submit Button -->
-                <button type="button" onclick="submitForm('final')" class="btn btn-dark btn-lg px-5 py-3 rounded-pill shadow hover-lift fw-bold">
-                    <i class="fa-solid fa-check-circle me-2"></i> Submit Final
-                </button>
+                {% if not last_settle_id %}
+                    <!-- Draft Button -->
+                    <button type="button" onclick="submitForm('draft')" class="btn btn-outline-secondary btn-lg px-5 py-3 rounded-pill shadow-sm fw-bold">
+                        <i class="fa-regular fa-floppy-disk me-2"></i> Save Draft
+                    </button>
+                    
+                    <!-- Submit Button -->
+                    <button type="button" onclick="submitForm('final')" class="btn btn-dark btn-lg px-5 py-3 rounded-pill shadow hover-lift fw-bold">
+                        <i class="fa-solid fa-check-circle me-2"></i> Submit Final
+                    </button>
+                {% else %}
+                    <!-- If submitted, show print button instead -->
+                     <a href="{{ url_for('evening') }}" class="btn btn-primary rounded-pill px-5 py-3 shadow">
+                        <i class="fa-solid fa-check me-2"></i> Done
+                    </a>
+                {% endif %}
             </div>
 
         </form>
@@ -271,9 +289,7 @@
 
         if(status === 'final') {
             if(!confirm("Are you sure you want to SUBMIT this settlement? Inventory will be deducted.")) return;
-        } else {
-             // Draft logic (simple check)
-        }
+        } 
         form.submit();
     }
 
@@ -292,12 +308,11 @@
             });
         }
         
-        // Trigger calc if draft data loaded
+        // Trigger calc if draft/submitted data loaded
         if(document.getElementById('totalAmount').value > 0) {
-            // Trigger calculation logic from JS file if function is exposed, 
-            // or rely on the input event listeners (which need a trigger)
             const event = new Event('input', { bubbles: true });
-            document.getElementById('cash').dispatchEvent(event);
+            const cashInput = document.getElementById('cash');
+            if(cashInput) cashInput.dispatchEvent(event);
         }
 
         // Clock
@@ -344,6 +359,9 @@
     /* Image Box (70px) */
     .img-box-large { width: 70px; height: 70px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
     .img-box-large img { width: 100%; height: 100%; object-fit: cover; }
+    
+    .img-box-small { width: 40px; height: 40px; display: block; border-radius: 8px; overflow: hidden; background: #eee; }
+    .img-fixed-size { width: 100%; height: 100%; object-fit: cover; }
 
     /* Inputs */
     .table input.sold, .table input.return { 
