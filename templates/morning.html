@@ -7,7 +7,7 @@
 <!-- FontAwesome -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <!-- Custom CSS -->
-<link rel="stylesheet" href="{{ url_for('static', filename='css/morning.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/morning-style.css') }}">
 
 <div class="glass-container fade-in-up mb-5">
 
@@ -40,7 +40,7 @@
                 
                 <!-- Employee Select -->
                 <div class="col-lg-5">
-                    <label class="control-label">Sales Person</label>
+                    <label class="control-label">Sales Representative</label>
                     <div class="d-flex align-items-center gap-3">
                         <div class="emp-photo-box">
                             <img src="{{ url_for('static', filename='img/default-user.png') }}" id="empPhoto" alt="User">
@@ -84,19 +84,19 @@
             <div id="historyList"></div>
 
             <!-- Product Table -->
-            <div class="table-responsive rounded-3 border mb-4">
-                <table class="table styled-table mb-0" id="productTable">
+            <div class="table-responsive">
+                <table class="table styled-table" id="productTable">
                     <thead>
                         <tr>
-                            <th class="text-center" style="width: 50px;">#</th>
-                            <th class="text-center" style="width: 70px;">Img</th>
-                            <th style="min-width: 250px;">Product Name</th>
-                            <th class="text-center" style="width: 100px;">Opening</th>
-                            <th class="text-center" style="width: 120px;">Given Qty</th>
-                            <th class="text-center" style="width: 100px;">Total</th>
+                            <th style="width: 50px;">#</th>
+                            <th style="width: 70px;">Img</th>
+                            <th class="text-start">Product Name</th>
+                            <th style="width: 100px;">Opening</th>
+                            <th style="width: 120px;">Given Qty</th>
+                            <th style="width: 100px;">Total</th>
                             <th class="text-end" style="width: 120px;">Price</th>
                             <th class="text-end" style="width: 140px;">Amount</th>
-                            <th class="text-center" style="width: 50px;"><i class="fa-solid fa-trash"></i></th>
+                            <th style="width: 50px;"><i class="fa-solid fa-trash"></i></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -105,7 +105,7 @@
                     <tfoot class="table-footer">
                         <tr>
                             <td colspan="3" class="text-end text-muted text-uppercase pe-4">Total Summary:</td>
-                            <td class="text-center"><span class="total-box bg-secondary" id="totalOpening">0</span></td>
+                            <td class="text-center"><span class="total-box bg-total-secondary" id="totalOpening">0</span></td>
                             <td class="text-center"><span class="total-box bg-total-blue" id="totalGiven">0</span></td>
                             <td class="text-center"><span class="total-box bg-total-dark" id="totalAll">0</span></td>
                             <td></td>
@@ -117,7 +117,7 @@
             </div>
 
             <!-- Action Buttons -->
-            <div class="d-flex justify-content-between align-items-center">
+            <div class="d-flex justify-content-between align-items-center mt-4">
                 <button type="button" id="addRow" class="btn btn-glass btn-add-row">
                     <i class="fa-solid fa-plus me-2"></i> Add Item Row
                 </button>
