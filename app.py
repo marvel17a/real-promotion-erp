@@ -4066,15 +4066,19 @@ def generate_pdf(settle_id):
 @app.route('/allocation_list')
 def allocation_list():
     if "loggedin" not in session: return redirect(url_for("login"))
+    
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
-    # Filters
+    # Get Filters
     filter_date = request.args.get('date')
     filter_emp = request.args.get('employee_id')
 
     # Base Query
+    # Note: 'created_at' is used for the Timestamp column
     query = """
-        SELECT ma.id, ma.date, ma.created_at, e.name as emp_name, e.phone as emp_phone
+        SELECT ma.id, ma.date, ma.created_at, 
+               e.name as emp_name, e.phone as emp_phone,
+               (SELECT COUNT(id) FROM evening_settle WHERE allocation_id = ma.id) as evening_submitted
         FROM morning_allocations ma 
         JOIN employees e ON ma.employee_id = e.id 
         WHERE 1=1
@@ -4082,20 +4086,47 @@ def allocation_list():
     params = []
 
     if filter_date:
-        query += " AND ma.date = %s"
-        params.append(filter_date)
+        # Convert DD-MM-YYYY to YYYY-MM-DD if needed, or rely on JS output
+        try:
+            dt_obj = datetime.strptime(filter_date, '%d-%m-%Y')
+            db_date = dt_obj.strftime('%Y-%m-%d')
+            query += " AND ma.date = %s"
+            params.append(db_date)
+        except ValueError:
+            pass # Ignore invalid date format
     
     if filter_emp and filter_emp != 'all':
         query += " AND ma.employee_id = %s"
         params.append(filter_emp)
 
-    query += " ORDER BY ma.date DESC"
+    query += " ORDER BY ma.date DESC, ma.id DESC"
 
     cur.execute(query, tuple(params))
     allocations = cur.fetchall()
     
-    # Fetch Employees for Filter Dropdown
-    cur.execute("SELECT id, name FROM employees ORDER BY name")
+    # Format Date/Time for View
+    for a in allocations:
+        if isinstance(a['date'], date):
+            a['date'] = a['date'].strftime('%d-%m-%Y')
+        
+        # Handle created_at timestamp
+        if a.get('created_at'):
+            # Convert string to datetime if needed, or format
+            if isinstance(a['created_at'], str):
+                 # Try parsing if it's a string, mostly it's timedelta or datetime from DB
+                 pass 
+            elif isinstance(a['created_at'], datetime):
+                 a['created_at'] = a['created_at'].strftime('%I:%M %p') # 02:30 PM
+            elif isinstance(a['created_at'], timedelta):
+                 # Timedelta (Time column only)
+                 seconds = a['created_at'].seconds
+                 hours = seconds // 3600
+                 minutes = (seconds % 3600) // 60
+                 # Simple formatting
+                 a['created_at'] = f"{hours:02}:{minutes:02}"
+
+    # Fetch Employees for Dropdown
+    cur.execute("SELECT id, name FROM employees WHERE status='active' ORDER BY name")
     employees = cur.fetchall()
     
     cur.close()
@@ -4109,119 +4140,115 @@ def allocation_list():
 # NEW route to edit a submitted form
 @app.route('/morning/edit/<int:allocation_id>', methods=['GET', 'POST'])
 def edit_morning_allocation(allocation_id):
-    if "loggedin" not in session:
-        return redirect(url_for("login"))
+    if "loggedin" not in session: return redirect(url_for("login"))
 
     db_cursor = None
     try:
         db_cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
         
-        # 3. ROBUST FIX: All table names are lowercase
-        db_cursor.execute("SELECT COUNT(id) as count FROM evening_settle WHERE allocation_id = %s", (allocation_id,))
-        if db_cursor.fetchone()['count'] > 0:
-            flash("Cannot edit this allocation as the evening settlement has already been submitted.", "warning")
+        # Security Check: Cannot edit if Evening Settlement is done
+        db_cursor.execute("SELECT id FROM evening_settle WHERE allocation_id = %s", (allocation_id,))
+        if db_cursor.fetchone():
+            flash("Cannot edit: Evening settlement already submitted.", "warning")
             return redirect(url_for('allocation_list'))
 
         if request.method == 'POST':
+            # Form Data
+            item_ids = request.form.getlist('item_id[]')
             product_ids = request.form.getlist('product_id[]')
-            item_ids = request.form.getlist('item_id[]') 
-            opening_list = request.form.getlist('opening[]')
-            given_list = request.form.getlist('given[]')
-            price_list = request.form.getlist('price[]')
+            opening_qtys = request.form.getlist('opening[]')
+            given_qtys = request.form.getlist('given[]')
+            prices = request.form.getlist('price[]')
 
-            # 3. ROBUST FIX: All table names are lowercase
+            # Fetch existing IDs to detect deletions
             db_cursor.execute("SELECT id FROM morning_allocation_items WHERE allocation_id = %s", (allocation_id,))
-            existing_db_ids = {str(row['id']) for row in db_cursor.fetchall()}
-            
-            submitted_item_ids = set()
+            current_db_ids = [str(r['id']) for r in db_cursor.fetchall()]
+            processed_ids = []
 
-            for i, product_id in enumerate(product_ids):
-                if not product_id: continue
-                    
+            for i, pid in enumerate(product_ids):
+                if not pid: continue
+                
                 item_id = item_ids[i]
-                open_q = int(opening_list[i] or 0)
-                giv_q = int(given_list[i] or 0)
-                price = float(price_list[i] or 0.0)
+                op_qty = int(opening_qtys[i] or 0)
+                gv_qty = int(given_qtys[i] or 0)
+                price = float(prices[i] or 0)
 
-                if item_id == 'new_item': 
-                    # 3. ROBUST FIX: All table names are lowercase
+                if item_id == 'new_item':
+                    # Insert New Item
                     db_cursor.execute("""
-                        INSERT INTO morning_allocation_items
+                        INSERT INTO morning_allocation_items 
                         (allocation_id, product_id, opening_qty, given_qty, unit_price)
                         VALUES (%s, %s, %s, %s, %s)
-                    """, (allocation_id, product_id, open_q, giv_q, price))
-                else: 
-                    submitted_item_ids.add(item_id)
-                    # 3. ROBUST FIX: All table names are lowercase
+                    """, (allocation_id, pid, op_qty, gv_qty, price))
+                else:
+                    # Update Existing
+                    processed_ids.append(item_id)
                     db_cursor.execute("""
-                        UPDATE morning_allocation_items
-                        SET product_id = %s, opening_qty = %s, given_qty = %s, unit_price = %s
-                        WHERE id = %s AND allocation_id = %s
-                    """, (product_id, open_q, giv_q, price, item_id, allocation_id))
-            
-            ids_to_delete = existing_db_ids - submitted_item_ids
-            if ids_to_delete:
-                # 3. ROBUST FIX: All table names are lowercase
-                delete_query = "DELETE FROM morning_allocation_items WHERE id IN ({})".format(
-                    ",".join(["%s"] * len(ids_to_delete))
-                )
-                db_cursor.execute(delete_query, tuple(ids_to_delete))
+                        UPDATE morning_allocation_items 
+                        SET product_id=%s, opening_qty=%s, given_qty=%s, unit_price=%s
+                        WHERE id=%s AND allocation_id=%s
+                    """, (pid, op_qty, gv_qty, price, item_id, allocation_id))
+
+            # Delete Removed Items
+            for db_id in current_db_ids:
+                if db_id not in processed_ids:
+                    db_cursor.execute("DELETE FROM morning_allocation_items WHERE id=%s", (db_id,))
 
             mysql.connection.commit()
             flash("Allocation updated successfully!", "success")
             return redirect(url_for('allocation_list'))
 
-        # --- GET request ---
-        
-        # 3. ROBUST FIX: All table names are lowercase
+        # GET Request
+        # 1. Allocation Header
         db_cursor.execute("""
-            SELECT ma.*, e.name as employee_name 
+            SELECT ma.*, e.name as employee_name, e.image as emp_image 
             FROM morning_allocations ma
             JOIN employees e ON ma.employee_id = e.id
             WHERE ma.id = %s
         """, (allocation_id,))
         allocation = db_cursor.fetchone()
+        
         if not allocation:
-            flash("Allocation not found.", "danger")
+            flash("Record not found.", "danger")
             return redirect(url_for('allocation_list'))
+            
+        allocation['emp_image'] = resolve_img(allocation['emp_image'])
 
-        # 3. ROBUST FIX: All table names are lowercase
+        # 2. Items
         db_cursor.execute("""
-            SELECT * FROM morning_allocation_items 
-            WHERE allocation_id = %s 
-            ORDER BY id ASC
+            SELECT mai.*, p.image 
+            FROM morning_allocation_items mai
+            JOIN products p ON mai.product_id = p.id
+            WHERE mai.allocation_id = %s
         """, (allocation_id,))
         items = db_cursor.fetchall()
+        for item in items: item['image'] = resolve_img(item['image'])
 
-        # 3. ROBUST FIX: All table names are lowercase
-        db_cursor.execute("SELECT id, name, price FROM products ORDER BY name")
-        products_raw = db_cursor.fetchall() or []
+        # 3. Product List for Dropdown
+        db_cursor.execute("SELECT id, name, price, image FROM products WHERE status='Active' ORDER BY name")
+        all_products = db_cursor.fetchall()
         
-        products_for_js = [
-            {'id': p['id'], 'name': p['name'], 'price': float(p['price'])}
-            for p in products_raw
-        ]
-        
-        productOptions = ''.join(
-            f'<option value="{pr["id"]}">{pr["name"]}</option>'
-            for pr in products_for_js
-        )
-        
+        # Prepare JSON for JS
+        products_js = []
+        product_options = ""
+        for p in all_products:
+            p_img = resolve_img(p['image'])
+            products_js.append({'id': p['id'], 'name': p['name'], 'price': float(p['price']), 'image': p_img})
+            product_options += f'<option value="{p["id"]}">{p["name"]}</option>'
+
         return render_template('morning_edit.html',
                                allocation=allocation,
                                items=items,
-                               products=products_for_js,
+                               products=products_js,
                                productOptions=productOptions)
 
     except Exception as e:
-        if db_cursor:
-            mysql.connection.rollback()
-        app.logger.error(f"Edit allocation error: {e}") # Log the error
-        flash(f"An error occurred: {e}", "danger")
+        if db_cursor: mysql.connection.rollback()
+        app.logger.error(f"Edit Error: {e}")
+        flash(f"Error: {e}", "danger")
         return redirect(url_for('allocation_list'))
     finally:
-        if db_cursor:
-            db_cursor.close()
+        if db_cursor: db_cursor.close()
 
 
 # ---------------------------------------------------------
@@ -5660,6 +5687,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
