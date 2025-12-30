@@ -7,7 +7,7 @@
 <!-- FontAwesome -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <!-- Custom CSS -->
-<link rel="stylesheet" href="{{ url_for('static', filename='css/morning.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/morning-style.css') }}">
 
 <div class="glass-container fade-in-up mb-5">
 
@@ -26,7 +26,7 @@
         
         <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
             <h4 class="fw-800 text-dark mb-0"><i class="fa-solid fa-sun text-warning me-2"></i>Morning Allocation</h4>
-            <a href="{{ url_for('allocation_list') }}" class="btn btn-outline-secondary rounded-pill btn-sm fw-bold">
+            <a href="{{ url_for('allocation_list') }}" class="btn btn-outline-secondary rounded-pill btn-sm fw-bold px-3">
                 <i class="fa-solid fa-clock-rotate-left me-2"></i> History
             </a>
         </div>
@@ -68,10 +68,9 @@
                     </div>
                 </div>
 
-                <!-- Live Clock -->
+                <!-- Live Clock (Updated Style) -->
                 <div class="col-md-4 col-lg-4 ms-auto">
                     <div class="clock-display">
-                        <i class="fa-regular fa-clock me-2 text-warning"></i>
                         <span id="liveClock">00:00:00</span>
                     </div>
                 </div>
@@ -80,7 +79,7 @@
             <!-- Status Message Area -->
             <div id="fetchMsg" class="text-center mb-3"></div>
 
-            <!-- Dynamic History / Restock Warning Area -->
+            <!-- Restock History Area -->
             <div id="historyList"></div>
 
             <!-- Product Table -->
@@ -88,15 +87,15 @@
                 <table class="table styled-table" id="productTable">
                     <thead>
                         <tr>
-                            <th style="width: 50px;">#</th>
-                            <th style="width: 70px;">Img</th>
+                            <th class="text-center" style="width: 50px;">#</th>
+                            <th class="text-center" style="width: 70px;">Img</th>
                             <th class="text-start">Product Name</th>
-                            <th style="width: 100px;">Opening</th>
-                            <th style="width: 120px;">Given Qty</th>
-                            <th style="width: 100px;">Total</th>
+                            <th class="text-center" style="width: 100px;">Opening</th>
+                            <th class="text-center" style="width: 120px;">Given Qty</th>
+                            <th class="text-center" style="width: 100px;">Total</th>
                             <th class="text-end" style="width: 120px;">Price</th>
                             <th class="text-end" style="width: 140px;">Amount</th>
-                            <th style="width: 50px;"><i class="fa-solid fa-trash"></i></th>
+                            <th class="text-center" style="width: 50px;"><i class="fa-solid fa-trash"></i></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -104,7 +103,7 @@
                     </tbody>
                     <tfoot class="table-footer">
                         <tr>
-                            <td colspan="3" class="text-end text-muted text-uppercase pe-4">Total Summary:</td>
+                            <td colspan="3" class="summary-label">Summary:</td>
                             <td class="text-center"><span class="total-box bg-total-secondary" id="totalOpening">0</span></td>
                             <td class="text-center"><span class="total-box bg-total-blue" id="totalGiven">0</span></td>
                             <td class="text-center"><span class="total-box bg-total-dark" id="totalAll">0</span></td>
@@ -119,7 +118,7 @@
             <!-- Action Buttons -->
             <div class="d-flex justify-content-between align-items-center mt-4">
                 <button type="button" id="addRow" class="btn btn-glass btn-add-row">
-                    <i class="fa-solid fa-plus me-2"></i> Add Item Row
+                    <i class="fa-solid fa-plus me-2"></i> Add Item
                 </button>
                 <button type="submit" class="btn btn-glass btn-save px-5">
                     <i class="fa-solid fa-check-circle me-2"></i> Save Allocation
@@ -153,4 +152,3 @@
 </script>
 <script src="{{ url_for('static', filename='js/morning.js') }}"></script>
 {% endblock %}
-
