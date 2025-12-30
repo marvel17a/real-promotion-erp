@@ -6,8 +6,8 @@
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <!-- FontAwesome -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-<!-- Custom CSS -->
-<link rel="stylesheet" href="{{ url_for('static', filename='css/morning.css') }}">
+<!-- Custom CSS (Shared) -->
+<link rel="stylesheet" href="{{ url_for('static', filename='css/morning-style.css') }}">
 
 <div class="glass-container fade-in-up mb-5">
 
@@ -73,10 +73,9 @@
                 </div>
             </div>
 
-            <!-- Live Clock -->
+            <!-- Live Clock (Matches Morning) -->
             <div class="col-md-4 col-lg-4 ms-auto">
                 <div class="clock-display">
-                    <i class="fa-regular fa-clock me-2 text-warning"></i>
                     <span id="liveClock">00:00:00</span>
                 </div>
             </div>
@@ -97,15 +96,15 @@
                 <table class="table styled-table" id="stockTable">
                     <thead>
                         <tr>
-                            <th style="width: 50px;">#</th>
-                            <th style="width: 70px;">Img</th>
+                            <th class="text-center" style="width: 50px;">#</th>
+                            <th class="text-center" style="width: 70px;">Img</th>
                             <th class="text-start">Product Name</th>
-                            <th style="width: 100px;">Total Qty</th>
-                            <th style="width: 120px;">Sold Qty</th>
+                            <th class="text-center" style="width: 100px;">Total Qty</th>
+                            <th class="text-center" style="width: 120px;">Sold Qty</th>
                             <th class="text-end" style="width: 120px;">Price</th>
                             <th class="text-end" style="width: 140px;">Amount</th>
-                            <th style="width: 100px;">Return</th>
-                            <th style="width: 80px;">Left</th>
+                            <th class="text-center" style="width: 100px;">Return</th>
+                            <th class="text-center" style="width: 80px;">Left</th>
                         </tr>
                     </thead>
                     <tbody id="rowsArea">
@@ -119,19 +118,19 @@
                                     <input type="hidden" name="product_id[]" value="{{ item.product_id }}">
                                 </td>
                                 <td>
-                                    <input type="number" name="total_qty[]" class="table-input-plaintext total-qty" value="{{ item.total_qty }}" readonly>
+                                    <input type="number" name="total_qty[]" class="table-input" value="{{ item.total_qty }}" readonly>
                                 </td>
                                 <td>
-                                    <input type="number" name="sold[]" class="table-input sold input-sold" value="{{ item.sold_qty }}" min="0" {% if last_settle_id %}readonly{% endif %}>
+                                    <input type="number" name="sold[]" class="table-input input-sold sold" value="{{ item.sold_qty }}" min="0" {% if last_settle_id %}readonly{% endif %}>
                                 </td>
                                 <td>
-                                    <input type="number" name="price[]" class="table-input-plaintext text-end unit-price" value="{{ item.unit_price }}" readonly>
+                                    <input type="number" name="price[]" class="table-input text-end unit-price" value="{{ item.unit_price }}" readonly>
                                 </td>
                                 <td class="text-end fw-bold text-primary row-amount">
                                     {{ "%.2f"|format(item.sold_qty * item.unit_price) }}
                                 </td>
                                 <td>
-                                    <input type="number" name="return[]" class="table-input return input-return" value="{{ item.return_qty }}" min="0" {% if last_settle_id %}readonly{% endif %}>
+                                    <input type="number" name="return[]" class="table-input input-return return" value="{{ item.return_qty }}" min="0" {% if last_settle_id %}readonly{% endif %}>
                                 </td>
                                 <td class="text-center fw-bold text-muted remaining-qty">{{ item.remaining_qty }}</td>
                             </tr>
@@ -141,10 +140,10 @@
                         {% endif %}
                     </tbody>
                     
-                    <!-- FOOTER (Matches Morning Page Style) -->
+                    <!-- FOOTER (Matches Morning Page Style & Colors) -->
                     <tfoot class="table-footer">
                         <tr>
-                            <td colspan="3" class="text-end text-muted text-uppercase pe-4">Total Summary:</td>
+                            <td colspan="3" class="summary-label">Summary:</td>
                             <td class="text-center"><span class="total-box bg-total-dark" id="totTotal">0</span></td>
                             <td class="text-center"><span class="total-box bg-total-green" id="totSold">0</span></td>
                             <td></td>
@@ -177,7 +176,17 @@
                                             </div>
                                         </div>
                                         <div class="col-8">
-                                            <input type="text" name="emp_credit_note" class="form-control form-control-sm border-success" placeholder="Note (e.g. Salary)">
+                                            <!-- Dropdown for Credit Note -->
+                                            <div class="input-group input-group-sm">
+                                                <select class="form-select border-success text-success fw-bold" style="max-width: 40px;" onchange="this.nextElementSibling.value=this.value; this.value='';">
+                                                    <option value="" selected disabled>&#9776;</option>
+                                                    <option value="Salary">Salary</option>
+                                                    <option value="Incentive">Incentive</option>
+                                                    <option value="Bonus">Bonus</option>
+                                                    <option value="Other">Other</option>
+                                                </select>
+                                                <input type="text" name="emp_credit_note" class="form-control border-success" placeholder="Note">
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -193,7 +202,17 @@
                                             </div>
                                         </div>
                                         <div class="col-8">
-                                            <input type="text" name="emp_debit_note" class="form-control form-control-sm border-danger" placeholder="Note (e.g. Advance)">
+                                            <!-- Dropdown for Debit Note -->
+                                            <div class="input-group input-group-sm">
+                                                <select class="form-select border-danger text-danger fw-bold" style="max-width: 40px;" onchange="this.nextElementSibling.value=this.value; this.value='';">
+                                                    <option value="" selected disabled>&#9776;</option>
+                                                    <option value="Advance">Advance</option>
+                                                    <option value="Penalty">Penalty</option>
+                                                    <option value="Loan">Loan</option>
+                                                    <option value="Other">Other</option>
+                                                </select>
+                                                <input type="text" name="emp_debit_note" class="form-control border-danger" placeholder="Note">
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -221,17 +240,17 @@
 
                             <div class="settle-row">
                                 <span class="settle-label text-warning"><i class="fa-solid fa-percent me-2"></i>Discount</span>
-                                <input type="number" step="0.01" name="discount" id="discount" class="form-control settle-input text-warning" placeholder="0.00" value="{{ draft_data.discount if draft_data else '' }}" {% if last_settle_id %}readonly{% endif %}>
+                                <input type="number" step="0.01" name="discount" id="discount" class="settle-input text-warning" placeholder="0.00" value="{{ draft_data.discount if draft_data else '' }}" {% if last_settle_id %}readonly{% endif %}>
                             </div>
 
                             <div class="settle-row">
                                 <span class="settle-label text-info"><i class="fa-solid fa-qrcode me-2"></i>Online Received</span>
-                                <input type="number" step="0.01" name="online" id="online" class="form-control settle-input text-info" placeholder="0.00" value="{{ draft_data.online_money if draft_data else '' }}" {% if last_settle_id %}readonly{% endif %}>
+                                <input type="number" step="0.01" name="online" id="online" class="settle-input text-info" placeholder="0.00" value="{{ draft_data.online_money if draft_data else '' }}" {% if last_settle_id %}readonly{% endif %}>
                             </div>
 
                             <div class="settle-row">
                                 <span class="settle-label text-success"><i class="fa-solid fa-money-bill-wave me-2"></i>Cash Collected</span>
-                                <input type="number" step="0.01" name="cash" id="cash" class="form-control settle-input text-success fs-5" placeholder="0.00" value="{{ draft_data.cash_money if draft_data else '' }}" {% if last_settle_id %}readonly{% endif %}>
+                                <input type="number" step="0.01" name="cash" id="cash" class="settle-input text-success fs-5" placeholder="0.00" value="{{ draft_data.cash_money if draft_data else '' }}" {% if last_settle_id %}readonly{% endif %}>
                             </div>
 
                             <div class="settle-row mt-3 pt-3 border-top-0 border-top border-dark">
@@ -305,4 +324,3 @@
     });
 </script>
 {% endblock %}
-
