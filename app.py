@@ -3400,28 +3400,22 @@ def morning():
                 flash("All fields are required.", "danger")
                 return redirect(url_for('morning'))
 
-            # --- NEW: INVENTORY CHECK LOGIC ---
-            # We iterate through the list FIRST to ensure stock is available for all items.
+            # --- 1. SERVER-SIDE STOCK CHECK (Safety Net) ---
             for idx, pid in enumerate(product_ids):
                 if not pid: continue
                 gv_q = int(given_list[idx] or 0)
                 
-                # Only check stock if we are GIVING items
+                # Check stock only if we are GIVING items
                 if gv_q > 0:
                     db_cursor.execute("SELECT name, stock FROM products WHERE id = %s", (pid,))
                     product_data = db_cursor.fetchone()
                     
                     if product_data:
-                        # Ensure we handle None values as 0
                         current_stock = int(product_data['stock'] if product_data['stock'] is not None else 0)
-                        
                         if current_stock < gv_q:
-                            flash(f"Cannot allocate! '{product_data['name']}' has insufficient stock. Available: {current_stock}, Requested: {gv_q}", "danger")
+                            flash(f"Stock Error: '{product_data['name']}' has only {current_stock} left in inventory.", "danger")
                             return redirect(url_for('morning'))
-                    else:
-                        flash(f"Product ID {pid} not found in database.", "danger")
-                        return redirect(url_for('morning'))
-            # ----------------------------------
+            # -----------------------------------------------
 
             formatted_date = date_obj.strftime('%Y-%m-%d')
 
@@ -3433,11 +3427,10 @@ def morning():
                 alloc_id = existing['id']
                 flash_msg = "Stock added to existing allocation (Restock)."
             else:
-                # Insert Header with Timestamp (created_at)
+                # Insert Header
                 try:
                     db_cursor.execute("INSERT INTO morning_allocations (employee_id, date, created_at) VALUES (%s, %s, %s)", (employee_id, formatted_date, time_str))
                 except:
-                     # Fallback if column missing
                     db_cursor.execute("INSERT INTO morning_allocations (employee_id, date) VALUES (%s, %s)", (employee_id, formatted_date))
                 
                 alloc_id = db_cursor.lastrowid
@@ -3449,8 +3442,6 @@ def morning():
                 (allocation_id, product_id, opening_qty, given_qty, unit_price, added_at) 
                 VALUES (%s, %s, %s, %s, %s, %s)
             """
-            
-            # Fallback SQL if 'added_at' column is missing in DB
             fallback_sql = """
                 INSERT INTO morning_allocation_items 
                 (allocation_id, product_id, opening_qty, given_qty, unit_price) 
@@ -3469,8 +3460,7 @@ def morning():
                     except:
                         db_cursor.execute(fallback_sql, (alloc_id, pid, op_q, gv_q, pr_c))
                     
-                    # NOTE: If you want to deduct stock immediately upon allocation, uncomment the lines below.
-                    # However, if your 'evening' route deducts stock on sale, do NOT uncomment this or you will double-deduct.
+                    # NOTE: Uncomment below ONLY if you want to deduct stock immediately upon allocation
                     # if gv_q > 0:
                     #     db_cursor.execute("UPDATE products SET stock = stock - %s WHERE id = %s", (gv_q, pid))
 
@@ -3478,12 +3468,13 @@ def morning():
             flash(flash_msg, "success")
             return redirect(url_for('morning'))
 
-        # GET Request Data
+        # --- GET REQUEST ---
         db_cursor.execute("SELECT id, name, image FROM employees WHERE status='active' ORDER BY name")
         employees = db_cursor.fetchall()
         for e in employees: e['image'] = resolve_img(e['image'])
 
-        db_cursor.execute("SELECT id, name, price, image FROM products ORDER BY name")
+        # FIX IS HERE: Added 'stock' to the SELECT query
+        db_cursor.execute("SELECT id, name, price, image, stock FROM products ORDER BY name")
         products_raw = db_cursor.fetchall()
         
         products_for_js = []
@@ -3492,7 +3483,8 @@ def morning():
                 'id': p['id'], 
                 'name': p['name'], 
                 'price': float(p['price']), 
-                'image': resolve_img(p['image'])
+                'image': resolve_img(p['image']),
+                'stock': int(p['stock'] if p['stock'] is not None else 0) # <--- Sending stock to JS
             })
         
         return render_template('morning.html',
@@ -5714,6 +5706,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
