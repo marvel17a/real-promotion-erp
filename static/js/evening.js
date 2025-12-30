@@ -28,11 +28,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     };
     
-    if(ui.payment.totalAmount && ui.payment.totalAmount.value > 0) {
-        calculateDue();
-        recalculateTotals();
-    }
-
+    // Only proceed if elements exist
     if (!ui.fetchButton) return;
 
     const DEFAULT_IMG = "https://via.placeholder.com/50?text=Img";
@@ -41,113 +37,134 @@ document.addEventListener("DOMContentLoaded", () => {
         const employeeId = ui.employeeSelect.value;
         const dateStr = ui.dateInput.value;
 
-        if(!employeeId) {
-            alert("Please select an employee first.");
+        // Loading State
+        ui.tableBody.innerHTML = '<tr><td colspan="9" class="text-center p-5"><div class="spinner-border text-primary" role="status"></div><p class="mt-2 text-muted">Loading Data...</p></td></tr>';
+        if(ui.fetchMsg) ui.fetchMsg.textContent = "";
+
+        if (!employeeId || !dateStr) {
+            ui.tableBody.innerHTML = '<tr><td colspan="9" class="text-center text-muted p-5 fw-bold">Please Select Employee and Date first.</td></tr>';
             return;
         }
 
-        ui.tableBody.innerHTML = '<tr><td colspan="9" class="text-center p-5"><div class="spinner-border text-primary"></div></td></tr>';
-        
+        if(ui.hidden.employee) ui.hidden.employee.value = employeeId;
+        if(ui.hidden.date) ui.hidden.date.value = dateStr;
+
         try {
-            const formData = new FormData();
-            formData.append('employee_id', employeeId);
-            formData.append('date', dateStr);
-
-            const response = await fetch('/api/fetch_evening_data', {
-                method: 'POST',
-                body: formData
-            });
-
+            const response = await fetch(`/api/fetch_morning_allocation?employee_id=${employeeId}&date=${dateStr}`);
             const data = await response.json();
 
-            if (data.status === 'success') {
-                ui.fetchMsg.classList.add('d-none');
-                
-                ui.hidden.allocationId.value = data.allocation_id;
-                ui.hidden.employee.value = employeeId;
-                ui.hidden.date.value = dateStr;
+            if (!response.ok || data.error) throw new Error(data.error || 'No data found for this selection.');
 
-                ui.tableBody.innerHTML = '';
-                data.products.forEach((p, index) => {
-                    const row = document.createElement('tr');
-                    
-                    const imgUrl = p.image && p.image !== 'None' ? p.image : '/static/img/no-img.png';
-
-                    // VALIDATION ADDED: sold/return limited to 3 digits
-                    row.innerHTML = `
-                        <td class="ps-4 text-muted row-index">${index + 1}</td>
-                        <td>
-                            <div class="img-box-small">
-                                <img src="${imgUrl}" class="img-fixed-size" onerror="this.src='/static/img/no-img.png'">
-                            </div>
-                        </td>
-                        <td class="fw-bold text-dark">
-                            ${p.name}
-                            <input type="hidden" name="product_id[]" value="${p.id}">
-                        </td>
-                        <td class="text-center">
-                            <span class="total-box">${p.total_qty}</span>
-                            <input type="hidden" name="total_qty[]" class="total-qty" value="${p.total_qty}">
-                        </td>
-                        <td>
-                            <input type="number" name="sold[]" class="table-input sold" placeholder="0" min="0" max="999"
-                                   oninput="if(this.value.length > 3) this.value = this.value.slice(0, 3);">
-                        </td>
-                        <td>
-                            <input type="number" name="price[]" class="form-control-plaintext text-end fw-bold unit-price" value="${p.price}" readonly>
-                        </td>
-                        <td class="text-end fw-bold text-primary row-amount">0.00</td>
-                        <td>
-                            <input type="number" name="return[]" class="table-input return" placeholder="0" min="0" max="999"
-                                   oninput="if(this.value.length > 3) this.value = this.value.slice(0, 3);">
-                        </td>
-                        <td class="text-center text-muted remaining-qty fw-bold">${p.total_qty}</td>
-                    `;
-                    ui.tableBody.appendChild(row);
-                });
-                recalculateTotals();
-
+            if(ui.hidden.allocationId) ui.hidden.allocationId.value = data.allocation_id;
+            
+            // Show status message regarding date
+            if(data.allocation_date && data.allocation_date !== dateStr) {
+                ui.fetchMsg.innerHTML = `<span class="badge bg-warning text-dark"><i class="fa-solid fa-clock-rotate-left"></i> Fetched pending allocation from: ${data.allocation_date}</span>`;
             } else {
-                ui.tableBody.innerHTML = `<tr><td colspan="9" class="text-center p-5 text-danger fw-bold">${data.message}</td></tr>`;
-                ui.hidden.allocationId.value = "";
+                ui.fetchMsg.innerHTML = '<span class="badge bg-success"><i class="fa-solid fa-check"></i> Data Loaded Successfully</span>';
             }
+            
+            if (!data.items || data.items.length === 0) {
+                ui.tableBody.innerHTML = '<tr><td colspan="9" class="text-center text-warning p-5 fw-bold">No items found for this allocation.</td></tr>';
+                return;
+            }
+
+            renderTable(data.items);
+
         } catch (error) {
-            console.error("Error:", error);
-            ui.tableBody.innerHTML = `<tr><td colspan="9" class="text-center p-5 text-danger fw-bold">Network Error or Server Issue.</td></tr>`;
+            ui.tableBody.innerHTML = `<tr><td colspan="9" class="text-center text-danger p-5 fw-bold"><i class="fa-solid fa-circle-exclamation me-2"></i>${error.message}</td></tr>`;
+            if(ui.fetchMsg) ui.fetchMsg.innerHTML = `<span class="text-danger">${error.message}</span>`;
         }
+    }
+
+    function renderTable(items) {
+        ui.tableBody.innerHTML = '';
+        
+        items.forEach((item, index) => {
+            const totalQty = parseInt(item.total_qty);
+            const price = parseFloat(item.unit_price);
+            
+            let imgSrc = item.image || DEFAULT_IMG;
+
+            const rowHtml = `
+                <tr class="item-row fade-in">
+                    <td class="ps-4 text-muted fw-bold">${index + 1}</td>
+                    <td class="text-center">
+                        <img src="${imgSrc}" class="img-thumbnail-custom" onerror="this.src='${DEFAULT_IMG}'">
+                    </td>
+                    <td>
+                        <div class="fw-bold text-dark">${item.product_name}</div>
+                        <input type="hidden" name="product_id[]" value="${item.product_id}">
+                        <input type="hidden" name="total_qty[]" value="${totalQty}">
+                        <input type="hidden" name="price[]" class="price-input" value="${price.toFixed(2)}">
+                    </td>
+                    <td class="text-center">
+                        <span class="badge bg-light text-dark border px-3 py-2 rounded-pill fs-6">${totalQty}</span>
+                    </td>
+                    <td class="text-center">
+                        <input type="number" name="sold[]" class="table-input sold" min="0" max="${totalQty}" placeholder="0">
+                    </td>
+                    <td class="text-end">
+                        <span class="text-muted">${price.toFixed(2)}</span>
+                    </td>
+                    <td class="text-end fw-bold text-primary amount-display">0.00</td>
+                    <td class="text-center">
+                        <input type="number" name="return[]" class="table-input return" min="0" max="${totalQty}" placeholder="0">
+                    </td>
+                    <td class="text-center">
+                        <span class="remain-text fw-bold text-secondary">0</span>
+                        <input type="hidden" name="remaining[]" class="remain-input" value="${totalQty}">
+                    </td>
+                </tr>
+            `;
+            ui.tableBody.insertAdjacentHTML('beforeend', rowHtml);
+        });
+
+        recalculateTotals();
     }
 
     function recalculateTotals() {
         let gTotal = 0, gSold = 0, gReturn = 0, gRemain = 0, gAmount = 0;
+        const rows = ui.tableBody.querySelectorAll('.item-row');
 
-        const rows = ui.tableBody.querySelectorAll('tr');
         rows.forEach(row => {
-            if(!row.querySelector('.sold')) return;
-
-            const total = parseInt(row.querySelector('.total-qty').value) || 0;
-            const price = parseFloat(row.querySelector('.unit-price').value) || 0;
+            const totalQty = parseInt(row.querySelector('input[name="total_qty[]"]').value) || 0;
+            const price = parseFloat(row.querySelector('.price-input').value) || 0;
+            const soldInput = row.querySelector('.sold');
+            const returnInput = row.querySelector('.return');
+            const remainInput = row.querySelector('.remain-input');
+            const remainText = row.querySelector('.remain-text');
             
-            let sold = parseInt(row.querySelector('.sold').value) || 0;
-            let ret = parseInt(row.querySelector('.return').value) || 0;
+            let sold = parseInt(soldInput.value) || 0;
+            let ret = parseInt(returnInput.value) || 0;
 
-            let remain = total - sold - ret;
-            if (remain < 0) {
-               // Optional: visual warning handled via CSS or kept negative
-            } 
+            // Logic: Sold + Return cannot exceed Total. 
+            // If user types too much, we prioritize Sold, then adjust Return.
+            if ((sold + ret) > totalQty) {
+                // Adjust Return to fit
+                ret = totalQty - sold;
+                if(ret < 0) { sold = totalQty; ret = 0; }
+                
+                // Update UI inputs
+                // Note: We avoid aggressive overwriting while typing, but strictly enforce limits on blur/calculation
+                soldInput.value = sold || '';
+                returnInput.value = ret || '';
+            }
 
-            const remainEl = row.querySelector('.remaining-qty');
-            remainEl.textContent = remain;
-            if(remain < 0) remainEl.classList.add('text-danger');
-            else remainEl.classList.remove('text-danger');
+            const revenue = sold * price;
+            const remaining = totalQty - sold - ret; // Should be 0 usually if fully accounted, or >0 if lost? 
+            // Actually usually Morning = Sold + Return. So Remaining = Morning - (Sold + Return).
             
-            const amount = sold * price;
-            row.querySelector('.row-amount').textContent = amount.toFixed(2);
+            if(remainInput) remainInput.value = remaining;
+            if(remainText) remainText.textContent = remaining;
+            
+            row.querySelector('.amount-display').textContent = revenue.toFixed(2);
 
-            gTotal += total;
+            gTotal += totalQty;
             gSold += sold;
             gReturn += ret;
-            gRemain += remain;
-            gAmount += amount;
+            gRemain += remaining;
+            gAmount += revenue;
         });
 
         if(ui.footer.total) ui.footer.total.textContent = gTotal;
@@ -155,11 +172,10 @@ document.addEventListener("DOMContentLoaded", () => {
         if(ui.footer.return) ui.footer.return.textContent = gReturn;
         if(ui.footer.remain) ui.footer.remain.textContent = gRemain;
         if(ui.footer.amount) ui.footer.amount.textContent = gAmount.toFixed(2);
-
-        if(ui.payment.totalAmount) {
-            ui.payment.totalAmount.value = gAmount.toFixed(2);
-            calculateDue(); 
-        }
+        
+        if(ui.payment.totalAmount) ui.payment.totalAmount.value = gAmount.toFixed(2);
+        
+        calculateDue();
     }
 
     function calculateDue() {
@@ -169,34 +185,46 @@ document.addEventListener("DOMContentLoaded", () => {
         const disc = parseFloat(ui.payment.discount?.value) || 0;
         const cash = parseFloat(ui.payment.cash?.value) || 0;
         const online = parseFloat(ui.payment.online?.value) || 0;
+        
+        // Due = Total - (Discount + Cash + Online)
         const due = total - (disc + cash + online);
         
         if(ui.payment.due) ui.payment.due.textContent = due.toFixed(2);
-        
-        const sticky = document.getElementById('stickyDue');
-        if(sticky) sticky.innerText = due.toFixed(2);
     }
+
+    // --- Event Listeners ---
 
     ui.fetchButton.addEventListener("click", (e) => {
         e.preventDefault();
         fetchMorningAllocation();
     });
     
+    // Use delegation for table inputs
     ui.tableBody.addEventListener('input', e => {
-        if (e.target.matches('.sold, .return')) recalculateTotals();
+        if (e.target.matches('.sold, .return')) {
+            recalculateTotals();
+        }
     });
     
-    // Validation for money inputs
+    // Finance Inputs
     [ui.payment.discount, ui.payment.cash, ui.payment.online].forEach(el => {
-        if(el) {
-            el.addEventListener('input', calculateDue);
-            el.setAttribute("oninput", "if(this.value.length > 8) this.value = this.value.slice(0, 8); calculateDue()");
-        }
+        if(el) el.addEventListener('input', calculateDue);
     });
 
+    // Enter key navigation
     document.addEventListener("keydown", function (e) {
-        if (e.key === "Enter" && e.target.tagName !== "BUTTON") {
+        if (e.key === "Enter" && e.target.tagName !== "BUTTON" && e.target.tagName !== "TEXTAREA") {
             e.preventDefault();
+            const inputs = Array.from(document.querySelectorAll("input:not([readonly]), select"));
+            const index = inputs.indexOf(e.target);
+            if (index > -1 && index < inputs.length - 1) {
+                inputs[index + 1].focus();
+            }
         }
     });
+    
+    // Initial Calc in case data exists (Edit Mode)
+    if(ui.payment.totalAmount && parseFloat(ui.payment.totalAmount.value) > 0) {
+        calculateDue();
+    }
 });
