@@ -3875,19 +3875,26 @@ def api_fetch_stock():
 # ---------------------------------------------------------
 # API: FETCH MORNING STOCK (With Holiday Logic)
 # ---------------------------------------------------------
-@app.route('/api/fetch_morning_allocation', methods=['POST']) 
+@app.route('/api/fetch_morning_allocation', methods=['GET', 'POST']) 
 def fetch_morning_allocation(): 
     if "loggedin" not in session: return jsonify({'status': 'error', 'message': 'Unauthorized'})
 
     try:
-        employee_id = request.form.get('employee_id')
-        date_str = request.form.get('date') 
+        # Use request.values to grab from query string (GET) or body (POST)
+        employee_id = request.values.get('employee_id')
+        date_str = request.values.get('date') 
         
         if not employee_id or not date_str:
             return jsonify({'status': 'error', 'message': 'Missing parameters'})
 
         cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-        formatted_date = parse_date(date_str).strftime('%Y-%m-%d')
+        
+        # Parse Date (dd-mm-yyyy or yyyy-mm-dd)
+        date_obj = parse_date(date_str)
+        if not date_obj:
+            return jsonify({'status': 'error', 'message': 'Invalid Date Format (Expected dd-mm-yyyy)'})
+
+        formatted_date = date_obj.strftime('%Y-%m-%d')
         
         # HOLIDAY LOGIC: Fetch LAST Closing Stock (Opening for Today)
         
@@ -3923,10 +3930,50 @@ def fetch_morning_allocation():
             items = cur.fetchall()
             stock_map = {item['product_id']: item['remaining_qty'] for item in items}
 
+        # --- IMPORTANT: Also fetch items allocated THIS MORNING (Today's Allocation) ---
+        # So we can calculate [Total = Opening + Given Today]
+        cur.execute("""
+            SELECT ma.id as alloc_id, mai.product_id, mai.opening_qty, mai.given_qty, mai.unit_price, p.name, p.image
+            FROM morning_allocations ma
+            JOIN morning_allocation_items mai ON ma.id = mai.allocation_id
+            JOIN products p ON mai.product_id = p.id
+            WHERE ma.employee_id = %s AND ma.date = %s
+        """, (employee_id, formatted_date))
+        
+        morning_items = cur.fetchall()
+        
+        # Prepare the final list of items for the Evening Settlement Table
+        # Structure: Product ID, Name, Image, Unit Price, Total Qty (Opening + Given)
+        
+        final_items_list = []
+        if morning_items:
+            for item in morning_items:
+                total_qty = int(item['opening_qty'] or 0) + int(item['given_qty'] or 0)
+                if total_qty > 0:
+                    final_items_list.append({
+                        'product_id': item['product_id'],
+                        'product_name': item['name'],
+                        'image': resolve_img(item['image']),
+                        'unit_price': float(item['unit_price']),
+                        'total_qty': total_qty,
+                        'remaining_qty': total_qty, # Initially remaining is total (before sales)
+                        'sold_qty': 0,
+                        'return_qty': 0
+                    })
+            
+            # Allocation ID is needed to link the settlement later
+            alloc_id = morning_items[0]['alloc_id']
+        else:
+            alloc_id = None
+            # If no morning allocation found for today, maybe user wants to settle previous outstanding stock?
+            # Or maybe they just forgot to do morning allocation. 
+            # For now, let's return empty list but with success status so UI doesn't crash.
+        
         return jsonify({
             'status': 'success',
-            'opening_stock': stock_map,
-            'message': 'Fetched last available closing stock.'
+            'allocation_id': alloc_id,
+            'items': final_items_list,
+            'allocation_date': formatted_date
         })
 
     except Exception as e:
@@ -5613,6 +5660,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
