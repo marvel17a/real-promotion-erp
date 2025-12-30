@@ -1,147 +1,263 @@
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap');
-
-:root {
-    --primary-dark: #0f172a;
-    --text-main: #334155;
-    --glass-bg: rgba(255, 255, 255, 0.95);
-    --border-color: #e2e8f0;
-}
+/* morning-style.css */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&display=swap');
 
 body {
-    font-family: 'Manrope', sans-serif;
-    background-color: #f1f5f9;
-    color: var(--text-main);
+    font-family: 'Poppins', sans-serif !important;
+    background-color: #f0f2f5;
+    color: #333;
 }
 
-/* Glass Panel */
+/* --- Global Utilities --- */
+.fw-800 { font-weight: 800 !important; }
+.text-gradient { 
+    background: linear-gradient(45deg, #1a237e, #0d47a1); 
+    -webkit-background-clip: text; 
+    -webkit-text-fill-color: transparent; 
+}
+
+/* --- Glass Containers --- */
+.glass-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
 .glass-panel {
-    background: var(--glass-bg);
-    backdrop-filter: blur(12px);
-    border: 1px solid #fff;
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
     border-radius: 20px;
-    box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.05);
+    overflow: hidden; /* Contains children nicely */
 }
 
-/* --- TABLE STYLES --- */
-.custom-table {
+/* --- Header Section --- */
+.page-header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+.company-title {
+    font-size: 2.5rem;
+    letter-spacing: -1px;
+    margin-bottom: 0;
+}
+.company-subtitle {
+    letter-spacing: 3px;
+    font-size: 0.8rem;
+    color: #6c757d;
+    font-weight: 600;
+}
+.address-pill {
+    display: inline-block;
+    background: #fff;
+    padding: 8px 20px;
+    border-radius: 50px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+    font-size: 0.85rem;
+    color: #555;
+    margin-top: 10px;
+}
+
+/* --- Control Panel Inputs --- */
+.control-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #6c757d;
+    font-weight: 700;
+    margin-bottom: 5px;
+    display: block;
+}
+
+.input-group-glass {
+    border-radius: 12px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.03);
+    overflow: hidden;
+    border: 1px solid #eee;
+}
+.input-group-glass .input-group-text {
+    background: #fff;
+    border: none;
+    color: #0d6efd;
+}
+.input-group-glass .form-control, 
+.input-group-glass .form-select {
+    border: none;
+    font-weight: 600;
+    color: #333;
+    padding: 12px 15px;
+}
+.input-group-glass .form-control:focus, 
+.input-group-glass .form-select:focus {
+    box-shadow: inset 0 0 0 2px rgba(13, 110, 253, 0.1);
+}
+
+/* Employee Photo */
+.emp-photo-box {
+    width: 65px;
+    height: 65px;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 3px solid #fff;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    background: #eee;
+}
+.emp-photo-box img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Live Clock */
+.clock-display {
+    background: #212529;
+    color: #fff;
+    font-family: 'Courier New', monospace;
+    font-weight: 700;
+    font-size: 1.2rem;
+    padding: 10px 20px;
+    border-radius: 10px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+}
+
+/* --- Table Styles --- */
+.styled-table {
     width: 100%;
     border-collapse: separate;
     border-spacing: 0;
 }
-
-.custom-table thead th {
-    background: #f8fafc;
-    color: #475569;
-    font-weight: 800;
-    text-transform: uppercase;
-    font-size: 0.75rem;
-    padding: 1rem;
-    letter-spacing: 0.5px;
-    border-bottom: 2px solid #e2e8f0;
-    vertical-align: middle;
-}
-
-.custom-table tbody td {
-    padding: 0.8rem 1rem;
-    vertical-align: middle;
+.styled-table thead th {
+    background: linear-gradient(180deg, #f8f9fa 0%, #e9ecef 100%);
+    color: #495057;
     font-weight: 700;
-    border-bottom: 1px solid #f1f5f9;
-    color: #1e293b;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+    padding: 15px;
+    border-bottom: 2px solid #dee2e6;
+    white-space: nowrap;
 }
-
-/* --- INPUT STYLES --- */
-.table-input {
-    border-radius: 8px;
-    padding: 8px;
-    text-align: center;
-    font-weight: 800;
-    width: 100%;
-    transition: all 0.2s;
-    font-size: 1rem;
-}
-
-/* Opening (Readonly) */
-input.opening {
-    background: transparent;
-    border: none;
-    color: #64748b; /* Muted Text */
-}
-
-/* Given (Editable - Highlights) */
-input.given {
-    background: #eff6ff; /* Light Blue */
-    border: 1px solid #bfdbfe;
-    color: #1d4ed8;
-}
-input.given:focus {
+.styled-table tbody td {
+    vertical-align: middle;
+    padding: 10px;
+    border-bottom: 1px solid #f0f0f0;
     background: #fff;
-    border-color: #2563eb;
-    outline: none;
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+.styled-table tbody tr:hover td {
+    background-color: #fcfcfc;
 }
 
-/* Total Box (Colored like Evening) */
-input.total {
-    background: #fff7ed; /* Light Orange */
-    color: #c2410c;      /* Dark Orange Text */
-    border: 1px solid #ffedd5;
-    width: 60px;
-}
-
-/* --- FOOTER ROW --- */
-.table-footer {
-    background: #1e293b; /* Dark Navy */
-    color: #fff;
-}
-.table-footer td {
-    padding: 1rem !important;
-    font-weight: 800;
-    font-size: 1rem;
-    border: none;
-    color: #fff;
-}
-.table-footer span {
-    display: block;
-    width: 100%;
-    text-align: center;
-}
-
-/* --- HEADER ELEMENTS --- */
-.user-img-box {
-    width: 65px; height: 65px;
-    border-radius: 12px;
+/* Product Image in Table */
+.prod-img-box {
+    width: 45px;
+    height: 45px;
+    border-radius: 8px;
     overflow: hidden;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-    background: #fff;
-}
-.user-img-box img { width: 100%; height: 100%; object-fit: cover; }
-
-/* Remove Button */
-.btn-remove-row {
-    background: #fef2f2;
-    color: #dc2626;
-    border: 1px solid #fecaca;
-    border-radius: 8px;
-    width: 35px; height: 35px;
-    display: flex; align-items: center; justify-content: center;
-    transition: 0.2s;
+    background: #f8f9fa;
+    border: 1px solid #eee;
     margin: 0 auto;
 }
-.btn-remove-row:hover {
-    background: #dc2626; color: #fff;
+.prod-img-box img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 
-/* Img in Table */
-.img-box-small {
-    width: 45px; height: 45px;
-    border-radius: 8px;
-    overflow: hidden;
-    background: #eee;
-    border: 1px solid #e2e8f0;
+/* Inputs in Table */
+.table-input {
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    text-align: center;
+    font-weight: 600;
+    padding: 8px;
+    width: 100%;
+    background: #fdfdfd;
+    transition: all 0.2s;
 }
-.img-fixed-size { width: 100%; height: 100%; object-fit: cover; }
+.table-input:focus {
+    border-color: #0d6efd;
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.1);
+    outline: none;
+}
+.input-given {
+    background-color: #f0f9ff; /* Light Blue tint for active input */
+    color: #0d6efd;
+    border-color: #bce3ff;
+}
 
-@media (max-width: 768px) {
-    .glass-panel { padding: 1rem; }
-    .table-input { font-size: 0.9rem; }
+/* Table Footer */
+.table-footer tr th {
+    background: #f8f9fa;
+    padding: 15px;
+    font-weight: 800;
+    color: #333;
+    border-top: 2px solid #dee2e6;
+}
+.total-box {
+    display: block;
+    padding: 8px 12px;
+    border-radius: 6px;
+    text-align: center;
+    color: #fff;
+    font-size: 1rem;
+}
+.bg-total-blue { background-color: #0d6efd; }
+.bg-total-green { background-color: #198754; }
+.bg-total-dark { background-color: #212529; }
+
+/* --- Restock History Card --- */
+.restock-card {
+    background: #fff3cd;
+    border: 1px solid #ffecb5;
+    border-radius: 12px;
+    padding: 15px;
+    margin-bottom: 20px;
+}
+.restock-item {
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 50px;
+    padding: 5px 15px 5px 5px;
+    display: inline-flex;
+    align-items: center;
+    margin: 5px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+.restock-item img {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    margin-right: 10px;
+}
+
+/* --- Action Buttons --- */
+.btn-glass {
+    border-radius: 50px;
+    padding: 10px 25px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transition: all 0.3s;
+}
+.btn-add-row {
+    background: #fff;
+    color: #198754;
+    border: 2px solid #198754;
+}
+.btn-add-row:hover {
+    background: #198754;
+    color: #fff;
+}
+.btn-save {
+    background: linear-gradient(45deg, #0d6efd, #0b5ed7);
+    color: #fff;
+    border: none;
+    box-shadow: 0 4px 15px rgba(13, 110, 253, 0.3);
+}
+.btn-save:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(13, 110, 253, 0.4);
 }
