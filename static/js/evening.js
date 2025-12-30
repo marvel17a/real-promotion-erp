@@ -76,20 +76,17 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
             const response = await fetch(`/api/fetch_morning_allocation?employee_id=${employeeId}&date=${dateStr}`);
 
-            // 1. Check for HTTP Error Codes (404, 500)
             if (!response.ok) {
                 throw new Error(`Server Error: ${response.status} ${response.statusText}`);
             }
 
-            // 2. Check content-type to ensure we got JSON, not HTML (which causes the '<' error)
             const contentType = response.headers.get("content-type");
             if (!contentType || !contentType.includes("application/json")) {
-                const textData = await response.text(); // Read text for debugging
+                const textData = await response.text();
                 console.error("Server returned HTML instead of JSON:", textData);
                 throw new Error("Server returned an HTML page (likely an error or login page) instead of data.");
             }
 
-            // 3. Safe to parse JSON
             const data = await response.json();
 
             if (data.error) throw new Error(data.error);
@@ -144,11 +141,11 @@ document.addEventListener("DOMContentLoaded", () => {
                     <td>
                         <div class="fw-bold text-dark">${item.product_name}</div>
                         <input type="hidden" name="product_id[]" value="${item.product_id}">
-                        <input type="hidden" name="total_qty[]" value="${totalQty}">
+                        <input type="hidden" name="total_qty[]" class="total-qty-input" value="${totalQty}">
                         <input type="hidden" name="price[]" class="price-input" value="${price.toFixed(2)}">
                     </td>
                     <td class="text-center">
-                        <span class="badge bg-secondary fs-6 text-white">${totalQty}</span>
+                        <span class="badge bg-secondary fs-6 text-white total-qty-display">${totalQty}</span>
                     </td>
                     <td>
                         <input type="number" name="sold[]" class="form-control sold" min="0" max="${totalQty}" placeholder="0">
@@ -182,27 +179,54 @@ document.addEventListener("DOMContentLoaded", () => {
             // Check if it's a valid data row (has inputs)
             if(!row.querySelector('input[name="total_qty[]"]')) return;
 
-            const totalQty = parseInt(row.querySelector('input[name="total_qty[]"]').value) || 0;
-            const price = parseFloat(row.querySelector('.price-input, .unit-price').value) || 0;
-            
+            // Get references
+            const totalQtyInput = row.querySelector('input[name="total_qty[]"]');
+            const priceInput = row.querySelector('.price-input, .unit-price');
             const soldInput = row.querySelector('.sold');
             const returnInput = row.querySelector('.return');
             const remainInput = row.querySelector('.remain-input, .remaining-qty');
             const amountDisplay = row.querySelector('.amount-display, .row-amount');
             
+            // Get Values
+            const totalQty = parseInt(totalQtyInput.value) || 0;
+            const price = parseFloat(priceInput.value) || 0;
             let sold = parseInt(soldInput.value) || 0;
             let ret = parseInt(returnInput.value) || 0;
 
-            // Logic: Left = Total - Sold - Return.
+            // --- STRICT VALIDATION LOGIC ---
+            // 1. Sold cannot be > Total
+            if (sold > totalQty) {
+                alert(`Error: Sold quantity (${sold}) cannot exceed Total Stock (${totalQty}). Resetting.`);
+                sold = totalQty;
+                soldInput.value = totalQty;
+            }
+
+            // 2. Return cannot be > Total
+            if (ret > totalQty) {
+                alert(`Error: Return quantity (${ret}) cannot exceed Total Stock (${totalQty}). Resetting.`);
+                ret = totalQty;
+                returnInput.value = totalQty;
+            }
+
+            // 3. (Sold + Return) cannot be > Total
+            if ((sold + ret) > totalQty) {
+                // If sum exceeds, priority goes to current input? 
+                // Usually we cap the Return based on Sold, or vice versa.
+                // Assuming Sold is entered first, reset Return.
+                // Or simply enforce: Return <= Total - Sold
+                const maxReturn = totalQty - sold;
+                alert(`Error: Sold + Return cannot exceed Total Stock.\nMax allowed Return is ${maxReturn}.`);
+                ret = maxReturn;
+                returnInput.value = ret;
+            }
+            // --------------------------------
+
+            // Calculate Remaining: Total - Sold - Return
+            // (Typically Left = Total - Sold - Return. Sometimes Left is just Return. 
+            // Based on column name "Left" and "Return", usually Left = what is physically remaining unsold)
             let remaining = totalQty - sold - ret;
 
-            // Prevent negative remaining
-            if (remaining < 0) {
-                remaining = 0; 
-                // Note: Logic here simply floors remaining at 0 for visual calculation
-                // Ideally, you add validation to stop input if (sold + return > total)
-            }
-            
+            // Update UI
             if(remainInput.tagName === 'INPUT') {
                 remainInput.value = remaining;
             } else {
@@ -235,14 +259,42 @@ document.addEventListener("DOMContentLoaded", () => {
         calculateDue();
     }
 
-    function calculateDue() {
+    function calculateDue(e) {
         if(!ui.payment.totalAmount) return;
 
-        const total = parseFloat(ui.payment.totalAmount.value) || 0;
-        const disc = parseFloat(ui.payment.discount?.value) || 0;
-        const cash = parseFloat(ui.payment.cash?.value) || 0;
-        const online = parseFloat(ui.payment.online?.value) || 0;
-        const due = total - (disc + cash + online);
+        const totalSales = parseFloat(ui.payment.totalAmount.value) || 0;
+        
+        // Get raw values
+        let disc = parseFloat(ui.payment.discount?.value) || 0;
+        let cash = parseFloat(ui.payment.cash?.value) || 0;
+        let online = parseFloat(ui.payment.online?.value) || 0;
+
+        // --- CASH SETTLEMENT VALIDATION ---
+        const currentTotalPayment = disc + cash + online;
+
+        // If payments exceed sales, prevent the last entered value
+        if (currentTotalPayment > totalSales) {
+             // Identify which input triggered this (if passed via event)
+             if (e && e.target) {
+                 const input = e.target;
+                 // Calculate what the max allowed value for this input is
+                 // Max = TotalSales - (Sum of Other Inputs)
+                 const others = currentTotalPayment - parseFloat(input.value || 0);
+                 const maxAllowed = totalSales - others;
+                 
+                 // Cap the value
+                 input.value = maxAllowed.toFixed(2);
+                 alert(`Total payment cannot exceed Total Sales Amount (₹${totalSales}).\nValue corrected.`);
+                 
+                 // Update variable for calculation below
+                 if(input === ui.payment.discount) disc = maxAllowed;
+                 if(input === ui.payment.cash) cash = maxAllowed;
+                 if(input === ui.payment.online) online = maxAllowed;
+             }
+        }
+        // ----------------------------------
+
+        const due = totalSales - (disc + cash + online);
         
         if(ui.payment.due) ui.payment.due.textContent = due.toFixed(2);
     }
