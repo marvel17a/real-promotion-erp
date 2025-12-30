@@ -1,144 +1,129 @@
-{% extends "base.html" %}
-
-{% block content %}
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
-
-<div class="glass-container fade-in-up py-4">
+document.addEventListener("DOMContentLoaded", () => {
+    const tableBody = document.querySelector("#productTable tbody");
+    const addRowBtn = document.getElementById("addRow");
     
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h3 class="fw-bold text-primary mb-0">Edit Allocation</h3>
-            <p class="text-muted small mb-0">Modify submitted morning stock.</p>
-        </div>
-        <a href="{{ url_for('allocation_list') }}" class="btn btn-outline-secondary rounded-pill px-4 shadow-sm">
-            <i class="fa-solid fa-arrow-left me-2"></i> Back to List
-        </a>
-    </div>
+    // Totals Elements
+    const totalGivenEl = document.getElementById("totalGiven");
+    const totalAllEl = document.getElementById("totalAll");
+    const grandTotalEl = document.getElementById("grandTotal");
 
-    <div class="card glass-card border-0 p-4">
-        <form id="morningForm" method="POST" action="{{ url_for('edit_morning_allocation', allocation_id=allocation.id) }}">
-
-            <!-- Header Info Card -->
-            <div class="d-flex align-items-center bg-light rounded-4 p-3 mb-4 shadow-sm border">
-                <div class="me-3" style="width: 50px; height: 50px; border-radius: 10px; overflow: hidden;">
-                    <img src="{{ allocation.emp_image }}" style="width: 100%; height: 100%; object-fit: cover;">
-                </div>
-                <div>
-                    <small class="text-uppercase text-secondary fw-bold" style="font-size: 0.7rem;">Employee</small>
-                    <div class="fw-bold text-dark fs-5">{{ allocation.employee_name }}</div>
-                </div>
-                <div class="vr mx-4"></div>
-                <div>
-                    <small class="text-uppercase text-secondary fw-bold" style="font-size: 0.7rem;">Date</small>
-                    <div class="fw-bold text-dark fs-5">{{ allocation.date.strftime('%d-%m-%Y') }}</div>
-                </div>
-                <div class="ms-auto">
-                    <span class="badge bg-warning text-dark px-3 py-2"><i class="fa-solid fa-pen-to-square me-1"></i> Editing Mode</span>
-                </div>
-            </div>
-
-            <div class="table-responsive glass-table-container mb-4">
-                <table class="table table-hover align-middle mb-0" id="productTable">
-                    <thead class="bg-gradient-primary text-white">
-                        <tr>
-                            <th class="ps-3" style="width: 40px;">#</th>
-                            <th style="width: 70px; text-align: center;">Img</th>
-                            <th style="min-width: 200px;">Product</th>
-                            <th style="width: 90px;">Opening</th>
-                            <th style="width: 90px;">Given</th>
-                            <th style="width: 90px;">Total</th>
-                            <th style="width: 100px;">Price</th>
-                            <th style="width: 110px;">Amount</th>
-                            <th class="text-center" style="width: 60px;"><i class="fa-solid fa-trash"></i></th>
-                        </tr>
-                    </thead>
-                    <tbody class="bg-white">
-                        {% for item in items %}
-                        <tr>
-                            <td class="row-index ps-3 text-muted fw-bold small">{{ loop.index }}</td>
-                            <td class="text-center">
-                                <div class="img-box-small">
-                                    <img src="{{ item.image }}" class="img-fixed-size">
-                                </div>
-                            </td>
-                            <td>
-                                <select name="product_id[]" class="form-select product-dropdown" required>
-                                    <option value="">-- Select --</option>
-                                    {% for p in products %}
-                                    <option value="{{ p.id }}" {% if p.id == item.product_id %}selected{% endif %}>{{ p.name }}</option>
-                                    {% endfor %}
-                                </select>
-                                <input type="hidden" name="item_id[]" value="{{ item.id }}">
-                            </td>
-                            <td><input type="number" name="opening[]" class="form-control opening" value="{{ item.opening_qty }}" readonly tabindex="-1"></td>
-                            <td><input type="number" name="given[]" class="form-control given" min="0" value="{{ item.given_qty }}" required></td>
-                            <td><input type="number" name="total[]" class="form-control total" value="{{ item.opening_qty + item.given_qty }}" readonly tabindex="-1"></td>
-                            <td><input type="number" name="price[]" class="form-control price" step="0.01" value="{{ item.unit_price }}" readonly tabindex="-1"></td>
-                            <td><input type="number" name="amount[]" class="form-control amount text-end" value="{{ (item.opening_qty + item.given_qty) * item.unit_price }}" readonly tabindex="-1"></td>
-                            <td class="text-center">
-                                <button type="button" class="btn btn-link text-danger p-0 btn-remove-row"><i class="fa-solid fa-trash-can"></i></button>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                    <tfoot class="bg-light fw-bold text-dark" style="border-top: 3px solid #ddd;">
-                        <tr>
-                            <td colspan="4" class="text-end text-uppercase text-secondary pe-3">Totals:</td>
-                            <td id="totalOpening" class="text-info">0</td>
-                            <td id="totalGiven" class="text-primary">0</td>
-                            <td id="totalAll" class="text-dark">0</td>
-                            <td>-</td>
-                            <td id="grandTotal" class="text-success text-end pe-2">0.00</td>
-                            <td>-</td>
-                        </tr>
-                    </tfoot>
-                </table>
-            </div>
-
-            <div class="d-flex justify-content-between">
-                <button type="button" id="addRow" class="btn btn-glass-light text-success fw-bold">
-                    <i class="fa-solid fa-plus me-2"></i> Add Item
-                </button>
-                <button type="submit" class="btn btn-gradient-primary btn-lg rounded-pill shadow hover-lift px-5">
-                    <i class="fa-solid fa-floppy-disk me-2"></i> Update Allocation
-                </button>
-            </div>
-
-        </form>
-    </div>
-</div>
-
-<style>
-    /* Shared Theme */
-    body { background: #f0f2f5; font-family: 'Poppins', sans-serif; }
-    .glass-container { max-width: 1200px; margin: 2rem auto; padding: 0 15px; }
-    .glass-card { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(16px); border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.6); box-shadow: 0 10px 40px rgba(0,0,0,0.06); }
-    .bg-gradient-primary { background: linear-gradient(135deg, #1a237e 0%, #0d47a1 100%); }
+    // Product Map for quick lookup
+    const productsMap = new Map();
+    const DEFAULT_IMG = "https://via.placeholder.com/50?text=Img";
     
-    /* Image Fix */
-    .img-box-small { display: block !important; width: 50px !important; height: 50px !important; border-radius: 8px !important; overflow: hidden !important; border: 1px solid #e0e0e0; background: #fff; margin: 0 auto; }
-    .img-fixed-size { width: 100% !important; height: 100% !important; object-fit: cover !important; }
+    if (window.productsData) {
+        window.productsData.forEach(p => productsMap.set(String(p.id), p));
+    }
 
-    /* Inputs */
-    .table input.form-control { background: transparent; border: 1px solid transparent; text-align: center; font-weight: 600; }
-    .table input.given { background: #ebf8ff; color: #2b6cb0; border-radius: 6px; }
+    // --- 1. INITIALIZE EXISTING ROWS ---
+    // Recalculate totals on load to ensure accuracy
+    recalculateTotals();
 
-    /* Buttons */
-    .btn-glass-light { background: #fff; border: 1px solid #e2e8f0; border-radius: 50px; padding: 0.5rem 1.5rem; transition: 0.3s; }
-    .btn-gradient-primary { background: linear-gradient(135deg, #1a237e 0%, #0d47a1 100%); color: white; border: none; transition: 0.3s; }
-    .hover-lift:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(13, 71, 161, 0.3); }
-    
-    /* Text Colors */
-    .text-info { color: #0dcaf0 !important; }
-    .text-primary { color: #0d6efd !important; }
-    .text-success { color: #198754 !important; }
-</style>
+    // --- 2. ADD ROW ---
+    addRowBtn.addEventListener("click", () => {
+        const tr = document.createElement("tr");
+        tr.classList.add("item-row");
+        
+        tr.innerHTML = `
+            <td class="text-center text-muted fw-bold row-index"></td>
+            <td>
+                <div class="prod-img-box">
+                    <img src="${DEFAULT_IMG}" class="product-thumb">
+                </div>
+            </td>
+            <td>
+                <select name="product_id[]" class="form-select product-dropdown table-input" required>
+                    <option value="">-- Select --</option>
+                    ${window.productOptions}
+                </select>
+                <input type="hidden" name="item_id[]" value="new_item">
+            </td>
+            <td><input type="number" name="opening[]" class="table-input opening" value="0" readonly tabindex="-1"></td>
+            <td><input type="number" name="given[]" class="table-input given input-qty" min="0" value="0" required></td>
+            <td><input type="number" name="total[]" class="table-input total" value="0" readonly tabindex="-1"></td>
+            <td><input type="number" name="price[]" class="table-input price text-end" step="0.01" value="0.00" readonly tabindex="-1"></td>
+            <td><input type="number" name="amount[]" class="table-input amount text-end fw-bold text-primary" value="0.00" readonly tabindex="-1"></td>
+            <td class="text-center">
+                <button type="button" class="btn btn-sm text-danger btn-remove-row"><i class="fa-solid fa-trash-can fa-lg"></i></button>
+            </td>
+        `;
+        tableBody.appendChild(tr);
+        updateRowIndexes();
+    });
 
-<script>
-    // Data Injection
-    try { window.productsData = {{ products | tojson | safe }}; } 
-    catch(e) { window.productsData = []; }
-    window.productOptions = `{{ productOptions | safe }}`;
-</script>
-<script src="{{ url_for('static', filename='js/morning_edit.js') }}"></script>
-{% endblock %}
+    // --- 3. EVENT DELEGATION ---
+    tableBody.addEventListener("click", e => {
+        if (e.target.closest(".btn-remove-row")) {
+            if (confirm("Remove this item?")) {
+                e.target.closest("tr").remove();
+                updateRowIndexes();
+                recalculateTotals();
+            }
+        }
+    });
+
+    tableBody.addEventListener("change", e => {
+        if (e.target.matches(".product-dropdown")) {
+            const row = e.target.closest("tr");
+            const productId = e.target.value;
+            const product = productsMap.get(productId);
+            
+            const priceInput = row.querySelector(".price");
+            const img = row.querySelector(".product-thumb");
+
+            if (product) {
+                priceInput.value = parseFloat(product.price).toFixed(2);
+                img.src = product.image || DEFAULT_IMG;
+            } else {
+                priceInput.value = "0.00";
+                img.src = DEFAULT_IMG;
+            }
+            recalculateRow(row);
+        }
+    });
+
+    tableBody.addEventListener("input", e => {
+        if (e.target.matches(".given")) {
+            recalculateRow(e.target.closest("tr"));
+        }
+    });
+
+    // --- 4. CALCULATIONS ---
+    function recalculateRow(row) {
+        const opening = parseInt(row.querySelector(".opening").value) || 0;
+        const given = parseInt(row.querySelector(".given").value) || 0;
+        const price = parseFloat(row.querySelector(".price").value) || 0;
+
+        const total = opening + given;
+        const amount = total * price;
+
+        row.querySelector(".total").value = total;
+        row.querySelector(".amount").value = amount.toFixed(2);
+        
+        recalculateTotals();
+    }
+
+    function recalculateTotals() {
+        let tGiven = 0, tAll = 0, tGrand = 0;
+        
+        tableBody.querySelectorAll("tr").forEach(row => {
+            const given = parseInt(row.querySelector(".given").value) || 0;
+            const total = parseInt(row.querySelector(".total").value) || 0;
+            const amount = parseFloat(row.querySelector(".amount").value) || 0;
+
+            tGiven += given;
+            tAll += total;
+            tGrand += amount;
+        });
+
+        if(totalGivenEl) totalGivenEl.textContent = tGiven;
+        if(totalAllEl) totalAllEl.textContent = tAll;
+        if(grandTotalEl) grandTotalEl.textContent = tGrand.toFixed(2);
+    }
+
+    function updateRowIndexes() {
+        tableBody.querySelectorAll("tr").forEach((tr, i) => {
+            tr.querySelector(".row-index").textContent = i + 1;
+        });
+    }
+});
