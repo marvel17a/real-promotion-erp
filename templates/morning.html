@@ -8,8 +8,6 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <!-- Custom CSS -->
 <link rel="stylesheet" href="{{ url_for('static', filename='css/morning.css') }}">
-<!-- jQuery (Required for the logic) -->
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
 <div class="glass-container fade-in-up mb-5">
 
@@ -62,7 +60,7 @@
                 </div>
 
                 <!-- Date Input -->
-                <div class="col-md-3 col-lg-3">
+                <div class="col-md-4 col-lg-4">
                     <label class="control-label">Allocation Date</label>
                     <div class="input-group-glass">
                         <span class="input-group-text"><i class="fa-solid fa-calendar-day"></i></span>
@@ -70,16 +68,9 @@
                     </div>
                 </div>
 
-                 <!-- Fetch Button (Added to match design) -->
-                 <div class="col-md-2 col-lg-2">
-                    <button type="button" class="btn btn-glass w-100" onclick="fetchPreviousStock()">
-                        <i class="fa-solid fa-download me-2"></i> Stock
-                    </button>
-                </div>
-
                 <!-- Live Clock (Blue Box) -->
-                <div class="col-md-2 col-lg-2 ms-auto">
-                    <div class="clock-display" style="font-size: 1rem; padding: 10px;">
+                <div class="col-md-4 col-lg-3 ms-auto">
+                    <div class="clock-display">
                         <span id="liveClock">00:00:00</span>
                     </div>
                 </div>
@@ -157,239 +148,7 @@
                 else empPhoto.src = "{{ url_for('static', filename='img/default-user.png') }}";
             });
         }
-
-        // Live Clock
-        function updateTime() {
-            const now = new Date();
-            const timeString = now.toLocaleTimeString('en-GB', { hour12: false });
-            document.getElementById('liveClock').textContent = timeString;
-            
-            const year = now.getFullYear();
-            const month = String(now.getMonth() + 1).padStart(2, '0');
-            const day = String(now.getDate()).padStart(2, '0');
-            document.getElementById('timestampInput').value = `${year}-${month}-${day} ${timeString}`;
-        }
-        setInterval(updateTime, 1000);
-        updateTime();
-
-        // --- DYNAMIC TABLE LOGIC ---
-
-        // 1. Generate Options
-        let productOptionsHTML = '<option value="">Select Product</option>';
-        window.productsData.forEach(p => {
-            productOptionsHTML += `<option value="${p.id}" data-price="${p.price}" data-stock="${p.stock || 0}" data-img="${p.image}">
-                ${p.name} (Stock: ${p.stock || 0})
-            </option>`;
-        });
-
-        // 2. Add Row Function
-        window.addRow = function(existingData = null) {
-            const tbody = document.querySelector('#productTable tbody');
-            const rowCount = tbody.querySelectorAll('tr').length + 1;
-            const tr = document.createElement('tr');
-            
-            // Values
-            const prodId = existingData ? existingData.product_id : '';
-            const openQty = existingData ? existingData.qty : 0;
-            const givenQty = 0;
-            const price = existingData ? existingData.price : '';
-            const imgUrl = existingData ? existingData.image : "{{ url_for('static', filename='img/default-product.png') }}";
-
-            tr.innerHTML = `
-                <td class="text-center align-middle">${rowCount}</td>
-                <td class="text-center align-middle">
-                    <img src="${imgUrl}" class="product-img-small table-img" style="width:40px;height:40px;object-fit:cover;border-radius:5px;">
-                </td>
-                <td>
-                    <select name="product_id[]" class="form-select product-select" required>
-                        ${productOptionsHTML}
-                    </select>
-                </td>
-                <td><input type="number" name="opening[]" class="form-control text-center opening-qty" value="${openQty}" min="0"></td>
-                <td><input type="number" name="given[]" class="form-control text-center given-qty" value="${givenQty}" min="0"></td>
-                <td class="text-center align-middle"><span class="fw-bold total-qty">${openQty}</span></td>
-                <td><input type="number" step="0.01" name="price[]" class="form-control text-end price-input" value="${price}" readonly></td>
-                <td class="text-end align-middle fw-bold row-amount">0.00</td>
-                <td class="text-center align-middle"><button type="button" class="btn btn-link text-danger remove-row"><i class="fa-solid fa-trash"></i></button></td>
-            `;
-            
-            tbody.appendChild(tr);
-
-            // Preselect if data exists
-            if (prodId) {
-                const select = tr.querySelector('.product-select');
-                select.value = prodId;
-                // We don't trigger change here to avoid overwriting opening qty, but we update row calculations
-                updateRowCalculations(tr);
-            }
-        };
-
-        // Attach Add Row Event
-        document.getElementById('addRow').addEventListener('click', () => window.addRow());
-
-        // Initialize with one row
-        window.addRow();
-
-        // 3. Event Delegation
-        document.querySelector('#productTable tbody').addEventListener('change', function(e) {
-            if(e.target.classList.contains('product-select')) {
-                const row = e.target.closest('tr');
-                const option = e.target.options[e.target.selectedIndex];
-                const price = option.getAttribute('data-price');
-                const img = option.getAttribute('data-img');
-                
-                // Update Price
-                row.querySelector('.price-input').value = price || '';
-                
-                // Update Image
-                const imgElem = row.querySelector('.table-img');
-                imgElem.src = (img && img !== 'None') ? img : "{{ url_for('static', filename='img/default-product.png') }}";
-
-                // Validate Stock immediately
-                validateStock(row);
-                updateRowCalculations(row);
-            }
-        });
-
-        document.querySelector('#productTable tbody').addEventListener('input', function(e) {
-            if(e.target.classList.contains('given-qty') || e.target.classList.contains('opening-qty')) {
-                const row = e.target.closest('tr');
-                if(e.target.classList.contains('given-qty')) {
-                    validateStock(row);
-                }
-                updateRowCalculations(row);
-            }
-        });
-
-        document.querySelector('#productTable tbody').addEventListener('click', function(e) {
-            if(e.target.closest('.remove-row')) {
-                e.target.closest('tr').remove();
-                calculateGrandTotals();
-            }
-        });
-
-        // 4. Calculations & Validation
-        function validateStock(row) {
-            const select = row.querySelector('.product-select');
-            const givenInput = row.querySelector('.given-qty');
-            const selectedOption = select.options[select.selectedIndex];
-            
-            const stockVal = selectedOption.getAttribute('data-stock');
-            // If no product selected, assume high stock to avoid annoying alerts
-            const availableStock = stockVal ? parseInt(stockVal) : 999999;
-            const givenQty = parseInt(givenInput.value) || 0;
-
-            if (givenQty > availableStock) {
-                alert(`Stock Unavailable! Only ${availableStock} left in inventory.`);
-                givenInput.value = availableStock; 
-                givenInput.style.borderColor = 'red';
-                givenInput.style.backgroundColor = '#fff0f0';
-            } else {
-                givenInput.style.borderColor = '';
-                givenInput.style.backgroundColor = '';
-            }
-        }
-
-        function updateRowCalculations(row) {
-            const open = parseInt(row.querySelector('.opening-qty').value) || 0;
-            const given = parseInt(row.querySelector('.given-qty').value) || 0;
-            const price = parseFloat(row.querySelector('.price-input').value) || 0;
-            
-            const total = open + given;
-            const amount = total * price;
-            
-            row.querySelector('.total-qty').textContent = total;
-            row.querySelector('.row-amount').textContent = amount.toFixed(2);
-            
-            calculateGrandTotals();
-        }
-
-        function calculateGrandTotals() {
-            let totalOpen = 0, totalGive = 0, totalAll = 0, grandTotal = 0.0;
-            
-            document.querySelectorAll('#productTable tbody tr').forEach(row => {
-                totalOpen += parseInt(row.querySelector('.opening-qty').value) || 0;
-                totalGive += parseInt(row.querySelector('.given-qty').value) || 0;
-                totalAll += parseInt(row.querySelector('.total-qty').textContent) || 0;
-                grandTotal += parseFloat(row.querySelector('.row-amount').textContent) || 0;
-            });
-
-            document.getElementById('totalOpening').textContent = totalOpen;
-            document.getElementById('totalGiven').textContent = totalGive;
-            document.getElementById('totalAll').textContent = totalAll;
-            document.getElementById('grandTotal').textContent = grandTotal.toFixed(2);
-        }
-
-        // 5. Fetch Previous Stock Function
-        window.fetchPreviousStock = function() {
-            const empId = document.getElementById('employee_id').value;
-            const dateVal = document.getElementById('date').value;
-
-            if (!empId) {
-                alert("Please select an employee first.");
-                return;
-            }
-
-            // Using jQuery for AJAX as in previous valid code
-            $.ajax({
-                url: "{{ url_for('fetch_morning_allocation') }}",
-                type: "POST",
-                data: { employee_id: empId, date: dateVal },
-                success: function(response) {
-                    if (response.status === 'success') {
-                        const tbody = document.querySelector('#productTable tbody');
-                        tbody.innerHTML = ''; // Clear table
-                        
-                        const stockMap = response.opening_stock;
-                        let count = 0;
-
-                        // Iterate via JS object from Backend
-                        window.productsData.forEach(p => {
-                            if (stockMap[p.id] && stockMap[p.id] > 0) {
-                                // Add row with data
-                                window.addRow({
-                                    product_id: p.id,
-                                    qty: stockMap[p.id],
-                                    price: p.price,
-                                    image: p.image
-                                });
-                                
-                                // Set readonly for opening stock fetched from history
-                                const lastRow = tbody.lastElementChild;
-                                const openInput = lastRow.querySelector('.opening-qty');
-                                const select = lastRow.querySelector('.product-select');
-                                
-                                openInput.readOnly = true;
-                                openInput.style.backgroundColor = "#e9ecef";
-                                
-                                // Disable changing product for fetched rows to prevent mismatch
-                                select.style.pointerEvents = "none";
-                                select.style.backgroundColor = "#e9ecef";
-                                select.setAttribute('readonly', true);
-                                
-                                count++;
-                            }
-                        });
-                        
-                        // Always add one blank row at end for new items
-                        window.addRow();
-                        
-                        const msgDiv = document.getElementById('fetchMsg');
-                        if(count > 0) {
-                            msgDiv.innerHTML = `<div class="alert alert-success py-2"><i class="fa-solid fa-check me-2"></i>Loaded ${count} items from previous closing stock.</div>`;
-                        } else {
-                            msgDiv.innerHTML = `<div class="alert alert-warning py-2"><i class="fa-solid fa-triangle-exclamation me-2"></i>No previous closing stock found.</div>`;
-                        }
-                    } else {
-                        alert(response.message);
-                    }
-                },
-                error: function(err) {
-                    console.error(err);
-                    alert("Error fetching stock data.");
-                }
-            });
-        };
     });
 </script>
+<script src="{{ url_for('static', filename='js/morning.js') }}"></script>
 {% endblock %}
