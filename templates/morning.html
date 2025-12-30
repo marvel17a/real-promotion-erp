@@ -35,7 +35,7 @@
             <!-- Hidden Timestamp -->
             <input type="hidden" name="timestamp" id="timestampInput">
 
-            <!-- Controls Row -->
+            <!-- Controls Row - Aligned Items -->
             <div class="row g-4 align-items-end mb-4">
                 
                 <!-- Employee Select -->
@@ -46,7 +46,7 @@
                             <img src="{{ url_for('static', filename='img/default-user.png') }}" id="empPhoto" alt="User">
                         </div>
                         <div class="flex-grow-1">
-                            <div class="input-group-glass d-flex">
+                            <div class="input-group-glass">
                                 <span class="input-group-text"><i class="fa-solid fa-user-tie"></i></span>
                                 <select name="employee_id" id="employee_id" class="form-select" required>
                                     <option value="" data-img="">-- Select Employee --</option>
@@ -60,16 +60,16 @@
                 </div>
 
                 <!-- Date Input -->
-                <div class="col-md-4 col-lg-3">
+                <div class="col-md-4 col-lg-4">
                     <label class="control-label">Allocation Date</label>
-                    <div class="input-group-glass d-flex">
+                    <div class="input-group-glass">
                         <span class="input-group-text"><i class="fa-solid fa-calendar-day"></i></span>
                         <input type="text" name="date" id="date" class="form-control" value="{{ today_date }}" required>
                     </div>
                 </div>
 
-                <!-- Live Clock (Updated Style) -->
-                <div class="col-md-4 col-lg-4 ms-auto">
+                <!-- Live Clock (Blue Box) -->
+                <div class="col-md-4 col-lg-3 ms-auto">
                     <div class="clock-display">
                         <span id="liveClock">00:00:00</span>
                     </div>
@@ -152,4 +152,3 @@
 </script>
 <script src="{{ url_for('static', filename='js/morning.js') }}"></script>
 {% endblock %}
-
