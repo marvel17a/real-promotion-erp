@@ -1,189 +1,261 @@
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap');
+/* Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
 
 :root {
-    --primary-dark: #0f172a;
-    --text-main: #334155;
     --glass-bg: rgba(255, 255, 255, 0.95);
-    /* As per instructions */
-    --color-credit: #dc2626; /* RED */
-    --color-debit: #16a34a;  /* GREEN */
-    --color-due: #dc2626;    /* RED */
+    --glass-border: 1px solid rgba(255, 255, 255, 0.6);
+    --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+    --primary-gradient: linear-gradient(135deg, #0f172a 0%, #334155 100%);
+    --card-radius: 16px;
+    --credit-color: #198754; /* Green */
+    --debit-color: #dc3545;  /* Red */
+    --font-main: 'Poppins', sans-serif;
 }
 
 body {
-    font-family: 'Manrope', sans-serif;
-    background-color: #f1f5f9;
-    color: var(--text-main);
+    background-color: #f3f4f6;
+    font-family: var(--font-main);
+    color: #1f2937;
+    padding-bottom: 80px;
 }
 
-/* Glass Panel */
+/* --- Container & Headers --- */
+.glass-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.main-title {
+    font-weight: 800;
+    letter-spacing: -1px;
+    background: var(--primary-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-transform: uppercase;
+}
+
+/* --- Glass Panel --- */
 .glass-panel {
     background: var(--glass-bg);
     backdrop-filter: blur(12px);
-    border: 1px solid #fff;
-    border-radius: 20px;
-    box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.05);
+    border-radius: var(--card-radius);
+    border: var(--glass-border);
+    box-shadow: var(--glass-shadow);
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    transition: transform 0.2s;
 }
 
-/* --- TABLE DESIGN --- */
-.custom-table {
-    width: 100%;
-    border-collapse: separate;
-    border-spacing: 0;
+/* --- Table Styles --- */
+.custom-table-container {
+    border-radius: var(--card-radius);
+    overflow: hidden;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    background: white;
 }
 
-.custom-table thead th {
+.table thead th {
     background: #f8fafc;
-    color: #475569;
-    font-weight: 800;
+    font-weight: 700;
     text-transform: uppercase;
     font-size: 0.75rem;
-    letter-spacing: 0.5px;
-    padding: 1rem;
+    letter-spacing: 0.05em;
+    color: #64748b;
     border-bottom: 2px solid #e2e8f0;
+    padding: 1rem;
+}
+
+.table tbody td {
     vertical-align: middle;
+    padding: 0.75rem 1rem;
+    font-weight: 500;
+    font-size: 0.9rem;
+    color: #334155;
 }
 
-.custom-table tbody td {
-    padding: 0.8rem 1rem;
-    vertical-align: middle;
-    font-weight: 700;
-    border-bottom: 1px solid #f1f5f9;
-    color: #1e293b;
+.table tbody tr:hover {
+    background-color: #f8fafc;
 }
 
-/* Total Column Box (Colored) */
-.total-box {
-    background: #fff7ed; /* Light Orange */
-    color: #c2410c;      /* Dark Orange Text */
-    border: 1px solid #ffedd5;
-    padding: 6px 12px;
-    border-radius: 8px;
-    font-weight: 800;
-    display: inline-block;
-    min-width: 45px;
-    text-align: center;
-}
-
-/* Table Inputs */
+/* Input Styles inside Table */
 .table-input {
+    border: 1px solid #e2e8f0;
     background: #f8fafc;
-    border: 1px solid #cbd5e1;
     border-radius: 8px;
-    padding: 8px;
+    padding: 6px 10px;
     text-align: center;
     font-weight: 700;
-    width: 80px;
-    transition: 0.2s;
+    width: 100%;
+    max-width: 80px;
+    transition: all 0.2s;
 }
 .table-input:focus {
-    background: #fff;
-    border-color: #000;
+    background: white;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
     outline: none;
 }
 
-/* Last Row (Footer) */
-.table-footer {
-    background: #1e293b; /* Dark Footer */
-    color: #fff;
-}
-.table-footer td {
-    padding: 1rem !important;
-    font-weight: 800;
-    font-size: 1rem;
-    border: none;
-    color: #fff;
+.img-thumbnail-custom {
+    width: 45px;
+    height: 45px;
+    border-radius: 8px;
+    object-fit: cover;
+    border: 1px solid #e2e8f0;
 }
 
-/* --- SECTIONS (Vertical Layout) --- */
-.section-title {
-    font-size: 1.2rem;
+/* --- Table Footer Boxes --- */
+.tfoot-box {
+    padding: 8px 12px;
+    border-radius: 8px;
     font-weight: 800;
-    color: #0f172a;
-    margin-bottom: 1.5rem;
-    border-bottom: 2px solid #e2e8f0;
-    padding-bottom: 10px;
+    font-size: 0.95rem;
+    display: inline-block;
+    min-width: 60px;
+    text-align: center;
+}
+.box-gray { background: #e2e8f0; color: #475569; }
+.box-blue { background: #dbeafe; color: #1e40af; }
+.box-green { background: #dcfce7; color: #166534; }
+.box-red { background: #fee2e2; color: #991b1b; }
+.box-dark { background: #1e293b; color: white; }
+
+/* --- Bottom Sections (Finance & Collection) --- */
+.section-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    margin-bottom: 1.25rem;
     display: flex;
     align-items: center;
     gap: 10px;
 }
 
-/* Vertical Row Container */
-.vertical-row {
+/* Employee Finance Specifics */
+.finance-block {
+    margin-bottom: 1.25rem;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid #e5e7eb;
+}
+
+.finance-label {
+    padding: 8px 15px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: white;
+}
+.label-credit { background-color: var(--credit-color); }
+.label-debit { background-color: var(--debit-color); }
+
+.finance-inputs {
+    background: white;
+    padding: 12px;
     display: flex;
-    justify-content: space-between; /* Space between Label and Amount */
+    gap: 10px;
+}
+.finance-input-field {
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    padding: 8px;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+/* Collection Specifics - Vertical Format */
+.collection-row {
+    display: flex;
+    justify-content: space-between;
     align-items: center;
     padding: 12px 0;
     border-bottom: 1px dashed #e2e8f0;
 }
-.vertical-row:last-child { border-bottom: none; }
+.collection-row:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
 
-/* Label Styling */
-.v-label {
-    font-weight: 800;
+.col-label {
+    font-weight: 600;
+    color: #64748b;
     font-size: 0.95rem;
-    color: #475569;
     display: flex;
     align-items: center;
     gap: 8px;
 }
 
-/* Amount Input Styling */
-.v-amount-wrapper {
-    width: 150px;
-    text-align: right;
-}
-.v-input {
-    width: 100%;
-    text-align: right;
+.col-value-input {
     border: none;
     background: transparent;
-    font-weight: 800;
+    text-align: right;
+    font-weight: 700;
     font-size: 1.1rem;
-    color: #0f172a;
-    padding: 0;
+    color: #1e293b;
+    width: 150px;
 }
-.v-input:focus { outline: none; }
-.v-input::placeholder { color: #cbd5e1; }
-
-/* --- SPECIFIC COLORS (Requested) --- */
-/* Credit = Red */
-.text-credit { color: var(--color-credit) !important; }
-.input-credit { color: var(--color-credit) !important; }
-
-/* Debit = Green */
-.text-debit { color: var(--color-debit) !important; }
-.input-debit { color: var(--color-debit) !important; }
-
-/* Balance Due = Red */
-.text-due { color: var(--color-due) !important; font-size: 1.4rem; }
-
-/* Note Input (Small text below label) */
-.v-note {
-    font-size: 0.75rem;
-    border: none;
+.col-value-input:focus {
+    outline: none;
     background: #f8fafc;
-    padding: 4px 8px;
     border-radius: 4px;
-    width: 100%;
-    margin-top: 4px;
+}
+
+/* Balance Due Special Styling */
+.balance-row {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 2px solid #e2e8f0;
+}
+.balance-label {
+    font-size: 1.2rem;
+    font-weight: 800;
+    color: #dc3545; /* Red as requested */
+    text-transform: uppercase;
+}
+.balance-amount {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: #dc3545; /* Red as requested */
+}
+
+/* Buttons */
+.btn-action {
+    padding: 12px 30px;
+    font-weight: 700;
+    border-radius: 50px;
+    text-transform: uppercase;
+    font-size: 0.9rem;
+    letter-spacing: 0.5px;
+    transition: all 0.3s ease;
+}
+.btn-save-draft {
+    background: white;
+    border: 2px solid #cbd5e1;
     color: #64748b;
 }
-
-/* Header Elements */
-.user-img-box {
-    width: 65px; height: 65px;
-    border-radius: 12px;
-    overflow: hidden;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-    background: #fff;
+.btn-save-draft:hover {
+    border-color: #64748b;
+    color: #1e293b;
 }
-.user-img-box img { width: 100%; height: 100%; object-fit: cover; }
+.btn-submit-final {
+    background: var(--primary-gradient);
+    color: white;
+    border: none;
+    box-shadow: 0 4px 15px rgba(15, 23, 42, 0.4);
+}
+.btn-submit-final:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(15, 23, 42, 0.5);
+}
 
-.img-box-small {
-    width: 45px; height: 45px;
-    border-radius: 8px;
-    overflow: hidden;
-    background: #eee;
-    border: 1px solid #e2e8f0;
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .glass-panel { padding: 1rem; }
+    .table thead { display: none; }
+    .table tbody tr { display: block; margin-bottom: 1rem; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px; background: white; }
+    .table tbody td { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid #f1f5f9; }
+    .table tbody td:last-child { border-bottom: none; }
+    .table tbody td::before { content: attr(data-label); font-weight: 600; color: #94a3b8; font-size: 0.8rem; text-transform: uppercase; }
 }
