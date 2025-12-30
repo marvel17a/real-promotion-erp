@@ -27,6 +27,8 @@ document.addEventListener("DOMContentLoaded", () => {
     let productOptionsHtml = '<option value="">-- Select --</option>';
     if (Array.isArray(productsData)) {
         productsData.forEach(p => {
+            // Ensure stock is treated as a number
+            p.stock = parseInt(p.stock) || 0; 
             productsMap.set(String(p.id), p);
             productOptionsHtml += `<option value="${p.id}">${p.name}</option>`;
         });
@@ -38,7 +40,6 @@ document.addEventListener("DOMContentLoaded", () => {
         const timeString = now.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute:'2-digit', second:'2-digit' });
         if(ui.clockDisplay) ui.clockDisplay.textContent = timeString;
         
-        // Format for DB (YYYY-MM-DD HH:MM:SS)
         const year = now.getFullYear();
         const month = String(now.getMonth() + 1).padStart(2, '0');
         const day = String(now.getDate()).padStart(2, '0');
@@ -58,6 +59,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (!employeeId || !dateStr) return;
 
+        // Check if employee is inactive before proceeding (Front-end check)
+        const selectedOption = ui.employeeSelect.options[ui.employeeSelect.selectedIndex];
+        // Assuming status is passed via data attribute, or we check via API. 
+        // For now, we rely on the backend response or if the dropdown was filtered.
+
         ui.fetchMsg.innerHTML = '<span class="text-primary"><i class="fas fa-spinner fa-spin"></i> Checking...</span>';
         if(ui.historyList) ui.historyList.innerHTML = '';
         ui.tableBody.innerHTML = '';
@@ -67,13 +73,21 @@ document.addEventListener("DOMContentLoaded", () => {
             const data = await response.json();
 
             if (data.error && response.status !== 500) {
+                // If backend sends specific error about inactive employee
+                if(data.error.includes("Inactive")) {
+                    ui.fetchMsg.innerHTML = `<div class="alert alert-danger fw-bold">${data.error}</div>`;
+                    ui.addRowBtn.disabled = true;
+                    return; 
+                }
+                
+                ui.addRowBtn.disabled = false;
                 isRestockMode = false;
                 ui.fetchMsg.innerHTML = '<span class="text-secondary small">Start New Allocation</span>';
                 createRow(); 
             } else {
+                ui.addRowBtn.disabled = false;
                 isRestockMode = (data.mode === 'restock');
                 
-                // 1. Auto-Fill Yesterday's Remaining (Only in Normal Mode)
                 if (!isRestockMode && data.opening_stock && data.opening_stock.length > 0) {
                     data.opening_stock.forEach(stockItem => {
                         createRow(stockItem); 
@@ -84,7 +98,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     ui.fetchMsg.innerHTML = isRestockMode ? '' : '<span class="text-secondary small">No pending stock</span>';
                 }
 
-                // 2. Restock Mode History
                 if (isRestockMode) {
                     ui.fetchMsg.innerHTML = '<span class="badge bg-warning text-dark">Restock Mode</span>';
                     
@@ -118,7 +131,7 @@ document.addEventListener("DOMContentLoaded", () => {
             recalculateTotals();
 
         } catch (error) {
-            ui.fetchMsg.innerHTML = '<span class="text-danger small">Error</span>';
+            ui.fetchMsg.innerHTML = '<span class="text-danger small">Error connecting to server</span>';
             createRow();
         }
     }
@@ -131,6 +144,7 @@ document.addEventListener("DOMContentLoaded", () => {
         let openingVal = 0;
         let priceVal = 0.00;
         let imgSrc = DEFAULT_IMG;
+        // let stockAvailable = 0; // We will look this up dynamically
 
         if (prefillData) {
             productId = prefillData.product_id;
@@ -150,6 +164,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 <select name="product_id[]" class="form-select product-dropdown" required>
                     ${productOptionsHtml}
                 </select>
+                <div class="small text-danger fw-bold mt-1 stock-warning" style="display:none;"></div>
             </td>
             <td><input type="number" name="opening[]" class="table-input opening" value="${openingVal}" readonly tabindex="-1"></td>
             <td><input type="number" name="given[]" class="table-input given input-qty" min="0" placeholder="0" required></td>
@@ -162,7 +177,10 @@ document.addEventListener("DOMContentLoaded", () => {
         `;
         
         ui.tableBody.appendChild(tr);
-        if(productId) tr.querySelector('.product-dropdown').value = productId;
+        if(productId) {
+            tr.querySelector('.product-dropdown').value = productId;
+            // Update UI immediately if prefilled (though usually prefilled is "opening" which doesn't affect main inventory check)
+        }
         
         updateRowIndexes();
         if(prefillData) recalculateRow(tr);
@@ -190,8 +208,33 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function recalculateRow(row) {
         const opening = parseInt(row.querySelector(".opening").value) || 0;
-        const given = parseInt(row.querySelector(".given").value) || 0;
+        const givenInput = row.querySelector(".given");
+        let given = parseInt(givenInput.value) || 0;
         const price = parseFloat(row.querySelector(".price").value) || 0;
+        
+        // --- INVENTORY CHECK ---
+        const dropdown = row.querySelector(".product-dropdown");
+        const productId = dropdown.value;
+        const warningEl = row.querySelector(".stock-warning");
+
+        if (productId) {
+            const product = productsMap.get(productId);
+            // Assuming 'stock' property exists in productsData passed from backend
+            // Note: opening stock is already with employee, so we only check 'given' against main inventory
+            const maxAvailable = product.stock; 
+
+            if (given > maxAvailable) {
+                given = maxAvailable;
+                givenInput.value = maxAvailable; // Reset input
+                warningEl.textContent = `Only ${maxAvailable} available!`;
+                warningEl.style.display = 'block';
+                // Optional: Flash alert
+                // alert(`Stock Error: Only ${maxAvailable} units of ${product.name} available.`);
+            } else {
+                warningEl.style.display = 'none';
+            }
+        }
+        // -----------------------
 
         const total = opening + given;
         const amount = total * price;
