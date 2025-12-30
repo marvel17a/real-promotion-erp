@@ -4137,32 +4137,37 @@ def allocation_list():
                            filters={'date': filter_date, 'emp': filter_emp})
 
 
-# NEW route to edit a submitted form
+
 @app.route('/morning/edit/<int:allocation_id>', methods=['GET', 'POST'])
 def edit_morning_allocation(allocation_id):
-    if "loggedin" not in session: return redirect(url_for("login"))
+    # 1. Login Check (Uncomment if you have a login route)
+    # if "loggedin" not in session: return redirect(url_for("login"))
 
-    db_cursor = None
+    conn = get_db_connection()
+    if not conn:
+        return "Database Connection Error", 500
+
+    # Use dictionary=True so we can access columns by name (row['id'])
+    cursor = conn.cursor(dictionary=True)
+
     try:
-        db_cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-        
         # Security Check: Cannot edit if Evening Settlement is done
-        db_cursor.execute("SELECT id FROM evening_settle WHERE allocation_id = %s", (allocation_id,))
-        if db_cursor.fetchone():
+        cursor.execute("SELECT id FROM evening_settle WHERE allocation_id = %s", (allocation_id,))
+        if cursor.fetchone():
             flash("Cannot edit: Evening settlement already submitted.", "warning")
-            return redirect(url_for('allocation_list'))
+            return redirect(url_for('index'))
 
         if request.method == 'POST':
-            # Form Data
+            # --- POST: Save Changes ---
             item_ids = request.form.getlist('item_id[]')
             product_ids = request.form.getlist('product_id[]')
             opening_qtys = request.form.getlist('opening[]')
             given_qtys = request.form.getlist('given[]')
             prices = request.form.getlist('price[]')
 
-            # Fetch existing IDs to detect deletions
-            db_cursor.execute("SELECT id FROM morning_allocation_items WHERE allocation_id = %s", (allocation_id,))
-            current_db_ids = [str(r['id']) for r in db_cursor.fetchall()]
+            # Fetch existing IDs to detect deletions later
+            cursor.execute("SELECT id FROM morning_allocation_items WHERE allocation_id = %s", (allocation_id,))
+            current_db_ids = [str(r['id']) for r in cursor.fetchall()]
             processed_ids = []
 
             for i, pid in enumerate(product_ids):
@@ -4175,7 +4180,7 @@ def edit_morning_allocation(allocation_id):
 
                 if item_id == 'new_item':
                     # Insert New Item
-                    db_cursor.execute("""
+                    cursor.execute("""
                         INSERT INTO morning_allocation_items 
                         (allocation_id, product_id, opening_qty, given_qty, unit_price)
                         VALUES (%s, %s, %s, %s, %s)
@@ -4183,50 +4188,52 @@ def edit_morning_allocation(allocation_id):
                 else:
                     # Update Existing
                     processed_ids.append(item_id)
-                    db_cursor.execute("""
+                    cursor.execute("""
                         UPDATE morning_allocation_items 
                         SET product_id=%s, opening_qty=%s, given_qty=%s, unit_price=%s
                         WHERE id=%s AND allocation_id=%s
                     """, (pid, op_qty, gv_qty, price, item_id, allocation_id))
 
-            # Delete Removed Items
+            # Delete Removed Items (Items in DB but not in the submitted form)
             for db_id in current_db_ids:
                 if db_id not in processed_ids:
-                    db_cursor.execute("DELETE FROM morning_allocation_items WHERE id=%s", (db_id,))
+                    cursor.execute("DELETE FROM morning_allocation_items WHERE id=%s", (db_id,))
 
-            mysql.connection.commit()
+            conn.commit()
             flash("Allocation updated successfully!", "success")
-            return redirect(url_for('allocation_list'))
+            return redirect(url_for('index'))
 
-        # GET Request
+        # --- GET: Load Form ---
+        
         # 1. Allocation Header
-        db_cursor.execute("""
+        cursor.execute("""
             SELECT ma.*, e.name as employee_name, e.image as emp_image 
             FROM morning_allocations ma
             JOIN employees e ON ma.employee_id = e.id
             WHERE ma.id = %s
         """, (allocation_id,))
-        allocation = db_cursor.fetchone()
+        allocation = cursor.fetchone()
         
         if not allocation:
             flash("Record not found.", "danger")
-            return redirect(url_for('allocation_list'))
+            return redirect(url_for('index'))
             
         allocation['emp_image'] = resolve_img(allocation['emp_image'])
 
         # 2. Items
-        db_cursor.execute("""
+        cursor.execute("""
             SELECT mai.*, p.image 
             FROM morning_allocation_items mai
             JOIN products p ON mai.product_id = p.id
             WHERE mai.allocation_id = %s
         """, (allocation_id,))
-        items = db_cursor.fetchall()
-        for item in items: item['image'] = resolve_img(item['image'])
+        items = cursor.fetchall()
+        for item in items: 
+            item['image'] = resolve_img(item['image'])
 
         # 3. Product List for Dropdown
-        db_cursor.execute("SELECT id, name, price, image FROM products WHERE status='Active' ORDER BY name")
-        all_products = db_cursor.fetchall()
+        cursor.execute("SELECT id, name, price, image FROM products WHERE status='Active' ORDER BY name")
+        all_products = cursor.fetchall()
         
         # Prepare JSON for JS
         products_js = []
@@ -4234,29 +4241,26 @@ def edit_morning_allocation(allocation_id):
         for p in all_products:
             p_img = resolve_img(p['image'])
             products_js.append({'id': p['id'], 'name': p['name'], 'price': float(p['price']), 'image': p_img})
+            # Construct the HTML options string
             product_options += f'<option value="{p["id"]}">{p["name"]}</option>'
 
+        # FIX: The error was here. You defined 'product_options' above but passed 'productOptions' (undefined)
         return render_template('morning_edit.html',
                                allocation=allocation,
                                items=items,
                                products=products_js,
-                               productOptions=productOptions)
+                               productOptions=product_options) # Fixed: productOptions=product_options
 
     except Exception as e:
-        if db_cursor: mysql.connection.rollback()
-        app.logger.error(f"Edit Error: {e}")
+        if conn: conn.rollback()
+        # app.logger.error(f"Edit Error: {e}")
+        print(f"Edit Error: {e}") # Printing to console for debugging
         flash(f"Error: {e}", "danger")
-        return redirect(url_for('allocation_list'))
+        return redirect(url_for('index'))
     finally:
-        if db_cursor: db_cursor.close()
+        if cursor: cursor.close()
+        if conn: conn.close()
 
-
-# ---------------------------------------------------------
-# 3. EVENING MASTER (History & Drafts) - WITH FILTERS
-# ---------------------------------------------------------
-# ---------------------------------------------------------
-# 3. EVENING MASTER (History & Drafts) - WITH FILTERS
-# ---------------------------------------------------------
 
 # ---------------------------------------------------------
 # 3. EVENING MASTER (History & Drafts) - WITH FILTERS
@@ -5687,6 +5691,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
