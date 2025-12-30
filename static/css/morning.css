@@ -1,4 +1,4 @@
-/* morning-style.css */
+/* unified-style.css - Shared Glassmorphism Theme */
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&display=swap');
 
 body {
@@ -27,7 +27,7 @@ body {
     border: 1px solid rgba(255, 255, 255, 0.6);
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
     border-radius: 20px;
-    overflow: hidden; /* Contains children nicely */
+    overflow: hidden;
 }
 
 /* --- Header Section --- */
@@ -123,12 +123,22 @@ body {
     height: 100%;
 }
 
-/* --- Table Styles --- */
+/* --- Table Styles (Shared) --- */
+.table-responsive {
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid #eee;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+}
+
 .styled-table {
     width: 100%;
     border-collapse: separate;
     border-spacing: 0;
+    margin-bottom: 0;
 }
+
+/* Header Styling - Identical for both */
 .styled-table thead th {
     background: linear-gradient(180deg, #f8f9fa 0%, #e9ecef 100%);
     color: #495057;
@@ -138,12 +148,17 @@ body {
     padding: 15px;
     border-bottom: 2px solid #dee2e6;
     white-space: nowrap;
+    text-align: center; /* Default center align for headers */
 }
+/* Override specific alignments via helper classes in HTML if needed, 
+   but default center looks best for numbers */
+
 .styled-table tbody td {
     vertical-align: middle;
     padding: 10px;
     border-bottom: 1px solid #f0f0f0;
     background: #fff;
+    font-size: 0.95rem;
 }
 .styled-table tbody tr:hover td {
     background-color: #fcfcfc;
@@ -165,7 +180,7 @@ body {
     object-fit: cover;
 }
 
-/* Inputs in Table */
+/* Inputs within Table */
 .table-input {
     border: 1px solid #e0e0e0;
     border-radius: 6px;
@@ -182,65 +197,115 @@ body {
     box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.1);
     outline: none;
 }
-.input-given {
-    background-color: #f0f9ff; /* Light Blue tint for active input */
-    color: #0d6efd;
-    border-color: #bce3ff;
+.table-input-plaintext {
+    border: none;
+    background: transparent;
+    text-align: center;
+    font-weight: 700;
+    color: #333;
+    width: 100%;
 }
 
-/* Table Footer */
-.table-footer tr th {
+/* Specific Input Colors */
+.input-given { background-color: #f0f9ff; color: #0d6efd; border-color: #bce3ff; } /* Blue tint */
+.input-return { background-color: #fff5f5; color: #dc3545; border-color: #feb2b2; } /* Red tint */
+.input-sold { background-color: #f0fff4; color: #198754; border-color: #9ae6b4; } /* Green tint */
+
+/* --- Table Footer (Summary Row) --- */
+.table-footer tr th, 
+.table-footer tr td {
     background: #f8f9fa;
     padding: 15px;
     font-weight: 800;
     color: #333;
     border-top: 2px solid #dee2e6;
+    vertical-align: middle;
 }
+
+/* Summary Boxes (The colored badges) */
 .total-box {
-    display: block;
-    padding: 8px 12px;
+    display: inline-block;
+    padding: 8px 15px;
     border-radius: 6px;
     text-align: center;
     color: #fff;
     font-size: 1rem;
+    min-width: 60px;
+    font-weight: 700;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
 .bg-total-blue { background-color: #0d6efd; }
 .bg-total-green { background-color: #198754; }
 .bg-total-dark { background-color: #212529; }
+.bg-total-red { background-color: #dc3545; }
+.bg-total-warning { background-color: #ffc107; color: #212529; }
+.bg-total-secondary { background-color: #6c757d; }
 
-/* --- Restock History Card --- */
-.restock-card {
-    background: #fff3cd;
-    border: 1px solid #ffecb5;
-    border-radius: 12px;
-    padding: 15px;
-    margin-bottom: 20px;
+/* --- Evening Specific: Finance Section --- */
+.finance-section {
+    margin-top: 30px;
 }
-.restock-item {
+.finance-card {
+    border: 1px solid #eee;
+    border-radius: 15px;
+    overflow: hidden;
+    height: 100%;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.03);
     background: #fff;
-    border: 1px solid #e0e0e0;
-    border-radius: 50px;
-    padding: 5px 15px 5px 5px;
-    display: inline-flex;
-    align-items: center;
-    margin: 5px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
 }
-.restock-item img {
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
-    margin-right: 10px;
+.finance-header {
+    padding: 15px 20px;
+    background: #f8f9fa;
+    border-bottom: 1px solid #eee;
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 0.9rem;
+    color: #555;
+    display: flex;
+    align-items: center;
+}
+.finance-body {
+    padding: 25px;
 }
 
-/* --- Action Buttons --- */
+/* Settlement Rows */
+.settle-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px dashed #eee;
+}
+.settle-row:last-child { border-bottom: none; }
+.settle-label { font-weight: 600; color: #666; font-size: 0.95rem; }
+.settle-input { 
+    text-align: right; 
+    font-weight: 700; 
+    border: 1px solid #dee2e6; 
+    width: 140px; 
+    border-radius: 6px;
+    padding: 5px 10px;
+}
+
+/* Action Buttons */
 .btn-glass {
     border-radius: 50px;
-    padding: 10px 25px;
-    font-weight: 600;
+    padding: 12px 35px;
+    font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     transition: all 0.3s;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+.btn-save {
+    background: linear-gradient(45deg, #0d6efd, #0b5ed7);
+    color: #fff;
+    border: none;
+}
+.btn-save:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(13, 110, 253, 0.4);
+    color: #fff;
 }
 .btn-add-row {
     background: #fff;
@@ -250,14 +315,4 @@ body {
 .btn-add-row:hover {
     background: #198754;
     color: #fff;
-}
-.btn-save {
-    background: linear-gradient(45deg, #0d6efd, #0b5ed7);
-    color: #fff;
-    border: none;
-    box-shadow: 0 4px 15px rgba(13, 110, 253, 0.3);
-}
-.btn-save:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(13, 110, 253, 0.4);
 }
