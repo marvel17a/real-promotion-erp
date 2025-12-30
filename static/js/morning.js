@@ -24,7 +24,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const productsMap = new Map();
     const DEFAULT_IMG = "https://via.placeholder.com/50?text=Img";
 
-    let productOptionsHtml = '<option value="">-- Select Product --</option>';
+    let productOptionsHtml = '<option value="">-- Select --</option>';
     if (Array.isArray(productsData)) {
         productsData.forEach(p => {
             productsMap.set(String(p.id), p);
@@ -36,7 +36,7 @@ document.addEventListener("DOMContentLoaded", () => {
     function updateClock() {
         const now = new Date();
         const timeString = now.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute:'2-digit', second:'2-digit' });
-        if(ui.clockDisplay) ui.clockDisplay.innerHTML = `<i class="fa-regular fa-clock me-2 text-warning"></i> ${timeString}`;
+        if(ui.clockDisplay) ui.clockDisplay.textContent = timeString;
         
         // Format for DB (YYYY-MM-DD HH:MM:SS)
         const year = now.getFullYear();
@@ -58,7 +58,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (!employeeId || !dateStr) return;
 
-        ui.fetchMsg.innerHTML = '<span class="text-primary fw-bold"><i class="fas fa-spinner fa-spin me-2"></i> Checking database...</span>';
+        ui.fetchMsg.innerHTML = '<span class="text-primary"><i class="fas fa-spinner fa-spin"></i> Checking...</span>';
         if(ui.historyList) ui.historyList.innerHTML = '';
         ui.tableBody.innerHTML = '';
 
@@ -68,7 +68,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             if (data.error && response.status !== 500) {
                 isRestockMode = false;
-                ui.fetchMsg.innerHTML = '<div class="alert alert-light border shadow-sm"><i class="fa-solid fa-plus-circle text-primary me-2"></i>Start New Allocation</div>';
+                ui.fetchMsg.innerHTML = '<span class="text-secondary small">Start New Allocation</span>';
                 createRow(); 
             } else {
                 isRestockMode = (data.mode === 'restock');
@@ -78,30 +78,34 @@ document.addEventListener("DOMContentLoaded", () => {
                     data.opening_stock.forEach(stockItem => {
                         createRow(stockItem); 
                     });
-                    ui.fetchMsg.innerHTML = '<div class="alert alert-success border-0 shadow-sm py-2"><i class="fa-solid fa-check-circle me-2"></i> Previous Closing Stock Loaded</div>';
+                    ui.fetchMsg.innerHTML = '<span class="text-success small"><i class="fa-solid fa-check"></i> Stock Loaded</span>';
                 } else {
                     createRow();
-                    ui.fetchMsg.innerHTML = isRestockMode ? '' : '<div class="alert alert-secondary border-0 py-2">No pending stock from yesterday.</div>';
+                    ui.fetchMsg.innerHTML = isRestockMode ? '' : '<span class="text-secondary small">No pending stock</span>';
                 }
 
                 // 2. Restock Mode History
                 if (isRestockMode) {
-                    ui.fetchMsg.innerHTML = '<div class="alert alert-warning border-warning fw-bold shadow-sm"><i class="fa-solid fa-triangle-exclamation me-2"></i>RESTOCK MODE: Employee already has stock today. Adding more.</div>';
+                    ui.fetchMsg.innerHTML = '<span class="badge bg-warning text-dark">Restock Mode</span>';
                     
                     if(data.existing_items && data.existing_items.length > 0) {
                         let historyHtml = `
-                            <div class="restock-card">
-                                <h6 class="fw-bold text-dark mb-3"><i class="fa-solid fa-box-open me-2"></i>CURRENT STOCK ON HAND:</h6>
-                                <div class="d-flex flex-wrap">
+                            <div class="card border-warning mb-3 shadow-sm">
+                                <div class="card-header bg-warning bg-opacity-10 text-warning fw-bold small d-flex justify-content-between">
+                                    <span><i class="fa-solid fa-box-open"></i> CURRENT STOCK WITH EMPLOYEE</span>
+                                </div>
+                                <div class="card-body p-3 d-flex flex-wrap gap-3">
                         `;
                         
                         data.existing_items.forEach(item => {
                             historyHtml += `
-                                <div class="restock-item">
-                                    <img src="${item.image}" alt="img">
-                                    <div class="lh-1">
-                                        <div class="small fw-bold text-dark">${item.name}</div>
-                                        <div class="badge bg-primary rounded-pill mt-1">Qty: ${item.qty}</div>
+                                <div class="d-flex align-items-center border rounded p-2 pe-3 bg-white shadow-sm" style="min-width: 180px;">
+                                    <div class="prod-img-box me-3" style="width:40px; height:40px;">
+                                        <img src="${item.image}" style="width:100%; height:100%; object-fit:cover;">
+                                    </div>
+                                    <div>
+                                        <div class="fw-bold small text-dark lh-1">${item.name}</div>
+                                        <span class="badge bg-primary rounded-pill mt-1">Total: ${item.qty}</span>
                                     </div>
                                 </div>
                             `;
@@ -114,7 +118,7 @@ document.addEventListener("DOMContentLoaded", () => {
             recalculateTotals();
 
         } catch (error) {
-            ui.fetchMsg.innerHTML = '<span class="text-danger fw-bold">Connection Error</span>';
+            ui.fetchMsg.innerHTML = '<span class="text-danger small">Error</span>';
             createRow();
         }
     }
@@ -136,22 +140,22 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         tr.innerHTML = `
-            <td class="row-index text-center text-muted fw-bold"></td>
+            <td class="text-center text-muted fw-bold row-index"></td>
             <td class="text-center">
                 <div class="prod-img-box">
                     <img src="${imgSrc}" class="product-thumb" alt="img" onerror="this.src='${DEFAULT_IMG}'">
                 </div>
             </td>
             <td>
-                <select name="product_id[]" class="form-select table-input product-dropdown" required>
+                <select name="product_id[]" class="form-select product-dropdown" required>
                     ${productOptionsHtml}
                 </select>
             </td>
-            <td><input type="number" name="opening[]" class="table-input opening text-muted bg-light" value="${openingVal}" readonly tabindex="-1"></td>
-            <td><input type="number" name="given[]" class="table-input given input-given" min="0" placeholder="0" required></td>
-            <td><input type="number" name="total[]" class="table-input total fw-bold text-dark bg-light" value="${openingVal}" readonly tabindex="-1"></td>
-            <td><input type="number" name="price[]" class="table-input price text-end bg-light" step="0.01" value="${priceVal.toFixed(2)}" readonly tabindex="-1"></td>
-            <td><input type="number" name="amount[]" class="table-input amount text-end fw-bold text-primary bg-light" value="0.00" readonly tabindex="-1"></td>
+            <td><input type="number" name="opening[]" class="table-input opening" value="${openingVal}" readonly tabindex="-1"></td>
+            <td><input type="number" name="given[]" class="table-input given input-qty" min="0" placeholder="0" required></td>
+            <td><input type="number" name="total[]" class="table-input total" value="${openingVal}" readonly tabindex="-1"></td>
+            <td><input type="number" name="price[]" class="table-input price text-end" step="0.01" value="${priceVal.toFixed(2)}" readonly tabindex="-1"></td>
+            <td><input type="number" name="amount[]" class="table-input amount text-end fw-bold text-primary" value="0.00" readonly tabindex="-1"></td>
             <td class="text-center">
                 <button type="button" class="btn btn-sm text-danger btn-remove-row"><i class="fa-solid fa-trash-can fa-lg"></i></button>
             </td>
@@ -230,7 +234,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     ui.tableBody.addEventListener("click", e => {
         if (e.target.closest(".btn-remove-row")) {
-            if(confirm("Remove this row?")) {
+            if(confirm("Remove row?")) {
                 e.target.closest("tr").remove();
                 updateRowIndexes();
                 recalculateTotals();
