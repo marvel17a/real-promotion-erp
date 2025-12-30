@@ -3790,12 +3790,13 @@ def draft_evening_list():
 # ---------------------------------------------------------
 # 2. API: FETCH STOCK (Holiday + Aggregated Restock)
 # ---------------------------------------------------------
-@app.route('/api/fetch_stock')
+@app.route('/api/fetch_stock', methods=['GET', 'POST'])
 def api_fetch_stock():
     if "loggedin" not in session: return jsonify({"error": "Unauthorized"}), 401
     
-    employee_id = request.args.get('employee_id')
-    date_str = request.args.get('date') 
+    # Use request.values to grab from query string (GET) or body (POST)
+    employee_id = request.values.get('employee_id')
+    date_str = request.values.get('date') 
 
     try:
         current_date = parse_date(date_str)
@@ -3868,7 +3869,6 @@ def api_fetch_stock():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
 
 
 
@@ -5660,6 +5660,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
