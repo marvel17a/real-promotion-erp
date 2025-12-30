@@ -11,7 +11,7 @@
 
 <div class="glass-container fade-in-up mb-5">
 
-    <!-- Header Section (Identical to Morning) -->
+    <!-- Header Section -->
     <div class="page-header">
         <h1 class="company-title fw-800 text-gradient">REAL PROMOTION</h1>
         <p class="company-subtitle text-uppercase">Since 2005</p>
@@ -40,7 +40,7 @@
             </div>
         </div>
 
-        <!-- Controls Row -->
+        <!-- Controls Row - Aligned Items -->
         <div class="row g-4 align-items-end mb-4">
             
             <!-- Employee Select -->
@@ -51,7 +51,7 @@
                         <img id="empPhoto" src="{{ employee_img if employee_img else url_for('static', filename='img/default-user.png') }}" alt="User">
                     </div>
                     <div class="flex-grow-1">
-                        <div class="input-group-glass d-flex">
+                        <div class="input-group-glass">
                             <span class="input-group-text"><i class="fa-solid fa-user-tie"></i></span>
                             <select id="employee" class="form-select" {% if last_settle_id %}disabled{% endif %}>
                                 <option value="">-- Choose Employee --</option>
@@ -65,16 +65,16 @@
             </div>
 
             <!-- Date Input -->
-            <div class="col-md-4 col-lg-3">
+            <div class="col-md-4 col-lg-4">
                 <label class="control-label">Settlement Date</label>
-                <div class="input-group-glass d-flex">
+                <div class="input-group-glass">
                     <span class="input-group-text"><i class="fa-solid fa-calendar-day"></i></span>
                     <input type="text" id="date" class="form-control" value="{{ today }}" {% if last_settle_id %}disabled{% endif %}>
                 </div>
             </div>
 
-            <!-- Live Clock (Matches Morning) -->
-            <div class="col-md-4 col-lg-4 ms-auto">
+            <!-- Live Clock (Blue Box, No Icon) -->
+            <div class="col-md-4 col-lg-3 ms-auto">
                 <div class="clock-display">
                     <span id="liveClock">00:00:00</span>
                 </div>
@@ -140,7 +140,7 @@
                         {% endif %}
                     </tbody>
                     
-                    <!-- FOOTER (Matches Morning Page Style & Colors) -->
+                    <!-- FOOTER -->
                     <tfoot class="table-footer">
                         <tr>
                             <td colspan="3" class="summary-label">Summary:</td>
@@ -167,52 +167,58 @@
                             <div class="d-flex flex-column gap-3">
                                 <!-- Credit Block -->
                                 <div class="p-3 border rounded-3" style="background-color: #f0fff4; border-color: #c3e6cb;">
-                                    <span class="badge bg-success mb-2">CREDIT (Received)</span>
-                                    <div class="row g-2">
-                                        <div class="col-4">
-                                            <div class="input-group input-group-sm">
-                                                <span class="input-group-text bg-white border-success">₹</span>
-                                                <input type="number" step="0.01" name="emp_credit_amount" class="form-control border-success fw-bold text-success" placeholder="0.00">
-                                            </div>
+                                    <span class="badge bg-success mb-3 w-100">CREDIT (Received)</span>
+                                    
+                                    <!-- Amount Row -->
+                                    <div class="mb-3">
+                                        <label class="small text-muted fw-bold mb-1">Amount</label>
+                                        <div class="input-group input-group-sm">
+                                            <span class="input-group-text bg-white border-success">₹</span>
+                                            <input type="number" step="0.01" name="emp_credit_amount" class="form-control border-success fw-bold text-success fs-5" placeholder="0.00">
                                         </div>
-                                        <div class="col-8">
-                                            <!-- Dropdown for Credit Note -->
-                                            <div class="input-group input-group-sm">
-                                                <select class="form-select border-success text-success fw-bold" style="max-width: 40px;" onchange="this.nextElementSibling.value=this.value; this.value='';">
-                                                    <option value="" selected disabled>&#9776;</option>
-                                                    <option value="Salary">Salary</option>
-                                                    <option value="Incentive">Incentive</option>
-                                                    <option value="Bonus">Bonus</option>
-                                                    <option value="Other">Other</option>
-                                                </select>
-                                                <input type="text" name="emp_credit_note" class="form-control border-success" placeholder="Note">
-                                            </div>
+                                    </div>
+                                    
+                                    <!-- Notes Row (Below Amount) -->
+                                    <div>
+                                        <label class="small text-muted fw-bold mb-1">Note / Reason</label>
+                                        <div class="input-group input-group-sm">
+                                            <select class="form-select border-success text-success fw-bold" style="max-width: 40px;" onchange="this.nextElementSibling.value=this.value; this.value='';">
+                                                <option value="" selected disabled>&#9776;</option>
+                                                <option value="Salary">Salary</option>
+                                                <option value="Incentive">Incentive</option>
+                                                <option value="Bonus">Bonus</option>
+                                                <option value="Other">Other</option>
+                                            </select>
+                                            <input type="text" name="emp_credit_note" class="form-control border-success" placeholder="Description">
                                         </div>
                                     </div>
                                 </div>
 
                                 <!-- Debit Block -->
                                 <div class="p-3 border rounded-3" style="background-color: #fff5f5; border-color: #f5c6cb;">
-                                    <span class="badge bg-danger mb-2">DEBIT (Advance)</span>
-                                    <div class="row g-2">
-                                        <div class="col-4">
-                                            <div class="input-group input-group-sm">
-                                                <span class="input-group-text bg-white border-danger">₹</span>
-                                                <input type="number" step="0.01" name="emp_debit_amount" class="form-control border-danger fw-bold text-danger" placeholder="0.00">
-                                            </div>
+                                    <span class="badge bg-danger mb-3 w-100">DEBIT (Advance)</span>
+                                    
+                                    <!-- Amount Row -->
+                                    <div class="mb-3">
+                                        <label class="small text-muted fw-bold mb-1">Amount</label>
+                                        <div class="input-group input-group-sm">
+                                            <span class="input-group-text bg-white border-danger">₹</span>
+                                            <input type="number" step="0.01" name="emp_debit_amount" class="form-control border-danger fw-bold text-danger fs-5" placeholder="0.00">
                                         </div>
-                                        <div class="col-8">
-                                            <!-- Dropdown for Debit Note -->
-                                            <div class="input-group input-group-sm">
-                                                <select class="form-select border-danger text-danger fw-bold" style="max-width: 40px;" onchange="this.nextElementSibling.value=this.value; this.value='';">
-                                                    <option value="" selected disabled>&#9776;</option>
-                                                    <option value="Advance">Advance</option>
-                                                    <option value="Penalty">Penalty</option>
-                                                    <option value="Loan">Loan</option>
-                                                    <option value="Other">Other</option>
-                                                </select>
-                                                <input type="text" name="emp_debit_note" class="form-control border-danger" placeholder="Note">
-                                            </div>
+                                    </div>
+
+                                    <!-- Notes Row (Below Amount) -->
+                                    <div>
+                                        <label class="small text-muted fw-bold mb-1">Note / Reason</label>
+                                        <div class="input-group input-group-sm">
+                                            <select class="form-select border-danger text-danger fw-bold" style="max-width: 40px;" onchange="this.nextElementSibling.value=this.value; this.value='';">
+                                                <option value="" selected disabled>&#9776;</option>
+                                                <option value="Advance">Advance</option>
+                                                <option value="Penalty">Penalty</option>
+                                                <option value="Loan">Loan</option>
+                                                <option value="Other">Other</option>
+                                            </select>
+                                            <input type="text" name="emp_debit_note" class="form-control border-danger" placeholder="Description">
                                         </div>
                                     </div>
                                 </div>
@@ -324,4 +330,3 @@
     });
 </script>
 {% endblock %}
-
