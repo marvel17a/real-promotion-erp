@@ -63,7 +63,7 @@
 
     <!-- FILTER BAR -->
     <div class="card glass-card border-0 shadow-sm mb-4 p-3">
-        <form method="GET" action="{{ url_for('evening_master') }}" class="row g-3 align-items-end">
+        <form method="GET" action="{{ url_for('admin_evening_master') }}" class="row g-3 align-items-end">
             <div class="col-md-3">
                 <label class="small fw-bold text-muted mb-1">Start Date</label>
                 <input type="text" name="start_date" class="form-control date-picker border-0 bg-light" placeholder="dd-mm-yyyy" value="{{ filters.start }}">
@@ -84,7 +84,7 @@
             <div class="col-md-3">
                 <div class="d-flex gap-2">
                     <button type="submit" class="btn btn-primary w-100 fw-bold shadow-sm">Filter</button>
-                    <a href="{{ url_for('evening_master') }}" class="btn btn-light border w-auto" title="Reset"><i class="fa-solid fa-rotate-right"></i></a>
+                    <a href="{{ url_for('admin_evening_master') }}" class="btn btn-light border w-auto" title="Reset"><i class="fa-solid fa-rotate-right"></i></a>
                 </div>
             </div>
         </form>
