@@ -59,25 +59,28 @@ body {
 
 /* --- Control Panel Inputs --- */
 .control-label {
-    font-size: 0.75rem;
+    font-size: 0.8rem;
     text-transform: uppercase;
-    letter-spacing: 1px;
-    color: #6c757d;
+    letter-spacing: 0.5px;
+    color: #495057;
     font-weight: 700;
-    margin-bottom: 5px;
+    margin-bottom: 8px;
     display: block;
 }
 
 .input-group-glass {
-    border-radius: 12px;
+    border-radius: 10px;
     box-shadow: 0 4px 10px rgba(0,0,0,0.03);
     overflow: hidden;
-    border: 1px solid #eee;
+    border: 1px solid #dee2e6;
+    display: flex; /* Ensures alignment */
+    align-items: center;
 }
 .input-group-glass .input-group-text {
     background: #fff;
     border: none;
     color: #0d6efd;
+    padding: 12px 15px;
 }
 .input-group-glass .form-control, 
 .input-group-glass .form-select {
@@ -85,10 +88,12 @@ body {
     font-weight: 600;
     color: #333;
     padding: 12px 15px;
+    height: auto;
 }
 .input-group-glass .form-control:focus, 
 .input-group-glass .form-select:focus {
-    box-shadow: inset 0 0 0 2px rgba(13, 110, 253, 0.1);
+    box-shadow: none;
+    background-color: #f8f9fa;
 }
 
 /* Employee Photo */
@@ -100,6 +105,7 @@ body {
     border: 3px solid #fff;
     box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     background: #eee;
+    flex-shrink: 0;
 }
 .emp-photo-box img {
     width: 100%;
@@ -107,26 +113,27 @@ body {
     object-fit: cover;
 }
 
-/* Live Clock (Updated Design) */
+/* Live Clock (Blue Box, No Icon) */
 .clock-display {
-    background: #0d6efd; /* Blue background as requested change */
+    background: #0d6efd;
     color: #fff;
     font-family: 'Courier New', monospace;
     font-weight: 700;
-    font-size: 1.3rem;
-    padding: 10px 0;
-    border-radius: 10px;
+    font-size: 1.4rem;
+    padding: 15px 0;
+    border-radius: 12px;
     box-shadow: 0 4px 15px rgba(13, 110, 253, 0.3);
     text-align: center;
     width: 100%;
     display: block;
+    line-height: 1;
 }
 
-/* --- Table Styles (Identical for Both) --- */
+/* --- Table Styles --- */
 .table-responsive {
     border-radius: 12px;
     overflow: hidden;
-    border: 1px solid #eee;
+    border: 1px solid #dee2e6;
     box-shadow: 0 4px 15px rgba(0,0,0,0.03);
     margin-bottom: 20px;
 }
@@ -138,20 +145,22 @@ body {
     margin-bottom: 0;
 }
 
+/* Header Styling - Blue & Bold */
 .styled-table thead th {
-    background: linear-gradient(180deg, #f8f9fa 0%, #e9ecef 100%);
-    color: #495057;
+    background: #0d6efd;
+    color: #fff;
     font-weight: 800;
     text-transform: uppercase;
-    font-size: 0.8rem;
-    padding: 15px;
-    border-bottom: 2px solid #dee2e6;
+    font-size: 0.85rem;
+    padding: 18px 15px;
+    border-bottom: none;
     vertical-align: middle;
+    letter-spacing: 0.5px;
 }
 
 .styled-table tbody td {
     vertical-align: middle;
-    padding: 8px 10px;
+    padding: 10px;
     border-bottom: 1px solid #f0f0f0;
     background: #fff;
 }
@@ -217,8 +226,8 @@ body {
 
 .summary-label {
     text-align: right;
-    font-weight: 700;
-    color: #6c757d;
+    font-weight: 800;
+    color: #495057;
     text-transform: uppercase;
     font-size: 0.9rem;
     padding-right: 20px;
@@ -252,35 +261,38 @@ body {
     height: 100%;
     box-shadow: 0 4px 15px rgba(0,0,0,0.03);
     background: #fff;
+    display: flex;
+    flex-direction: column;
 }
 .finance-header {
     padding: 15px 20px;
     background: #f8f9fa;
     border-bottom: 1px solid #eee;
-    font-weight: 700;
+    font-weight: 800;
     text-transform: uppercase;
-    font-size: 0.9rem;
-    color: #555;
+    font-size: 0.95rem;
+    color: #495057;
 }
-.finance-body { padding: 25px; }
+.finance-body { padding: 25px; flex-grow: 1; }
 
 /* Settlement Rows */
 .settle-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 12px 0;
+    padding: 15px 0;
     border-bottom: 1px dashed #eee;
 }
 .settle-row:last-child { border-bottom: none; }
-.settle-label { font-weight: 600; color: #666; font-size: 0.95rem; }
+.settle-label { font-weight: 600; color: #555; font-size: 1rem; }
 .settle-input { 
     text-align: right; 
     font-weight: 700; 
-    border: 1px solid #dee2e6; 
-    width: 140px; 
+    border: 1px solid #ced4da; 
+    width: 150px; 
     border-radius: 6px; 
-    padding: 6px 10px;
+    padding: 8px 12px;
+    font-size: 1.1rem;
 }
 
 /* Action Buttons */
