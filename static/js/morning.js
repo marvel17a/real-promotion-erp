@@ -28,7 +28,10 @@ document.addEventListener("DOMContentLoaded", () => {
     if (Array.isArray(productsData)) {
         productsData.forEach(p => {
             // Ensure stock is treated as a number
-            p.stock = parseInt(p.stock) || 0; 
+            // Note: If stock is undefined in JSON, default to 0. 
+            // In some DBs, stock might be null, handle that.
+            p.stock = (p.stock === null || p.stock === undefined) ? 0 : parseInt(p.stock);
+            
             productsMap.set(String(p.id), p);
             productOptionsHtml += `<option value="${p.id}">${p.name}</option>`;
         });
@@ -59,11 +62,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (!employeeId || !dateStr) return;
 
-        // Check if employee is inactive before proceeding (Front-end check)
-        const selectedOption = ui.employeeSelect.options[ui.employeeSelect.selectedIndex];
-        // Assuming status is passed via data attribute, or we check via API. 
-        // For now, we rely on the backend response or if the dropdown was filtered.
-
         ui.fetchMsg.innerHTML = '<span class="text-primary"><i class="fas fa-spinner fa-spin"></i> Checking...</span>';
         if(ui.historyList) ui.historyList.innerHTML = '';
         ui.tableBody.innerHTML = '';
@@ -73,10 +71,10 @@ document.addEventListener("DOMContentLoaded", () => {
             const data = await response.json();
 
             if (data.error && response.status !== 500) {
-                // If backend sends specific error about inactive employee
-                if(data.error.includes("Inactive")) {
-                    ui.fetchMsg.innerHTML = `<div class="alert alert-danger fw-bold">${data.error}</div>`;
-                    ui.addRowBtn.disabled = true;
+                // Handle Inactive Employee Error specifically
+                if(data.error.toLowerCase().includes("inactive")) {
+                    ui.fetchMsg.innerHTML = `<div class="alert alert-danger fw-bold"><i class="fa-solid fa-ban me-2"></i>${data.error}</div>`;
+                    ui.addRowBtn.disabled = true; // Disable adding rows
                     return; 
                 }
                 
@@ -131,6 +129,7 @@ document.addEventListener("DOMContentLoaded", () => {
             recalculateTotals();
 
         } catch (error) {
+            console.error(error);
             ui.fetchMsg.innerHTML = '<span class="text-danger small">Error connecting to server</span>';
             createRow();
         }
@@ -144,7 +143,6 @@ document.addEventListener("DOMContentLoaded", () => {
         let openingVal = 0;
         let priceVal = 0.00;
         let imgSrc = DEFAULT_IMG;
-        // let stockAvailable = 0; // We will look this up dynamically
 
         if (prefillData) {
             productId = prefillData.product_id;
@@ -164,7 +162,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 <select name="product_id[]" class="form-select product-dropdown" required>
                     ${productOptionsHtml}
                 </select>
-                <div class="small text-danger fw-bold mt-1 stock-warning" style="display:none;"></div>
+                <!-- Warning Text -->
+                <div class="small text-danger fw-bold mt-1 stock-warning" style="display:none; font-size: 0.75rem;"></div>
             </td>
             <td><input type="number" name="opening[]" class="table-input opening" value="${openingVal}" readonly tabindex="-1"></td>
             <td><input type="number" name="given[]" class="table-input given input-qty" min="0" placeholder="0" required></td>
@@ -179,7 +178,6 @@ document.addEventListener("DOMContentLoaded", () => {
         ui.tableBody.appendChild(tr);
         if(productId) {
             tr.querySelector('.product-dropdown').value = productId;
-            // Update UI immediately if prefilled (though usually prefilled is "opening" which doesn't affect main inventory check)
         }
         
         updateRowIndexes();
@@ -190,6 +188,11 @@ document.addEventListener("DOMContentLoaded", () => {
     function updateRowData(row, productId) {
         const priceInput = row.querySelector(".price");
         const img = row.querySelector(".product-thumb");
+        const warningEl = row.querySelector(".stock-warning");
+        const givenInput = row.querySelector(".given");
+        
+        // Clear previous warning
+        warningEl.style.display = 'none';
         
         const product = productsMap.get(productId);
         if (product) {
@@ -199,11 +202,12 @@ document.addEventListener("DOMContentLoaded", () => {
             } else {
                 img.src = DEFAULT_IMG;
             }
+            // Trigger recalculation to check stock immediately if user typed qty first
+            recalculateRow(row); 
         } else {
             img.src = DEFAULT_IMG;
             priceInput.value = "0.00";
         }
-        recalculateRow(row);
     }
 
     function recalculateRow(row) {
@@ -219,17 +223,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (productId) {
             const product = productsMap.get(productId);
-            // Assuming 'stock' property exists in productsData passed from backend
-            // Note: opening stock is already with employee, so we only check 'given' against main inventory
-            const maxAvailable = product.stock; 
+            // Ensure we use the parsed integer stock value
+            const maxAvailable = parseInt(product.stock); 
 
             if (given > maxAvailable) {
                 given = maxAvailable;
-                givenInput.value = maxAvailable; // Reset input
-                warningEl.textContent = `Only ${maxAvailable} available!`;
+                givenInput.value = maxAvailable; // Correct the input value visually
+                warningEl.innerHTML = `<i class="fa-solid fa-triangle-exclamation me-1"></i>Only ${maxAvailable} left!`;
                 warningEl.style.display = 'block';
-                // Optional: Flash alert
-                // alert(`Stock Error: Only ${maxAvailable} units of ${product.name} available.`);
             } else {
                 warningEl.style.display = 'none';
             }
