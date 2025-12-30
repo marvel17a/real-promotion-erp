@@ -3374,6 +3374,9 @@ def resolve_img(image_path):
 # ---------------------------------------------------------
 # 1. MORNING ALLOCATION (Timestamp & Restock)
 # ---------------------------------------------------------
+# ---------------------------------------------------------
+# 1. MORNING ALLOCATION (Timestamp & Restock)
+# ---------------------------------------------------------
 @app.route('/morning', methods=['GET', 'POST'])
 def morning():
     if "loggedin" not in session: return redirect(url_for("login"))
@@ -3396,6 +3399,29 @@ def morning():
             if not (employee_id and date_obj and product_ids):
                 flash("All fields are required.", "danger")
                 return redirect(url_for('morning'))
+
+            # --- NEW: INVENTORY CHECK LOGIC ---
+            # We iterate through the list FIRST to ensure stock is available for all items.
+            for idx, pid in enumerate(product_ids):
+                if not pid: continue
+                gv_q = int(given_list[idx] or 0)
+                
+                # Only check stock if we are GIVING items
+                if gv_q > 0:
+                    db_cursor.execute("SELECT name, stock FROM products WHERE id = %s", (pid,))
+                    product_data = db_cursor.fetchone()
+                    
+                    if product_data:
+                        # Ensure we handle None values as 0
+                        current_stock = int(product_data['stock'] if product_data['stock'] is not None else 0)
+                        
+                        if current_stock < gv_q:
+                            flash(f"Cannot allocate! '{product_data['name']}' has insufficient stock. Available: {current_stock}, Requested: {gv_q}", "danger")
+                            return redirect(url_for('morning'))
+                    else:
+                        flash(f"Product ID {pid} not found in database.", "danger")
+                        return redirect(url_for('morning'))
+            # ----------------------------------
 
             formatted_date = date_obj.strftime('%Y-%m-%d')
 
@@ -3442,6 +3468,11 @@ def morning():
                         db_cursor.execute(insert_sql, (alloc_id, pid, op_q, gv_q, pr_c, time_str))
                     except:
                         db_cursor.execute(fallback_sql, (alloc_id, pid, op_q, gv_q, pr_c))
+                    
+                    # NOTE: If you want to deduct stock immediately upon allocation, uncomment the lines below.
+                    # However, if your 'evening' route deducts stock on sale, do NOT uncomment this or you will double-deduct.
+                    # if gv_q > 0:
+                    #     db_cursor.execute("UPDATE products SET stock = stock - %s WHERE id = %s", (gv_q, pid))
 
             mysql.connection.commit()
             flash(flash_msg, "success")
@@ -3472,6 +3503,7 @@ def morning():
     except Exception as e:
         if db_cursor: mysql.connection.rollback()
         flash(f"Error: {e}", "danger")
+        print(f"Morning Error: {e}")
         return redirect(url_for('morning'))
     finally:
         if db_cursor: db_cursor.close()
@@ -5682,6 +5714,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
