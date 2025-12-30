@@ -176,7 +176,7 @@
                     <div class="d-flex flex-column gap-3">
                         <!-- Credit Block -->
                         <div class="credit-box">
-                            <span class="label-credit small fw-bold text-uppercase"><i class="fa-solid fa-arrow-down me-1"></i> Credit</span>
+                            <span class="label-credit small fw-bold text-uppercase"><i class="fa-solid fa-arrow-down me-1"></i> Credit (Received)</span>
                             <div class="mb-3">
                                 <label class="small text-muted mb-1">Amount</label>
                                 <div class="input-group">
@@ -186,13 +186,23 @@
                             </div>
                             <div>
                                 <label class="small text-muted mb-1">Note / Reason</label>
-                                <input type="text" name="emp_credit_note" class="form-control border-success bg-white" placeholder="e.g. Salary">
+                                <div class="input-group">
+                                    <select class="form-select border-success bg-white text-success fw-bold" style="max-width: 50px;" onchange="this.nextElementSibling.value=this.value; this.value='';">
+                                        <option value="" selected disabled>&#9776;</option>
+                                        
+                                        <option value="Daily Incentive">Daily Incentive</option>
+                                        <option value="Bonus">Bonus</option>
+                                        <option value="Fuel Allowance"></option>
+                                        <option value="Other">Other</option>
+                                    </select>
+                                    <input type="text" name="emp_credit_note" class="form-control border-success bg-white" placeholder="Select or Type Note">
+                                </div>
                             </div>
                         </div>
 
                         <!-- Debit Block -->
                         <div class="debit-box">
-                            <span class="label-debit small fw-bold text-uppercase"><i class="fa-solid fa-arrow-up me-1"></i> Debit</span>
+                            <span class="label-debit small fw-bold text-uppercase"><i class="fa-solid fa-arrow-up me-1"></i> Debit (Advance)</span>
                             <div class="mb-3">
                                 <label class="small text-muted mb-1">Amount</label>
                                 <div class="input-group">
@@ -202,7 +212,16 @@
                             </div>
                             <div>
                                 <label class="small text-muted mb-1">Note / Reason</label>
-                                <input type="text" name="emp_debit_note" class="form-control border-danger bg-white" placeholder="e.g. Advance">
+                                <div class="input-group">
+                                    <select class="form-select border-danger bg-white text-danger fw-bold" style="max-width: 50px;" onchange="this.nextElementSibling.value=this.value; this.value='';">
+                                        <option value="" selected disabled>&#9776;</option>
+                                        <option value="Advance">Advance</option>
+                                        <option value="Personal Loan">Personal Loan</option>
+                                        <option value="Penalty">Cash Sort</option>
+                                        <option value="Adjustment">Adjustment</option>
+                                    </select>
+                                    <input type="text" name="emp_debit_note" class="form-control border-danger bg-white" placeholder="Select or Type Note">
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -328,4 +347,3 @@
     });
 </script>
 {% endblock %}
-
