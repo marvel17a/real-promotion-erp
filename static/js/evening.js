@@ -12,7 +12,7 @@ document.addEventListener("DOMContentLoaded", () => {
             employee: getEl('h_employee'),
             date: getEl('h_date'),
         },
-        // Footer IDs must match the HTML Table Footer
+        // Footer IDs matching HTML
         footer: {
             total: getEl('totTotal'), // Total Product Qty
             sold: getEl('totSold'),   // Total Sold
@@ -58,6 +58,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const employeeId = ui.employeeSelect.value;
         const dateStr = ui.dateInput.value;
 
+        // Reset UI
         ui.tableBody.innerHTML = '<tr><td colspan="9" class="text-center p-4"><div class="spinner-border text-primary" role="status"></div></td></tr>';
         if(ui.fetchMsg) {
             ui.fetchMsg.textContent = "";
@@ -74,9 +75,24 @@ document.addEventListener("DOMContentLoaded", () => {
 
         try {
             const response = await fetch(`/api/fetch_morning_allocation?employee_id=${employeeId}&date=${dateStr}`);
+
+            // 1. Check for HTTP Error Codes (404, 500)
+            if (!response.ok) {
+                throw new Error(`Server Error: ${response.status} ${response.statusText}`);
+            }
+
+            // 2. Check content-type to ensure we got JSON, not HTML (which causes the '<' error)
+            const contentType = response.headers.get("content-type");
+            if (!contentType || !contentType.includes("application/json")) {
+                const textData = await response.text(); // Read text for debugging
+                console.error("Server returned HTML instead of JSON:", textData);
+                throw new Error("Server returned an HTML page (likely an error or login page) instead of data.");
+            }
+
+            // 3. Safe to parse JSON
             const data = await response.json();
 
-            if (!response.ok || data.error) throw new Error(data.error || 'No data.');
+            if (data.error) throw new Error(data.error);
 
             if(ui.hidden.allocationId) ui.hidden.allocationId.value = data.allocation_id;
             
@@ -177,28 +193,16 @@ document.addEventListener("DOMContentLoaded", () => {
             let sold = parseInt(soldInput.value) || 0;
             let ret = parseInt(returnInput.value) || 0;
 
-            // Logic: Total = Sold + Return + Left (But here we calc Left/Return based on Sold)
-            // Usually: Given = Sold + Return.  Left = Total - (Sold + Return)
-            // Or if data is pre-filled, we assume Sold + Return <= Total
-            
-            // Auto adjust logic if Sold changes
-            // If Sold is entered, Remainder goes to Return or Left?
-            // Existing logic seemed to prioritize Sold, then calc Return/Left.
-            // Let's keep simple: Left = Total - Sold - Return.
-            
+            // Logic: Left = Total - Sold - Return.
             let remaining = totalQty - sold - ret;
 
             // Prevent negative remaining
             if (remaining < 0) {
-                // If sum exceeds total, adjust the input that was just changed? 
-                // Hard to track focus here without event, so just clamp visually or logic
-                // For safety:
                 remaining = 0; 
-                // We don't auto-change inputs here to avoid fighting user, 
-                // but usually you'd prevent input > available.
+                // Note: Logic here simply floors remaining at 0 for visual calculation
+                // Ideally, you add validation to stop input if (sold + return > total)
             }
             
-            // Check if we have a proper input for remaining (if it's an input)
             if(remainInput.tagName === 'INPUT') {
                 remainInput.value = remaining;
             } else {
