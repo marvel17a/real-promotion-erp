@@ -27,13 +27,12 @@ document.addEventListener("DOMContentLoaded", () => {
     let productOptionsHtml = '<option value="">-- Select --</option>';
     if (Array.isArray(productsData)) {
         productsData.forEach(p => {
-            // Ensure stock is treated as a number
-            // Note: If stock is undefined in JSON, default to 0. 
-            // In some DBs, stock might be null, handle that.
+            // FIX: Ensure stock is a valid integer. Default to 0 if missing.
             p.stock = (p.stock === null || p.stock === undefined) ? 0 : parseInt(p.stock);
             
             productsMap.set(String(p.id), p);
-            productOptionsHtml += `<option value="${p.id}">${p.name}</option>`;
+            // We store stock in data attribute as backup, though Map is primary
+            productOptionsHtml += `<option value="${p.id}" data-stock="${p.stock}">${p.name}</option>`;
         });
     }
 
@@ -71,10 +70,9 @@ document.addEventListener("DOMContentLoaded", () => {
             const data = await response.json();
 
             if (data.error && response.status !== 500) {
-                // Handle Inactive Employee Error specifically
                 if(data.error.toLowerCase().includes("inactive")) {
                     ui.fetchMsg.innerHTML = `<div class="alert alert-danger fw-bold"><i class="fa-solid fa-ban me-2"></i>${data.error}</div>`;
-                    ui.addRowBtn.disabled = true; // Disable adding rows
+                    ui.addRowBtn.disabled = true;
                     return; 
                 }
                 
@@ -189,9 +187,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const priceInput = row.querySelector(".price");
         const img = row.querySelector(".product-thumb");
         const warningEl = row.querySelector(".stock-warning");
-        const givenInput = row.querySelector(".given");
         
-        // Clear previous warning
+        // Reset warnings
         warningEl.style.display = 'none';
         
         const product = productsMap.get(productId);
@@ -202,7 +199,6 @@ document.addEventListener("DOMContentLoaded", () => {
             } else {
                 img.src = DEFAULT_IMG;
             }
-            // Trigger recalculation to check stock immediately if user typed qty first
             recalculateRow(row); 
         } else {
             img.src = DEFAULT_IMG;
@@ -223,16 +219,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (productId) {
             const product = productsMap.get(productId);
-            // Ensure we use the parsed integer stock value
-            const maxAvailable = parseInt(product.stock); 
+            // Default to a very large number if product not found to avoid blocking
+            const maxAvailable = product ? parseInt(product.stock) : 999999; 
 
             if (given > maxAvailable) {
                 given = maxAvailable;
-                givenInput.value = maxAvailable; // Correct the input value visually
+                givenInput.value = maxAvailable; 
                 warningEl.innerHTML = `<i class="fa-solid fa-triangle-exclamation me-1"></i>Only ${maxAvailable} left!`;
                 warningEl.style.display = 'block';
+                // Optional: add visual shake or red border
+                givenInput.style.borderColor = 'red';
             } else {
                 warningEl.style.display = 'none';
+                givenInput.style.borderColor = '';
             }
         }
         // -----------------------
