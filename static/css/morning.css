@@ -1,4 +1,4 @@
-/* unified-style.css - Shared Glassmorphism Theme */
+/* morning-style.css - Unified Theme for Morning & Evening */
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&display=swap');
 
 body {
@@ -107,28 +107,28 @@ body {
     object-fit: cover;
 }
 
-/* Live Clock */
+/* Live Clock (Updated Design) */
 .clock-display {
-    background: #212529;
+    background: #0d6efd; /* Blue background as requested change */
     color: #fff;
     font-family: 'Courier New', monospace;
     font-weight: 700;
-    font-size: 1.2rem;
-    padding: 10px 20px;
+    font-size: 1.3rem;
+    padding: 10px 0;
     border-radius: 10px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.15);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
+    box-shadow: 0 4px 15px rgba(13, 110, 253, 0.3);
+    text-align: center;
+    width: 100%;
+    display: block;
 }
 
-/* --- Table Styles (Shared) --- */
+/* --- Table Styles (Identical for Both) --- */
 .table-responsive {
     border-radius: 12px;
     overflow: hidden;
     border: 1px solid #eee;
     box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+    margin-bottom: 20px;
 }
 
 .styled-table {
@@ -138,30 +138,22 @@ body {
     margin-bottom: 0;
 }
 
-/* Header Styling - Identical for both */
 .styled-table thead th {
     background: linear-gradient(180deg, #f8f9fa 0%, #e9ecef 100%);
     color: #495057;
-    font-weight: 700;
+    font-weight: 800;
     text-transform: uppercase;
     font-size: 0.8rem;
     padding: 15px;
     border-bottom: 2px solid #dee2e6;
-    white-space: nowrap;
-    text-align: center; /* Default center align for headers */
+    vertical-align: middle;
 }
-/* Override specific alignments via helper classes in HTML if needed, 
-   but default center looks best for numbers */
 
 .styled-table tbody td {
     vertical-align: middle;
-    padding: 10px;
+    padding: 8px 10px;
     border-bottom: 1px solid #f0f0f0;
     background: #fff;
-    font-size: 0.95rem;
-}
-.styled-table tbody tr:hover td {
-    background-color: #fcfcfc;
 }
 
 /* Product Image in Table */
@@ -180,8 +172,8 @@ body {
     object-fit: cover;
 }
 
-/* Inputs within Table */
-.table-input {
+/* Table Inputs & Selects */
+.table-input, .product-dropdown {
     border: 1px solid #e0e0e0;
     border-radius: 6px;
     text-align: center;
@@ -191,47 +183,57 @@ body {
     background: #fdfdfd;
     transition: all 0.2s;
 }
+.product-dropdown { text-align: left; }
+
 .table-input:focus {
     border-color: #0d6efd;
     background: #fff;
     box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.1);
     outline: none;
 }
-.table-input-plaintext {
-    border: none;
-    background: transparent;
-    text-align: center;
-    font-weight: 700;
-    color: #333;
-    width: 100%;
-}
 
 /* Specific Input Colors */
-.input-given { background-color: #f0f9ff; color: #0d6efd; border-color: #bce3ff; } /* Blue tint */
-.input-return { background-color: #fff5f5; color: #dc3545; border-color: #feb2b2; } /* Red tint */
-.input-sold { background-color: #f0fff4; color: #198754; border-color: #9ae6b4; } /* Green tint */
+.input-qty { background-color: #f0f9ff; color: #0d6efd; border-color: #bce3ff; }
+.input-return { background-color: #fff5f5; color: #dc3545; border-color: #feb2b2; }
+.input-sold { background-color: #f0fff4; color: #198754; border-color: #9ae6b4; }
 
-/* --- Table Footer (Summary Row) --- */
+/* Readonly Inputs */
+.table-input[readonly] {
+    background-color: transparent;
+    border: none;
+    font-weight: 700;
+    color: #555;
+    box-shadow: none;
+}
+
+/* --- Table Footer (Summary) --- */
 .table-footer tr th, 
 .table-footer tr td {
     background: #f8f9fa;
     padding: 15px;
-    font-weight: 800;
-    color: #333;
-    border-top: 2px solid #dee2e6;
     vertical-align: middle;
+    border-top: 2px solid #dee2e6;
 }
 
-/* Summary Boxes (The colored badges) */
+.summary-label {
+    text-align: right;
+    font-weight: 700;
+    color: #6c757d;
+    text-transform: uppercase;
+    font-size: 0.9rem;
+    padding-right: 20px;
+}
+
+/* Colored Summary Boxes */
 .total-box {
-    display: inline-block;
-    padding: 8px 15px;
+    display: block;
+    padding: 8px 5px;
     border-radius: 6px;
     text-align: center;
     color: #fff;
     font-size: 1rem;
-    min-width: 60px;
     font-weight: 700;
+    min-width: 60px;
     box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
 .bg-total-blue { background-color: #0d6efd; }
@@ -241,10 +243,8 @@ body {
 .bg-total-warning { background-color: #ffc107; color: #212529; }
 .bg-total-secondary { background-color: #6c757d; }
 
-/* --- Evening Specific: Finance Section --- */
-.finance-section {
-    margin-top: 30px;
-}
+/* --- Evening Finance Section --- */
+.finance-section { margin-top: 30px; }
 .finance-card {
     border: 1px solid #eee;
     border-radius: 15px;
@@ -261,12 +261,8 @@ body {
     text-transform: uppercase;
     font-size: 0.9rem;
     color: #555;
-    display: flex;
-    align-items: center;
 }
-.finance-body {
-    padding: 25px;
-}
+.finance-body { padding: 25px; }
 
 /* Settlement Rows */
 .settle-row {
@@ -283,8 +279,8 @@ body {
     font-weight: 700; 
     border: 1px solid #dee2e6; 
     width: 140px; 
-    border-radius: 6px;
-    padding: 5px 10px;
+    border-radius: 6px; 
+    padding: 6px 10px;
 }
 
 /* Action Buttons */
