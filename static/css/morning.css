@@ -255,7 +255,7 @@ body {
 /* --- Evening Finance Section --- */
 .finance-section { margin-top: 30px; }
 .finance-card {
-    border: 1px solid #eee;
+    border: 5px solid #eee;
     border-radius: 15px;
     overflow: hidden;
     height: 100%;
@@ -267,7 +267,7 @@ body {
 .finance-header {
     padding: 15px 20px;
     background: #f8f9fa;
-    border-bottom: 1px solid #eee;
+    border-bottom: 5px solid #eee;
     font-weight: 800;
     text-transform: uppercase;
     font-size: 0.95rem;
@@ -288,7 +288,7 @@ body {
 .settle-input { 
     text-align: right; 
     font-weight: 700; 
-    border: 1px solid #ced4da; 
+    border: 5px solid #ced4da; 
     width: 150px; 
     border-radius: 6px; 
     padding: 8px 12px;
@@ -324,3 +324,4 @@ body {
     background: #198754;
     color: #fff;
 }
+
