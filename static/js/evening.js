@@ -12,12 +12,13 @@ document.addEventListener("DOMContentLoaded", () => {
             employee: getEl('h_employee'),
             date: getEl('h_date'),
         },
+        // Footer IDs must match the HTML Table Footer
         footer: {
-            total: getEl('totTotal'),
-            sold: getEl('totSold'),
-            return: getEl('totReturn'),
-            remain: getEl('totRemain'),
-            amount: getEl('totAmount')
+            total: getEl('totTotal'), // Total Product Qty
+            sold: getEl('totSold'),   // Total Sold
+            return: getEl('totReturn'), // Total Return
+            remain: getEl('totRemain'), // Total Left
+            amount: getEl('totAmount')  // Total Amount
         },
         payment: {
             totalAmount: getEl('totalAmount'),
@@ -28,7 +29,27 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     };
     
-    // Only proceed if elements exist
+    // Live Clock Logic
+    function updateClock() {
+        const now = new Date();
+        const timeString = now.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute:'2-digit', second:'2-digit' });
+        const clockEl = getEl('liveClock');
+        if(clockEl) clockEl.textContent = timeString;
+
+        // Format DB Timestamp
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        const seconds = String(now.getSeconds()).padStart(2, '0');
+        const tsInput = getEl('timestampInput');
+        if(tsInput) tsInput.value = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+
     if (!ui.fetchButton) return;
 
     const DEFAULT_IMG = "https://via.placeholder.com/50?text=Img";
@@ -37,12 +58,14 @@ document.addEventListener("DOMContentLoaded", () => {
         const employeeId = ui.employeeSelect.value;
         const dateStr = ui.dateInput.value;
 
-        // Loading State
-        ui.tableBody.innerHTML = '<tr><td colspan="9" class="text-center p-5"><div class="spinner-border text-primary" role="status"></div><p class="mt-2 text-muted">Loading Data...</p></td></tr>';
-        if(ui.fetchMsg) ui.fetchMsg.textContent = "";
+        ui.tableBody.innerHTML = '<tr><td colspan="9" class="text-center p-4"><div class="spinner-border text-primary" role="status"></div></td></tr>';
+        if(ui.fetchMsg) {
+            ui.fetchMsg.textContent = "";
+            ui.fetchMsg.classList.add('d-none');
+        }
 
         if (!employeeId || !dateStr) {
-            ui.tableBody.innerHTML = '<tr><td colspan="9" class="text-center text-muted p-5 fw-bold">Please Select Employee and Date first.</td></tr>';
+            ui.tableBody.innerHTML = '<tr><td colspan="9" class="text-center text-muted p-4 fw-bold">Please Select Employee and Date first.</td></tr>';
             return;
         }
 
@@ -53,27 +76,35 @@ document.addEventListener("DOMContentLoaded", () => {
             const response = await fetch(`/api/fetch_morning_allocation?employee_id=${employeeId}&date=${dateStr}`);
             const data = await response.json();
 
-            if (!response.ok || data.error) throw new Error(data.error || 'No data found for this selection.');
+            if (!response.ok || data.error) throw new Error(data.error || 'No data.');
 
             if(ui.hidden.allocationId) ui.hidden.allocationId.value = data.allocation_id;
             
-            // Show status message regarding date
-            if(data.allocation_date && data.allocation_date !== dateStr) {
-                ui.fetchMsg.innerHTML = `<span class="badge bg-warning text-dark"><i class="fa-solid fa-clock-rotate-left"></i> Fetched pending allocation from: ${data.allocation_date}</span>`;
-            } else {
-                ui.fetchMsg.innerHTML = '<span class="badge bg-success"><i class="fa-solid fa-check"></i> Data Loaded Successfully</span>';
+            if(ui.fetchMsg) {
+                ui.fetchMsg.classList.remove('d-none');
+                if(data.allocation_date && data.allocation_date !== dateStr) {
+                    ui.fetchMsg.innerHTML = `<i class="fa-solid fa-clock-rotate-left me-2"></i> Fetched pending allocation from: ${data.allocation_date}`;
+                    ui.fetchMsg.className = "alert alert-warning mt-3 rounded-3 border-0 shadow-sm fw-bold";
+                } else {
+                    ui.fetchMsg.innerHTML = '<i class="fa-solid fa-check-circle me-2"></i> Data loaded successfully';
+                    ui.fetchMsg.className = "alert alert-success mt-3 rounded-3 border-0 shadow-sm fw-bold";
+                }
             }
             
             if (!data.items || data.items.length === 0) {
-                ui.tableBody.innerHTML = '<tr><td colspan="9" class="text-center text-warning p-5 fw-bold">No items found for this allocation.</td></tr>';
+                ui.tableBody.innerHTML = '<tr><td colspan="9" class="text-center text-warning p-4 fw-bold">No items allocated to this employee on this date.</td></tr>';
                 return;
             }
 
             renderTable(data.items);
 
         } catch (error) {
-            ui.tableBody.innerHTML = `<tr><td colspan="9" class="text-center text-danger p-5 fw-bold"><i class="fa-solid fa-circle-exclamation me-2"></i>${error.message}</td></tr>`;
-            if(ui.fetchMsg) ui.fetchMsg.innerHTML = `<span class="text-danger">${error.message}</span>`;
+            ui.tableBody.innerHTML = `<tr><td colspan="9" class="text-center text-danger p-4 fw-bold">${error.message}</td></tr>`;
+            if(ui.fetchMsg) {
+                ui.fetchMsg.classList.remove('d-none');
+                ui.fetchMsg.textContent = error.message;
+                ui.fetchMsg.className = "alert alert-danger mt-3 rounded-3 border-0 shadow-sm fw-bold";
+            }
         }
     }
 
@@ -87,10 +118,12 @@ document.addEventListener("DOMContentLoaded", () => {
             let imgSrc = item.image || DEFAULT_IMG;
 
             const rowHtml = `
-                <tr class="item-row fade-in">
+                <tr class="item-row">
                     <td class="ps-4 text-muted fw-bold">${index + 1}</td>
-                    <td class="text-center">
-                        <img src="${imgSrc}" class="img-thumbnail-custom" onerror="this.src='${DEFAULT_IMG}'">
+                    <td>
+                         <div class="table-img-box">
+                            <img src="${imgSrc}" class="product-thumb" alt="img" onerror="this.src='${DEFAULT_IMG}'">
+                        </div>
                     </td>
                     <td>
                         <div class="fw-bold text-dark">${item.product_name}</div>
@@ -99,21 +132,21 @@ document.addEventListener("DOMContentLoaded", () => {
                         <input type="hidden" name="price[]" class="price-input" value="${price.toFixed(2)}">
                     </td>
                     <td class="text-center">
-                        <span class="badge bg-light text-dark border px-3 py-2 rounded-pill fs-6">${totalQty}</span>
+                        <span class="badge bg-secondary fs-6 text-white">${totalQty}</span>
+                    </td>
+                    <td>
+                        <input type="number" name="sold[]" class="form-control sold" min="0" max="${totalQty}" placeholder="0">
+                    </td>
+                    <td>
+                        <input type="text" class="form-control-plaintext text-end fw-bold" value="${price.toFixed(2)}" readonly>
+                    </td>
+                    <td class="text-end fw-bold text-primary amount-display fs-5">0.00</td>
+                    <td>
+                        <input type="number" name="return[]" class="form-control return" min="0" max="${totalQty}" placeholder="0">
                     </td>
                     <td class="text-center">
-                        <input type="number" name="sold[]" class="table-input sold" min="0" max="${totalQty}" placeholder="0">
-                    </td>
-                    <td class="text-end">
-                        <span class="text-muted">${price.toFixed(2)}</span>
-                    </td>
-                    <td class="text-end fw-bold text-primary amount-display">0.00</td>
-                    <td class="text-center">
-                        <input type="number" name="return[]" class="table-input return" min="0" max="${totalQty}" placeholder="0">
-                    </td>
-                    <td class="text-center">
-                        <span class="remain-text fw-bold text-secondary">0</span>
-                        <input type="hidden" name="remaining[]" class="remain-input" value="${totalQty}">
+                        <input type="number" name="remaining[]" class="form-control-plaintext text-center fw-bold text-warning remain-input" 
+                               value="${totalQty}" readonly>
                     </td>
                 </tr>
             `;
@@ -126,39 +159,59 @@ document.addEventListener("DOMContentLoaded", () => {
     function recalculateTotals() {
         let gTotal = 0, gSold = 0, gReturn = 0, gRemain = 0, gAmount = 0;
         const rows = ui.tableBody.querySelectorAll('.item-row');
+        // Handle rows if rendered from backend (server-side template)
+        const allRows = ui.tableBody.querySelectorAll('tr');
 
-        rows.forEach(row => {
+        allRows.forEach(row => {
+            // Check if it's a valid data row (has inputs)
+            if(!row.querySelector('input[name="total_qty[]"]')) return;
+
             const totalQty = parseInt(row.querySelector('input[name="total_qty[]"]').value) || 0;
-            const price = parseFloat(row.querySelector('.price-input').value) || 0;
+            const price = parseFloat(row.querySelector('.price-input, .unit-price').value) || 0;
+            
             const soldInput = row.querySelector('.sold');
             const returnInput = row.querySelector('.return');
-            const remainInput = row.querySelector('.remain-input');
-            const remainText = row.querySelector('.remain-text');
+            const remainInput = row.querySelector('.remain-input, .remaining-qty');
+            const amountDisplay = row.querySelector('.amount-display, .row-amount');
             
             let sold = parseInt(soldInput.value) || 0;
             let ret = parseInt(returnInput.value) || 0;
 
-            // Logic: Sold + Return cannot exceed Total. 
-            // If user types too much, we prioritize Sold, then adjust Return.
-            if ((sold + ret) > totalQty) {
-                // Adjust Return to fit
-                ret = totalQty - sold;
-                if(ret < 0) { sold = totalQty; ret = 0; }
-                
-                // Update UI inputs
-                // Note: We avoid aggressive overwriting while typing, but strictly enforce limits on blur/calculation
-                soldInput.value = sold || '';
-                returnInput.value = ret || '';
+            // Logic: Total = Sold + Return + Left (But here we calc Left/Return based on Sold)
+            // Usually: Given = Sold + Return.  Left = Total - (Sold + Return)
+            // Or if data is pre-filled, we assume Sold + Return <= Total
+            
+            // Auto adjust logic if Sold changes
+            // If Sold is entered, Remainder goes to Return or Left?
+            // Existing logic seemed to prioritize Sold, then calc Return/Left.
+            // Let's keep simple: Left = Total - Sold - Return.
+            
+            let remaining = totalQty - sold - ret;
+
+            // Prevent negative remaining
+            if (remaining < 0) {
+                // If sum exceeds total, adjust the input that was just changed? 
+                // Hard to track focus here without event, so just clamp visually or logic
+                // For safety:
+                remaining = 0; 
+                // We don't auto-change inputs here to avoid fighting user, 
+                // but usually you'd prevent input > available.
+            }
+            
+            // Check if we have a proper input for remaining (if it's an input)
+            if(remainInput.tagName === 'INPUT') {
+                remainInput.value = remaining;
+            } else {
+                remainInput.textContent = remaining;
             }
 
             const revenue = sold * price;
-            const remaining = totalQty - sold - ret; // Should be 0 usually if fully accounted, or >0 if lost? 
-            // Actually usually Morning = Sold + Return. So Remaining = Morning - (Sold + Return).
             
-            if(remainInput) remainInput.value = remaining;
-            if(remainText) remainText.textContent = remaining;
-            
-            row.querySelector('.amount-display').textContent = revenue.toFixed(2);
+            if(amountDisplay.tagName === 'INPUT') {
+                 // if it's an input? usually it's text
+            } else {
+                 amountDisplay.textContent = revenue.toFixed(2);
+            }
 
             gTotal += totalQty;
             gSold += sold;
@@ -185,33 +238,24 @@ document.addEventListener("DOMContentLoaded", () => {
         const disc = parseFloat(ui.payment.discount?.value) || 0;
         const cash = parseFloat(ui.payment.cash?.value) || 0;
         const online = parseFloat(ui.payment.online?.value) || 0;
-        
-        // Due = Total - (Discount + Cash + Online)
         const due = total - (disc + cash + online);
         
         if(ui.payment.due) ui.payment.due.textContent = due.toFixed(2);
     }
-
-    // --- Event Listeners ---
 
     ui.fetchButton.addEventListener("click", (e) => {
         e.preventDefault();
         fetchMorningAllocation();
     });
     
-    // Use delegation for table inputs
     ui.tableBody.addEventListener('input', e => {
-        if (e.target.matches('.sold, .return')) {
-            recalculateTotals();
-        }
+        if (e.target.matches('.sold, .return')) recalculateTotals();
     });
     
-    // Finance Inputs
     [ui.payment.discount, ui.payment.cash, ui.payment.online].forEach(el => {
         if(el) el.addEventListener('input', calculateDue);
     });
 
-    // Enter key navigation
     document.addEventListener("keydown", function (e) {
         if (e.key === "Enter" && e.target.tagName !== "BUTTON" && e.target.tagName !== "TEXTAREA") {
             e.preventDefault();
@@ -222,9 +266,4 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         }
     });
-    
-    // Initial Calc in case data exists (Edit Mode)
-    if(ui.payment.totalAmount && parseFloat(ui.payment.totalAmount.value) > 0) {
-        calculateDue();
-    }
 });
