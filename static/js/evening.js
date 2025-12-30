@@ -12,7 +12,6 @@ document.addEventListener("DOMContentLoaded", () => {
             employee: getEl('h_employee'),
             date: getEl('h_date'),
         },
-        // Footer IDs
         footer: {
             total: getEl('totTotal'),
             sold: getEl('totSold'),
@@ -104,11 +103,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 return;
             }
 
-            // --- FIX START: Merge Duplicate Products ---
-            // Group by Product ID and Sum Quantities
+            // MERGE DUPLICATES (Fix for restock mode)
             const mergedProducts = mergeDuplicateProducts(data.products);
-            // --- FIX END ---
-
             renderTable(mergedProducts);
 
         } catch (error) {
@@ -121,19 +117,16 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // Helper to merge duplicates from API
     function mergeDuplicateProducts(products) {
         const map = new Map();
         
         products.forEach(item => {
-            const id = String(item.id); // Use ID as key
-            
+            const id = String(item.id);
             if (map.has(id)) {
-                // If exists, add qty to existing item
+                // If exists, add qty
                 const existing = map.get(id);
                 existing.total_qty = (parseInt(existing.total_qty) || 0) + (parseInt(item.total_qty) || 0);
             } else {
-                // If new, add to map (shallow copy to avoid mutating original immediately)
                 map.set(id, { ...item, total_qty: parseInt(item.total_qty) || 0 });
             }
         });
@@ -146,7 +139,7 @@ document.addEventListener("DOMContentLoaded", () => {
         
         items.forEach((item, index) => {
             const totalQty = parseInt(item.total_qty);
-            const price = parseFloat(item.price); 
+            const price = parseFloat(item.price);
             
             let imgSrc = item.image || DEFAULT_IMG;
 
@@ -208,20 +201,14 @@ document.addEventListener("DOMContentLoaded", () => {
             let sold = parseInt(soldInput.value) || 0;
             let ret = parseInt(returnInput.value) || 0;
 
-            // Strict Validation Logic
+            // Strict Validation
             if (sold > totalQty) {
-                alert(`Sold quantity (${sold}) cannot exceed Total Stock (${totalQty}).`);
+                alert(`Sold quantity cannot exceed Total Stock (${totalQty}).`);
                 sold = totalQty;
                 soldInput.value = totalQty;
             }
-            
-            // Logic: Total = Sold + Return + Left
-            // Priority: User enters Sold and Return. Left is calculated.
-            // Check if sum exceeds total
             if ((sold + ret) > totalQty) {
-                // If sum exceeds, adjust return to fit
                 ret = totalQty - sold;
-                if(ret < 0) ret = 0; // Safety
                 returnInput.value = ret;
             }
 
@@ -249,7 +236,8 @@ document.addEventListener("DOMContentLoaded", () => {
         calculateDue();
     }
 
-    function calculateDue() {
+    // CASH SETTLEMENT VALIDATION FIX
+    function calculateDue(e) {
         if(!ui.payment.totalAmount) return;
 
         const totalSales = parseFloat(ui.payment.totalAmount.value) || 0;
@@ -257,17 +245,28 @@ document.addEventListener("DOMContentLoaded", () => {
         let cash = parseFloat(ui.payment.cash?.value) || 0;
         let online = parseFloat(ui.payment.online?.value) || 0;
 
-        // Validation: Payments cannot exceed Sales
+        // Validation: Prevent overpayment
         const totalPay = disc + cash + online;
         if (totalPay > totalSales) {
-            // Optional: Alert user or cap values? 
-            // For now, calculate normally, which results in negative due (overpayment/tip?)
-            // If strict:
-            // alert("Total payments exceed sales amount.");
+            // If triggered by input event, correct the current input
+            if(e && e.target) {
+                const currentInput = e.target;
+                const otherSum = totalPay - (parseFloat(currentInput.value) || 0);
+                const maxAllowed = totalSales - otherSum;
+                
+                // Correct value
+                currentInput.value = maxAllowed.toFixed(2);
+                
+                // Update variable for calc
+                if(currentInput === ui.payment.discount) disc = maxAllowed;
+                if(currentInput === ui.payment.cash) cash = maxAllowed;
+                if(currentInput === ui.payment.online) online = maxAllowed;
+                
+                alert(`Payment amount cannot exceed Total Sales Value (₹${totalSales})`);
+            }
         }
 
         const due = totalSales - (disc + cash + online);
-        
         if(ui.payment.due) ui.payment.due.textContent = due.toFixed(2);
     }
 
