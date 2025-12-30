@@ -14,11 +14,11 @@ document.addEventListener("DOMContentLoaded", () => {
         },
         // Footer IDs
         footer: {
-            total: getEl('totTotal'), // Total Qty
-            sold: getEl('totSold'),   // Total Sold
-            return: getEl('totReturn'), // Total Return
-            remain: getEl('totRemain'), // Total Left
-            amount: getEl('totAmount')  // Total Amount
+            total: getEl('totTotal'),
+            sold: getEl('totSold'),
+            return: getEl('totReturn'),
+            remain: getEl('totRemain'),
+            amount: getEl('totAmount')
         },
         payment: {
             totalAmount: getEl('totalAmount'),
@@ -34,7 +34,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const now = new Date();
         const timeString = now.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute:'2-digit', second:'2-digit' });
         const clockEl = getEl('liveClock');
-        if(clockEl) clockEl.innerHTML = `<i class="fa-regular fa-clock me-2 text-warning"></i> ${timeString}`;
+        if(clockEl) clockEl.textContent = timeString;
 
         const year = now.getFullYear();
         const month = String(now.getMonth() + 1).padStart(2, '0');
@@ -104,8 +104,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 return;
             }
 
-            // Merge duplicate products before rendering
+            // --- FIX START: Merge Duplicate Products ---
+            // Group by Product ID and Sum Quantities
             const mergedProducts = mergeDuplicateProducts(data.products);
+            // --- FIX END ---
+
             renderTable(mergedProducts);
 
         } catch (error) {
@@ -118,19 +121,20 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // --- FIX: Logic to Merge Duplicates ---
-    function mergeDuplicateProducts(items) {
+    // Helper to merge duplicates from API
+    function mergeDuplicateProducts(products) {
         const map = new Map();
         
-        items.forEach(item => {
-            const id = String(item.id);
+        products.forEach(item => {
+            const id = String(item.id); // Use ID as key
+            
             if (map.has(id)) {
-                // If product exists, add quantity
+                // If exists, add qty to existing item
                 const existing = map.get(id);
-                existing.total_qty += parseInt(item.total_qty);
+                existing.total_qty = (parseInt(existing.total_qty) || 0) + (parseInt(item.total_qty) || 0);
             } else {
-                // Clone item to avoid reference issues
-                map.set(id, { ...item, total_qty: parseInt(item.total_qty) });
+                // If new, add to map (shallow copy to avoid mutating original immediately)
+                map.set(id, { ...item, total_qty: parseInt(item.total_qty) || 0 });
             }
         });
         
@@ -142,7 +146,7 @@ document.addEventListener("DOMContentLoaded", () => {
         
         items.forEach((item, index) => {
             const totalQty = parseInt(item.total_qty);
-            const price = parseFloat(item.price); // Corrected property name from API usually 'price'
+            const price = parseFloat(item.price); 
             
             let imgSrc = item.image || DEFAULT_IMG;
 
@@ -161,21 +165,21 @@ document.addEventListener("DOMContentLoaded", () => {
                         <input type="hidden" name="price[]" class="price-input" value="${price.toFixed(2)}">
                     </td>
                     <td class="text-center">
-                        <span class="badge bg-secondary fs-6 text-white total-qty-display">${totalQty}</span>
+                        <input type="text" class="table-input" value="${totalQty}" readonly style="background:transparent; border:none; box-shadow:none;">
                     </td>
                     <td>
                         <input type="number" name="sold[]" class="table-input sold input-sold" min="0" max="${totalQty}" placeholder="0">
                     </td>
                     <td>
-                        <input type="text" class="table-input-plaintext text-end fw-bold" value="${price.toFixed(2)}" readonly>
+                        <input type="text" class="table-input text-end fw-bold" value="${price.toFixed(2)}" readonly style="background:transparent; border:none; box-shadow:none;">
                     </td>
                     <td class="text-end fw-bold text-primary amount-display fs-5">0.00</td>
                     <td>
                         <input type="number" name="return[]" class="table-input return input-return" min="0" max="${totalQty}" placeholder="0">
                     </td>
                     <td class="text-center">
-                        <input type="number" name="remaining[]" class="table-input-plaintext text-center fw-bold text-muted remain-input" 
-                               value="${totalQty}" readonly>
+                        <input type="number" name="remaining[]" class="table-input text-center fw-bold text-muted remain-input" 
+                               value="${totalQty}" readonly style="background:transparent; border:none; box-shadow:none;">
                     </td>
                 </tr>
             `;
@@ -204,30 +208,26 @@ document.addEventListener("DOMContentLoaded", () => {
             let sold = parseInt(soldInput.value) || 0;
             let ret = parseInt(returnInput.value) || 0;
 
-            // Strict Validation
+            // Strict Validation Logic
             if (sold > totalQty) {
-                alert(`Error: Sold quantity cannot exceed Total Stock (${totalQty}).`);
+                alert(`Sold quantity (${sold}) cannot exceed Total Stock (${totalQty}).`);
                 sold = totalQty;
                 soldInput.value = totalQty;
             }
-            if (ret > totalQty) {
-                ret = totalQty; // Silently cap return if typing error
-                returnInput.value = ret;
-            }
+            
+            // Logic: Total = Sold + Return + Left
+            // Priority: User enters Sold and Return. Left is calculated.
+            // Check if sum exceeds total
             if ((sold + ret) > totalQty) {
-                // If sum exceeds, adjust return
+                // If sum exceeds, adjust return to fit
                 ret = totalQty - sold;
+                if(ret < 0) ret = 0; // Safety
                 returnInput.value = ret;
             }
 
             let remaining = totalQty - sold - ret;
             
-            if(remainInput.tagName === 'INPUT') {
-                remainInput.value = remaining;
-            } else {
-                remainInput.textContent = remaining;
-            }
-
+            remainInput.value = remaining;
             const revenue = sold * price;
             amountDisplay.textContent = revenue.toFixed(2);
 
@@ -257,12 +257,13 @@ document.addEventListener("DOMContentLoaded", () => {
         let cash = parseFloat(ui.payment.cash?.value) || 0;
         let online = parseFloat(ui.payment.online?.value) || 0;
 
-        // Payment Validation Cap
-        const currentTotalPayment = disc + cash + online;
-        if (currentTotalPayment > totalSales) {
-             // Just cap visual warning logic or strict reset? 
-             // Let's allow overpayment for "Tips" but usually strict:
-             // For now, standard calculation
+        // Validation: Payments cannot exceed Sales
+        const totalPay = disc + cash + online;
+        if (totalPay > totalSales) {
+            // Optional: Alert user or cap values? 
+            // For now, calculate normally, which results in negative due (overpayment/tip?)
+            // If strict:
+            // alert("Total payments exceed sales amount.");
         }
 
         const due = totalSales - (disc + cash + online);
