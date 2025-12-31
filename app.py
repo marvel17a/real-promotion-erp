@@ -5179,7 +5179,8 @@ def emp_list():
 
 
 
-# 5. PDF Generator (With Timestamp Column)
+
+# --- 1. Fix for PDF Generation (Handle None Dates) ---
 @app.route('/employee/ledger/pdf/<int:employee_id>')
 def employee_ledger_pdf(employee_id):
     if 'loggedin' not in session: return redirect(url_for('login'))
@@ -5188,7 +5189,7 @@ def employee_ledger_pdf(employee_id):
     cur.execute("SELECT * FROM employees WHERE id=%s", (employee_id,))
     emp = cur.fetchone()
     
-    # Order by Date and Time
+    # Fetch transactions (Ensure created_at is selected for time)
     cur.execute("""
         SELECT * FROM employee_transactions 
         WHERE employee_id=%s 
@@ -5207,19 +5208,24 @@ def employee_ledger_pdf(employee_id):
     pdf.cell(0, 10, "Employee Ledger Statement", 0, 1, 'C')
     pdf.ln(5)
     
+    # Info
     pdf.set_font("Arial", '', 11)
     pdf.cell(0, 6, f"Employee: {emp['name']}", 0, 1)
-    pdf.cell(0, 6, f"Position: {emp['position'] or emp.get('position_name','')}", 0, 1)
-    pdf.cell(0, 6, f"Generated: {datetime.now().strftime('%d-%m-%Y %I:%M %p')}", 0, 1)
+    # Handle missing position safely
+    pos_name = emp.get('position') or emp.get('position_name') or 'N/A'
+    pdf.cell(0, 6, f"Position: {pos_name}", 0, 1)
+    
+    # Current Time (IST)
+    now_ist = datetime.now() + timedelta(hours=5, minutes=30) # Approx adjustment if server is UTC
+    pdf.cell(0, 6, f"Generated: {now_ist.strftime('%d-%m-%Y %I:%M %p')}", 0, 1)
     pdf.ln(10)
     
-    # Table Header (Adjusted widths for Time)
+    # Table Header
     pdf.set_font("Arial", 'B', 9)
     pdf.set_fill_color(230, 230, 230)
     
-    # Widths: Date(25), Time(20), Desc(65), Debit(25), Credit(25), Bal(30)
     pdf.cell(25, 8, "Date", 1, 0, 'C', 1)
-    pdf.cell(20, 8, "Time", 1, 0, 'C', 1) # Added Time Column
+    pdf.cell(20, 8, "Time", 1, 0, 'C', 1)
     pdf.cell(65, 8, "Description", 1, 0, 'L', 1)
     pdf.cell(25, 8, "Debit", 1, 0, 'R', 1)
     pdf.cell(25, 8, "Credit", 1, 0, 'R', 1)
@@ -5240,12 +5246,23 @@ def employee_ledger_pdf(employee_id):
             credit = amt
             balance -= amt
             
-        d_str = t['transaction_date'].strftime('%d-%m-%Y')
-        # Time string from created_at
-        t_str = t['created_at'].strftime('%I:%M %p') if t.get('created_at') else "-"
+        # --- FIX: Handle None Date ---
+        if t['transaction_date']:
+            d_str = t['transaction_date'].strftime('%d-%m-%Y')
+        else:
+            d_str = "N/A"
+            
+        # --- FIX: Handle Time & Convert to IST ---
+        if t.get('created_at'):
+            # Assuming 'created_at' from DB is UTC, add 5:30 for IST
+            # If your DB is already IST, remove the timedelta
+            local_time = t['created_at'] + timedelta(hours=5, minutes=30)
+            t_str = local_time.strftime('%I:%M %p')
+        else:
+            t_str = "-"
         
         pdf.cell(25, 7, d_str, 1, 0, 'C')
-        pdf.cell(20, 7, t_str, 1, 0, 'C') # Print Time
+        pdf.cell(20, 7, t_str, 1, 0, 'C')
         pdf.cell(65, 7, pdf.safe_text(t['description']), 1, 0, 'L')
         pdf.cell(25, 7, f"{debit:.2f}" if debit > 0 else "-", 1, 0, 'R')
         pdf.cell(25, 7, f"{credit:.2f}" if credit > 0 else "-", 1, 0, 'R')
@@ -5279,8 +5296,8 @@ def get_public_id_from_url(url):
         except: return url
     return url 
 
-# REPLACE existing 'emp_ledger' route in app.py
 
+# --- 2. Employee Ledger Route (Updated with IST Time Logic) ---
 @app.route('/employee-ledger/<int:employee_id>')
 def emp_ledger(employee_id):
     if 'loggedin' not in session: return redirect(url_for('login'))
@@ -5317,8 +5334,6 @@ def emp_ledger(employee_id):
         amt = float(t['amount'])
         
         # Calculate Running Balance
-        # Debit = Money given to employee (Positive Balance / Debt)
-        # Credit = Money received/Salary (Negative Balance / Advance)
         if t['type'] == 'debit':
             running_balance += amt
             total_debit += amt
@@ -5333,7 +5348,6 @@ def emp_ledger(employee_id):
         t_dict['balance'] = running_balance
         
         # --- TIMESTAMP FIX (UTC to IST) ---
-        # Adding 5 hours 30 minutes to server time
         if t.get('created_at'):
             local_time = t['created_at'] + timedelta(hours=5, minutes=30)
             t_dict['time_str'] = local_time.strftime('%I:%M %p') # e.g. 02:30 PM
@@ -5397,6 +5411,8 @@ def add_opening_balance(employee_id):
 
 # Paste this into your app.py, replacing the existing add_transaction route
 
+
+# --- 3. Add Transaction Route (Ensuring NOW() is used) ---
 @app.route('/add-transaction/<int:employee_id>', methods=['GET', 'POST'])
 def add_transaction(employee_id):
     if 'loggedin' not in session: return redirect(url_for('login'))
@@ -5706,6 +5722,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
