@@ -1,235 +1,359 @@
-/* evening-style.css */
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap');
+/* morning-style.css - Unified Theme for Morning & Evening */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&display=swap');
 
 body {
     font-family: 'Poppins', sans-serif !important;
-    background-color: #f4f6f9;
+    background-color: #f0f2f5;
+    color: #333;
 }
 
-/* --- Global Boldness --- */
-h1, h2, h3, h4, h5, h6, 
-.form-label, .form-control, .form-select, 
-.btn, th, td, span, div {
-    font-weight: 600 !important;
+/* --- Global Utilities --- */
+.fw-800 { font-weight: 800 !important; }
+.text-gradient { 
+    background: linear-gradient(45deg, #1a237e, #0d47a1); 
+    -webkit-background-clip: text; 
+    -webkit-text-fill-color: transparent; 
 }
 
-/* --- Header & Glass Panels --- */
+/* --- Glass Containers --- */
+.glass-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
 .glass-panel {
     background: rgba(255, 255, 255, 0.95);
-    border: 1px solid rgba(255, 255, 255, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.6);
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
-    border-radius: 15px;
-}
-
-.company-name {
-    background: linear-gradient(90deg, #1e3c72 0%, #2a5298 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    font-weight: 800 !important;
-}
-
-/* --- Controls Section --- */
-.control-icon {
-    color: #1e3c72;
-    margin-right: 8px;
-}
-
-.profile-img-box {
-    width: 60px;
-    height: 60px;
-    border-radius: 10px;
+    border-radius: 20px;
     overflow: hidden;
-    border: 2px solid #fff;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
 }
 
-.clock-box {
-    background: #212529;
-    color: #fff;
-    padding: 8px 15px;
-    border-radius: 8px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-family: 'Courier New', monospace;
-    letter-spacing: 1px;
+/* --- Header Section --- */
+.page-header {
+    text-align: center;
+    margin-bottom: 30px;
 }
-
-/* --- Table Styling --- */
-.styled-table thead th {
-    background-color: #2c3e50;
-    color: #fff;
-    border: none;
-    padding: 15px;
-    text-transform: uppercase;
+.company-title {
+    font-size: 2.5rem;
+    letter-spacing: -1px;
+    margin-bottom: 0;
+}
+.company-subtitle {
+    letter-spacing: 3px;
+    font-size: 0.8rem;
+    color: #6c757d;
+    font-weight: 600;
+}
+.address-pill {
+    display: inline-block;
+    background: #fff;
+    padding: 8px 20px;
+    border-radius: 50px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.05);
     font-size: 0.85rem;
+    color: #555;
+    margin-top: 10px;
 }
 
-.styled-table tbody td {
-    vertical-align: middle;
-    padding: 12px;
-    border-bottom: 1px solid #eee;
+/* --- Control Panel Inputs & Alignment --- */
+.control-label {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #495057;
+    font-weight: 700;
+    margin-bottom: 8px;
+    display: block;
 }
 
-/* Product Image in Table */
-.table-img-box {
-    width: 45px;
-    height: 45px;
-    border-radius: 6px;
+/* Fixed height for alignment */
+.input-group-glass {
+    border-radius: 10px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.03);
     overflow: hidden;
-    background: #f8f9fa;
     border: 1px solid #dee2e6;
+    display: flex; 
+    align-items: center;
+    height: 50px; /* Fixed height */
+    background: #fff;
 }
-.table-img-box img {
+.input-group-glass .input-group-text {
+    background: #fff;
+    border: none;
+    color: #0d6efd;
+    padding: 0 15px; /* Adjust padding */
+    height: 100%;
+    display: flex;
+    align-items: center;
+}
+.input-group-glass .form-control, 
+.input-group-glass .form-select {
+    border: none;
+    font-weight: 600;
+    color: #333;
+    padding: 0 15px; /* Adjust padding */
+    height: 100%;
+}
+.input-group-glass .form-control:focus, 
+.input-group-glass .form-select:focus {
+    box-shadow: none;
+    background-color: #f8f9fa;
+}
+
+/* Employee Photo */
+.emp-photo-box {
+    width: 65px;
+    height: 65px; /* Slightly larger than input to stand out, or match if desired */
+    border-radius: 12px;
+    overflow: hidden;
+    border: 3px solid #fff;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    background: #eee;
+    flex-shrink: 0;
+}
+.emp-photo-box img {
     width: 100%;
     height: 100%;
     object-fit: cover;
 }
 
-/* Table Inputs */
-.table input.form-control {
-    border: 2px solid #e9ecef;
-    text-align: center;
-    font-weight: 700 !important;
-    color: #333;
-}
-.table input.form-control:focus {
-    border-color: #0d6efd;
-    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.15);
-}
-
-/* --- Table Footer (The 2 New Rows) --- */
-.footer-labels th {
-    text-align: center;
+/* Live Clock (Blue Box) - Aligned with Inputs */
+.clock-display {
+    background: #0d6efd;
     color: #fff;
-    font-size: 0.9rem;
-    padding: 10px 5px;
-    border: 1px solid #fff;
-}
-.footer-values td {
-    text-align: center;
-    font-size: 1.2rem;
-    font-weight: 800 !important;
-    color: #333;
-    background-color: #f8f9fa;
-    border-bottom: 3px solid #ccc;
-    padding: 15px 5px;
-}
-
-/* Specific Footer Colors */
-.bg-label-qty { background-color: #6c757d; } /* Gray */
-.bg-label-sold { background-color: #198754; } /* Green */
-.bg-label-amount { background-color: #0d6efd; } /* Blue */
-.bg-label-return { background-color: #dc3545; } /* Red */
-.bg-label-left { background-color: #ffc107; color: #000 !important; } /* Yellow */
-
-
-/* --- Finance Section --- */
-.finance-panel {
-    background: #fff;
-    border-radius: 15px;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.05);
-    height: 100%;
-    border: 1px solid #eaeaea;
+    font-family: 'Courier New', monospace;
+    font-weight: 700;
+    font-size: 1.4rem;
+    height: 50px; /* Matching .input-group-glass height */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(13, 110, 253, 0.3);
+    width: 100%;
+    line-height: 1;
 }
 
-.finance-header {
-    padding: 15px;
-    border-bottom: 2px solid #f0f0f0;
-    font-size: 1.1rem;
+/* --- Table Styles (Unchanged structure) --- */
+.table-responsive {
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid #dee2e6;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+    margin-bottom: 20px;
+}
+
+.styled-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    margin-bottom: 0;
+}
+
+.styled-table thead th {
+    background: #0d6efd;
+    color: #fff;
+    font-weight: 800;
     text-transform: uppercase;
-    color: #444;
+    font-size: 0.85rem;
+    padding: 18px 15px;
+    border-bottom: none;
+    vertical-align: middle;
+    letter-spacing: 0.5px;
 }
 
-/* Employee Finance Colors */
-.credit-box {
-    border: 2px solid #198754; /* Green Border */
-    background-color: #f8fff9;
+.styled-table tbody td {
+    vertical-align: middle;
+    padding: 10px;
+    border-bottom: 1px solid #f0f0f0;
+    background: #fff;
+}
+
+.prod-img-box {
+    width: 45px;
+    height: 45px;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #f8f9fa;
+    border: 1px solid #eee;
+    margin: 0 auto;
+}
+.prod-img-box img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.table-input, .product-dropdown {
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    text-align: center;
+    font-weight: 600;
+    padding: 8px;
+    width: 100%;
+    background: #fdfdfd;
+    transition: all 0.2s;
+}
+.product-dropdown { text-align: left; }
+
+.table-input:focus {
+    border-color: #0d6efd;
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.1);
+    outline: none;
+}
+
+.input-qty { background-color: #f0f9ff; color: #0d6efd; border-color: #bce3ff; }
+.input-return { background-color: #fff5f5; color: #dc3545; border-color: #feb2b2; }
+.input-sold { background-color: #f0fff4; color: #198754; border-color: #9ae6b4; }
+
+.table-input[readonly] {
+    background-color: transparent;
+    border: none;
+    font-weight: 700;
+    color: #555;
+    box-shadow: none;
+}
+
+.table-footer tr th, 
+.table-footer tr td {
+    background: #f8f9fa;
     padding: 15px;
-    border-radius: 10px;
-}
-.label-credit {
-    background-color: #198754; /* Green BG */
-    color: #fff;
-    padding: 5px 10px;
-    border-radius: 5px;
-    display: inline-block;
-    margin-bottom: 8px;
-}
-.input-credit {
-    color: green !important;
-    font-size: 1.2rem;
+    vertical-align: middle;
+    border-top: 2px solid #dee2e6;
 }
 
-.debit-box {
-    border: 2px solid #dc3545; /* Red Border */
-    background-color: #fff8f8;
-    padding: 15px;
-    border-radius: 10px;
-}
-.label-debit {
-    background-color: #dc3545; /* Red BG */
-    color: #fff;
-    padding: 5px 10px;
-    border-radius: 5px;
-    display: inline-block;
-    margin-bottom: 8px;
-}
-.input-debit {
-    color: red !important;
-    font-size: 1.2rem;
+.summary-label {
+    text-align: right;
+    font-weight: 800;
+    color: #495057;
+    text-transform: uppercase;
+    font-size: 0.9rem;
+    padding-right: 20px;
 }
 
-/* Cash Settlement */
-.settlement-row {
+.total-box {
+    display: block;
+    padding: 8px 5px;
+    border-radius: 6px;
+    text-align: center;
+    color: #fff;
+    font-size: 1rem;
+    font-weight: 700;
+    min-width: 60px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+.bg-total-blue { background-color: #0d6efd; }
+.bg-total-green { background-color: #198754; }
+.bg-total-dark { background-color: #212529; }
+.bg-total-red { background-color: #dc3545; }
+.bg-total-warning { background-color: #ffc107; color: #212529; }
+.bg-total-secondary { background-color: #6c757d; }
+
+/* --- Evening Finance Section --- */
+.finance-section { margin-top: 30px; }
+.finance-card {
+    border: 5px solid #eee;
+    border-radius: 15px;
+    overflow: hidden;
+    height: 100%;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+}
+.finance-header {
+    padding: 15px 20px;
+    background: #f8f9fa;
+    border-bottom: 5px solid #eee;
+    font-weight: 800;
+    text-transform: uppercase;
+    font-size: 0.95rem;
+    color: #495057;
+}
+.finance-body { padding: 25px; flex-grow: 1; }
+
+/* Employee Finance Credit/Debit Blocks */
+.finance-title-credit {
+    display: block;
+    width: 100%;
+    padding: 10px;
+    text-align: center;
+    background-color: #d1e7dd;
+    color: #0f5132;
+    border: 2px solid #badbcc;
+    border-radius: 8px;
+    font-weight: 800;
+    text-transform: uppercase;
+    margin-bottom: 15px;
+}
+
+.finance-title-debit {
+    display: block;
+    width: 100%;
+    padding: 10px;
+    text-align: center;
+    background-color: #f8d7da;
+    color: #842029;
+    border: 2px solid #f5c2c7;
+    border-radius: 8px;
+    font-weight: 800;
+    text-transform: uppercase;
+    margin-bottom: 15px;
+}
+
+/* Settlement Rows */
+.settle-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 12px 0;
-    border-bottom: 1px dashed #ddd;
+    padding: 15px 0;
+    border-bottom: 1px dashed #eee;
 }
-.settlement-row:last-child {
-    border-bottom: none;
-}
-.settlement-label {
-    color: #555;
-    font-size: 1rem;
-}
-.settlement-value {
-    font-size: 1.2rem;
-    color: #333;
-}
-.input-settle {
-    width: 140px;
-    text-align: right;
-    border: 1px solid #ced4da;
-    background: #fff;
-}
+.settle-row:last-child { border-bottom: none; }
+.settle-label { font-weight: 600; color: #555; font-size: 1rem; display: flex; align-items: center; }
+.settle-label i { margin-right: 10px; font-size: 1.1rem; }
 
-/* Balance Due Specifics */
-.balance-row .settlement-label {
-    color: #dc3545; /* Red Label */
-    font-size: 1.2rem;
-    font-weight: 800 !important;
-}
-.balance-row .settlement-value {
-    color: #dc3545; /* Red Number */
-    font-size: 1.5rem;
-    font-weight: 800 !important;
-}
-
-/* Submit Buttons */
-.btn-action {
-    padding: 12px 30px;
-    border-radius: 50px;
+/* Removed color input numbers as requested - forcing standard text color */
+.settle-input { 
+    text-align: right; 
+    font-weight: 700; 
+    border: 5px solid #ced4da; 
+    width: 150px; 
+    border-radius: 6px; 
+    padding: 8px 12px;
     font-size: 1.1rem;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-    transition: all 0.3s;
-}
-.btn-action:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+    color: #333 !important; /* Force black/dark text */
 }
 
+/* Action Buttons */
+.btn-glass {
+    border-radius: 50px;
+    padding: 12px 35px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transition: all 0.3s;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+.btn-save {
+    background: linear-gradient(45deg, #0d6efd, #0b5ed7);
+    color: #fff;
+    border: none;
+}
+.btn-save:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(13, 110, 253, 0.4);
+    color: #fff;
+}
+.btn-add-row {
+    background: #fff;
+    color: #198754;
+    border: 2px solid #198754;
+}
+.btn-add-row:hover {
+    background: #198754;
+    color: #fff;
+}
