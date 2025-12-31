@@ -7,7 +7,7 @@
 <!-- FontAwesome -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <!-- Custom CSS (Shared) -->
-<link rel="stylesheet" href="{{ url_for('static', filename='css/morning.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/evening.css') }}">
 
 <div class="glass-container fade-in-up mb-5">
 
@@ -166,8 +166,8 @@
                             {% if not last_settle_id %}
                             <div class="d-flex flex-column gap-3">
                                 <!-- Credit Block -->
-                                <div class="p-3 border rounded-3" style="background-color: #f0fff4; border-color: #c3e6cb;">
-                                    <span class="badge bg-success mb-3 w-100">CREDIT (Received)</span>
+                                <div class="p-3 border rounded-3" style="background-color: #f9fdfa; border-color: #eee;">
+                                    <span class="finance-title-credit">CREDIT (Received)</span>
                                     
                                     <!-- Amount Row -->
                                     <div class="mb-3">
@@ -195,8 +195,8 @@
                                 </div>
 
                                 <!-- Debit Block -->
-                                <div class="p-3 border rounded-3" style="background-color: #fff5f5; border-color: #f5c6cb;">
-                                    <span class="badge bg-danger mb-3 w-100">DEBIT (Advance)</span>
+                                <div class="p-3 border rounded-3" style="background-color: #fffafa; border-color: #eee;">
+                                    <span class="finance-title-debit">DEBIT (Advance)</span>
                                     
                                     <!-- Amount Row -->
                                     <div class="mb-3">
@@ -224,7 +224,7 @@
                                 </div>
                             </div>
                             {% else %}
-                            <div class="alert alert-success text-center fw-bold">Finance Data Locked.</div>
+                            <div class="alert alert-success text-center fw-bold">Finance Data Locked (Settled).</div>
                             {% endif %}
                         </div>
                     </div>
@@ -245,18 +245,18 @@
                             </div>
 
                             <div class="settle-row">
-                                <span class="settle-label text-warning"><i class="fa-solid fa-percent me-2"></i>Discount</span>
-                                <input type="number" step="0.01" name="discount" id="discount" class="settle-input text-warning" placeholder="0.00" value="{{ draft_data.discount if draft_data else '' }}" {% if last_settle_id %}readonly{% endif %}>
+                                <span class="settle-label text-warning"><i class="fa-solid fa-percent"></i> Discount</span>
+                                <input type="number" step="0.01" name="discount" id="discount" class="settle-input" placeholder="0.00" value="{{ draft_data.discount if draft_data else '' }}" {% if last_settle_id %}readonly{% endif %}>
                             </div>
 
                             <div class="settle-row">
-                                <span class="settle-label text-info"><i class="fa-solid fa-qrcode me-2"></i>Online Received</span>
-                                <input type="number" step="0.01" name="online" id="online" class="settle-input text-info" placeholder="0.00" value="{{ draft_data.online_money if draft_data else '' }}" {% if last_settle_id %}readonly{% endif %}>
+                                <span class="settle-label text-info"><i class="fa-solid fa-qrcode"></i> Online Received</span>
+                                <input type="number" step="0.01" name="online" id="online" class="settle-input" placeholder="0.00" value="{{ draft_data.online_money if draft_data else '' }}" {% if last_settle_id %}readonly{% endif %}>
                             </div>
 
                             <div class="settle-row">
-                                <span class="settle-label text-success"><i class="fa-solid fa-money-bill-wave me-2"></i>Cash Collected</span>
-                                <input type="number" step="0.01" name="cash" id="cash" class="settle-input text-success fs-5" placeholder="0.00" value="{{ draft_data.cash_money if draft_data else '' }}" {% if last_settle_id %}readonly{% endif %}>
+                                <span class="settle-label text-success"><i class="fa-solid fa-money-bill-wave"></i> Cash Collected</span>
+                                <input type="number" step="0.01" name="cash" id="cash" class="settle-input fs-5" placeholder="0.00" value="{{ draft_data.cash_money if draft_data else '' }}" {% if last_settle_id %}readonly{% endif %}>
                             </div>
 
                             <div class="settle-row mt-3 pt-3 border-top-0 border-top border-dark">
@@ -279,10 +279,6 @@
                     <button type="button" onclick="submitForm('final')" class="btn btn-glass btn-save">
                         <i class="fa-solid fa-check-double me-2"></i> Submit Final
                     </button>
-                {% else %}
-                     <a href="{{ url_for('evening') }}" class="btn btn-success btn-glass">
-                        <i class="fa-solid fa-thumbs-up me-2"></i> Settlement Done
-                    </a>
                 {% endif %}
             </div>
 
