@@ -246,26 +246,28 @@ body {
     letter-spacing: 1.5px;
 }
 
+/* UPDATED: Total Boxes - Removed Background Colors, Added Blue Border & Black Text */
 .total-box {
     display: block;
     padding: 10px 5px;
     border-radius: 8px;
     text-align: center;
-    color: #fff !important;
+    color: #000 !important;        /* Bold Black Text */
+    background-color: #fff !important; /* White Background */
     font-size: 1.2rem;
     font-weight: 900;
     min-width: 70px;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-    border: 1px solid rgba(0,0,0,0.1); 
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    border: 2px solid #0d6efd !important; /* Blue Border */
 }
 
-/* Colors for footer boxes */
-.bg-total-blue { background-color: white; }
-.bg-total-green { background-color: white; }
-.bg-total-dark { background-color: white; }
-.bg-total-red { background-color: white; }
-.bg-total-warning { background-color: white; }
-.bg-total-secondary { background-color: white; }
+/* Colors for footer boxes - Neutralized to use the unified Blue Border style */
+.bg-total-blue, .bg-total-green, .bg-total-dark, 
+.bg-total-red, .bg-total-warning, .bg-total-secondary { 
+    background-color: #fff !important; 
+    border: 2px solid #0d6efd !important;
+    color: #000 !important;
+}
 
 
 /* --- Evening Finance Section --- */
@@ -405,4 +407,3 @@ body {
     background: #198754;
     color: #fff;
 }
-
