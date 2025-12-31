@@ -92,6 +92,29 @@ def safe_date_format(date_obj, format='%d-%m-%Y', default='N/A'):
 
 
 
+import pytz # Recommended: pip install pytz
+
+# Helper to get current IST time
+def get_ist_now():
+    # If pytz is available
+    try:
+        ist = pytz.timezone('Asia/Kolkata')
+        return datetime.now(ist)
+    except:
+        # Fallback manual calculation
+        return datetime.utcnow() + timedelta(hours=5, minutes=30)
+
+# Helper to parse dd-mm-yyyy to yyyy-mm-dd for MySQL
+def parse_date_input(date_str):
+    try:
+        # Tries to parse dd-mm-yyyy
+        return datetime.strptime(date_str, '%d-%m-%Y').strftime('%Y-%m-%d')
+    except ValueError:
+        # If it fails, maybe it's already yyyy-mm-dd or invalid
+        return date_str 
+
+
+
 @app.route('/supplier/payment/delete/<int:payment_id>', methods=['POST'])
 def delete_supplier_payment(payment_id):
     if 'loggedin' not in session: return redirect(url_for('login'))
@@ -5297,14 +5320,13 @@ def get_public_id_from_url(url):
     return url 
 
 
-# --- 2. Employee Ledger Route (Updated with IST Time Logic) ---
+# --- 2. Employee Ledger Route ---
 @app.route('/employee-ledger/<int:employee_id>')
 def emp_ledger(employee_id):
     if 'loggedin' not in session: return redirect(url_for('login'))
     
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
-    # 1. Fetch Employee
     cur.execute("SELECT id, name, position, email, phone, image FROM employees WHERE id = %s", [employee_id])
     employee = cur.fetchone()
     
@@ -5312,32 +5334,44 @@ def emp_ledger(employee_id):
         flash('Employee not found!', 'danger')
         return redirect(url_for('emp_list'))
         
-    # 2. Fetch Transactions
+    # Fetch Transactions
+    # We select created_at to show the time
     cur.execute("""
         SELECT id, transaction_date, type, amount, description, created_at 
         FROM employee_transactions 
         WHERE employee_id = %s 
-        ORDER BY transaction_date ASC, created_at ASC
+        ORDER BY transaction_date DESC, created_at DESC
     """, [employee_id])
     transactions_from_db = cur.fetchall()
     
     cur.close()
     
-    running_balance = 0.0
-    transactions = []
+    # Calculate Balance
+    # To calculate accurate running balance, we usually need to process oldest to newest.
+    # But we want to display Newest first.
+    # Strategy: Fetch all, calculate normal order, then reverse for display.
     
+    # Let's fetch ordered by Oldest First for calculation
+    transactions_calc = sorted(transactions_from_db, key=lambda x: (x['transaction_date'] or datetime.min.date(), x['created_at'] or datetime.min))
+    
+    running_balance = 0.0
     total_debit = 0.0
     total_credit = 0.0
     has_opening_balance = False
     
-    for t in transactions_from_db:
+    processed_transactions = []
+    
+    for t in transactions_calc:
         amt = float(t['amount'])
         
-        # Calculate Running Balance
         if t['type'] == 'debit':
+            # Debit (Giving money to employee) increases what they owe (positive balance)
+            # OR decreases company holding. 
+            # Based on your previous request: Debit = Given = +Balance (Employee Owes)
             running_balance += amt
             total_debit += amt
         else:
+            # Credit (Salary/Received) decreases debt
             running_balance -= amt
             total_credit += amt
             
@@ -5347,21 +5381,25 @@ def emp_ledger(employee_id):
         t_dict = dict(t)
         t_dict['balance'] = running_balance
         
-        # --- TIMESTAMP FIX (UTC to IST) ---
+        # --- TIME FORMATTING (IST) ---
+        # Since we saved it as IST in 'created_at', we just format it.
+        # If it was saved as UTC (old records), we might need conversion.
+        # Ideally, just formatting what is in DB:
         if t.get('created_at'):
-            local_time = t['created_at'] + timedelta(hours=5, minutes=30)
-            t_dict['time_str'] = local_time.strftime('%I:%M %p') # e.g. 02:30 PM
+            # If your DB server is UTC but you saved IST string/datetime, it stays IST.
+            # We assume created_at holds the correct time now.
+            t_dict['time_str'] = t['created_at'].strftime('%I:%M %p') # 04:30 PM
         else:
-            t_dict['time_str'] = "00:00"
+            t_dict['time_str'] = "-"
             
-        transactions.append(t_dict)
+        processed_transactions.append(t_dict)
         
-    # Reverse list to show Newest First in the UI
-    transactions_reversed = transactions[::-1]
+    # Now reverse to show Newest First
+    transactions_display = processed_transactions[::-1]
 
     return render_template('emp_ledger.html', 
                            employee=employee, 
-                           transactions=transactions_reversed, 
+                           transactions=transactions_display, 
                            final_balance=running_balance,
                            total_debit=total_debit,
                            total_credit=total_credit,
@@ -5412,7 +5450,7 @@ def add_opening_balance(employee_id):
 # Paste this into your app.py, replacing the existing add_transaction route
 
 
-# --- 3. Add Transaction Route (Ensuring NOW() is used) ---
+# --- 1. Add Transaction Route ---
 @app.route('/add-transaction/<int:employee_id>', methods=['GET', 'POST'])
 def add_transaction(employee_id):
     if 'loggedin' not in session: return redirect(url_for('login'))
@@ -5420,17 +5458,25 @@ def add_transaction(employee_id):
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
     if request.method == 'POST':
-        trans_date = request.form['transaction_date'] # Gets YYYY-MM-DD
+        # Get raw date from Flatpickr (dd-mm-yyyy)
+        raw_date = request.form['transaction_date']
+        
+        # Convert to MySQL format (yyyy-mm-dd)
+        trans_date = parse_date_input(raw_date)
+        
         trans_type = request.form['type'] 
         amount = request.form['amount']
         description = request.form['description']
         
-        # INSERT with NOW() for the created_at timestamp
-        # transaction_date is the "Accounting Date", created_at is the "System Date/Time"
+        # Get EXACT current time in IST
+        ist_now = get_ist_now()
+        
+        # We store 'transaction_date' as the date selected by user
+        # We store 'created_at' as the precise timestamp of entry in IST
         cur.execute("""
             INSERT INTO employee_transactions (employee_id, transaction_date, type, amount, description, created_at)
-            VALUES (%s, %s, %s, %s, %s, NOW())
-        """, (employee_id, trans_date, trans_type, amount, description))
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """, (employee_id, trans_date, trans_type, amount, description, ist_now))
         
         mysql.connection.commit()
         cur.close()
@@ -5441,7 +5487,6 @@ def add_transaction(employee_id):
     employee = cur.fetchone()
     cur.close()
     
-    # Get 'type' from URL query param (e.g., ?type=credit)
     selected_type = request.args.get('type', 'credit') 
     
     return render_template('add_transaction.html', employee=employee, selected_type=selected_type)
@@ -5722,6 +5767,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
