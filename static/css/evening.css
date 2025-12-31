@@ -223,17 +223,17 @@ body {
     box-shadow: none;
 }
 
-/* UPDATED: Footer Redesign - Clean, Light & Bold */
+/* UPDATED: Footer Redesign - White Background, Thick Blue Border */
 .table-footer tr th, 
 .table-footer tr td {
-    background: #f8f9fa;       /* Clean Light Background */
+    background: #ffffff;       /* Pure White Background */
     color: #212529 !important; /* Dark Bold Text */
     padding: 20px 15px;
     vertical-align: middle;
-    border-top: 3px solid #0d6efd; /* Blue accent line on top */
+    border-top: 5px solid #0d6efd; /* Thick Blue Accent Border */
     font-weight: 900;    /* Extra Bold */
     font-size: 1.1rem;
-    box-shadow: 0 -5px 15px rgba(0,0,0,0.05); /* Subtle shadow for depth */
+    box-shadow: 0 -5px 15px rgba(0,0,0,0.05);
 }
 
 .summary-label {
@@ -256,7 +256,6 @@ body {
     font-weight: 900;
     min-width: 70px;
     box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-    /* Border to make them pop on light background */
     border: 1px solid rgba(0,0,0,0.1); 
 }
 
@@ -292,19 +291,19 @@ body {
 }
 .finance-body { padding: 25px; flex-grow: 1; }
 
-/* Employee Finance Credit/Debit Blocks */
+/* UPDATED: Employee Finance Credit/Debit Blocks */
 .finance-title-credit {
     display: block;
     width: 100%;
     padding: 10px;
     text-align: center;
-    background-color: #d1e7dd;
-    color: #0f5132;
-    border: 2px solid #badbcc;
+    background-color: #198754; /* Green Background */
+    color: #ffffff !important; /* White Text */
     border-radius: 8px;
     font-weight: 800;
     text-transform: uppercase;
     margin-bottom: 15px;
+    box-shadow: 0 4px 6px rgba(25, 135, 84, 0.2);
 }
 
 .finance-title-debit {
@@ -312,13 +311,26 @@ body {
     width: 100%;
     padding: 10px;
     text-align: center;
-    background-color: #f8d7da;
-    color: #842029;
-    border: 2px solid #f5c2c7;
+    background-color: #dc3545; /* Red Background */
+    color: #ffffff !important; /* White Text */
     border-radius: 8px;
     font-weight: 800;
     text-transform: uppercase;
     margin-bottom: 15px;
+    box-shadow: 0 4px 6px rgba(220, 53, 69, 0.2);
+}
+
+/* UPDATED: Thicker borders for Finance Inputs */
+.finance-card .form-control.border-success,
+.finance-card .input-group-text.border-success,
+.finance-card .form-select.border-success {
+    border-width: 3px !important;
+}
+
+.finance-card .form-control.border-danger,
+.finance-card .input-group-text.border-danger,
+.finance-card .form-select.border-danger {
+    border-width: 3px !important;
 }
 
 /* Settlement Rows */
@@ -344,7 +356,7 @@ body {
     color: #333 !important;
 }
 
-/* UPDATED: Balance Due Red Box */
+/* Balance Due Red Box */
 .balance-box {
     background: #dc3545; /* Solid Red Background */
     color: #ffffff !important; /* White Text */
