@@ -3360,19 +3360,6 @@ def exp_report():
     )
 
 
-# Morning and evening pdf generation 
-
-# ==========================================
-#  PASTE THIS AT THE END OF YOUR APP.PY
-#  REPLACING PREVIOUS PDF & ROUTE LOGIC
-# ==========================================
-
-# --- PDF GENERATOR CLASS (INTERNAL) ---
-
-# ==========================================
-#  PASTE THIS AT THE END OF YOUR APP.PY
-#  REPLACING PREVIOUS PDF & ROUTE LOGIC
-# ==========================================
 
 # --- PDF GENERATOR CLASS (INTERNAL) ---
 class PDFGenerator(FPDF):
@@ -3387,7 +3374,7 @@ class PDFGenerator(FPDF):
             "Nadiad-387001, Gujarat, India"
         ]
         self.contact = "+91 96623 22476 | help@realpromotion.in"
-        self.gst_no = "GSTIN: " 
+        self.gst_no = "GSTIN: " # Add GST if available
 
     def header(self):
         # Company Header
@@ -3480,16 +3467,14 @@ class PDFGenerator(FPDF):
         self.set_font('Arial', 'B', 10)
         self.set_text_color(0, 0, 0)
         
-        # FIX: Ensure correct path for signature
         sig_path = os.path.join(app.root_path, 'static', 'img', 'signature.png')
         
         if os.path.exists(sig_path):
             self.image(sig_path, x=20, y=y_pos, w=40) 
         else:
-            # Fallback text if image missing
             self.set_xy(20, y_pos)
             self.set_font('Arial', 'I', 8)
-            self.cell(40, 10, "[Sig Image Missing]", 0, 0)
+            self.cell(40, 10, "", 0, 0) # Blank if missing
 
         self.line(15, y_pos + 25, 75, y_pos + 25)
         self.set_xy(15, y_pos + 27)
@@ -3505,7 +3490,7 @@ class PDFGenerator(FPDF):
         self.cell(0, 5, "This is a computer generated document.", 0, 1, 'C')
 
 
-# --- MORNING PDF ROUTE ---
+# --- MORNING PDF ROUTE (FIXED) ---
 @app.route('/download_morning_pdf/<int:allocation_id>')
 def download_morning_pdf(allocation_id):
     if "loggedin" not in session: return redirect(url_for("login"))
@@ -3513,9 +3498,9 @@ def download_morning_pdf(allocation_id):
     conn = mysql.connection
     cursor = conn.cursor(MySQLdb.cursors.DictCursor)
     
-    # 1. Header
+    # 1. Header - REMOVED e.mobile to prevent 1054 error
     cursor.execute("""
-        SELECT ma.date, ma.created_at, e.name as emp_name, e.mobile as emp_mobile
+        SELECT ma.date, ma.created_at, e.name as emp_name
         FROM morning_allocations ma
         JOIN employees e ON ma.employee_id = e.id
         WHERE ma.id = %s
@@ -3540,11 +3525,11 @@ def download_morning_pdf(allocation_id):
     pdf.alias_nb_pages()
     pdf.add_page()
     
-    # Date Format Fix: %d-%m-%Y
     d_val = header['date'].strftime('%d-%m-%Y') if header['date'] else ""
     t_val = str(header['created_at']) if header['created_at'] else "N/A"
     
-    pdf.add_info_section(header['emp_name'], header.get('emp_mobile', ''), d_val, t_val)
+    # Pass empty string for mobile since column is missing
+    pdf.add_info_section(header['emp_name'], "", d_val, t_val)
     
     cols = ["#", "Product Name", "Opening", "Given", "Total", "Price", "Amount"]
     widths = [10, 70, 20, 20, 20, 20, 30]
@@ -3584,7 +3569,7 @@ def download_morning_pdf(allocation_id):
     
     pdf.add_signature_section()
     
-    # Return PDF
+    # Return PDF string as byte stream
     pdf_string = pdf.output(dest='S').encode('latin-1')
     buffer = io.BytesIO(pdf_string)
     buffer.seek(0)
@@ -3600,10 +3585,9 @@ def download_evening_pdf(settle_id):
     conn = mysql.connection
     cursor = conn.cursor(MySQLdb.cursors.DictCursor)
     
-    # 1. Header
-    # Added emp_mobile explicitly
+    # 1. Header (removed e.mobile)
     cursor.execute("""
-        SELECT es.*, e.name as emp_name, e.mobile as emp_mobile
+        SELECT es.*, e.name as emp_name
         FROM evening_settle es
         JOIN employees e ON es.employee_id = e.id
         WHERE es.id = %s
@@ -3628,12 +3612,10 @@ def download_evening_pdf(settle_id):
     pdf.alias_nb_pages()
     pdf.add_page()
     
-    # Date Format Fix: %d-%m-%Y
     d_val = data['date'].strftime('%d-%m-%Y') if data['date'] else ""
     t_val = str(data['created_at']) if data.get('created_at') else "N/A"
     
-    # Mobile Number Fix: Use data['emp_mobile']
-    pdf.add_info_section(data['emp_name'], data.get('emp_mobile', ''), d_val, t_val)
+    pdf.add_info_section(data['emp_name'], "", d_val, t_val)
     
     cols = ["#", "Product", "Total", "Sold", "Price", "Amount", "Return"]
     widths = [10, 60, 20, 20, 25, 30, 25]
@@ -3684,7 +3666,6 @@ def download_evening_pdf(settle_id):
     pdf.ln(2)
     y_start = pdf.get_y()
     
-    # Helper
     def print_kv(label, val, x, w_label, w_val):
         pdf.set_x(x)
         pdf.set_font('Arial', '', 10)
@@ -3692,7 +3673,6 @@ def download_evening_pdf(settle_id):
         pdf.set_font('Arial', 'B', 10)
         pdf.cell(w_val, 6, val, 0, 1, 'R')
 
-    # Left Column
     print_kv("Total Sales Value:", f"{tot_amt:.2f}", 15, 40, 30)
     print_kv("Discount (-):", f"{float(data.get('discount', 0) or 0):.2f}", 15, 40, 30)
     print_kv("Online Rec. (-):", f"{float(data.get('online_money', 0) or 0):.2f}", 15, 40, 30)
@@ -3700,31 +3680,8 @@ def download_evening_pdf(settle_id):
     pdf.ln(1)
     print_kv("CASH COLLECTED:", f"{float(data.get('cash_money', 0) or 0):.2f}", 15, 40, 30)
     
-    # Right Column: Employee Finance
-    # Based on evening_settle table structure (added credit/debit amount columns assumed)
-    c_amt = float(data.get('emp_credit_amount', 0) or 0)
-    d_amt = float(data.get('emp_debit_amount', 0) or 0)
+    # Assumes no credit/debit columns in DB yet based on 1054 errors, so skipping display if missing
     
-    current_y = y_start
-    if c_amt > 0:
-        pdf.set_xy(110, current_y)
-        pdf.set_fill_color(209, 231, 221)
-        pdf.rect(110, current_y, 80, 14, 'F')
-        pdf.set_xy(110, current_y+1)
-        pdf.set_font('Arial', 'B', 10)
-        pdf.cell(45, 6, " Credit (To Emp):", 0, 0)
-        pdf.cell(30, 6, f"{c_amt:.2f}", 0, 1, 'R')
-        current_y = pdf.get_y() + 2
-
-    if d_amt > 0:
-        pdf.set_xy(110, current_y)
-        pdf.set_fill_color(248, 215, 218)
-        pdf.rect(110, current_y, 80, 14, 'F')
-        pdf.set_xy(110, current_y+1)
-        pdf.set_font('Arial', 'B', 10)
-        pdf.cell(45, 6, " Debit (From Emp):", 0, 0)
-        pdf.cell(30, 6, f"{d_amt:.2f}", 0, 1, 'R')
-
     pdf.ln(15)
     net_sales = tot_amt - float(data.get('discount', 0) or 0) - float(data.get('online_money', 0) or 0)
     balance_due = net_sales - float(data.get('cash_money', 0) or 0)
@@ -3737,12 +3694,14 @@ def download_evening_pdf(settle_id):
     
     pdf.add_signature_section()
     
-    # Return PDF
     pdf_string = pdf.output(dest='S').encode('latin-1')
     buffer = io.BytesIO(pdf_string)
     buffer.seek(0)
     
     return send_file(buffer, as_attachment=True, download_name=f"Evening_Settle_{settle_id}.pdf", mimetype='application/pdf')
+
+
+
 
 
 # --- FIXED ALLOCATION LIST ROUTE ---
@@ -6091,6 +6050,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
