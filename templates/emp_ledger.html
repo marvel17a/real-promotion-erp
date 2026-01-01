@@ -4,209 +4,191 @@
 
 {% block page_content %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/employee_finance.css') }}">
-<!-- SweetAlert2 CSS -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-<div class="container-fluid py-4 fade-in-up">
+<div class="container-fluid py-5 fade-in-up">
 
-    <!-- Top Nav -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <a href="{{ url_for('emp_list') }}" class="btn btn-light rounded-pill border shadow-sm px-3 text-muted fw-bold small">
-            <i class="fa-solid fa-arrow-left me-1"></i> Back to List
+    <!-- Header Actions -->
+    <div class="d-flex justify-content-between align-items-center mb-5">
+        <a href="{{ url_for('emp_list') }}" class="btn btn-white border rounded-pill shadow-sm px-4 fw-bold text-muted hover-lift">
+            <i class="fa-solid fa-arrow-left me-2"></i>Back
         </a>
         
-        <!-- Action Group -->
         <div class="d-flex gap-2">
-            <!-- PDF Button -->
-            <a href="{{ url_for('employee_ledger_pdf', employee_id=employee.id) }}" class="btn btn-outline-danger rounded-pill px-3 shadow-sm border-0 bg-white">
-                <i class="fa-solid fa-file-pdf me-2"></i> PDF
+            <a href="{{ url_for('employee_ledger_pdf', employee_id=employee.id) }}" class="btn btn-white border rounded-pill px-4 shadow-sm hover-lift text-danger fw-bold">
+                <i class="fa-solid fa-file-pdf me-2"></i>Report
             </a>
             
-            <!-- SMART WHATSAPP LOGIC -->
             {% if final_balance > 0 %}
-                <!-- Case: Positive Balance (Employee Owes Company) -->
                 {% set msg = "Hello " ~ employee.name ~ ", your current Pending Due is Rs. " ~ (final_balance|abs|inr) %}
             {% else %}
-                <!-- Case: Negative Balance (Company Owes Employee/Advance) -->
                 {% set msg = "Hello " ~ employee.name ~ ", your current Advance Balance is Rs. " ~ (final_balance|abs|inr) %}
             {% endif %}
             
-            <a href="https://wa.me/91{{ employee.phone }}?text={{ msg }}" target="_blank" class="btn btn-success rounded-pill px-4 text-white shadow-sm border-0">
-                <i class="fa-brands fa-whatsapp me-2"></i> Share
+            <a href="https://wa.me/91{{ employee.phone }}?text={{ msg }}" target="_blank" class="btn btn-success rounded-pill px-4 shadow-sm fw-bold hover-lift">
+                <i class="fa-brands fa-whatsapp me-2"></i>Share Status
             </a>
         </div>
     </div>
 
-    <!-- UPPER SECTION: Employee Financial Data -->
-    <div class="row g-4 mb-4">
-        <!-- 1. Profile & Net Balance Card -->
+    <div class="row g-4 mb-5">
+        <!-- Left: Profile & Balance -->
         <div class="col-lg-4">
-            <div class="glass-container h-100 p-4 d-flex flex-column align-items-center justify-content-center text-center position-relative overflow-hidden">
-                
-                <!-- Profile Image -->
-                <div class="mb-3 position-relative d-inline-block">
+            <div class="glass-container h-100 p-4 text-center">
+                <div class="avatar-wrapper avatar-lg mx-auto mb-3">
                     {% if employee.image %}
-                        <img src="{{ cloudinary_url(employee.image)[0] }}" class="profile-img-lg rounded-circle shadow-sm border border-3 border-white" style="width: 100px; height: 100px; object-fit: cover;">
+                        <img src="{{ cloudinary_url(employee.image)[0] }}" class="table-thumb">
                     {% else %}
-                        <div class="rounded-circle bg-light d-flex align-items-center justify-content-center border shadow-sm text-secondary" style="width: 100px; height: 100px;">
-                            <i class="fa-solid fa-user fa-3x"></i>
+                        <div class="table-thumb bg-secondary d-flex align-items-center justify-content-center text-white fs-1">
+                            <i class="fa-solid fa-user"></i>
                         </div>
                     {% endif %}
                 </div>
+                
+                <h3 class="fw-bold text-dark mb-1">{{ employee.name }}</h3>
+                <p class="text-muted fw-medium mb-4">{{ employee.position }}</p>
 
-                <h4 class="fw-bold mb-1 text-dark">{{ employee.name }}</h4>
-                <p class="text-muted small mb-3">{{ employee.position }}</p>
-
-                <!-- Current Balance Badge -->
-                <div class="p-3 w-100 rounded-4 bg-light border text-center">
-                    <small class="text-uppercase text-muted fw-bold ls-1 d-block mb-1" style="font-size: 0.7rem;">Net Balance</small>
-                    <h2 class="display-6 fw-bold mb-0 {% if final_balance > 0 %}text-danger{% else %}text-success{% endif %}">
+                <div class="p-4 rounded-4 bg-white border shadow-sm mb-4">
+                    <p class="text-uppercase text-muted fw-bold small mb-1 ls-1">Current Net Balance</p>
+                    <h1 class="display-5 fw-bold mb-2 {% if final_balance > 0 %}text-danger{% else %}text-success{% endif %}">
                         {{ final_balance|abs|inr }}
-                    </h2>
-                    <span class="badge {% if final_balance > 0 %}bg-danger{% else %}bg-success{% endif %} bg-opacity-25 text-{{ 'danger' if final_balance > 0 else 'success' }} rounded-pill px-3 py-1 mt-2">
-                        {% if final_balance > 0 %}Due (Debit){% else %}Advance (Credit){% endif %}
+                    </h1>
+                    <span class="badge rounded-pill px-3 py-2 fw-bold fs-7 {% if final_balance > 0 %}bg-danger bg-opacity-10 text-danger{% else %}bg-success bg-opacity-10 text-success{% endif %}">
+                        {% if final_balance > 0 %}Employee Due (Debit){% else %}Company Advance (Credit){% endif %}
                     </span>
                 </div>
+
+                {% if not has_opening_balance %}
+                <a href="{{ url_for('add_opening_balance', employee_id=employee.id) }}" class="btn btn-light rounded-pill w-100 fw-bold border text-muted">
+                    <i class="fa-solid fa-plus me-2"></i>Add Opening Balance
+                </a>
+                {% endif %}
             </div>
         </div>
 
-        <!-- 2. KPI Cards (Ordered: Credit First, then Debit) -->
+        <!-- Right: Stats & Actions -->
         <div class="col-lg-8">
-            <div class="row g-4 h-100">
-                
-                <!-- Card 1: Total Credit (Received) - FIRST -->
+            <!-- Stats Cards -->
+            <div class="row g-4 mb-4">
                 <div class="col-md-6">
-                    <div class="glass-container h-100 p-4 border-start border-4 border-success position-relative overflow-hidden">
-                        <div class="d-flex justify-content-between align-items-center h-100">
-                            <div>
-                                <p class="text-uppercase text-muted fw-bold small mb-1">Total Credit (Received)</p>
-                                <h3 class="fw-bold text-dark mb-0">{{ total_credit|inr }}</h3>
-                            </div>
-                            <div class="p-3 bg-success bg-opacity-10 rounded-circle text-success fs-4">
-                                <i class="fa-solid fa-arrow-down"></i>
-                            </div>
+                    <div class="stats-card shadow-sm">
+                        <div>
+                            <p class="text-muted text-uppercase fw-bold small mb-1">Total Credit</p>
+                            <h3 class="fw-bold text-dark mb-0">{{ total_credit|inr }}</h3>
+                        </div>
+                        <div class="icon-box bg-success bg-opacity-10 text-success rounded-circle">
+                            <i class="fa-solid fa-arrow-down"></i>
                         </div>
                     </div>
                 </div>
-
-                <!-- Card 2: Total Debit (Given) - SECOND -->
                 <div class="col-md-6">
-                    <div class="glass-container h-100 p-4 border-start border-4 border-danger position-relative overflow-hidden">
-                        <div class="d-flex justify-content-between align-items-center h-100">
-                            <div>
-                                <p class="text-uppercase text-muted fw-bold small mb-1">Total Debit (Given)</p>
-                                <h3 class="fw-bold text-dark mb-0">{{ total_debit|inr }}</h3>
-                            </div>
-                            <div class="p-3 bg-danger bg-opacity-10 rounded-circle text-danger fs-4">
-                                <i class="fa-solid fa-arrow-up"></i>
-                            </div>
+                    <div class="stats-card shadow-sm">
+                        <div>
+                            <p class="text-muted text-uppercase fw-bold small mb-1">Total Debit</p>
+                            <h3 class="fw-bold text-dark mb-0">{{ total_debit|inr }}</h3>
+                        </div>
+                        <div class="icon-box bg-danger bg-opacity-10 text-danger rounded-circle">
+                            <i class="fa-solid fa-arrow-up"></i>
                         </div>
                     </div>
                 </div>
+            </div>
 
+            <!-- Action Buttons (Rounded Rectangle Design) -->
+            <div class="row g-4">
+                <div class="col-md-6">
+                    <a href="{{ url_for('add_transaction', employee_id=employee.id, type='credit') }}" class="btn-action-card btn-credit shadow-sm">
+                        <div class="text-content">
+                            <h5 class="fw-bold mb-1 text-dark">Receive / Salary</h5>
+                            <small class="text-muted fw-bold">Add Credit</small>
+                        </div>
+                        <div class="icon-box">
+                            <i class="fa-solid fa-arrow-down"></i>
+                        </div>
+                    </a>
+                </div>
+                <div class="col-md-6">
+                    <a href="{{ url_for('add_transaction', employee_id=employee.id, type='debit') }}" class="btn-action-card btn-debit shadow-sm">
+                        <div class="text-content">
+                            <h5 class="fw-bold mb-1 text-dark">Give Money</h5>
+                            <small class="text-muted fw-bold">Add Debit</small>
+                        </div>
+                        <div class="icon-box">
+                            <i class="fa-solid fa-arrow-up"></i>
+                        </div>
+                    </a>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- LOWER SECTION: Transactions List -->
-    <div class="glass-container p-0 overflow-hidden">
-        
-        <!-- Table Header & Controls -->
-        <div class="p-4 border-bottom bg-light bg-opacity-50 d-flex justify-content-between align-items-center flex-wrap gap-3">
-            <h5 class="mb-0 fw-bold text-dark">Transaction History</h5>
-            
-            <div class="d-flex gap-2">
-                {% if not has_opening_balance %}
-                <a href="{{ url_for('add_opening_balance', employee_id=employee.id) }}" class="btn btn-sm btn-white border shadow-sm rounded-pill text-muted fw-bold px-3">
-                    <i class="fa-solid fa-clock-rotate-left me-1"></i> Add Opening
-                </a>
-                {% endif %}
-                
-                <!-- Buttons Ordered: Credit First, then Debit -->
-                <a href="{{ url_for('add_transaction', employee_id=employee.id, type='credit') }}" class="btn btn-sm btn-success rounded-pill px-4 shadow-sm fw-bold">
-                    <i class="fa-solid fa-arrow-down me-1"></i> Receive / Salary (Credit)
-                </a>
-                
-                <a href="{{ url_for('add_transaction', employee_id=employee.id, type='debit') }}" class="btn btn-sm btn-danger rounded-pill px-4 shadow-sm fw-bold">
-                    <i class="fa-solid fa-arrow-up me-1"></i> Give Money (Debit)
-                </a>
-            </div>
+    <!-- Transaction History Table -->
+    <div class="glass-container shadow-sm">
+        <div class="p-4 border-bottom bg-white d-flex align-items-center justify-content-between">
+            <h5 class="fw-bold text-dark mb-0">Transaction History</h5>
+            <span class="badge bg-light text-dark border fw-bold">{{ transactions|length }} Records</span>
         </div>
         
-        <!-- Table Body -->
         <div class="table-responsive">
-            <table class="table-glass align-middle table-hover mb-0">
+            <table class="table-glass align-middle">
                 <thead>
                     <tr>
-                        <th class="ps-4 py-3">Date & Time</th>
-                        <th class="py-3">Type</th>
-                        <th class="py-3">Description</th>
-                        <th class="text-end py-3">Amount</th>
-                        <th class="text-end pe-4 py-3">Balance</th>
-                        <th class="text-center pe-4 py-3">Actions</th>
+                        <th class="ps-4">Date & Time</th>
+                        <th>Type</th>
+                        <th>Description</th>
+                        <th class="text-end">Amount</th>
+                        <th class="text-end pe-4">Balance</th>
+                        <th class="text-center pe-4">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for t in transactions %}
                     <tr>
-                        <!-- Date Column -->
                         <td class="ps-4">
-                            <!-- FIX: Handle NoneType for transaction_date -->
                             {% if t.transaction_date %}
-                                <div class="fw-bold text-dark">{{ t.transaction_date.strftime('%d %b, %Y') }}</div>
+                                <div class="fw-bold text-dark">{{ t.transaction_date.strftime('%d-%m-%Y') }}</div>
                             {% else %}
                                 <div class="fw-bold text-muted">N/A</div>
                             {% endif %}
-                            
-                            <!-- Time -->
-                            <div class="text-muted small" style="font-size: 0.75rem;">
-                                <i class="fa-regular fa-clock me-1"></i>{{ t.time_str }}
-                            </div>
+                            <div class="text-muted small fw-bold mt-1"><i class="fa-regular fa-clock me-1"></i>{{ t.time_str }}</div>
                         </td>
-
-                        <!-- Type Column -->
                         <td>
                             {% if t.type == 'credit' %}
-                                <span class="badge-soft badge-soft-success"><i class="fa-solid fa-arrow-down me-1"></i>Credit</span>
+                                <span class="badge-soft badge-soft-success">Credit</span>
                             {% else %}
-                                <span class="badge-soft badge-soft-danger"><i class="fa-solid fa-arrow-up me-1"></i>Debit</span>
+                                <span class="badge-soft badge-soft-danger">Debit</span>
                             {% endif %}
                         </td>
-
-                        <!-- Description -->
-                        <td class="text-muted text-truncate" style="max-width: 250px;">{{ t.description }}</td>
-
-                        <!-- Amount -->
-                        <td class="text-end fw-bold {{ 'text-danger' if t.type == 'debit' else 'text-success' }}">
+                        <td class="text-muted fw-medium text-truncate" style="max-width: 250px;">
+                            {{ t.description }}
+                        </td>
+                        <td class="text-end fw-bold fs-6 {{ 'text-danger' if t.type == 'debit' else 'text-success' }}">
                             {{ t.amount|inr }}
                         </td>
-
-                        <!-- Running Balance -->
                         <td class="text-end pe-4 fw-bold text-dark">
                             {{ t.balance|inr }}
                         </td>
-
-                        <!-- Actions -->
                         <td class="text-center pe-4">
                             <div class="d-flex justify-content-center gap-2">
-                                <!-- EDIT BUTTON -->
-                                <a href="{{ url_for('edit_transaction', transaction_id=t.id) }}" class="btn-icon text-primary bg-light border-0 shadow-sm" title="Edit">
-                                    <i class="fa-solid fa-pen"></i>
+                                <a href="{{ url_for('edit_transaction', transaction_id=t.id) }}" class="btn btn-light btn-sm border rounded-circle shadow-sm" style="width:32px; height:32px; display:flex; align-items:center; justify-content:center;">
+                                    <i class="fa-solid fa-pen text-primary fa-xs"></i>
                                 </a>
-                                
-                                <!-- DELETE BUTTON -->
-                                <button type="button" class="btn-icon text-danger bg-light border-0 shadow-sm" onclick="confirmDelete({{ t.id }}, '{{ t.amount|inr }}')" title="Delete">
-                                    <i class="fa-solid fa-trash"></i>
+                                <button onclick="confirmDelete({{ t.id }}, '{{ t.amount|inr }}')" class="btn btn-light btn-sm border rounded-circle shadow-sm" style="width:32px; height:32px; display:flex; align-items:center; justify-content:center;">
+                                    <i class="fa-solid fa-trash text-danger fa-xs"></i>
                                 </button>
-                                
-                                <!-- Hidden Form for Delete -->
-                                <form id="delete-form-{{ t.id }}" action="{{ url_for('delete_transaction', transaction_id=t.id) }}" method="POST" style="display: none;">
-                                </form>
+                                <form id="delete-form-{{ t.id }}" action="{{ url_for('delete_transaction', transaction_id=t.id) }}" method="POST" style="display: none;"></form>
                             </div>
                         </td>
                     </tr>
                     {% else %}
-                    <tr><td colspan="6" class="text-center py-5 text-muted opacity-50">No transactions yet. Start by giving money or paying salary.</td></tr>
+                    <tr>
+                        <td colspan="6" class="text-center py-5">
+                            <div class="text-muted opacity-50">
+                                <i class="fa-solid fa-receipt fa-2x mb-2"></i>
+                                <p class="fw-bold">No transactions found.</p>
+                            </div>
+                        </td>
+                    </tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -214,20 +196,17 @@
     </div>
 </div>
 
-<!-- SweetAlert2 Script -->
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
     function confirmDelete(id, amount) {
         Swal.fire({
-            title: 'Are you sure?',
-            text: "You are about to delete a transaction of " + amount + ". This cannot be undone!",
+            title: 'Delete Transaction?',
+            text: "Are you sure you want to remove this record of " + amount + "?",
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#ef4444',
-            cancelButtonColor: '#6b7280',
-            confirmButtonText: 'Yes, delete it!',
-            background: 'rgba(255, 255, 255, 0.95)',
-            backdrop: `rgba(0,0,0,0.4)`
+            cancelButtonColor: '#64748b',
+            confirmButtonText: 'Yes, delete it',
+            customClass: { popup: 'rounded-4' }
         }).then((result) => {
             if (result.isConfirmed) {
                 document.getElementById('delete-form-' + id).submit();
@@ -236,4 +215,3 @@
     }
 </script>
 {% endblock %}
-
