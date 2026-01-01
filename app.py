@@ -93,6 +93,7 @@ def safe_date_format(date_obj, format='%d-%m-%Y', default='N/A'):
 
 # --- VIEW EVENING SETTLEMENT DETAILS ---
 # --- VIEW EVENING SETTLEMENT DETAILS (FIXED e.phone) ---
+# --- VIEW EVENING SETTLEMENT DETAILS ---
 @app.route('/evening/view/<int:settle_id>')
 def view_evening_settlement(settle_id):
     if "loggedin" not in session: return redirect(url_for("login"))
@@ -101,7 +102,7 @@ def view_evening_settlement(settle_id):
     cursor = conn.cursor(MySQLdb.cursors.DictCursor)
     
     # 1. Fetch Header Info
-    # FIX: Changed 'e.mobile' to 'e.phone as emp_mobile'
+    # Added 'due_note' to SELECT and IFNULL logic
     cursor.execute("""
         SELECT es.*, 
                IFNULL(es.total_amount, 0) as total_amount,
@@ -110,6 +111,7 @@ def view_evening_settlement(settle_id):
                IFNULL(es.discount, 0) as discount,
                IFNULL(es.emp_credit_amount, 0) as emp_credit_amount,
                IFNULL(es.emp_debit_amount, 0) as emp_debit_amount,
+               IFNULL(es.due_note, '') as due_note,
                e.name as emp_name, e.image as emp_image, e.phone as emp_mobile
         FROM evening_settle es
         JOIN employees e ON es.employee_id = e.id
@@ -6097,6 +6099,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
