@@ -3360,14 +3360,11 @@ def exp_report():
     )
 
 
-# =============================================================================
-#  MORNING & API ROUTES
-# =============================================================================
-
-# PDF GENERATion ROute :
+# Morning and evening pdf generation 
 
 # ==========================================
-#  PASTE THIS AT THE BOTTOM OF YOUR APP.PY
+#  PASTE THIS AT THE END OF YOUR APP.PY
+#  REPLACING PREVIOUS PDF & ROUTE LOGIC
 # ==========================================
 
 # --- PDF GENERATOR CLASS (INTERNAL) ---
@@ -3440,7 +3437,6 @@ class PDFGenerator(FPDF):
         self.set_font('Arial', '', 10)
         self.cell(35, 6, "Mobile No:", 0, 0)
         self.set_font('Arial', 'B', 10)
-        # Mobile column might be missing, handle gracefully
         self.cell(70, 6, str(emp_mobile) if emp_mobile else "N/A", 0, 1)
 
         # Right: Date/Time
@@ -3476,7 +3472,6 @@ class PDFGenerator(FPDF):
         self.set_font('Arial', 'B', 10)
         self.set_text_color(0, 0, 0)
         
-        # FIX: Path to signature image
         sig_path = os.path.join(app.root_path, 'static', 'img', 'signature.png')
         
         if os.path.exists(sig_path):
@@ -3505,6 +3500,7 @@ def download_morning_pdf(allocation_id):
     cursor = conn.cursor(MySQLdb.cursors.DictCursor)
     
     # 1. Header
+    # Added emp_name alias to match usage elsewhere
     cursor.execute("""
         SELECT ma.date, ma.created_at, e.name as emp_name, e.mobile as emp_mobile
         FROM morning_allocations ma
@@ -3574,14 +3570,16 @@ def download_morning_pdf(allocation_id):
     
     pdf.add_signature_section()
     
-    buffer = io.BytesIO()
-    pdf.output(buffer)
+    # --- OUTPUT FIX FOR FPDF (BYTESIO ERROR) ---
+    # Return PDF as string, then write to BytesIO
+    pdf_string = pdf.output(dest='S').encode('latin-1')
+    buffer = io.BytesIO(pdf_string)
     buffer.seek(0)
     
     return send_file(buffer, as_attachment=True, download_name=f"Morning_Alloc_{allocation_id}.pdf", mimetype='application/pdf')
 
 
-# --- EVENING PDF ROUTE (FIXED TABLE NAME) ---
+# --- EVENING PDF ROUTE ---
 @app.route('/download_evening_pdf/<int:settle_id>')
 def download_evening_pdf(settle_id):
     if "loggedin" not in session: return redirect(url_for("login"))
@@ -3590,7 +3588,7 @@ def download_evening_pdf(settle_id):
     cursor = conn.cursor(MySQLdb.cursors.DictCursor)
     
     # 1. Header
-    # Note: Removed e.mobile from query to be safe, or use IFNULL
+    # Added emp_name alias
     cursor.execute("""
         SELECT es.*, e.name as emp_name
         FROM evening_settle es
@@ -3601,9 +3599,9 @@ def download_evening_pdf(settle_id):
     
     if not data:
         flash("Settlement not found", "danger")
-        return redirect(url_for('evening_master')) # Adjust if needed
+        return redirect(url_for('evening_master'))
         
-    # 2. Items - FIX: Table name is 'evening_item' NOT 'evening_settle_items'
+    # 2. Items - Using Correct Table 'evening_item'
     cursor.execute("""
         SELECT p.name, ei.total_qty, ei.sold_qty, ei.return_qty, ei.unit_price
         FROM evening_item ei
@@ -3620,7 +3618,7 @@ def download_evening_pdf(settle_id):
     d_val = data['date'].strftime('%d-%m-%Y') if data['date'] else ""
     t_val = str(data['created_at']) if data.get('created_at') else "N/A"
     
-    # Pass emp_mobile separately or empty string if missing from DB
+    # Pass emp_mobile if available, otherwise empty string
     pdf.add_info_section(data['emp_name'], "", d_val, t_val)
     
     cols = ["#", "Product", "Total", "Sold", "Price", "Amount", "Return"]
@@ -3688,10 +3686,7 @@ def download_evening_pdf(settle_id):
     pdf.ln(1)
     print_kv("CASH COLLECTED:", f"{float(data.get('cash_money', 0) or 0):.2f}", 15, 40, 30)
     
-    # Right Column: Employee Finance (Assuming columns exist in evening_settle)
-    # Check your table structure if these columns exist: emp_credit_amount, emp_debit_amount
-    # Based on evening_settle.sql provided, they MIGHT NOT exist yet. 
-    # If they don't, use 0 as default.
+    # Right Column
     c_amt = float(data.get('emp_credit_amount', 0) or 0)
     d_amt = float(data.get('emp_debit_amount', 0) or 0)
     
@@ -3727,11 +3722,81 @@ def download_evening_pdf(settle_id):
     
     pdf.add_signature_section()
     
-    buffer = io.BytesIO()
-    pdf.output(buffer)
+    # --- OUTPUT FIX ---
+    pdf_string = pdf.output(dest='S').encode('latin-1')
+    buffer = io.BytesIO(pdf_string)
     buffer.seek(0)
     
     return send_file(buffer, as_attachment=True, download_name=f"Evening_Settle_{settle_id}.pdf", mimetype='application/pdf')
+
+
+# --- FIXED ALLOCATION LIST ROUTE ---
+@app.route('/allocation_list', methods=['GET'])
+def allocation_list():
+    if "loggedin" not in session: return redirect(url_for("login"))
+
+    conn = mysql.connection
+    cursor = conn.cursor(MySQLdb.cursors.DictCursor)
+
+    date_filter = request.args.get('date')
+    emp_filter = request.args.get('employee_id')
+    
+    # FIX: Aliased e.name as emp_name for template consistency
+    query = """
+        SELECT ma.*, e.name as emp_name, e.image as emp_image,
+               (SELECT COUNT(*) FROM morning_allocation_items WHERE allocation_id = ma.id) as item_count
+        FROM morning_allocations ma
+        JOIN employees e ON ma.employee_id = e.id
+        WHERE 1=1
+    """
+    params = []
+
+    if date_filter:
+        query += " AND ma.date = %s"
+        params.append(parse_date(date_filter)) 
+    
+    if emp_filter:
+        query += " AND ma.employee_id = %s"
+        params.append(emp_filter)
+
+    query += " ORDER BY ma.date DESC, ma.created_at DESC"
+
+    cursor.execute(query, tuple(params))
+    allocations = cursor.fetchall()
+
+    for a in allocations:
+        if a['emp_image']:
+            if not a['emp_image'].startswith('http'):
+                 a['emp_image'] = url_for('static', filename='uploads/' + a['emp_image'])
+        else:
+            a['emp_image'] = url_for('static', filename='img/default-user.png')
+
+        # Robust check for Timestamp
+        if a.get('created_at'):
+            type_name = type(a['created_at']).__name__
+            if type_name == 'datetime':
+                local_time = a['created_at'] + timedelta(hours=5, minutes=30)
+                a['time_str'] = local_time.strftime('%I:%M %p')
+            elif type_name == 'timedelta':
+                # Attempt to construct time from timedelta
+                import datetime as dt_mod
+                base = dt_mod.datetime.min
+                dummy = base + a['created_at']
+                a['time_str'] = dummy.strftime('%I:%M %p')
+            else:
+                a['time_str'] = str(a['created_at'])
+        else:
+            a['time_str'] = "00:00"
+
+    cursor.execute("SELECT id, name FROM employees ORDER BY name")
+    employees = cursor.fetchall()
+
+    return render_template('allocation_list.html', 
+                           allocations=allocations, 
+                           employees=employees,
+                           filters={'date': date_filter, 'employee_id': emp_filter})
+
+
 
 
 
@@ -4395,81 +4460,7 @@ def fetch_morning_allocation():
     finally:
         if 'cur' in locals(): cur.close()
 
-# ---------------------------------------------------------
-# 5. GENERATE PDF 
-# ---------------------------------------------------------
 
-
-
-##############################################################################################
-###################################################################################
-#####################################################################################
-################################################
-
-# --- FIXED ALLOCATION LIST ROUTE ---
-@app.route('/allocation_list', methods=['GET'])
-def allocation_list():
-    if "loggedin" not in session: return redirect(url_for("login"))
-
-    conn = mysql.connection
-    cursor = conn.cursor(MySQLdb.cursors.DictCursor)
-
-    date_filter = request.args.get('date')
-    emp_filter = request.args.get('employee_id')
-    
-    query = """
-        SELECT ma.*, e.name as employee_name, e.image as emp_image,
-               (SELECT COUNT(*) FROM morning_allocation_items WHERE allocation_id = ma.id) as item_count
-        FROM morning_allocations ma
-        JOIN employees e ON ma.employee_id = e.id
-        WHERE 1=1
-    """
-    params = []
-
-    if date_filter:
-        query += " AND ma.date = %s"
-        params.append(parse_date(date_filter)) 
-    
-    if emp_filter:
-        query += " AND ma.employee_id = %s"
-        params.append(emp_filter)
-
-    query += " ORDER BY ma.date DESC, ma.created_at DESC"
-
-    cursor.execute(query, tuple(params))
-    allocations = cursor.fetchall()
-
-    for a in allocations:
-        if a['emp_image']:
-            if not a['emp_image'].startswith('http'):
-                 a['emp_image'] = url_for('static', filename='uploads/' + a['emp_image'])
-        else:
-            a['emp_image'] = url_for('static', filename='img/default-user.png')
-
-        # FIX: Robust check for Timestamp
-        if a.get('created_at'):
-            type_name = type(a['created_at']).__name__
-            if type_name == 'datetime':
-                local_time = a['created_at'] + timedelta(hours=5, minutes=30)
-                a['time_str'] = local_time.strftime('%I:%M %p')
-            elif type_name == 'timedelta':
-                # Attempt to construct time from timedelta
-                import datetime as dt_mod
-                base = dt_mod.datetime.min
-                dummy = base + a['created_at']
-                a['time_str'] = dummy.strftime('%I:%M %p')
-            else:
-                a['time_str'] = str(a['created_at'])
-        else:
-            a['time_str'] = "00:00"
-
-    cursor.execute("SELECT id, name FROM employees ORDER BY name")
-    employees = cursor.fetchall()
-
-    return render_template('allocation_list.html', 
-                           allocations=allocations, 
-                           employees=employees,
-                           filters={'date': date_filter, 'employee_id': emp_filter})
 
 
 @app.route('/morning/edit/<int:allocation_id>', methods=['GET', 'POST'])
@@ -6055,6 +6046,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
