@@ -128,7 +128,12 @@
                             <!-- Print Button Restored -->
                         <a href="{{ url_for('download_evening_pdf', settle_id=s.id) }}" class="btn btn-sm btn-outline-danger" title="Download PDF">
     <i class="fa-solid fa-file-pdf"></i>
+                            
 </a>
+
+                            <a href="{{ url_for('view_evening_settlement', settle_id=s.id) }}" class="btn btn-sm btn-info text-white shadow-sm me-1" title="View Details">
+        <i class="fa-solid fa-eye"></i>
+    </a>
                             <a href="{{ url_for('admin_edit_evening', settle_id=s.id) }}" class="btn btn-sm btn-primary shadow-sm me-1" title="Edit">
                                 <i class="fa-solid fa-pen"></i>
                             </a>
