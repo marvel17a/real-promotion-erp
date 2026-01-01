@@ -54,7 +54,7 @@
                                     {% for dept in departments %}
                                     <div class="badge bg-white text-dark border shadow-sm rounded-pill p-2 px-3 d-flex align-items-center">
                                         <span class="me-2">{{ dept.department_name }}</span>
-                                        <form action="{{ url_for('delete_department', id=dept.id) }}" method="POST" onsubmit="return confirm('Delete Department?');">
+                                        <form action="{{ url_for('employee_department_delete', id=dept.id) }}" method="POST" onsubmit="return confirm('Delete Department?');">
                                             <button class="btn btn-sm p-0 text-muted hover-danger border-0"><i class="fas fa-times"></i></button>
                                         </form>
                                     </div>
@@ -107,7 +107,7 @@
                                     {% for pos in positions %}
                                     <div class="badge bg-white text-dark border shadow-sm rounded-pill p-2 px-3 d-flex align-items-center">
                                         <span class="me-2">{{ pos.position_name }}</span>
-                                        <form action="{{ url_for('delete_position', id=pos.id) }}" method="POST" onsubmit="return confirm('Delete Position?');">
+                                        <form action="{{ url_for('employee_position_delete', id=pos.id) }}" method="POST" onsubmit="return confirm('Delete Position?');">
                                             <button class="btn btn-sm p-0 text-muted hover-danger border-0"><i class="fas fa-times"></i></button>
                                         </form>
                                     </div>
@@ -218,3 +218,4 @@
 </style>
 
 {% endblock %}
+
