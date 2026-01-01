@@ -334,6 +334,7 @@ def parse_date_input(date_str):
 
 
 # --- ROUTE: OFFICE SALES FORM ---
+# --- ROUTE: OFFICE SALES FORM ---
 @app.route('/office_sales', methods=['GET', 'POST'])
 def office_sales():
     if "loggedin" not in session: return redirect(url_for("login"))
@@ -360,7 +361,6 @@ def office_sales():
             
             # Calculate Totals
             total_amt = 0
-            items_data = []
             
             # 1. Insert Header
             cursor.execute("""
@@ -411,7 +411,8 @@ def office_sales():
             return redirect(url_for('office_sales'))
 
     # GET: Load Form
-    cursor.execute("SELECT id, name, price, stock, image FROM products WHERE status='Active' ORDER BY name")
+    # FIX: Removed "WHERE status='Active'" to prevent 1054 error
+    cursor.execute("SELECT id, name, price, stock, image FROM products ORDER BY name")
     products = cursor.fetchall()
     
     # Resolve images for JS
@@ -6404,6 +6405,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
