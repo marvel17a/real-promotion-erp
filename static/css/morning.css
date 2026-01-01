@@ -1,5 +1,5 @@
 /* morning-style.css - Unified Theme for Morning & Evening */
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800;900&display=swap');
 
 body {
     font-family: 'Poppins', sans-serif !important;
@@ -9,6 +9,8 @@ body {
 
 /* --- Global Utilities --- */
 .fw-800 { font-weight: 800 !important; }
+.fw-900 { font-weight: 900 !important; }
+
 .text-gradient { 
     background: linear-gradient(45deg, #1a237e, #0d47a1); 
     -webkit-background-clip: text; 
@@ -57,7 +59,7 @@ body {
     margin-top: 10px;
 }
 
-/* --- Control Panel Inputs --- */
+/* --- Control Panel Inputs & Alignment --- */
 .control-label {
     font-size: 0.8rem;
     text-transform: uppercase;
@@ -68,27 +70,33 @@ body {
     display: block;
 }
 
+/* Fixed height for alignment */
 .input-group-glass {
     border-radius: 10px;
     box-shadow: 0 4px 10px rgba(0,0,0,0.03);
     overflow: hidden;
     border: 1px solid #dee2e6;
-    display: flex; /* Ensures alignment */
+    display: flex; 
     align-items: center;
+    height: 50px; /* Fixed height */
+    background: #fff;
 }
 .input-group-glass .input-group-text {
     background: #fff;
     border: none;
     color: #0d6efd;
-    padding: 12px 15px;
+    padding: 0 15px; 
+    height: 100%;
+    display: flex;
+    align-items: center;
 }
 .input-group-glass .form-control, 
 .input-group-glass .form-select {
     border: none;
-    font-weight: 600;
+    font-weight: 800; /* Bold text in controls */
     color: #333;
-    padding: 12px 15px;
-    height: auto;
+    padding: 0 15px;
+    height: 100%;
 }
 .input-group-glass .form-control:focus, 
 .input-group-glass .form-select:focus {
@@ -99,7 +107,7 @@ body {
 /* Employee Photo */
 .emp-photo-box {
     width: 65px;
-    height: 65px;
+    height: 65px; 
     border-radius: 12px;
     overflow: hidden;
     border: 3px solid #fff;
@@ -113,19 +121,20 @@ body {
     object-fit: cover;
 }
 
-/* Live Clock (Blue Box, No Icon) */
+/* Live Clock (Blue Box) */
 .clock-display {
     background: #0d6efd;
     color: #fff;
     font-family: 'Courier New', monospace;
     font-weight: 700;
     font-size: 1.4rem;
-    padding: 15px 0;
+    height: 50px; 
+    display: flex;
+    align-items: center;
+    justify-content: center;
     border-radius: 12px;
     box-shadow: 0 4px 15px rgba(13, 110, 253, 0.3);
-    text-align: center;
     width: 100%;
-    display: block;
     line-height: 1;
 }
 
@@ -145,7 +154,6 @@ body {
     margin-bottom: 0;
 }
 
-/* Header Styling - Blue & Bold */
 .styled-table thead th {
     background: #0d6efd;
     color: #fff;
@@ -165,7 +173,6 @@ body {
     background: #fff;
 }
 
-/* Product Image in Table */
 .prod-img-box {
     width: 45px;
     height: 45px;
@@ -181,16 +188,18 @@ body {
     object-fit: cover;
 }
 
-/* Table Inputs & Selects */
+/* UPDATED: Entering Text in Table is BOLD and BLACK */
 .table-input, .product-dropdown {
     border: 1px solid #e0e0e0;
     border-radius: 6px;
     text-align: center;
-    font-weight: 600;
+    font-weight: 900 !important; /* Extra Bold */
+    color: #000000 !important;   /* Pitch Black text */
     padding: 8px;
     width: 100%;
     background: #fdfdfd;
     transition: all 0.2s;
+    font-size: 1rem;
 }
 .product-dropdown { text-align: left; }
 
@@ -201,56 +210,65 @@ body {
     outline: none;
 }
 
-/* Specific Input Colors */
-.input-qty { background-color: #f0f9ff; color: #0d6efd; border-color: #bce3ff; }
-.input-return { background-color: #fff5f5; color: #dc3545; border-color: #feb2b2; }
-.input-sold { background-color: #f0fff4; color: #198754; border-color: #9ae6b4; }
+/* Input Background Colors */
+.input-qty { background-color: #f0f9ff; color: #0d6efd !important; border-color: #bce3ff; }
+.input-return { background-color: #fff5f5; color: #dc3545 !important; border-color: #feb2b2; }
+.input-sold { background-color: #f0fff4; color: #198754 !important; border-color: #9ae6b4; }
 
-/* Readonly Inputs */
 .table-input[readonly] {
     background-color: transparent;
     border: none;
-    font-weight: 700;
-    color: #555;
+    font-weight: 900;
+    color: #444 !important;
     box-shadow: none;
 }
 
-/* --- Table Footer (Summary) --- */
+/* UPDATED: Footer Redesign - White Background, Thick Blue Border */
 .table-footer tr th, 
 .table-footer tr td {
-    background: #f8f9fa;
-    padding: 15px;
+    background: #ffffff;       /* Pure White Background */
+    color: #212529 !important; /* Dark Bold Text */
+    padding: 20px 15px;
     vertical-align: middle;
-    border-top: 2px solid #dee2e6;
+    border-top: 5px solid #0d6efd; /* Thick Blue Accent Border */
+    font-weight: 900;    /* Extra Bold */
+    font-size: 1.1rem;
+    box-shadow: 0 -5px 15px rgba(0,0,0,0.05);
 }
 
 .summary-label {
     text-align: right;
-    font-weight: 800;
-    color: #495057;
+    font-weight: 900;
+    color: #495057 !important; /* Dark Grey for Label */
     text-transform: uppercase;
-    font-size: 0.9rem;
+    font-size: 1.1rem;
     padding-right: 20px;
+    letter-spacing: 1.5px;
 }
 
-/* Colored Summary Boxes */
+/* UPDATED: Total Boxes - Removed Background Colors, Added Blue Border & Black Text */
 .total-box {
     display: block;
-    padding: 8px 5px;
-    border-radius: 6px;
+    padding: 10px 5px;
+    border-radius: 8px;
     text-align: center;
-    color: #fff;
-    font-size: 1rem;
-    font-weight: 700;
-    min-width: 60px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    color: #000 !important;        /* Bold Black Text */
+    background-color: #fff !important; /* White Background */
+    font-size: 1.2rem;
+    font-weight: 900;
+    min-width: 70px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    border: 2px solid #0d6efd !important; /* Blue Border */
 }
-.bg-total-blue { background-color: #0d6efd; }
-.bg-total-green { background-color: #198754; }
-.bg-total-dark { background-color: #212529; }
-.bg-total-red { background-color: #dc3545; }
-.bg-total-warning { background-color: #ffc107; color: #212529; }
-.bg-total-secondary { background-color: #6c757d; }
+
+/* Colors for footer boxes - Neutralized to use the unified Blue Border style */
+.bg-total-blue, .bg-total-green, .bg-total-dark, 
+.bg-total-red, .bg-total-warning, .bg-total-secondary { 
+    background-color: #fff !important; 
+    border: 2px solid #0d6efd !important;
+    color: #000 !important;
+}
+
 
 /* --- Evening Finance Section --- */
 .finance-section { margin-top: 30px; }
@@ -275,6 +293,48 @@ body {
 }
 .finance-body { padding: 25px; flex-grow: 1; }
 
+/* UPDATED: Employee Finance Credit/Debit Blocks */
+.finance-title-credit {
+    display: block;
+    width: 100%;
+    padding: 10px;
+    text-align: center;
+    background-color: #198754; /* Green Background */
+    color: #ffffff !important; /* White Text */
+    border-radius: 8px;
+    font-weight: 800;
+    text-transform: uppercase;
+    margin-bottom: 15px;
+    box-shadow: 0 4px 6px rgba(25, 135, 84, 0.2);
+}
+
+.finance-title-debit {
+    display: block;
+    width: 100%;
+    padding: 10px;
+    text-align: center;
+    background-color: #dc3545; /* Red Background */
+    color: #ffffff !important; /* White Text */
+    border-radius: 8px;
+    font-weight: 800;
+    text-transform: uppercase;
+    margin-bottom: 15px;
+    box-shadow: 0 4px 6px rgba(220, 53, 69, 0.2);
+}
+
+/* UPDATED: Thicker borders for Finance Inputs */
+.finance-card .form-control.border-success,
+.finance-card .input-group-text.border-success,
+.finance-card .form-select.border-success {
+    border-width: 3px !important;
+}
+
+.finance-card .form-control.border-danger,
+.finance-card .input-group-text.border-danger,
+.finance-card .form-select.border-danger {
+    border-width: 3px !important;
+}
+
 /* Settlement Rows */
 .settle-row {
     display: flex;
@@ -284,7 +344,9 @@ body {
     border-bottom: 1px dashed #eee;
 }
 .settle-row:last-child { border-bottom: none; }
-.settle-label { font-weight: 600; color: #555; font-size: 1rem; }
+.settle-label { font-weight: 600; color: #555; font-size: 1rem; display: flex; align-items: center; }
+.settle-label i { margin-right: 10px; font-size: 1.1rem; }
+
 .settle-input { 
     text-align: right; 
     font-weight: 700; 
@@ -293,6 +355,27 @@ body {
     border-radius: 6px; 
     padding: 8px 12px;
     font-size: 1.1rem;
+    color: #333 !important;
+}
+
+/* Balance Due Red Box */
+.balance-box {
+    background: #dc3545; /* Solid Red Background */
+    color: #ffffff !important; /* White Text */
+    padding: 25px;
+    border-radius: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 25px;
+    box-shadow: 0 10px 25px rgba(220, 53, 69, 0.4);
+    border: 2px solid #fff;
+    outline: 3px solid #dc3545;
+}
+
+.balance-box span {
+    color: #ffffff !important;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.2);
 }
 
 /* Action Buttons */
@@ -324,4 +407,3 @@ body {
     background: #198754;
     color: #fff;
 }
-
