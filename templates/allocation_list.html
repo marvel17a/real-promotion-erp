@@ -15,7 +15,7 @@
             <p class="text-muted small mb-0">Manage submitted morning forms.</p>
         </div>
         <a href="{{ url_for('morning') }}" class="btn btn-primary rounded-pill shadow-sm px-4 fw-bold">
-            <i class="fa-solid fa-plus me-2"></i> New Allocation
+            <i class=\"fa-solid fa-plus me-2\"></i> New Allocation
         </a>
     </div>
 
@@ -23,10 +23,14 @@
     <div class="card glass-card border-0 shadow-sm mb-4">
         <div class="card-body p-3">
             <form method="GET" action="{{ url_for('allocation_list') }}" class="row g-3 align-items-end">
+                
+                <!-- Date Filter -->
                 <div class="col-md-3">
                     <label class="form-label small text-uppercase fw-bold text-muted">Filter Date</label>
                     <input type="text" name="date" id="filterDate" class="form-control form-control-sm rounded-pill" placeholder="Select Date">
                 </div>
+
+                <!-- Employee Filter -->
                 <div class="col-md-3">
                     <label class="form-label small text-uppercase fw-bold text-muted">Employee</label>
                     <select name="employee_id" class="form-select form-select-sm rounded-pill">
@@ -36,6 +40,8 @@
                         {% endfor %}
                     </select>
                 </div>
+
+                <!-- Buttons -->
                 <div class="col-md-3 d-flex gap-2">
                     <button type="submit" class="btn btn-sm btn-dark rounded-pill px-3 w-50"><i class="fa-solid fa-filter me-1"></i> Filter</button>
                     <a href="{{ url_for('allocation_list') }}" class="btn btn-sm btn-outline-secondary rounded-pill px-3 w-50"><i class="fa-solid fa-rotate-right me-1"></i> Reset</a>
@@ -80,9 +86,9 @@
                         </td>
                         <td class="text-end pe-4">
                             <div class="btn-group">
-                                <!-- WhatsApp Share -->
-                                {% if a.emp_mobile %}
-                                    <a href="https://wa.me/{{ a.emp_mobile }}?text=Stock Allocation for {{ a.date }}: {{ url_for('download_morning_pdf', allocation_id=a.id, _external=True) }}" target="_blank" class="btn btn-sm btn-outline-success" title="Share WhatsApp">
+                                <!-- WhatsApp -->
+                                {% if a.emp_phone %}
+                                    <a href="https://wa.me/{{ a.emp_phone }}?text=Stock Allocation for {{ a.date }}: {{ url_for('download_morning_pdf', allocation_id=a.id, _external=True) }}" target="_blank" class="btn btn-sm btn-outline-success" title="WhatsApp">
                                         <i class="fa-brands fa-whatsapp"></i>
                                     </a>
                                 {% endif %}
@@ -92,7 +98,7 @@
                                     <i class="fa-solid fa-file-pdf"></i>
                                 </a>
                                 
-                                <!-- EDIT BUTTON (Added Here) -->
+                                <!-- Edit Button -->
                                 <a href="{{ url_for('edit_morning_allocation', allocation_id=a.id) }}" class="btn btn-sm btn-outline-primary" title="Edit">
                                     <i class="fa-solid fa-pen"></i>
                                 </a>
