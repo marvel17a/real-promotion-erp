@@ -26,105 +26,80 @@
                 
                 <!-- Date Filter -->
                 <div class="col-md-3">
-                    <label class="form-label small text-uppercase fw-bold text-secondary">Filter Date</label>
-                    <div class="input-group">
-                        <span class="input-group-text bg-light border-0"><i class="fa-regular fa-calendar"></i></span>
-                        <input type="text" name="date" id="filterDate" class="form-control border-0 bg-light fw-bold" placeholder="Select Date" value="{{ filters.date if filters.date else '' }}">
-                    </div>
+                    <label class="form-label small text-uppercase fw-bold text-muted">Filter Date</label>
+                    <input type="text" name="date" id="filterDate" class="form-control form-control-sm rounded-pill" placeholder="Select Date">
                 </div>
 
                 <!-- Employee Filter -->
-                <div class="col-md-4">
-                    <label class="form-label small text-uppercase fw-bold text-secondary">Filter Employee</label>
-                    <div class="input-group">
-                        <span class="input-group-text bg-light border-0"><i class="fa-solid fa-user-tie"></i></span>
-                        <select name="employee_id" class="form-select border-0 bg-light fw-bold">
-                            <option value="all">All Employees</option>
-                            {% for emp in employees %}
-                            <option value="{{ emp.id }}" {% if filters.emp|string == emp.id|string %}selected{% endif %}>{{ emp.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
+                <div class="col-md-3">
+                    <label class="form-label small text-uppercase fw-bold text-muted">Employee</label>
+                    <select name="employee_id" class="form-select form-select-sm rounded-pill">
+                        <option value="">All Employees</option>
+                        {% for e in employees %}
+                        <option value="{{ e.id }}" {% if filters.employee_id|string == e.id|string %}selected{% endif %}>{{ e.name }}</option>
+                        {% endfor %}
+                    </select>
                 </div>
 
-                <!-- Actions -->
+                <!-- Buttons -->
                 <div class="col-md-3 d-flex gap-2">
-                    <button type="submit" class="btn btn-dark w-100 fw-bold shadow-sm">
-                        <i class="fa-solid fa-filter me-2"></i> Filter
-                    </button>
-                    <a href="{{ url_for('allocation_list') }}" class="btn btn-outline-secondary w-50" title="Reset">
-                        <i class="fa-solid fa-rotate-right"></i>
-                    </a>
+                    <button type="submit" class="btn btn-sm btn-dark rounded-pill px-3 w-50"><i class="fa-solid fa-filter me-1"></i> Filter</button>
+                    <a href="{{ url_for('allocation_list') }}" class="btn btn-sm btn-outline-secondary rounded-pill px-3 w-50"><i class="fa-solid fa-rotate-right me-1"></i> Reset</a>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- History Table -->
+    <!-- Data Table -->
     <div class="card glass-card border-0 shadow-sm">
-        <div class="table-responsive">
+        <div class="card-body p-0">
             <table class="table table-hover align-middle mb-0">
-                <thead class="bg-primary text-white small text-uppercase">
+                <thead class="bg-light">
                     <tr>
-                        <th class="ps-4 py-3" style="width: 15%;">Date</th>
-                        <th style="width: 25%;">Employee</th>
-                        <th style="width: 20%;">Timestamp</th>
-                        <th class="text-center" style="width: 15%;">Status</th>
-                        <th class="text-end pe-4">Actions</th>
+                        <th class="ps-4 text-secondary small text-uppercase">#ID</th>
+                        <th class="text-secondary small text-uppercase">Date & Time</th>
+                        <th class="text-secondary small text-uppercase">Employee</th>
+                        <th class="text-center text-secondary small text-uppercase">Items</th>
+                        <th class="text-end pe-4 text-secondary small text-uppercase">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for a in allocations %}
                     <tr>
-                        <td class="ps-4 fw-bold text-dark">{{ a.date }}</td>
+                        <td class="ps-4 fw-bold text-primary">#{{ a.id }}</td>
                         <td>
-                            <div class="d-flex align-items-center">
-                                <div class="avatar-circle bg-light text-primary me-2 fw-bold d-flex align-items-center justify-content-center" style="width: 35px; height: 35px; border-radius: 50%;">
-                                    {{ a.emp_name[0] }}
-                                </div>
-                                <span class="fw-bold">{{ a.emp_name }}</span>
+                            <div class="d-flex flex-column">
+                                <span class="fw-bold text-dark">{{ a.date }}</span>
+                                <span class="small text-muted">{{ a.time_str }}</span>
                             </div>
                         </td>
                         <td>
-                            <small class="text-muted fw-bold">
-                                <i class="fa-regular fa-clock me-1"></i> {{ a.created_at if a.created_at else '--:--' }}
-                            </small>
+                            <div class="d-flex align-items-center">
+                                <img src="{{ a.emp_image }}" class="rounded-circle me-2 border" width="35" height="35">
+                                <span class="fw-bold text-dark">{{ a.emp_name }}</span>
+                            </div>
                         </td>
                         <td class="text-center">
-                            {% if a.evening_submitted %}
-                                <span class="badge bg-success bg-opacity-10 text-success border border-success px-3 py-1 rounded-pill">
-                                    Completed
-                                </span>
-                            {% else %}
-                                <span class="badge bg-warning bg-opacity-10 text-warning border border-warning px-3 py-1 rounded-pill">
-                                    Pending
-                                </span>
-                            {% endif %}
+                            <span class="badge bg-light text-dark border rounded-pill px-3">
+                                {{ a.item_count }} Items
+                            </span>
                         </td>
                         <td class="text-end pe-4">
-                            <div class="btn-group shadow-sm rounded-pill" role="group">
-                                <!-- PDF -->
-                                <a href="{{ url_for('download_morning_pdf', allocation_id=row.id) }}" class="btn btn-sm btn-outline-danger" title="Download PDF">
-    <i class="fa-solid fa-file-pdf"></i>
-</a>
-
-                                <!-- WhatsApp -->
-                                {% if a.emp_phone %}
-                                    <a href="https://wa.me/{{ a.emp_phone }}?text=Stock Allocation for {{ a.date }}: {{ url_for('generate_morning_pdf', alloc_id=a.id, _external=True) }}" target="_blank" class="btn btn-sm btn-outline-success" title="WhatsApp">
-                                        <i class="fa-brands fa-whatsapp"></i>
-                                    </a>
-                                {% endif %}
-
-                                <!-- Edit -->
-                                {% if not a.evening_submitted %}
-                                    <a href="{{ url_for('edit_morning_allocation', allocation_id=a.id) }}" class="btn btn-sm btn-outline-primary" title="Edit">
-                                        <i class="fa-solid fa-pen-to-square"></i>
-                                    </a>
-                                {% else %}
-                                    <button class="btn btn-sm btn-outline-secondary disabled" title="Locked">
-                                        <i class="fa-solid fa-lock"></i>
+                            <div class="btn-group">
+                                <!-- PDF Download Link (FIXED: Using a.id) -->
+                                <a href="{{ url_for('download_morning_pdf', allocation_id=a.id) }}" class="btn btn-sm btn-outline-danger" title="Download PDF">
+                                    <i class="fa-solid fa-file-pdf"></i>
+                                </a>
+                                
+                                <a href="{{ url_for('edit_morning_allocation', allocation_id=a.id) }}" class="btn btn-sm btn-outline-primary" title="Edit">
+                                    <i class="fa-solid fa-pen"></i>
+                                </a>
+                                
+                                <form action="{{ url_for('delete_allocation', id=a.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this allocation?');">
+                                    <button class="btn btn-sm btn-outline-danger border-start-0" title="Delete">
+                                        <i class="fa-solid fa-trash"></i>
                                     </button>
-                                {% endif %}
+                                </form>
                             </div>
                         </td>
                     </tr>
