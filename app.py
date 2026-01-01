@@ -3750,21 +3750,7 @@ def download_evening_pdf(settle_id):
     return send_file(buffer, as_attachment=True, download_name=f"Evening_Settle_{settle_id}.pdf", mimetype='application/pdf')
 ```
 
-### **Step 2: Add Signature Image**
 
-1.  Create a folder named `img` inside your existing `static` folder (if it doesn't exist).
-2.  Place your owner signature image in that folder.
-3.  **Rename the image to:** `signature.png`
-    * Path should look like: `your_project/static/img/signature.png`
-
-### **Step 3: Update HTML Buttons**
-
-**In `allocation_list.html`:**
-Find your existing download/print button and replace the `href` with:
-```html
-<a href="{{ url_for('download_morning_pdf', allocation_id=row.id) }}" class="btn btn-sm btn-danger shadow-sm" title="Download PDF">
-    <i class="fa-solid fa-file-pdf"></i> PDF
-</a>
 
 
 
@@ -6095,6 +6081,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
