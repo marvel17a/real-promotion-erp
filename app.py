@@ -4630,6 +4630,7 @@ def delete_allocation(id):
 # 3. EVENING MASTER (History & Drafts) - WITH FILTERS
 # ---------------------------------------------------------
 # --- ADMIN EVENING MASTER ROUTE (Redesigned Stats) ---
+# --- ADMIN EVENING MASTER ROUTE ---
 @app.route('/evening/master')
 def admin_evening_master():
     if "loggedin" not in session: return redirect(url_for("login"))
@@ -4643,13 +4644,14 @@ def admin_evening_master():
     emp_filter = request.args.get('employee_id')
 
     # --- 2. Build Query ---
+    # FIX: Changed 'e.mobile' to 'e.phone' based on your database schema
     query = """
         SELECT es.id, es.date, es.created_at, 
                IFNULL(es.total_amount, 0) as total_amount, 
                IFNULL(es.cash_money, 0) as cash_money, 
                IFNULL(es.online_money, 0) as online_money, 
                IFNULL(es.discount, 0) as discount,
-               e.name as emp_name, e.image as emp_image, e.mobile as emp_mobile
+               e.name as emp_name, e.image as emp_image, e.phone as emp_mobile
         FROM evening_settle es
         JOIN employees e ON es.employee_id = e.id
         WHERE 1=1
@@ -4657,12 +4659,20 @@ def admin_evening_master():
     params = []
 
     if start_date:
-        query += " AND es.date >= %s"
-        params.append(parse_date(start_date)) # Use your parse_date helper or datetime.strptime
+        # Check for parse_date helper or fallback
+        try:
+            # Use globals() check to avoid NameError if parse_date isn't imported
+            dt = parse_date(start_date) if 'parse_date' in globals() else datetime.strptime(start_date, '%d-%m-%Y')
+            query += " AND es.date >= %s"
+            params.append(dt.strftime('%Y-%m-%d'))
+        except ValueError: pass
     
     if end_date:
-        query += " AND es.date <= %s"
-        params.append(parse_date(end_date))
+        try:
+            dt = parse_date(end_date) if 'parse_date' in globals() else datetime.strptime(end_date, '%d-%m-%Y')
+            query += " AND es.date <= %s"
+            params.append(dt.strftime('%Y-%m-%d'))
+        except ValueError: pass
 
     if emp_filter and emp_filter != 'all':
         query += " AND es.employee_id = %s"
@@ -4685,8 +4695,12 @@ def admin_evening_master():
     for s in settlements:
         # Image Resolution (Logic from employees.html)
         if s['emp_image']:
-            if not s['emp_image'].startswith('http'):
-                 s['emp_image'] = url_for('static', filename='uploads/' + s['emp_image'])
+            # Check if it's a full URL (Cloudinary etc)
+            if s['emp_image'].startswith('http'):
+                pass # Keep as is
+            else:
+                # Local upload
+                s['emp_image'] = url_for('static', filename='uploads/' + s['emp_image'])
         else:
             s['emp_image'] = url_for('static', filename='img/default-user.png')
 
@@ -4694,7 +4708,10 @@ def admin_evening_master():
         if isinstance(s['date'], (date, datetime)):
             s['formatted_date'] = s['date'].strftime('%d-%m-%Y')
         else:
-            s['formatted_date'] = str(s['date'])
+            try:
+                s['formatted_date'] = datetime.strptime(str(s['date']), '%Y-%m-%d').strftime('%d-%m-%Y')
+            except ValueError:
+                s['formatted_date'] = str(s['date'])
 
         # Numeric Safety
         t_amt = float(s['total_amount'])
@@ -4708,12 +4725,6 @@ def admin_evening_master():
         paid = c_money + o_money + disc
         s['due_amount'] = t_amt - paid
         
-        # Simple Status logic
-        if s['due_amount'] > 1.0: # Tolerance for float math
-            s['status'] = 'Due'
-        else:
-            s['status'] = 'Paid'
-
         # Stats
         stats['total_sales'] += t_amt
         stats['discount'] += disc
@@ -6084,6 +6095,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
