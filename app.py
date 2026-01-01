@@ -195,6 +195,286 @@ def parse_date_input(date_str):
 
 
 
+
+
+# --- ADD THIS TO PDFGenerator CLASS (Inside the class) ---
+    def generate_office_bill(self, data, output_path, owner_sig_path=None):
+        self.alias_nb_pages()
+        self.add_page()
+        
+        # --- 1. Header (Company Info) ---
+        self.set_font('Arial', 'B', 20)
+        self.set_text_color(26, 35, 126)
+        self.cell(0, 10, self.company_name, 0, 1, 'C')
+        
+        self.set_font('Arial', 'B', 10)
+        self.set_text_color(100, 100, 100)
+        self.cell(0, 5, self.slogan, 0, 1, 'C')
+        
+        self.ln(2)
+        self.set_font('Arial', '', 9)
+        self.set_text_color(50, 50, 50)
+        for line in self.address_lines:
+            self.cell(0, 4, line, 0, 1, 'C')
+        self.cell(0, 4, self.contact, 0, 1, 'C')
+        self.set_font('Arial', 'B', 9)
+        self.cell(0, 4, self.gst_no, 0, 1, 'C')
+        
+        self.ln(5)
+        self.set_draw_color(0, 0, 0)
+        self.line(10, self.get_y(), 200, self.get_y())
+        self.ln(2)
+        
+        # --- 2. Bill Title & Details ---
+        self.set_font('Arial', 'B', 16)
+        self.set_text_color(0, 0, 0)
+        self.cell(0, 10, "BILL OF SUPPLY", 0, 1, 'C')
+        self.ln(5)
+        
+        # Customer & Bill Info Grid
+        start_y = self.get_y()
+        
+        # Left: Bill Details
+        self.set_font('Arial', 'B', 10)
+        self.cell(25, 6, "Bill No:", 0, 0)
+        self.set_font('Arial', '', 10)
+        self.cell(60, 6, str(data['id']), 0, 1)
+        
+        self.set_font('Arial', 'B', 10)
+        self.cell(25, 6, "Date:", 0, 0)
+        self.set_font('Arial', '', 10)
+        self.cell(60, 6, data['date'], 0, 1)
+        
+        self.set_font('Arial', 'B', 10)
+        self.cell(25, 6, "Sales Person:", 0, 0)
+        self.set_font('Arial', '', 10)
+        self.cell(60, 6, data['sales_person'], 0, 1)
+        
+        # Right: Customer Details (Absolute Positioning)
+        self.set_xy(110, start_y)
+        self.set_font('Arial', 'B', 10)
+        self.cell(30, 6, "Customer:", 0, 0)
+        self.set_font('Arial', '', 10)
+        self.cell(60, 6, data['customer_name'], 0, 1)
+        
+        self.set_xy(110, start_y + 6)
+        self.set_font('Arial', 'B', 10)
+        self.cell(30, 6, "Mobile:", 0, 0)
+        self.set_font('Arial', '', 10)
+        self.cell(60, 6, data['customer_mobile'], 0, 1)
+        
+        self.set_xy(110, start_y + 12)
+        self.set_font('Arial', 'B', 10)
+        self.cell(30, 6, "Address:", 0, 0)
+        self.set_font('Arial', '', 10)
+        self.multi_cell(60, 6, data['customer_address'], 0, 'L')
+        
+        self.ln(10)
+        
+        # --- 3. Product Table ---
+        cols = ["#", "Product Name", "Qty", "Price", "Amount"]
+        widths = [15, 85, 20, 30, 40]
+        
+        self.set_font('Arial', 'B', 10)
+        self.set_fill_color(240, 240, 240)
+        for i, col in enumerate(cols):
+            self.cell(widths[i], 8, col, 1, 0, 'C', True)
+        self.ln()
+        
+        self.set_font('Arial', '', 10)
+        total_qty = 0
+        
+        for i, item in enumerate(data['items']):
+            self.cell(widths[0], 8, str(i+1), 1, 0, 'C')
+            self.cell(widths[1], 8, item['name'], 1, 0, 'L')
+            self.cell(widths[2], 8, str(item['qty']), 1, 0, 'C')
+            self.cell(widths[3], 8, f"{item['price']:.2f}", 1, 0, 'R')
+            self.cell(widths[4], 8, f"{item['total']:.2f}", 1, 1, 'R')
+            total_qty += int(item['qty'])
+            
+        # --- 4. Totals Section ---
+        self.ln(2)
+        x_start = 140 # Align to right
+        
+        def print_total_row(label, value, bold=False):
+            self.set_x(x_start)
+            self.set_font('Arial', 'B' if bold else '', 10)
+            self.cell(30, 8, label, 0, 0, 'R')
+            self.cell(30, 8, f"{value:.2f}", 1, 1, 'R')
+
+        print_total_row("Sub Total:", float(data['total_amount']))
+        print_total_row("Discount (-):", float(data['discount']))
+        print_total_row("GRAND TOTAL:", float(data['final_amount']), bold=True)
+        
+        self.ln(10)
+        
+        # --- 5. Terms & Signature ---
+        y_sig = self.get_y()
+        
+        # Terms (Left Side)
+        self.set_font('Arial', 'B', 9)
+        self.cell(0, 5, "Terms & Conditions:", 0, 1)
+        self.set_font('Arial', '', 8)
+        self.cell(0, 4, "1. Goods once sold will not be taken back.", 0, 1)
+        self.cell(0, 4, "2. Warranty as per manufacturer policy.", 0, 1)
+        self.cell(0, 4, "3. Subject to Nadiad jurisdiction.", 0, 1)
+        
+        # Signatures (Right Side / Bottom)
+        # Owner Sig
+        if owner_sig_path and os.path.exists(owner_sig_path):
+            self.image(owner_sig_path, x=150, y=y_sig, w=30)
+            
+        self.set_xy(140, y_sig + 20)
+        self.set_font('Arial', 'B', 9)
+        self.cell(50, 5, "For, REAL PROMOTION", 0, 1, 'C')
+        self.set_xy(140, y_sig + 25)
+        self.cell(50, 5, "(Authorized Signatory)", 0, 1, 'C')
+        
+        self.output(output_path)
+
+
+# --- ROUTE: OFFICE SALES FORM ---
+@app.route('/office_sales', methods=['GET', 'POST'])
+def office_sales():
+    if "loggedin" not in session: return redirect(url_for("login"))
+    
+    conn = mysql.connection
+    cursor = conn.cursor(MySQLdb.cursors.DictCursor)
+    
+    if request.method == 'POST':
+        try:
+            # Customer Info
+            c_name = request.form.get('customer_name')
+            c_mobile = request.form.get('customer_mobile')
+            c_addr = request.form.get('customer_address')
+            sales_person = request.form.get('sales_person')
+            bill_date = request.form.get('bill_date') or date.today()
+            
+            # Products
+            p_ids = request.form.getlist('product_id[]')
+            qtys = request.form.getlist('qty[]')
+            prices = request.form.getlist('price[]')
+            
+            # Payment
+            discount = float(request.form.get('discount') or 0)
+            
+            # Calculate Totals
+            total_amt = 0
+            items_data = []
+            
+            # 1. Insert Header
+            cursor.execute("""
+                INSERT INTO office_sales 
+                (customer_name, customer_mobile, customer_address, sales_person, bill_date, discount)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """, (c_name, c_mobile, c_addr, sales_person, bill_date, discount))
+            sale_id = cursor.lastrowid
+            
+            # 2. Process Items & Deduct Stock
+            for i, pid in enumerate(p_ids):
+                qty = int(qtys[i])
+                price = float(prices[i])
+                
+                # Check Stock
+                cursor.execute("SELECT stock, name FROM products WHERE id=%s", (pid,))
+                prod = cursor.fetchone()
+                if prod and prod['stock'] < qty:
+                    raise Exception(f"Insufficient stock for {prod['name']}")
+                
+                # Deduct Stock
+                cursor.execute("UPDATE products SET stock = stock - %s WHERE id=%s", (qty, pid))
+                
+                # Insert Item
+                cursor.execute("""
+                    INSERT INTO office_sale_items (sale_id, product_id, qty, unit_price)
+                    VALUES (%s, %s, %s, %s)
+                """, (sale_id, pid, qty, price))
+                
+                total_amt += (qty * price)
+            
+            # 3. Update Final Amounts
+            final_amt = total_amt - discount
+            cursor.execute("""
+                UPDATE office_sales 
+                SET total_amount=%s, final_amount=%s 
+                WHERE id=%s
+            """, (total_amt, final_amt, sale_id))
+            
+            conn.commit()
+            
+            # 4. Generate PDF immediately
+            return redirect(url_for('download_office_bill', sale_id=sale_id))
+            
+        except Exception as e:
+            conn.rollback()
+            flash(f"Error: {str(e)}", "danger")
+            return redirect(url_for('office_sales'))
+
+    # GET: Load Form
+    cursor.execute("SELECT id, name, price, stock, image FROM products WHERE status='Active' ORDER BY name")
+    products = cursor.fetchall()
+    
+    # Resolve images for JS
+    for p in products:
+        if p['image'] and not p['image'].startswith('http'):
+            p['image'] = url_for('static', filename='uploads/' + p['image'])
+        elif not p['image']:
+            p['image'] = url_for('static', filename='img/default-product.png')
+
+    return render_template('office_sales.html', products=products, today=date.today())
+
+
+# --- ROUTE: DOWNLOAD BILL PDF ---
+@app.route('/office_sales/print/<int:sale_id>')
+def download_office_bill(sale_id):
+    if "loggedin" not in session: return redirect(url_for("login"))
+    
+    conn = mysql.connection
+    cursor = conn.cursor(MySQLdb.cursors.DictCursor)
+    
+    cursor.execute("SELECT * FROM office_sales WHERE id=%s", (sale_id,))
+    sale = cursor.fetchone()
+    
+    if not sale: return "Bill not found"
+    
+    cursor.execute("""
+        SELECT i.*, p.name 
+        FROM office_sale_items i 
+        JOIN products p ON i.product_id = p.id 
+        WHERE i.sale_id=%s
+    """, (sale_id,))
+    items = cursor.fetchall()
+    
+    # Prepare Data
+    pdf_data = {
+        'id': sale['id'],
+        'date': str(sale['bill_date']),
+        'customer_name': sale['customer_name'],
+        'customer_mobile': sale['customer_mobile'],
+        'customer_address': sale['customer_address'],
+        'sales_person': sale['sales_person'],
+        'total_amount': sale['total_amount'],
+        'discount': sale['discount'],
+        'final_amount': sale['final_amount'],
+        'items': [{'name': i['name'], 'qty': i['qty'], 'price': i['unit_price'], 'total': i['total_price']} for i in items]
+    }
+    
+    pdf = PDFGenerator() # Uses same base class
+    
+    # Output
+    buffer = io.BytesIO()
+    # Call the NEW method
+    pdf.generate_office_bill(pdf_data, buffer, owner_sig_path=get_signature_path()) # Pass buffer directly if lib supports, else use string trick
+    
+    # For FPDF 1.7 compatibility:
+    pdf_str = pdf.output(dest='S').encode('latin-1')
+    buffer = io.BytesIO(pdf_str)
+    buffer.seek(0)
+    
+    return send_file(buffer, as_attachment=True, download_name=f"Bill_{sale_id}.pdf", mimetype='application/pdf')
+
+
+
 @app.route('/supplier/payment/delete/<int:payment_id>', methods=['POST'])
 def delete_supplier_payment(payment_id):
     if 'loggedin' not in session: return redirect(url_for('login'))
@@ -6124,6 +6404,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
