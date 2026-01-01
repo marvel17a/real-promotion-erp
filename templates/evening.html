@@ -48,7 +48,7 @@
                 <label class="control-label">Sales Representative</label>
                 <div class="d-flex align-items-center gap-3">
                     <div class="emp-photo-box">
-                        <img id="empPhoto" src="{{ employee_img if employee_img else url_for('static', filename='img/default-user.png') }}" alt="User">
+                       <img src="{{ url_for('static', filename='img/default-user.png') }}" id="empPhoto" alt="User">
                     </div>
                     <div class="flex-grow-1">
                         <div class="input-group-glass">
@@ -338,4 +338,5 @@
     });
 </script>
 {% endblock %}
+
 
