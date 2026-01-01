@@ -94,70 +94,9 @@ def safe_date_format(date_obj, format='%d-%m-%Y', default='N/A'):
 # --- VIEW EVENING SETTLEMENT DETAILS ---
 # --- VIEW EVENING SETTLEMENT DETAILS (FIXED e.phone) ---
 # --- VIEW EVENING SETTLEMENT DETAILS ---
-@app.route('/evening/view/<int:settle_id>')
-def view_evening_settlement(settle_id):
-    if "loggedin" not in session: return redirect(url_for("login"))
-    
-    conn = mysql.connection
-    cursor = conn.cursor(MySQLdb.cursors.DictCursor)
-    
-    # 1. Fetch Header Info
-    # Added 'due_note' to SELECT and IFNULL logic
-    cursor.execute("""
-        SELECT es.*, 
-               IFNULL(es.total_amount, 0) as total_amount,
-               IFNULL(es.cash_money, 0) as cash_money,
-               IFNULL(es.online_money, 0) as online_money,
-               IFNULL(es.discount, 0) as discount,
-               IFNULL(es.emp_credit_amount, 0) as emp_credit_amount,
-               IFNULL(es.emp_debit_amount, 0) as emp_debit_amount,
-               IFNULL(es.due_note, '') as due_note,
-               e.name as emp_name, e.image as emp_image, e.phone as emp_mobile
-        FROM evening_settle es
-        JOIN employees e ON es.employee_id = e.id
-        WHERE es.id = %s
-    """, (settle_id,))
-    settlement = cursor.fetchone()
-    
-    if not settlement:
-        flash("Record not found.", "danger")
-        return redirect(url_for('admin_evening_master'))
-        
-    # Process Header Data
-    if settlement['emp_image']:
-        if not settlement['emp_image'].startswith('http'):
-             settlement['emp_image'] = url_for('static', filename='uploads/' + settlement['emp_image'])
-    else:
-        settlement['emp_image'] = url_for('static', filename='img/default-user.png')
-        
-    if isinstance(settlement['date'], (date, datetime)):
-        settlement['formatted_date'] = settlement['date'].strftime('%d-%m-%Y')
-    else:
-        settlement['formatted_date'] = str(settlement['date'])
 
-    # Calculate Due Amount safely
-    total = float(settlement['total_amount'])
-    paid = float(settlement['cash_money']) + float(settlement['online_money']) + float(settlement['discount'])
-    settlement['due_amount'] = total - paid
 
-    # 2. Fetch Product Items
-    cursor.execute("""
-        SELECT ei.*, p.name as product_name, p.image 
-        FROM evening_item ei
-        JOIN products p ON ei.product_id = p.id
-        WHERE ei.settle_id = %s
-    """, (settle_id,))
-    items = cursor.fetchall()
-    
-    # Process Item Images
-    for item in items:
-        if item['image']:
-            if not item['image'].startswith('http'):
-                 item['image'] = url_for('static', filename='uploads/' + item['image'])
-        else:
-            item['image'] = url_for('static', filename='img/default-product.png')
 
-    return render_template('admin/view_evening.html', settlement=settlement, items=items)
 
 
 import pytz # Recommended: pip install pytz
@@ -6099,6 +6038,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
