@@ -5618,7 +5618,6 @@ def emp_ledger(employee_id):
         return redirect(url_for('emp_list'))
         
     # Fetch Transactions
-    # We select created_at to show the time
     cur.execute("""
         SELECT id, transaction_date, type, amount, description, created_at 
         FROM employee_transactions 
@@ -5629,13 +5628,22 @@ def emp_ledger(employee_id):
     
     cur.close()
     
-    # Calculate Balance
-    # To calculate accurate running balance, we usually need to process oldest to newest.
-    # But we want to display Newest first.
-    # Strategy: Fetch all, calculate normal order, then reverse for display.
+    # --- FIX START: Resolve datetime ambiguity ---
+    # The error "module 'datetime' has no attribute 'min'" happens because 'datetime' 
+    # refers to the module in your app.py global scope. We import classes locally to fix this.
+    from datetime import datetime as dt_class, date as date_class, timedelta
     
-    # Let's fetch ordered by Oldest First for calculation
-    transactions_calc = sorted(transactions_from_db, key=lambda x: (x['transaction_date'] or datetime.min.date(), x['created_at'] or datetime.min))
+    # Sort logic handling None values
+    # x['transaction_date'] (date object) or date_class.min
+    # x['created_at'] (datetime object) or dt_class.min
+    transactions_calc = sorted(
+        transactions_from_db, 
+        key=lambda x: (
+            x['transaction_date'] or date_class.min, 
+            x['created_at'] or dt_class.min
+        )
+    )
+    # --- FIX END ---
     
     running_balance = 0.0
     total_debit = 0.0
@@ -5648,13 +5656,9 @@ def emp_ledger(employee_id):
         amt = float(t['amount'])
         
         if t['type'] == 'debit':
-            # Debit (Giving money to employee) increases what they owe (positive balance)
-            # OR decreases company holding. 
-            # Based on your previous request: Debit = Given = +Balance (Employee Owes)
             running_balance += amt
             total_debit += amt
         else:
-            # Credit (Salary/Received) decreases debt
             running_balance -= amt
             total_credit += amt
             
@@ -5664,20 +5668,17 @@ def emp_ledger(employee_id):
         t_dict = dict(t)
         t_dict['balance'] = running_balance
         
-        # --- TIME FORMATTING (IST) ---
-        # Since we saved it as IST in 'created_at', we just format it.
-        # If it was saved as UTC (old records), we might need conversion.
-        # Ideally, just formatting what is in DB:
+        # Time Formatting (IST)
         if t.get('created_at'):
-            # If your DB server is UTC but you saved IST string/datetime, it stays IST.
-            # We assume created_at holds the correct time now.
-            t_dict['time_str'] = t['created_at'].strftime('%I:%M %p') # 04:30 PM
+            # Convert to IST (UTC + 5:30)
+            local_time = t['created_at'] + timedelta(hours=5, minutes=30)
+            t_dict['time_str'] = local_time.strftime('%I:%M %p')
         else:
             t_dict['time_str'] = "-"
             
         processed_transactions.append(t_dict)
         
-    # Now reverse to show Newest First
+    # Reverse to show Newest First for display
     transactions_display = processed_transactions[::-1]
 
     return render_template('emp_ledger.html', 
@@ -6050,6 +6051,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
