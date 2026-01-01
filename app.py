@@ -3430,7 +3430,6 @@ class PDFGenerator(FPDF):
         self.set_font('Arial', '', 10)
         self.cell(35, 6, "Mobile No:", 0, 0)
         self.set_font('Arial', 'B', 10)
-        # Use provided mobile or fallback
         self.cell(70, 6, str(emp_mobile) if emp_mobile else "N/A", 0, 1)
 
         # Right: Date/Time
@@ -3473,7 +3472,7 @@ class PDFGenerator(FPDF):
         else:
             self.set_xy(20, y_pos)
             self.set_font('Arial', 'I', 8)
-            self.cell(40, 10, "", 0, 0) # Blank if missing
+            self.cell(40, 10, "", 0, 0)
 
         self.line(15, y_pos + 25, 75, y_pos + 25)
         self.set_xy(15, y_pos + 27)
@@ -3489,7 +3488,7 @@ class PDFGenerator(FPDF):
         self.cell(0, 5, "This is a computer generated document.", 0, 1, 'C')
 
 
-# --- MORNING PDF ROUTE (FIXED) ---
+# --- MORNING PDF ROUTE ---
 @app.route('/download_morning_pdf/<int:allocation_id>')
 def download_morning_pdf(allocation_id):
     if "loggedin" not in session: return redirect(url_for("login"))
@@ -3497,7 +3496,7 @@ def download_morning_pdf(allocation_id):
     conn = mysql.connection
     cursor = conn.cursor(MySQLdb.cursors.DictCursor)
     
-    # 1. Header - REMOVED e.mobile to prevent 1054 error
+    # 1. Header (Removed e.mobile)
     cursor.execute("""
         SELECT ma.date, ma.created_at, e.name as emp_name
         FROM morning_allocations ma
@@ -3527,7 +3526,6 @@ def download_morning_pdf(allocation_id):
     d_val = header['date'].strftime('%d-%m-%Y') if header['date'] else ""
     t_val = str(header['created_at']) if header['created_at'] else "N/A"
     
-    # Pass empty string for mobile since column is missing
     pdf.add_info_section(header['emp_name'], "", d_val, t_val)
     
     cols = ["#", "Product Name", "Opening", "Given", "Total", "Price", "Amount"]
@@ -3584,7 +3582,7 @@ def download_evening_pdf(settle_id):
     conn = mysql.connection
     cursor = conn.cursor(MySQLdb.cursors.DictCursor)
     
-    # 1. Header (removed e.mobile)
+    # 1. Header (Removed e.mobile)
     cursor.execute("""
         SELECT es.*, e.name as emp_name
         FROM evening_settle es
@@ -3679,8 +3677,6 @@ def download_evening_pdf(settle_id):
     pdf.ln(1)
     print_kv("CASH COLLECTED:", f"{float(data.get('cash_money', 0) or 0):.2f}", 15, 40, 30)
     
-    # Assumes no credit/debit columns in DB yet based on 1054 errors, so skipping display if missing
-    
     pdf.ln(15)
     net_sales = tot_amt - float(data.get('discount', 0) or 0) - float(data.get('online_money', 0) or 0)
     balance_due = net_sales - float(data.get('cash_money', 0) or 0)
@@ -3698,6 +3694,7 @@ def download_evening_pdf(settle_id):
     buffer.seek(0)
     
     return send_file(buffer, as_attachment=True, download_name=f"Evening_Settle_{settle_id}.pdf", mimetype='application/pdf')
+
 
 
 
@@ -6050,6 +6047,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
