@@ -4098,6 +4098,7 @@ def fetch_evening_data():
 # ---------------------------------------------------------
 # 2. EVENING SETTLEMENT (Final, Drafts, Finance)
 # ---------------------------------------------------------
+
 @app.route('/evening', methods=['GET', 'POST'])
 def evening():
     if "loggedin" not in session: return redirect(url_for("login"))
@@ -4225,7 +4226,12 @@ def evening():
         draft_data = cursor.fetchone()
         if draft_data:
             selected_emp_id = draft_data['employee_id']
-            today = draft_data['date'].strftime('%d-%m-%Y')
+            # FIX: Handle NoneType for date
+            if draft_data['date']:
+                today = draft_data['date'].strftime('%d-%m-%Y')
+            else:
+                # If date is missing in DB, keep 'today' as current date (set above)
+                pass 
             
             # Fetch Items with Product Names
             cursor.execute("""
@@ -4631,60 +4637,99 @@ def admin_evening_master():
     conn = mysql.connection
     cursor = conn.cursor(MySQLdb.cursors.DictCursor)
     
-    # Query with IFNULL to be safe on DB side
+    # --- 1. Get Filter Params ---
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    emp_filter = request.args.get('employee_id')
+
+    # --- 2. Build Query ---
     query = """
         SELECT es.id, es.date, es.created_at, 
                IFNULL(es.total_amount, 0) as total_amount, 
                IFNULL(es.cash_money, 0) as cash_money, 
                IFNULL(es.online_money, 0) as online_money, 
                IFNULL(es.discount, 0) as discount,
-               e.name as emp_name, e.image as emp_image
+               e.name as emp_name, e.image as emp_image, e.mobile as emp_mobile
         FROM evening_settle es
         JOIN employees e ON es.employee_id = e.id
-        ORDER BY es.date DESC, es.created_at DESC
+        WHERE 1=1
     """
-    cursor.execute(query)
+    params = []
+
+    if start_date:
+        query += " AND es.date >= %s"
+        params.append(parse_date(start_date)) # Use your parse_date helper or datetime.strptime
+    
+    if end_date:
+        query += " AND es.date <= %s"
+        params.append(parse_date(end_date))
+
+    if emp_filter and emp_filter != 'all':
+        query += " AND es.employee_id = %s"
+        params.append(emp_filter)
+
+    query += " ORDER BY es.date DESC, es.created_at DESC"
+    
+    cursor.execute(query, tuple(params))
     settlements = cursor.fetchall()
     
     # Stats Accumulators
     stats = {
-        'total_sales': 0.0, # Raw Total
-        'net_sales': 0.0,   # Total - Discount
+        'total_sales': 0.0, 
+        'net_sales': 0.0,
         'cash': 0.0,
         'online': 0.0,
         'discount': 0.0
     }
     
     for s in settlements:
+        # Image Resolution (Logic from employees.html)
         if s['emp_image']:
             if not s['emp_image'].startswith('http'):
                  s['emp_image'] = url_for('static', filename='uploads/' + s['emp_image'])
         else:
             s['emp_image'] = url_for('static', filename='img/default-user.png')
 
-        # ROBUST FIX: Handle NoneType before float conversion
-        t_amt = float(s.get('total_amount') or 0)
-        c_money = float(s.get('cash_money') or 0)
-        o_money = float(s.get('online_money') or 0)
-        disc = float(s.get('discount') or 0)
-        
-        s['total_amount'] = t_amt
-        s['cash_money'] = c_money
-        s['online_money'] = o_money
-        s['discount'] = disc
-        
-        # Calculate Net Sales for this row (Total - Discount)
-        # Note: Usually 'Total Sales' implies gross. If you want Net displayed, we calc it here.
-        s['net_sales'] = t_amt - disc
+        # Date Formatting
+        if isinstance(s['date'], (date, datetime)):
+            s['formatted_date'] = s['date'].strftime('%d-%m-%Y')
+        else:
+            s['formatted_date'] = str(s['date'])
 
-        # Accumulate Stats
+        # Numeric Safety
+        t_amt = float(s['total_amount'])
+        c_money = float(s['cash_money'])
+        o_money = float(s['online_money'])
+        disc = float(s['discount'])
+        
+        # Calculations
+        s['net_sales'] = t_amt - disc
+        
+        paid = c_money + o_money + disc
+        s['due_amount'] = t_amt - paid
+        
+        # Simple Status logic
+        if s['due_amount'] > 1.0: # Tolerance for float math
+            s['status'] = 'Due'
+        else:
+            s['status'] = 'Paid'
+
+        # Stats
         stats['total_sales'] += t_amt
         stats['discount'] += disc
         stats['net_sales'] += (t_amt - disc)
         stats['cash'] += c_money
         stats['online'] += o_money
 
-    return render_template('admin/evening_master.html', settlements=settlements, stats=stats)
+    # --- 3. Fetch Employees for Filter ---
+    cursor.execute("SELECT id, name FROM employees WHERE status='active' ORDER BY name")
+    employees = cursor.fetchall()
+
+    return render_template('admin/evening_master.html', 
+                           settlements=settlements, 
+                           stats=stats,
+                           employees=employees,
+                           filters={'start': start_date, 'end': end_date, 'emp': emp_filter})
 
 
 
@@ -6039,6 +6084,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
