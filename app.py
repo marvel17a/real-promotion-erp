@@ -4651,7 +4651,7 @@ def admin_evening_master():
     emp_filter = request.args.get('employee_id')
 
     # --- 2. Build Query ---
-    # FIX: Changed 'e.mobile' to 'e.phone' based on your database schema
+    # Fetching necessary fields, including e.phone (not mobile) based on schema
     query = """
         SELECT es.id, es.date, es.created_at, 
                IFNULL(es.total_amount, 0) as total_amount, 
@@ -4666,9 +4666,8 @@ def admin_evening_master():
     params = []
 
     if start_date:
-        # Check for parse_date helper or fallback
         try:
-            # Use globals() check to avoid NameError if parse_date isn't imported
+            # Safe check for parse_date helper
             dt = parse_date(start_date) if 'parse_date' in globals() else datetime.strptime(start_date, '%d-%m-%Y')
             query += " AND es.date >= %s"
             params.append(dt.strftime('%Y-%m-%d'))
@@ -4700,18 +4699,18 @@ def admin_evening_master():
     }
     
     for s in settlements:
-        # Image Resolution (Logic from employees.html)
+        # Image Resolution Logic
         if s['emp_image']:
-            # Check if it's a full URL (Cloudinary etc)
+            # If it starts with http/https (Cloudinary), keep it. 
+            # Otherwise assume local upload
             if s['emp_image'].startswith('http'):
-                pass # Keep as is
+                pass 
             else:
-                # Local upload
                 s['emp_image'] = url_for('static', filename='uploads/' + s['emp_image'])
         else:
             s['emp_image'] = url_for('static', filename='img/default-user.png')
 
-        # Date Formatting
+        # Date Formatting (dd-mm-yyyy)
         if isinstance(s['date'], (date, datetime)):
             s['formatted_date'] = s['date'].strftime('%d-%m-%Y')
         else:
@@ -4719,6 +4718,20 @@ def admin_evening_master():
                 s['formatted_date'] = datetime.strptime(str(s['date']), '%Y-%m-%d').strftime('%d-%m-%Y')
             except ValueError:
                 s['formatted_date'] = str(s['date'])
+
+        # Time Formatting (12-hour)
+        if s.get('created_at'):
+             # If it's a timedelta, convert (rare but possible in some DB drivers)
+            if isinstance(s['created_at'], timedelta):
+                 dummy_date = datetime.min + s['created_at']
+                 s['formatted_time'] = dummy_date.strftime('%I:%M %p')
+            # If it's datetime
+            elif isinstance(s['created_at'], datetime):
+                 s['formatted_time'] = s['created_at'].strftime('%I:%M %p')
+            else:
+                 s['formatted_time'] = str(s['created_at'])
+        else:
+            s['formatted_time'] = ""
 
         # Numeric Safety
         t_amt = float(s['total_amount'])
@@ -4732,7 +4745,7 @@ def admin_evening_master():
         paid = c_money + o_money + disc
         s['due_amount'] = t_amt - paid
         
-        # Stats
+        # Stats Aggregation
         stats['total_sales'] += t_amt
         stats['discount'] += disc
         stats['net_sales'] += (t_amt - disc)
@@ -6102,6 +6115,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
