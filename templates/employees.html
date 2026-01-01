@@ -19,8 +19,8 @@
             <!-- Added d-flex flex-column to enable vertical spacing alignment -->
             <div class="glass-card h-100 text-center position-relative p-4 group-hover d-flex flex-column">
                 
-                <!-- Status Badge -->
-                {% if emp.status == 'active' %}
+                <!-- Status Badge (Fixed Color Logic) -->
+                {% if emp.status and emp.status|lower == 'active' %}
                     <span class="position-absolute top-0 end-0 m-3 p-2 bg-success rounded-circle border border-2 border-white" title="Active"></span>
                 {% else %}
                     <span class="position-absolute top-0 end-0 m-3 p-2 bg-secondary rounded-circle border border-2 border-white" title="Inactive"></span>
@@ -45,7 +45,7 @@
                 <p class="text-primary small fw-semibold mb-2">{{ emp.position_name or emp.position or 'Team Member' }}</p>
                 <p class="text-muted small mb-3">{{ emp.department_name }}</p>
 
-                <!-- Mini Details (Removed Address/City as requested) -->
+                <!-- Mini Details (Removed Address/City as requested previously) -->
                 {% if emp.phone %}
                 <div class="d-flex justify-content-center gap-3 mb-4 text-muted small">
                     <div title="Phone">
@@ -53,7 +53,6 @@
                     </div>
                 </div>
                 {% else %}
-                <!-- Spacer if no phone, to keep layout consistent -->
                 <div class="mb-4"></div>
                 {% endif %}
 
