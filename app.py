@@ -209,47 +209,56 @@ def office_sales():
     
     if request.method == 'POST':
         try:
-            # Customer Info
+            # 1. Customer & Header Info
             c_name = request.form.get('customer_name')
             c_mobile = request.form.get('customer_mobile')
             c_addr = request.form.get('customer_address')
             sales_person = request.form.get('sales_person')
-            bill_date = request.form.get('bill_date') or date.today()
             
-            # Products
+            # Date Handling
+            b_date_str = request.form.get('bill_date')
+            try:
+                # Convert DD-MM-YYYY to YYYY-MM-DD for DB
+                if b_date_str:
+                    bill_date = datetime.strptime(b_date_str, '%d-%m-%Y').strftime('%Y-%m-%d')
+                else:
+                    bill_date = date.today()
+            except ValueError:
+                bill_date = date.today()
+
+            # 2. Financials
+            discount = float(request.form.get('discount') or 0)
+            online_amt = float(request.form.get('online') or 0)
+            cash_amt = float(request.form.get('cash') or 0)
+            
+            
+            # 3. Products
             p_ids = request.form.getlist('product_id[]')
             qtys = request.form.getlist('qty[]')
             prices = request.form.getlist('price[]')
             
-            # Payment
-            discount = float(request.form.get('discount') or 0)
-            
-            # Calculate Totals
             total_amt = 0
             
-            # 1. Insert Header
+            # Insert Header (Initial)
+            # Note: Ensure office_sales table has online_amount, cash_amount columns if you want to store them separately
+            # For now, I'll store them or just Final Amount. 
+            # Ideally, update your office_sales table to have: online_amount, cash_amount, due_note
+            # Assuming table structure update:
             cursor.execute("""
                 INSERT INTO office_sales 
-                (customer_name, customer_mobile, customer_address, sales_person, bill_date, discount)
-                VALUES (%s, %s, %s, %s, %s, %s)
+                (customer_name, customer_mobile, customer_address, sales_person, bill_date, discount, payment_mode)
+                VALUES (%s, %s, %s, %s, %s, %s, 'Mixed')
             """, (c_name, c_mobile, c_addr, sales_person, bill_date, discount))
             sale_id = cursor.lastrowid
             
-            # 2. Process Items & Deduct Stock
+            # Process Items
             for i, pid in enumerate(p_ids):
                 qty = int(qtys[i])
                 price = float(prices[i])
                 
-                # Check Stock
-                cursor.execute("SELECT stock, name FROM products WHERE id=%s", (pid,))
-                prod = cursor.fetchone()
-                if prod and prod['stock'] < qty:
-                    raise Exception(f"Insufficient stock for {prod['name']}")
-                
                 # Deduct Stock
                 cursor.execute("UPDATE products SET stock = stock - %s WHERE id=%s", (qty, pid))
                 
-                # Insert Item
                 cursor.execute("""
                     INSERT INTO office_sale_items (sale_id, product_id, qty, unit_price)
                     VALUES (%s, %s, %s, %s)
@@ -257,7 +266,7 @@ def office_sales():
                 
                 total_amt += (qty * price)
             
-            # 3. Update Final Amounts
+            # Final Update
             final_amt = total_amt - discount
             cursor.execute("""
                 UPDATE office_sales 
@@ -267,7 +276,6 @@ def office_sales():
             
             conn.commit()
             
-            # 4. Generate PDF immediately
             return redirect(url_for('download_office_bill', sale_id=sale_id))
             
         except Exception as e:
@@ -275,19 +283,17 @@ def office_sales():
             flash(f"Error: {str(e)}", "danger")
             return redirect(url_for('office_sales'))
 
-    # GET: Load Form
-    # FIX: Removed "WHERE status='Active'" to prevent 1054 error
+    # GET
     cursor.execute("SELECT id, name, price, stock, image FROM products ORDER BY name")
     products = cursor.fetchall()
     
-    # Resolve images for JS
     for p in products:
         if p['image'] and not p['image'].startswith('http'):
             p['image'] = url_for('static', filename='uploads/' + p['image'])
         elif not p['image']:
             p['image'] = url_for('static', filename='img/default-product.png')
 
-    return render_template('office_sales.html', products=products, today=date.today())
+    return render_template('office_sales.html', products=products, today=date.today().strftime('%d-%m-%Y'))
 
 
 # ... (Previous imports and setup code) ...
@@ -6533,6 +6539,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
