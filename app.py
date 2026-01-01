@@ -4592,6 +4592,38 @@ def edit_morning_allocation(allocation_id):
         if db_cursor: db_cursor.close()
 
 
+# --- DELETE ALLOCATION ROUTE ---
+@app.route('/morning/delete/<int:id>', methods=['POST'])
+def delete_allocation(id):
+    if "loggedin" not in session: return redirect(url_for("login"))
+    
+    conn = mysql.connection
+    cursor = conn.cursor()
+    
+    try:
+        # 1. Check if linked to Evening Settlement
+        cursor.execute("SELECT id FROM evening_settle WHERE allocation_id = %s", (id,))
+        linked = cursor.fetchone()
+        
+        if linked:
+            flash("Cannot delete: This allocation has an evening settlement linked to it.", "danger")
+        else:
+            # 2. Delete Items First (Cascade usually handles this, but explicit is safer)
+            cursor.execute("DELETE FROM morning_allocation_items WHERE allocation_id = %s", (id,))
+            # 3. Delete Header
+            cursor.execute("DELETE FROM morning_allocations WHERE id = %s", (id,))
+            conn.commit()
+            flash("Allocation deleted successfully.", "success")
+            
+    except Exception as e:
+        conn.rollback()
+        flash(f"Error deleting: {str(e)}", "danger")
+    finally:
+        cursor.close()
+        
+    return redirect(url_for('allocation_list'))
+
+
 # ---------------------------------------------------------
 # 3. EVENING MASTER (History & Drafts) - WITH FILTERS
 # ---------------------------------------------------------
@@ -6059,6 +6091,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
