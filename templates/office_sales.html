@@ -6,125 +6,133 @@
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <!-- FontAwesome -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-<!-- Custom CSS -->
-<link rel="stylesheet" href="{{ url_for('static', filename='css/morning.css') }}">
+<!-- Reuse Evening CSS for consistency -->
+<link rel="stylesheet" href="{{ url_for('static', filename='css/evening.css') }}">
 
 <div class="glass-container fade-in-up mb-5">
     
-    <!-- Header -->
-    <div class="page-header mb-4">
+    <!-- Header Section -->
+    <div class="page-header text-center mb-4">
         <h1 class="company-title fw-800 text-gradient">OFFICE SALES</h1>
-        <p class="company-subtitle text-uppercase">Direct Customer Billing</p>
+        <p class="company-subtitle text-uppercase text-muted letter-spacing-2">Bill of Supply</p>
     </div>
 
     <form method="POST" id="billForm">
+        
+        <!-- Top Section: Customer & Bill Info -->
+        <div class="glass-panel p-4 mb-4">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="small text-muted fw-bold text-uppercase">Date</label>
+                    <input type="text" name="bill_date" class="form-control rounded-pill date-picker text-center fw-bold" value="{{ today }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="small text-muted fw-bold text-uppercase">Sales Person</label>
+                    <select name="sales_person" class="form-select rounded-pill fw-bold">
+                        <option value="Office Staff">Office Staff</option>
+                        <option value="Manager">Manager</option>
+                        <option value="Owner">Owner</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="small text-muted fw-bold text-uppercase">Customer Name</label>
+                    <input type="text" name="customer_name" class="form-control rounded-pill fw-bold" required placeholder="Enter Customer Name">
+                </div>
+                <div class="col-md-4">
+                    <label class="small text-muted fw-bold text-uppercase">Mobile Number</label>
+                    <input type="tel" name="customer_mobile" class="form-control rounded-pill fw-bold" placeholder="10-digit Mobile">
+                </div>
+                <div class="col-md-8">
+                    <label class="small text-muted fw-bold text-uppercase">Address</label>
+                    <input type="text" name="customer_address" class="form-control rounded-pill fw-bold" placeholder="Customer Address">
+                </div>
+            </div>
+        </div>
+
         <div class="row g-4">
             
-            <!-- LEFT COLUMN: Customer & Products -->
+            <!-- LEFT: Product Table -->
             <div class="col-lg-8">
-                
-                <!-- Customer Details Card -->
-                <div class="card border-0 shadow-sm rounded-4 mb-4">
-                    <div class="card-header bg-white border-0 py-3">
-                        <h5 class="fw-bold text-dark mb-0"><i class="fa-solid fa-user-tag text-primary me-2"></i>Customer Details</h5>
-                    </div>
-                    <div class="card-body p-4 pt-0">
-                        <div class="row g-3">
-                            <div class="col-md-4">
-                                <label class="small text-muted fw-bold text-uppercase">Date</label>
-                                <input type="text" name="bill_date" class="form-control form-control-sm rounded-pill date-picker" value="{{ today }}">
-                            </div>
-                            <div class="col-md-4">
-                                <label class="small text-muted fw-bold text-uppercase">Sales Person</label>
-                                <select name="sales_person" class="form-select form-select-sm rounded-pill">
-                                    <option value="Office">Office Staff</option>
-                                    <option value="Owner">Owner</option>
-                                    <option value="Manager">Manager</option>
-                                </select>
-                            </div>
-                            <div class="col-md-4">
-                                <label class="small text-muted fw-bold text-uppercase">Mobile</label>
-                                <input type="tel" name="customer_mobile" class="form-control form-control-sm rounded-pill" placeholder="10-digit number">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="small text-muted fw-bold text-uppercase">Customer Name</label>
-                                <input type="text" name="customer_name" class="form-control form-control-sm rounded-pill" required placeholder="Enter Name">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="small text-muted fw-bold text-uppercase">Address</label>
-                                <input type="text" name="customer_address" class="form-control form-control-sm rounded-pill" placeholder="City/Area">
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Product Table Card -->
-                <div class="card border-0 shadow-sm rounded-4">
-                    <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
-                        <h5 class="fw-bold text-dark mb-0"><i class="fa-solid fa-box-open text-primary me-2"></i>Items</h5>
+                <div class="glass-panel p-0 overflow-hidden">
+                    <div class="p-3 border-bottom bg-light d-flex justify-content-between align-items-center">
+                        <h5 class="fw-bold text-dark mb-0"><i class="fa-solid fa-cart-shopping text-primary me-2"></i>Items</h5>
                         <button type="button" class="btn btn-sm btn-primary rounded-pill px-3 shadow-sm" onclick="addBillRow()">
-                            <i class="fa-solid fa-plus me-1"></i> Add Item
+                            <i class="fa-solid fa-plus me-1"></i> Add Product
                         </button>
                     </div>
-                    <div class="card-body p-0">
-                        <div class="table-responsive">
-                            <table class="table align-middle table-hover mb-0" id="billTable">
-                                <thead class="bg-light">
-                                    <tr class="text-uppercase small fw-bold text-muted">
-                                        <th class="ps-4" width="5%">#</th>
-                                        <th class="text-center" width="10%">Img</th>
-                                        <th width="35%">Product</th>
-                                        <th class="text-center" width="15%">Qty</th>
-                                        <th class="text-end" width="15%">Price</th>
-                                        <th class="text-end pe-4" width="15%">Total</th>
-                                        <th width="5%"></th>
-                                    </tr>
-                                </thead>
-                                <tbody id="billBody">
-                                    <!-- Rows injected by JS -->
-                                </tbody>
-                            </table>
-                        </div>
-                        <!-- Empty State -->
-                        <div id="emptyState" class="text-center py-5 text-muted">
-                            <i class="fa-solid fa-cart-plus fa-3x mb-3 opacity-25"></i>
-                            <p class="small">Add items to create a bill.</p>
-                        </div>
+                    <div class="table-responsive">
+                        <table class="table align-middle table-hover mb-0" id="billTable">
+                            <thead class="bg-light">
+                                <tr class="text-uppercase small fw-bold text-muted">
+                                    <th class="ps-4" width="5%">#</th>
+                                    <th class="text-center" width="10%">Img</th>
+                                    <th width="35%">Product Name</th>
+                                    <th class="text-center" width="15%">Qty</th>
+                                    <th class="text-end" width="15%">Price</th>
+                                    <th class="text-end pe-4" width="15%">Total</th>
+                                    <th width="5%"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="billBody">
+                                <!-- JS will inject rows here -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <!-- Empty State -->
+                    <div id="emptyState" class="text-center py-5 text-muted">
+                        <i class="fa-solid fa-basket-shopping fa-3x mb-3 opacity-25"></i>
+                        <p class="small fw-bold">No items added yet.</p>
                     </div>
                 </div>
-
             </div>
 
-            <!-- RIGHT COLUMN: Settlement -->
+            <!-- RIGHT: Settlement Section (Evening Style) -->
             <div class="col-lg-4">
-                
-                <!-- Cash Settlement Summary (Evening Style) -->
-                <div class="card border-0 shadow-sm rounded-4 mb-4 sticky-top" style="top: 20px; z-index: 100;">
-                    <div class="card-header bg-gradient-primary text-white border-0 py-3 rounded-top-4">
-                        <h5 class="fw-bold mb-0"><i class="fa-solid fa-cash-register me-2"></i>Settlement</h5>
+                <div class="finance-card h-100">
+                    <div class="finance-header bg-gradient-primary text-white border-0 py-3 rounded-top">
+                        <h5 class="fw-bold mb-0"><i class="fa-solid fa-cash-register me-2"></i>Cash Settlement</h5>
                     </div>
-                    <div class="card-body p-4">
+                    <div class="finance-body p-4 bg-white rounded-bottom border border-top-0">
                         
                         <!-- Sub Total -->
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <span class="text-muted fw-bold">Sub Total</span>
+                        <div class="settle-row mb-3 d-flex justify-content-between align-items-center border-bottom pb-2">
+                            <span class="settle-label text-muted fw-bold">Total Sales Value</span>
                             <span class="fs-5 fw-bold text-dark">₹ <span id="subTotal">0.00</span></span>
                         </div>
 
-                        <!-- Discount Input -->
-                        <div class="d-flex justify-content-between align-items-center mb-3 text-warning">
-                            <span class="fw-bold"><i class="fa-solid fa-percent me-1"></i> Discount</span>
+                        <!-- Discount -->
+                        <div class="settle-row mb-3 d-flex justify-content-between align-items-center">
+                            <span class="settle-label text-warning fw-bold"><i class="fa-solid fa-percent me-1"></i> Discount</span>
                             <div class="input-group input-group-sm w-50">
-                                <span class="input-group-text bg-white border-warning text-warning border-end-0">₹</span>
+                                <span class="input-group-text bg-white border-warning text-warning fw-bold">₹</span>
                                 <input type="number" name="discount" class="form-control border-warning text-end fw-bold text-warning" value="0" min="0" oninput="calcTotal()">
                             </div>
                         </div>
 
-                        <!-- Grand Total Box -->
-                        <div class="balance-box p-3 rounded-3 text-white d-flex justify-content-between align-items-center shadow-sm mb-4" style="background-color: #198754;">
-                            <span class="fw-bold text-uppercase small" style="letter-spacing: 1px;">Grand Total</span>
-                            <span class="fs-3 fw-bold">₹ <span id="grandTotal">0.00</span></span>
+                        <!-- Online -->
+                        <div class="settle-row mb-3 d-flex justify-content-between align-items-center">
+                            <span class="settle-label text-info fw-bold"><i class="fa-solid fa-qrcode me-1"></i> Online</span>
+                            <div class="input-group input-group-sm w-50">
+                                <span class="input-group-text bg-white border-info text-info fw-bold">₹</span>
+                                <input type="number" name="online" class="form-control border-info text-end fw-bold text-info" value="0" min="0" oninput="calcTotal()">
+                            </div>
                         </div>
+
+                        <!-- Cash -->
+                        <div class="settle-row mb-4 d-flex justify-content-between align-items-center">
+                            <span class="settle-label text-success fw-bold"><i class="fa-solid fa-money-bill-wave me-1"></i> Cash</span>
+                            <div class="input-group input-group-sm w-50">
+                                <span class="input-group-text bg-white border-success text-success fw-bold">₹</span>
+                                <input type="number" name="cash" class="form-control border-success text-end fw-bold text-success fs-6" value="0" min="0" oninput="calcTotal()">
+                            </div>
+                        </div>
+
+                        <!-- Balance Due Box (Red) -->
+                        <div class="balance-box p-3 rounded-3 text-white d-flex justify-content-between align-items-center shadow-sm mb-3" style="background-color: #dc3545;">
+                            <span class="fw-bold small text-uppercase" style="letter-spacing: 1px;">Balance Due</span>
+                            <span class="fs-4 fw-800">₹ <span id="dueAmount">0.00</span></span>
+                        </div>
+
 
                         <!-- Action Button -->
                         <button type="submit" class="btn btn-dark w-100 py-3 rounded-pill shadow fw-bold text-uppercase letter-spacing-1">
@@ -133,7 +141,6 @@
 
                     </div>
                 </div>
-
             </div>
         </div>
     </form>
@@ -149,7 +156,7 @@
         const tbody = document.getElementById('billBody');
         const tr = document.createElement('tr');
         
-        let options = '<option value="">Select...</option>';
+        let options = '<option value="">Select Product</option>';
         products.forEach(p => {
             options += `<option value="${p.id}" data-price="${p.price}" data-img="${p.image}">${p.name}</option>`;
         });
@@ -171,9 +178,7 @@
                 <input type="number" name="qty[]" class="form-control form-control-sm text-center fw-bold border-0 bg-light row-qty" value="1" min="1" oninput="updateRow(this)">
             </td>
             <td class="text-end align-middle">
-                <div class="input-group input-group-sm border-0">
-                    <input type="number" name="price[]" class="form-control text-end border-0 bg-transparent fw-bold text-muted row-price" readonly value="0.00">
-                </div>
+                <input type="number" name="price[]" class="form-control form-control-sm text-end border-0 bg-transparent fw-bold text-muted row-price" readonly value="0.00">
             </td>
             <td class="text-end pe-4 align-middle">
                 <span class="fw-bold text-dark fs-6">₹ <span class="row-total">0.00</span></span>
@@ -220,7 +225,6 @@
 
     function removeRow(el) {
         el.closest('tr').remove();
-        // Check if empty
         if(document.getElementById('billBody').children.length === 0) {
             document.getElementById('emptyState').style.display = 'block';
             rowCount = 0;
@@ -235,20 +239,29 @@
         document.getElementById('subTotal').textContent = sub.toFixed(2);
         
         const disc = parseFloat(document.querySelector('input[name="discount"]').value) || 0;
-        const grand = sub - disc;
+        const online = parseFloat(document.querySelector('input[name="online"]').value) || 0;
+        const cash = parseFloat(document.querySelector('input[name="cash"]').value) || 0;
         
-        document.getElementById('grandTotal').textContent = grand.toFixed(2);
+        // Balance Due = SubTotal - (Discount + Online + Cash)
+        const paid = disc + online + cash;
+        const due = sub - paid;
+        
+        // Prevent negative due amount display logic if needed, but standard accounting allows it (overpayment)
+        // For UI display, we'll show actual value
+        document.getElementById('dueAmount').textContent = due.toFixed(2);
     }
 
     document.addEventListener("DOMContentLoaded", function() {
         flatpickr(".date-picker", { dateFormat: "d-m-Y", allowInput: true });
+        addBillRow(); 
     });
 </script>
 
 <style>
     .bg-gradient-primary { background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%); }
-    .balance-box { background: #198754; color: white; }
     .table-hover tbody tr:hover { background-color: rgba(0,0,0,0.015); }
     .form-control:focus, .form-select:focus { box-shadow: none; border-color: #0d6efd; }
+    .fw-800 { font-weight: 800; }
+    .letter-spacing-2 { letter-spacing: 2px; }
 </style>
 {% endblock %}
