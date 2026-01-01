@@ -22,36 +22,7 @@
         </div>
     </div>
 
-    <!-- Filter Section -->
-    <div class="card border-0 shadow-sm rounded-4 mb-4">
-        <div class="card-body p-3">
-            <form method="GET" action="{{ url_for('admin_evening_master') }}" class="row g-3 align-items-end">
-                <div class="col-md-3">
-                    <label class="form-label small fw-bold text-muted text-uppercase">Start Date</label>
-                    <input type="text" name="start_date" class="form-control date-picker rounded-pill" value="{{ filters.start or '' }}" placeholder="dd-mm-yyyy">
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label small fw-bold text-muted text-uppercase">End Date</label>
-                    <input type="text" name="end_date" class="form-control date-picker rounded-pill" value="{{ filters.end or '' }}" placeholder="dd-mm-yyyy">
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label small fw-bold text-muted text-uppercase">Employee</label>
-                    <select name="employee_id" class="form-select rounded-pill">
-                        <option value="all">All Employees</option>
-                        {% for emp in employees %}
-                        <option value="{{ emp.id }}" {% if filters.emp|string == emp.id|string %}selected{% endif %}>{{ emp.name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-md-3 d-flex gap-2">
-                    <button type="submit" class="btn btn-primary rounded-pill w-100 fw-bold"><i class="fa-solid fa-filter me-2"></i>Filter</button>
-                    <a href="{{ url_for('admin_evening_master') }}" class="btn btn-light border rounded-pill w-50" title="Reset"><i class="fa-solid fa-rotate-right"></i></a>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Stats Cards -->
+    <!-- 1. Stats Cards (MOVED TO TOP) -->
     <div class="row g-3 mb-4">
         <!-- Net Sales -->
         <div class="col-md-3">
@@ -104,6 +75,35 @@
         </div>
     </div>
 
+    <!-- 2. Filter Section (MOVED BELOW CARDS) -->
+    <div class="card border-0 shadow-sm rounded-4 mb-4">
+        <div class="card-body p-3">
+            <form method="GET" action="{{ url_for('admin_evening_master') }}" class="row g-3 align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label small fw-bold text-muted text-uppercase">Start Date</label>
+                    <input type="text" name="start_date" class="form-control date-picker rounded-pill" value="{{ filters.start or '' }}" placeholder="dd-mm-yyyy">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small fw-bold text-muted text-uppercase">End Date</label>
+                    <input type="text" name="end_date" class="form-control date-picker rounded-pill" value="{{ filters.end or '' }}" placeholder="dd-mm-yyyy">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small fw-bold text-muted text-uppercase">Employee</label>
+                    <select name="employee_id" class="form-select rounded-pill">
+                        <option value="all">All Employees</option>
+                        {% for emp in employees %}
+                        <option value="{{ emp.id }}" {% if filters.emp|string == emp.id|string %}selected{% endif %}>{{ emp.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary rounded-pill w-100 fw-bold"><i class="fa-solid fa-filter me-2"></i>Filter</button>
+                    <a href="{{ url_for('admin_evening_master') }}" class="btn btn-light border rounded-pill w-50" title="Reset"><i class="fa-solid fa-rotate-right"></i></a>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Data Table -->
     <div class="card border-0 shadow-sm rounded-4">
         <div class="card-body p-0">
@@ -111,12 +111,12 @@
                 <thead class="bg-light">
                     <tr class="text-uppercase small fw-bold text-muted">
                         <th class="ps-4">#ID</th>
-                        <th>Date</th>
+                        <th>Date & Time</th> <!-- Updated Header -->
                         <th>Employee</th>
                         <th class="text-center">Total</th>
                         <th class="text-center text-warning">Disc.</th>
                         <th class="text-center text-success">Cash</th>
-                        <th class="text-center text-danger">Status / Due</th> <!-- New Column -->
+                        <th class="text-center text-danger">Status / Due</th>
                         <th class="text-end pe-4">Actions</th>
                     </tr>
                 </thead>
@@ -127,12 +127,12 @@
                         <td>
                             <div class="d-flex flex-column">
                                 <span class="fw-bold text-dark">{{ s.formatted_date }}</span>
-                                <span class="small text-muted">{{ s.created_at.strftime('%I:%M %p') if s.created_at else '' }}</span>
+                                <span class="small text-muted">{{ s.formatted_time }}</span>
                             </div>
                         </td>
                         <td>
                             <div class="d-flex align-items-center">
-                                <img src="{{ s.emp_image }}" class="rounded-circle me-2 border shadow-sm" width="35" height="35" style="object-fit: cover;">
+                                <img src="{{ s.emp_image }}" class="rounded-circle me-2 border shadow-sm" width="35" height="35" style="object-fit: cover;" onerror="this.src='{{ url_for('static', filename='img/default-user.png') }}'">
                                 <span class="fw-bold text-dark">{{ s.emp_name }}</span>
                             </div>
                         </td>
@@ -145,20 +145,24 @@
                         <!-- Status / Due Amount Column -->
                         <td class="text-center">
                             {% if s.due_amount > 1 %}
-                                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger px-2">Due</span>
-                                <div class="small text-danger fw-bold mt-1">₹ {{ "%.0f"|format(s.due_amount) }}</div>
+                                <div class="d-flex align-items-center justify-content-center gap-1">
+                                    <span class="badge bg-danger bg-opacity-10 text-danger border border-danger px-2">Due</span>
+                                    <span class="small text-danger fw-bold">₹ {{ "%.0f"|format(s.due_amount) }}</span>
+                                </div>
                             {% else %}
-                                <span class="badge bg-success bg-opacity-10 text-success border border-success px-2">Paid</span>
+                                <span class="badge bg-success bg-opacity-10 text-success border border-success px-3">Paid</span>
                             {% endif %}
                         </td>
 
                         <td class="text-end pe-4">
-                            <a href="{{ url_for('view_evening_settlement', settle_id=s.id) }}" class="btn btn-sm btn-info text-white shadow-sm me-1" title="View"><i class="fa-solid fa-eye"></i></a>
-                            <a href="{{ url_for('download_evening_pdf', settle_id=s.id) }}" class="btn btn-sm btn-outline-danger shadow-sm me-1" title="PDF"><i class="fa-solid fa-file-pdf"></i></a>
-                            <a href="{{ url_for('admin_edit_evening', settle_id=s.id) }}" class="btn btn-sm btn-primary shadow-sm me-1" title="Edit"><i class="fa-solid fa-pen"></i></a>
-                            <form action="{{ url_for('admin_delete_evening', settle_id=s.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete?');">
-                                <button class="btn btn-sm btn-danger shadow-sm" title="Delete"><i class="fa-solid fa-trash"></i></button>
-                            </form>
+                            <div class="btn-group">
+                                <a href="{{ url_for('view_evening_settlement', settle_id=s.id) }}" class="btn btn-sm btn-info text-white shadow-sm" title="View"><i class="fa-solid fa-eye"></i></a>
+                                <a href="{{ url_for('download_evening_pdf', settle_id=s.id) }}" class="btn btn-sm btn-outline-danger shadow-sm" title="PDF"><i class="fa-solid fa-file-pdf"></i></a>
+                                <a href="{{ url_for('admin_edit_evening', settle_id=s.id) }}" class="btn btn-sm btn-primary shadow-sm" title="Edit"><i class="fa-solid fa-pen"></i></a>
+                                <form action="{{ url_for('admin_delete_evening', settle_id=s.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete? Stock will revert.');">
+                                    <button class="btn btn-sm btn-danger shadow-sm border-start-0" title="Delete"><i class="fa-solid fa-trash"></i></button>
+                                </form>
+                            </div>
                         </td>
                     </tr>
                     {% else %}
