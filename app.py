@@ -5,7 +5,7 @@ from datetime import date,timedelta,datetime
 import os
 from openpyxl.styles import Font, Alignment
 from MySQLdb.cursors import DictCursor
-from pdf_generator import create_morning_pdf, create_evening_pdf
+
 
 # --- NEW IMPORTS ---
 import json
@@ -3364,10 +3364,13 @@ def exp_report():
 #  MORNING & API ROUTES
 # =============================================================================
 
-# PDF GENERATE 
-from fpdf import FPDF
-import os
+# PDF GENERATion ROute :
 
+# ==========================================
+#  PASTE THIS AT THE BOTTOM OF YOUR APP.PY
+# ==========================================
+
+# --- PDF GENERATOR CLASS (INTERNAL) ---
 class PDFGenerator(FPDF):
     def __init__(self, title_type="Morning"):
         super().__init__()
@@ -3380,10 +3383,10 @@ class PDFGenerator(FPDF):
             "Nadiad-387001, Gujarat, India"
         ]
         self.contact = "+91 96623 22476 | help@realpromotion.in"
-        self.gst_no = "GSTIN: [ENTER_GST_NO_HERE]" # Update GST here
+        self.gst_no = "GSTIN: " # Add your GST Number here if you have one
 
     def header(self):
-        # --- Company Logo/Header ---
+        # Company Logo/Header
         self.set_font('Arial', 'B', 24)
         self.set_text_color(26, 35, 126) # Dark Blue
         self.cell(0, 10, self.company_name, 0, 1, 'C')
@@ -3391,7 +3394,6 @@ class PDFGenerator(FPDF):
         self.set_font('Arial', 'B', 10)
         self.set_text_color(100, 100, 100) # Grey
         self.cell(0, 5, self.slogan, 0, 1, 'C')
-        
         self.ln(2)
         
         self.set_font('Arial', '', 9)
@@ -3403,15 +3405,14 @@ class PDFGenerator(FPDF):
         
         self.set_font('Arial', 'B', 9)
         self.cell(0, 4, self.gst_no, 0, 1, 'C')
-        
         self.ln(5)
         
-        # --- Divider Line ---
+        # Divider Line
         self.set_draw_color(200, 200, 200)
         self.line(10, self.get_y(), 200, self.get_y())
         self.ln(5)
 
-        # --- Subtitle ---
+        # Subtitle
         self.set_font('Arial', 'B', 16)
         self.set_text_color(0, 0, 0) # Black
         
@@ -3432,10 +3433,6 @@ class PDFGenerator(FPDF):
     def add_info_section(self, emp_name, emp_mobile, date_str, time_str):
         self.set_font('Arial', '', 10)
         self.set_text_color(0, 0, 0)
-        
-        # Box wrapper (optional visual)
-        # self.rect(10, self.get_y(), 190, 25) 
-        
         start_y = self.get_y()
         
         # Left Side: Employee Info
@@ -3449,7 +3446,7 @@ class PDFGenerator(FPDF):
         self.set_font('Arial', 'B', 10)
         self.cell(70, 6, str(emp_mobile), 0, 1)
 
-        # Right Side: Date/Time (Align to right)
+        # Right Side: Date/Time
         self.set_xy(140, start_y)
         self.set_font('Arial', '', 10)
         self.cell(20, 6, "Date:", 0, 0)
@@ -3461,25 +3458,21 @@ class PDFGenerator(FPDF):
         self.cell(20, 6, "Time:", 0, 0)
         self.set_font('Arial', 'B', 10)
         self.cell(40, 6, str(time_str), 0, 1)
-        
         self.ln(10)
 
     def add_table_header(self, columns, widths):
         self.set_font('Arial', 'B', 10)
-        # Header Background Color (Navy Blue)
         self.set_fill_color(26, 35, 126) 
-        self.set_text_color(255, 255, 255) # White text
+        self.set_text_color(255, 255, 255)
         self.set_draw_color(0, 0, 0)
         self.set_line_width(0.3)
-        
         for i, col in enumerate(columns):
             self.cell(widths[i], 8, col, 1, 0, 'C', True)
         self.ln()
 
-    def add_signature_section(self, owner_sig_path=None):
-        # Ensure we don't break page awkwardly
-        if self.get_y() > 240:
-            self.add_page()
+    def add_signature_section(self):
+        # Prevent page break in middle of signatures
+        if self.get_y() > 220: self.add_page()
             
         self.ln(15) 
         y_pos = self.get_y()
@@ -3488,22 +3481,21 @@ class PDFGenerator(FPDF):
         self.set_font('Arial', 'B', 10)
         self.set_text_color(0, 0, 0)
         
-        # Logic to insert image if exists
-        if owner_sig_path and os.path.exists(owner_sig_path):
-            # Place image above the line
-            # x=15, y=current_y - 15 (move up), w=40 (width)
-            self.image(owner_sig_path, x=20, y=y_pos, w=40) 
-            
-        # Draw line for signature
-        self.line(15, y_pos + 20, 75, y_pos + 20)
+        # Path to signature image
+        sig_path = os.path.join(app.root_path, 'static', 'img', 'signature.png')
         
-        self.set_xy(15, y_pos + 22)
+        # Place Image if exists
+        if os.path.exists(sig_path):
+            self.image(sig_path, x=20, y=y_pos, w=40) 
+            
+        # Line & Text
+        self.line(15, y_pos + 25, 75, y_pos + 25)
+        self.set_xy(15, y_pos + 27)
         self.cell(60, 5, "Authorized Signature", 0, 0, 'C')
         
         # --- Employee Signature (Right) ---
-        self.line(135, y_pos + 20, 195, y_pos + 20)
-        
-        self.set_xy(135, y_pos + 22)
+        self.line(135, y_pos + 25, 195, y_pos + 25)
+        self.set_xy(135, y_pos + 27)
         self.cell(60, 5, "Employee Signature", 0, 1, 'C')
         
         self.ln(10)
@@ -3511,209 +3503,13 @@ class PDFGenerator(FPDF):
         self.cell(0, 5, "This is a computer generated document.", 0, 1, 'C')
 
 
-def create_morning_pdf(data, output_path, owner_sig_path=None):
-    pdf = PDFGenerator("Morning")
-    pdf.alias_nb_pages()
-    pdf.add_page()
-    
-    # Header Info
-    pdf.add_info_section(data['emp_name'], data['emp_mobile'], data['date'], data['time'])
-    
-    # Table Config
-    cols = ["#", "Product Name", "Opening", "Given", "Total", "Price", "Amount"]
-    widths = [10, 70, 20, 20, 20, 20, 30] # Total width approx 190
-    
-    pdf.add_table_header(cols, widths)
-    
-    # Table Body
-    pdf.set_font('Arial', '', 9)
-    pdf.set_text_color(0, 0, 0)
-    pdf.set_fill_color(245, 245, 245) # Light grey for alternate rows
-    
-    total_qty_sum = 0
-    total_amount_sum = 0
-    
-    fill = False
-    for i, item in enumerate(data['items']):
-        pdf.cell(widths[0], 7, str(i+1), 1, 0, 'C', fill)
-        pdf.cell(widths[1], 7, str(item['name']), 1, 0, 'L', fill)
-        pdf.cell(widths[2], 7, str(item['opening']), 1, 0, 'C', fill)
-        pdf.cell(widths[3], 7, str(item['given']), 1, 0, 'C', fill)
-        
-        total_qty = int(item['opening']) + int(item['given'])
-        pdf.cell(widths[4], 7, str(total_qty), 1, 0, 'C', fill)
-        
-        pdf.cell(widths[5], 7, f"{float(item['price']):.2f}", 1, 0, 'R', fill)
-        
-        amount = total_qty * float(item['price'])
-        pdf.cell(widths[6], 7, f"{amount:.2f}", 1, 1, 'R', fill)
-        
-        total_qty_sum += total_qty
-        total_amount_sum += amount
-        fill = not fill 
-        
-    # Totals Row
-    pdf.set_font('Arial', 'B', 10)
-    pdf.cell(sum(widths[:4]), 8, "GRAND TOTAL", 1, 0, 'R', True)
-    pdf.cell(widths[4], 8, str(total_qty_sum), 1, 0, 'C', True)
-    pdf.cell(widths[5], 8, "", 1, 0, 'C', True)
-    pdf.cell(widths[6], 8, f"{total_amount_sum:.2f}", 1, 1, 'R', True)
-    
-    pdf.add_signature_section(owner_sig_path)
-    pdf.output(output_path)
-    return output_path
-
-
-def create_evening_pdf(data, output_path, owner_sig_path=None):
-    pdf = PDFGenerator("Evening")
-    pdf.alias_nb_pages()
-    pdf.add_page()
-    
-    # Info Section
-    pdf.add_info_section(data['emp_name'], data['emp_mobile'], data['date'], data['time'])
-    
-    # --- PRODUCT TABLE ---
-    cols = ["#", "Product", "Total", "Sold", "Price", "Amount", "Return"]
-    widths = [10, 60, 20, 20, 25, 30, 25]
-    
-    pdf.add_table_header(cols, widths)
-    
-    pdf.set_font('Arial', '', 9)
-    pdf.set_text_color(0, 0, 0)
-    pdf.set_fill_color(245, 245, 245)
-    
-    tot_sold = 0
-    tot_amt = 0
-    tot_ret = 0
-    
-    fill = False
-    for i, item in enumerate(data['items']):
-        pdf.cell(widths[0], 7, str(i+1), 1, 0, 'C', fill)
-        pdf.cell(widths[1], 7, str(item['name']), 1, 0, 'L', fill)
-        pdf.cell(widths[2], 7, str(item['total']), 1, 0, 'C', fill)
-        pdf.cell(widths[3], 7, str(item['sold']), 1, 0, 'C', fill)
-        pdf.cell(widths[4], 7, f"{float(item['price']):.2f}", 1, 0, 'R', fill)
-        
-        amt = float(item['sold']) * float(item['price'])
-        pdf.cell(widths[5], 7, f"{amt:.2f}", 1, 0, 'R', fill)
-        
-        pdf.cell(widths[6], 7, str(item['return']), 1, 1, 'C', fill)
-        
-        tot_sold += int(item['sold'])
-        tot_amt += amt
-        tot_ret += int(item['return'])
-        fill = not fill
-
-    # Totals Row
-    pdf.set_font('Arial', 'B', 10)
-    pdf.cell(sum(widths[:3]), 8, "TOTALS", 1, 0, 'R', True)
-    pdf.cell(widths[3], 8, str(tot_sold), 1, 0, 'C', True)
-    pdf.cell(widths[4], 8, "", 1, 0, 'C', True)
-    pdf.cell(widths[5], 8, f"{tot_amt:.2f}", 1, 0, 'R', True)
-    pdf.cell(widths[6], 8, str(tot_ret), 1, 1, 'C', True)
-    
-    pdf.ln(5)
-    
-    # --- FINANCE & SETTLEMENT SUMMARY ---
-    pdf.set_font('Arial', 'B', 11)
-    pdf.set_fill_color(50, 50, 50) # Dark Grey Header
-    pdf.set_text_color(255, 255, 255)
-    pdf.cell(0, 8, " FINANCE & SETTLEMENT SUMMARY ", 1, 1, 'C', True)
-    
-    pdf.set_text_color(0,0,0)
-    pdf.set_font('Arial', '', 10)
-    pdf.ln(2)
-    
-    # We will use two columns logic for summary
-    y_start = pdf.get_y()
-    
-    # --- LEFT COLUMN: Sales Math ---
-    pdf.set_xy(10, y_start)
-    
-    # Helper for key-value pair
-    def print_kv(label, val, x, w_label, w_val):
-        pdf.set_x(x)
-        pdf.set_font('Arial', '', 10)
-        pdf.cell(w_label, 6, label, 0, 0)
-        pdf.set_font('Arial', 'B', 10)
-        pdf.cell(w_val, 6, val, 0, 1, 'R')
-
-    print_kv("Total Sales Value:", f"{tot_amt:.2f}", 15, 40, 30)
-    print_kv("Discount (-):", f"{float(data.get('discount', 0)):.2f}", 15, 40, 30)
-    print_kv("Online Rec. (-):", f"{float(data.get('online', 0)):.2f}", 15, 40, 30)
-    
-    pdf.line(15, pdf.get_y(), 85, pdf.get_y()) # separator
-    pdf.ln(1)
-    print_kv("CASH COLLECTED:", f"{float(data.get('cash', 0)):.2f}", 15, 40, 30)
-    
-    # --- RIGHT COLUMN: Employee Finance ---
-    pdf.set_xy(110, y_start)
-    
-    # Credit
-    c_amt = float(data.get('credit_amt', 0))
-    if c_amt > 0:
-        pdf.set_fill_color(209, 231, 221) # Light Green
-        pdf.rect(110, pdf.get_y(), 80, 14, 'F')
-        pdf.set_xy(110, pdf.get_y()+1)
-        pdf.set_font('Arial', 'B', 10)
-        pdf.cell(45, 6, " Credit (To Emp):", 0, 0)
-        pdf.cell(30, 6, f"{c_amt:.2f}", 0, 1, 'R')
-        pdf.set_xy(110, pdf.get_y())
-        pdf.set_font('Arial', 'I', 8)
-        pdf.cell(75, 5, f" Note: {data.get('credit_note', '-')}", 0, 1, 'L')
-    
-    pdf.ln(2)
-    
-    # Debit
-    d_amt = float(data.get('debit_amt', 0))
-    if d_amt > 0:
-        current_y = pdf.get_y()
-        if c_amt <= 0: current_y = y_start # Reset if no credit block
-        
-        pdf.set_xy(110, current_y)
-        pdf.set_fill_color(248, 215, 218) # Light Red
-        pdf.rect(110, current_y, 80, 14, 'F')
-        pdf.set_xy(110, current_y+1)
-        pdf.set_font('Arial', 'B', 10)
-        pdf.cell(45, 6, " Debit (From Emp):", 0, 0)
-        pdf.cell(30, 6, f"{d_amt:.2f}", 0, 1, 'R')
-        pdf.set_xy(110, pdf.get_y())
-        pdf.set_font('Arial', 'I', 8)
-        pdf.cell(75, 5, f" Note: {data.get('debit_note', '-')}", 0, 1, 'L')
-
-    # --- Balance Due Box ---
-    pdf.ln(15)
-    
-    # Calculation
-    net_sales = tot_amt - float(data.get('discount', 0)) - float(data.get('online', 0))
-    balance_due = net_sales - float(data.get('cash', 0))
-    if abs(balance_due) < 0.01: balance_due = 0.0
-    
-    pdf.set_fill_color(220, 53, 69) # Red Background
-    pdf.set_text_color(255, 255, 255) # White Text
-    pdf.set_font('Arial', 'B', 12)
-    pdf.cell(0, 12, f" BALANCE DUE:  {balance_due:.2f} ", 1, 1, 'C', True)
-    
-    pdf.add_signature_section(owner_sig_path)
-    pdf.output(output_path)
-    return output_path
-
-
-# --- Helper to get signature path ---
-def get_signature_path():
-    # Assumes your 'static' folder is in the root where app.py runs
-    # Create folder 'img' inside 'static' if not exists and put 'signature.png' there
-    sig_path = os.path.join(app.root_path, 'static', 'img', 'signature.png')
-    if os.path.exists(sig_path):
-        return sig_path
-    return None
-
-# --- Route for Morning PDF ---
+# --- MORNING PDF ROUTE ---
 @app.route('/download_morning_pdf/<int:allocation_id>')
 def download_morning_pdf(allocation_id):
     if "loggedin" not in session: return redirect(url_for("login"))
     
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    conn = mysql.connection
+    cursor = conn.cursor(MySQLdb.cursors.DictCursor)
     
     # 1. Fetch Header Info
     cursor.execute("""
@@ -3737,39 +3533,72 @@ def download_morning_pdf(allocation_id):
     """, (allocation_id,))
     items = cursor.fetchall()
     
-    # 3. Prepare Data
-    pdf_data = {
-        'emp_name': header['emp_name'],
-        'emp_mobile': header['emp_mobile'],
-        'date': header['date'].strftime('%d-%m-%Y'),
-        'time': str(header['created_at']) if header['created_at'] else "N/A",
-        'items': [
-            {
-                'name': item['name'],
-                'opening': item['opening_qty'],
-                'given': item['given_qty'],
-                'price': item['unit_price']
-            } for item in items
-        ]
-    }
+    # 3. Generate PDF
+    pdf = PDFGenerator("Morning")
+    pdf.alias_nb_pages()
+    pdf.add_page()
     
-    # 4. Generate PDF
-    pdf_folder = os.path.join(app.root_path, 'static', 'temp_pdfs')
-    os.makedirs(pdf_folder, exist_ok=True)
+    # Add Data
+    date_val = header['date'].strftime('%d-%m-%Y') if header['date'] else ""
+    time_val = str(header['created_at']) if header['created_at'] else "N/A"
     
-    filename = f"Morning_Alloc_{allocation_id}.pdf"
-    file_path = os.path.join(pdf_folder, filename)
+    pdf.add_info_section(header['emp_name'], header['emp_mobile'], date_val, time_val)
     
-    create_morning_pdf(pdf_data, file_path, owner_sig_path=get_signature_path())
+    # Table
+    cols = ["#", "Product Name", "Opening", "Given", "Total", "Price", "Amount"]
+    widths = [10, 70, 20, 20, 20, 20, 30]
+    pdf.add_table_header(cols, widths)
     
-    return send_file(file_path, as_attachment=True)
+    pdf.set_font('Arial', '', 9)
+    pdf.set_text_color(0, 0, 0)
+    pdf.set_fill_color(245, 245, 245)
+    
+    total_qty_sum = 0
+    total_amount_sum = 0
+    fill = False
+    
+    for i, item in enumerate(items):
+        pdf.cell(widths[0], 7, str(i+1), 1, 0, 'C', fill)
+        pdf.cell(widths[1], 7, str(item['name']), 1, 0, 'L', fill)
+        pdf.cell(widths[2], 7, str(item['opening_qty']), 1, 0, 'C', fill)
+        pdf.cell(widths[3], 7, str(item['given_qty']), 1, 0, 'C', fill)
+        
+        t_qty = int(item['opening_qty']) + int(item['given_qty'])
+        pdf.cell(widths[4], 7, str(t_qty), 1, 0, 'C', fill)
+        
+        pdf.cell(widths[5], 7, f"{float(item['unit_price']):.2f}", 1, 0, 'R', fill)
+        
+        amt = t_qty * float(item['unit_price'])
+        pdf.cell(widths[6], 7, f"{amt:.2f}", 1, 1, 'R', fill)
+        
+        total_qty_sum += t_qty
+        total_amount_sum += amt
+        fill = not fill 
+        
+    # Totals Row
+    pdf.set_font('Arial', 'B', 10)
+    pdf.cell(sum(widths[:4]), 8, "GRAND TOTAL", 1, 0, 'R', True)
+    pdf.cell(widths[4], 8, str(total_qty_sum), 1, 0, 'C', True)
+    pdf.cell(widths[5], 8, "", 1, 0, 'C', True)
+    pdf.cell(widths[6], 8, f"{total_amount_sum:.2f}", 1, 1, 'R', True)
+    
+    pdf.add_signature_section()
+    
+    # Output
+    buffer = io.BytesIO()
+    pdf.output(buffer)
+    buffer.seek(0)
+    
+    return send_file(buffer, as_attachment=True, download_name=f"Morning_Alloc_{allocation_id}.pdf", mimetype='application/pdf')
 
-# --- Route for Evening PDF ---
+
+# --- EVENING PDF ROUTE ---
 @app.route('/download_evening_pdf/<int:settle_id>')
 def download_evening_pdf(settle_id):
     if "loggedin" not in session: return redirect(url_for("login"))
     
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    conn = mysql.connection
+    cursor = conn.cursor(MySQLdb.cursors.DictCursor)
     
     # 1. Fetch Header & Finance
     cursor.execute("""
@@ -3782,7 +3611,7 @@ def download_evening_pdf(settle_id):
     
     if not data:
         flash("Settlement not found", "danger")
-        return redirect(url_for('evening_list')) # Change to your actual list route
+        return redirect(url_for('evening')) 
         
     # 2. Fetch Items
     cursor.execute("""
@@ -3793,41 +3622,149 @@ def download_evening_pdf(settle_id):
     """, (settle_id,))
     items = cursor.fetchall()
     
-    # 3. Prepare Data
-    pdf_data = {
-        'emp_name': data['emp_name'],
-        'emp_mobile': data['emp_mobile'],
-        'date': data['date'].strftime('%d-%m-%Y'),
-        'time': str(data['created_at']) if data['created_at'] else "N/A",
-        'discount': data['discount'],
-        'online': data['online_money'],
-        'cash': data['cash_money'],
-        'credit_amt': data['emp_credit_amount'],
-        'credit_note': data['emp_credit_note'],
-        'debit_amt': data['emp_debit_amount'],
-        'debit_note': data['emp_debit_note'],
-        'items': [
-            {
-                'name': item['name'],
-                'total': item['total_qty'],
-                'sold': item['sold_qty'],
-                'return': item['return_qty'],
-                'price': item['unit_price']
-            } for item in items
-        ]
-    }
+    # 3. Generate PDF
+    pdf = PDFGenerator("Evening")
+    pdf.alias_nb_pages()
+    pdf.add_page()
     
-    # 4. Generate
-    pdf_folder = os.path.join(app.root_path, 'static', 'temp_pdfs')
-    os.makedirs(pdf_folder, exist_ok=True)
+    date_val = data['date'].strftime('%d-%m-%Y') if data['date'] else ""
+    time_val = str(data['created_at']) if data['created_at'] else "N/A"
     
-    filename = f"Evening_Settle_{settle_id}.pdf"
-    file_path = os.path.join(pdf_folder, filename)
+    pdf.add_info_section(data['emp_name'], data['emp_mobile'], date_val, time_val)
     
-    create_evening_pdf(pdf_data, file_path, owner_sig_path=get_signature_path())
+    # Table
+    cols = ["#", "Product", "Total", "Sold", "Price", "Amount", "Return"]
+    widths = [10, 60, 20, 20, 25, 30, 25]
+    pdf.add_table_header(cols, widths)
     
-    return send_file(file_path, as_attachment=True)
+    pdf.set_font('Arial', '', 9)
+    pdf.set_text_color(0, 0, 0)
+    pdf.set_fill_color(245, 245, 245)
+    
+    tot_sold = 0
+    tot_amt = 0
+    tot_ret = 0
+    fill = False
+    
+    for i, item in enumerate(items):
+        pdf.cell(widths[0], 7, str(i+1), 1, 0, 'C', fill)
+        pdf.cell(widths[1], 7, str(item['name']), 1, 0, 'L', fill)
+        pdf.cell(widths[2], 7, str(item['total_qty']), 1, 0, 'C', fill)
+        pdf.cell(widths[3], 7, str(item['sold_qty']), 1, 0, 'C', fill)
+        pdf.cell(widths[4], 7, f"{float(item['unit_price']):.2f}", 1, 0, 'R', fill)
+        
+        amt = float(item['sold_qty']) * float(item['unit_price'])
+        pdf.cell(widths[5], 7, f"{amt:.2f}", 1, 0, 'R', fill)
+        
+        pdf.cell(widths[6], 7, str(item['return_qty']), 1, 1, 'C', fill)
+        
+        tot_sold += int(item['sold_qty'])
+        tot_amt += amt
+        tot_ret += int(item['return_qty'])
+        fill = not fill
 
+    # Totals Row
+    pdf.set_font('Arial', 'B', 10)
+    pdf.cell(sum(widths[:3]), 8, "TOTALS", 1, 0, 'R', True)
+    pdf.cell(widths[3], 8, str(tot_sold), 1, 0, 'C', True)
+    pdf.cell(widths[4], 8, "", 1, 0, 'C', True)
+    pdf.cell(widths[5], 8, f"{tot_amt:.2f}", 1, 0, 'R', True)
+    pdf.cell(widths[6], 8, str(tot_ret), 1, 1, 'C', True)
+    pdf.ln(5)
+    
+    # Finance Summary
+    pdf.set_font('Arial', 'B', 11)
+    pdf.set_fill_color(50, 50, 50)
+    pdf.set_text_color(255, 255, 255)
+    pdf.cell(0, 8, " FINANCE & SETTLEMENT SUMMARY ", 1, 1, 'C', True)
+    
+    pdf.set_text_color(0,0,0)
+    pdf.set_font('Arial', '', 10)
+    pdf.ln(2)
+    y_start = pdf.get_y()
+    
+    # Helper
+    def print_kv(label, val, x, w_label, w_val):
+        pdf.set_x(x)
+        pdf.set_font('Arial', '', 10)
+        pdf.cell(w_label, 6, label, 0, 0)
+        pdf.set_font('Arial', 'B', 10)
+        pdf.cell(w_val, 6, val, 0, 1, 'R')
+
+    # Left Column
+    print_kv("Total Sales Value:", f"{tot_amt:.2f}", 15, 40, 30)
+    print_kv("Discount (-):", f"{float(data.get('discount', 0)):.2f}", 15, 40, 30)
+    print_kv("Online Rec. (-):", f"{float(data.get('online_money', 0)):.2f}", 15, 40, 30)
+    pdf.line(15, pdf.get_y(), 85, pdf.get_y())
+    pdf.ln(1)
+    print_kv("CASH COLLECTED:", f"{float(data.get('cash_money', 0)):.2f}", 15, 40, 30)
+    
+    # Right Column
+    c_amt = float(data.get('emp_credit_amount', 0))
+    d_amt = float(data.get('emp_debit_amount', 0))
+    
+    current_y = y_start
+    if c_amt > 0:
+        pdf.set_xy(110, current_y)
+        pdf.set_fill_color(209, 231, 221)
+        pdf.rect(110, current_y, 80, 14, 'F')
+        pdf.set_xy(110, current_y+1)
+        pdf.set_font('Arial', 'B', 10)
+        pdf.cell(45, 6, " Credit (To Emp):", 0, 0)
+        pdf.cell(30, 6, f"{c_amt:.2f}", 0, 1, 'R')
+        pdf.set_xy(110, pdf.get_y())
+        pdf.set_font('Arial', 'I', 8)
+        pdf.cell(75, 5, f" Note: {data.get('emp_credit_note', '-')}", 0, 1, 'L')
+        current_y = pdf.get_y() + 2
+
+    if d_amt > 0:
+        pdf.set_xy(110, current_y)
+        pdf.set_fill_color(248, 215, 218)
+        pdf.rect(110, current_y, 80, 14, 'F')
+        pdf.set_xy(110, current_y+1)
+        pdf.set_font('Arial', 'B', 10)
+        pdf.cell(45, 6, " Debit (From Emp):", 0, 0)
+        pdf.cell(30, 6, f"{d_amt:.2f}", 0, 1, 'R')
+        pdf.set_xy(110, pdf.get_y())
+        pdf.set_font('Arial', 'I', 8)
+        pdf.cell(75, 5, f" Note: {data.get('emp_debit_note', '-')}", 0, 1, 'L')
+
+    # Balance Due
+    pdf.ln(15)
+    net_sales = tot_amt - float(data.get('discount', 0)) - float(data.get('online_money', 0))
+    balance_due = net_sales - float(data.get('cash_money', 0))
+    if abs(balance_due) < 0.01: balance_due = 0.0
+    
+    pdf.set_fill_color(220, 53, 69)
+    pdf.set_text_color(255, 255, 255)
+    pdf.set_font('Arial', 'B', 12)
+    pdf.cell(0, 12, f" BALANCE DUE:  {balance_due:.2f} ", 1, 1, 'C', True)
+    
+    pdf.add_signature_section()
+    
+    # Output
+    buffer = io.BytesIO()
+    pdf.output(buffer)
+    buffer.seek(0)
+    
+    return send_file(buffer, as_attachment=True, download_name=f"Evening_Settle_{settle_id}.pdf", mimetype='application/pdf')
+```
+
+### **Step 2: Add Signature Image**
+
+1.  Create a folder named `img` inside your existing `static` folder (if it doesn't exist).
+2.  Place your owner signature image in that folder.
+3.  **Rename the image to:** `signature.png`
+    * Path should look like: `your_project/static/img/signature.png`
+
+### **Step 3: Update HTML Buttons**
+
+**In `allocation_list.html`:**
+Find your existing download/print button and replace the `href` with:
+```html
+<a href="{{ url_for('download_morning_pdf', allocation_id=row.id) }}" class="btn btn-sm btn-danger shadow-sm" title="Download PDF">
+    <i class="fa-solid fa-file-pdf"></i> PDF
+</a>
 
 
 
@@ -6158,6 +6095,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
