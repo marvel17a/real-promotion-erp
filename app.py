@@ -4594,10 +4594,15 @@ def admin_evening_master():
 
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
-    # 1. Base Query for FINAL Settlements
-    # Note: We join employees to get names
+    # 1. Base Query
+    # Using IFNULL in SQL is safer and cleaner for the template
     query = """
-        SELECT s.*, e.name as emp_name, e.image as emp_image 
+        SELECT s.*, 
+               IFNULL(s.total_amount, 0) as total_amount,
+               IFNULL(s.cash_money, 0) as cash_money,
+               IFNULL(s.online_money, 0) as online_money,
+               IFNULL(s.discount, 0) as discount,
+               e.name as emp_name, e.image as emp_image 
         FROM evening_settle s 
         JOIN employees e ON s.employee_id = e.id 
         WHERE 1=1 
@@ -4606,47 +4611,52 @@ def admin_evening_master():
 
     # Apply Filters
     if start_date:
-        # Check if parse_date function exists, otherwise use strptime
+        # Robust date parsing logic
+        dt = None
         try:
+            # Try using parse_date if available globally
             dt = parse_date(start_date)
-            if dt:
-                query += " AND s.date >= %s"
-                params.append(dt.strftime('%Y-%m-%d'))
         except NameError:
-            # Fallback if parse_date is missing
+            pass
+        
+        if not dt:
             try:
                 dt = datetime.strptime(start_date, '%d-%m-%Y')
-                query += " AND s.date >= %s"
-                params.append(dt.strftime('%Y-%m-%d'))
             except ValueError:
                 pass
+        
+        if dt:
+            query += " AND s.date >= %s"
+            params.append(dt.strftime('%Y-%m-%d'))
     
     if end_date:
+        dt = None
         try:
             dt = parse_date(end_date)
-            if dt:
-                query += " AND s.date <= %s"
-                params.append(dt.strftime('%Y-%m-%d'))
         except NameError:
+            pass
+            
+        if not dt:
             try:
                 dt = datetime.strptime(end_date, '%d-%m-%Y')
-                query += " AND s.date <= %s"
-                params.append(dt.strftime('%Y-%m-%d'))
             except ValueError:
                 pass
+                
+        if dt:
+            query += " AND s.date <= %s"
+            params.append(dt.strftime('%Y-%m-%d'))
 
     if employee_id and employee_id != 'all':
         query += " AND s.employee_id = %s"
         params.append(employee_id)
     
-    # Exclude drafts from main list (handled in draft page)
-    # Check if 'status' column exists first (prevent crash)
+    # Exclude drafts logic (safe check)
     try:
+        # Check if 'status' column exists to avoid 1054 Unknown Column error
         cur.execute("SHOW COLUMNS FROM evening_settle LIKE 'status'")
         if cur.fetchone():
             query += " AND (s.status = 'final' OR s.status IS NULL)"
     except Exception:
-        # If check fails, assume all are final or legacy
         pass 
 
     query += " ORDER BY s.date DESC, s.id DESC"
@@ -4654,36 +4664,42 @@ def admin_evening_master():
     cur.execute(query, tuple(params))
     settlements = cur.fetchall()
 
-    # Format Data for View
+    # Post-process Data
+    stats = {'sales': 0.0, 'cash': 0.0, 'online': 0.0}
+    
     for s in settlements:
+        # Date Formatting
         if isinstance(s['date'], (date, datetime)):
             s['formatted_date'] = s['date'].strftime('%d-%m-%Y')
         else:
-            # Handle if it's a string
             try:
                 s['formatted_date'] = datetime.strptime(str(s['date']), '%Y-%m-%d').strftime('%d-%m-%Y')
             except ValueError:
                 s['formatted_date'] = str(s['date'])
         
-        # Calculate Due Amount safely
-        try:
-            total = float(s.get('total_amount') or 0)
-            paid = float(s.get('online_money') or 0) + float(s.get('cash_money') or 0) + float(s.get('discount') or 0)
-            s['due_amount'] = total - paid
-        except ValueError:
-            s['due_amount'] = 0.0
+        # Image Resolution
+        if s['emp_image']:
+            if not s['emp_image'].startswith('http'):
+                 s['emp_image'] = url_for('static', filename='uploads/' + s['emp_image'])
+        else:
+            s['emp_image'] = url_for('static', filename='img/default-user.png')
 
-    # 2. Stats Calculation (Filtered)
-    stats = {'sales': 0, 'cash': 0, 'online': 0}
-    for s in settlements:
-        try:
-            stats['sales'] += float(s.get('total_amount') or 0)
-            stats['cash'] += float(s.get('cash_money') or 0)
-            stats['online'] += float(s.get('online_money') or 0)
-        except ValueError:
-            pass
+        # Ensure float types for calculations (already handled by IFNULL in SQL but good for safety)
+        t_amt = float(s['total_amount'])
+        c_money = float(s['cash_money'])
+        o_money = float(s['online_money'])
+        disc = float(s['discount'])
+        
+        # Calculate Due Amount
+        paid = c_money + o_money + disc
+        s['due_amount'] = t_amt - paid
 
-    # 3. Fetch Employees for Filter Dropdown
+        # Accumulate Stats
+        stats['sales'] += t_amt
+        stats['cash'] += c_money
+        stats['online'] += o_money
+
+    # 3. Fetch Employees for Filter
     cur.execute("SELECT id, name FROM employees WHERE status='active' ORDER BY name")
     employees = cur.fetchall()
     
@@ -6048,6 +6064,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
