@@ -3368,6 +3368,13 @@ def exp_report():
 # ==========================================
 
 # --- PDF GENERATOR CLASS (INTERNAL) ---
+
+# ==========================================
+#  PASTE THIS AT THE END OF YOUR APP.PY
+#  REPLACING PREVIOUS PDF & ROUTE LOGIC
+# ==========================================
+
+# --- PDF GENERATOR CLASS (INTERNAL) ---
 class PDFGenerator(FPDF):
     def __init__(self, title_type="Morning"):
         super().__init__()
@@ -3380,7 +3387,7 @@ class PDFGenerator(FPDF):
             "Nadiad-387001, Gujarat, India"
         ]
         self.contact = "+91 96623 22476 | help@realpromotion.in"
-        self.gst_no = "GSTIN: " # Add GST if available
+        self.gst_no = "GSTIN: " 
 
     def header(self):
         # Company Header
@@ -3437,6 +3444,7 @@ class PDFGenerator(FPDF):
         self.set_font('Arial', '', 10)
         self.cell(35, 6, "Mobile No:", 0, 0)
         self.set_font('Arial', 'B', 10)
+        # Use provided mobile or fallback
         self.cell(70, 6, str(emp_mobile) if emp_mobile else "N/A", 0, 1)
 
         # Right: Date/Time
@@ -3472,11 +3480,17 @@ class PDFGenerator(FPDF):
         self.set_font('Arial', 'B', 10)
         self.set_text_color(0, 0, 0)
         
+        # FIX: Ensure correct path for signature
         sig_path = os.path.join(app.root_path, 'static', 'img', 'signature.png')
         
         if os.path.exists(sig_path):
             self.image(sig_path, x=20, y=y_pos, w=40) 
-            
+        else:
+            # Fallback text if image missing
+            self.set_xy(20, y_pos)
+            self.set_font('Arial', 'I', 8)
+            self.cell(40, 10, "[Sig Image Missing]", 0, 0)
+
         self.line(15, y_pos + 25, 75, y_pos + 25)
         self.set_xy(15, y_pos + 27)
         self.cell(60, 5, "Authorized Signature", 0, 0, 'C')
@@ -3500,7 +3514,6 @@ def download_morning_pdf(allocation_id):
     cursor = conn.cursor(MySQLdb.cursors.DictCursor)
     
     # 1. Header
-    # Added emp_name alias to match usage elsewhere
     cursor.execute("""
         SELECT ma.date, ma.created_at, e.name as emp_name, e.mobile as emp_mobile
         FROM morning_allocations ma
@@ -3527,6 +3540,7 @@ def download_morning_pdf(allocation_id):
     pdf.alias_nb_pages()
     pdf.add_page()
     
+    # Date Format Fix: %d-%m-%Y
     d_val = header['date'].strftime('%d-%m-%Y') if header['date'] else ""
     t_val = str(header['created_at']) if header['created_at'] else "N/A"
     
@@ -3570,8 +3584,7 @@ def download_morning_pdf(allocation_id):
     
     pdf.add_signature_section()
     
-    # --- OUTPUT FIX FOR FPDF (BYTESIO ERROR) ---
-    # Return PDF as string, then write to BytesIO
+    # Return PDF
     pdf_string = pdf.output(dest='S').encode('latin-1')
     buffer = io.BytesIO(pdf_string)
     buffer.seek(0)
@@ -3588,9 +3601,9 @@ def download_evening_pdf(settle_id):
     cursor = conn.cursor(MySQLdb.cursors.DictCursor)
     
     # 1. Header
-    # Added emp_name alias
+    # Added emp_mobile explicitly
     cursor.execute("""
-        SELECT es.*, e.name as emp_name
+        SELECT es.*, e.name as emp_name, e.mobile as emp_mobile
         FROM evening_settle es
         JOIN employees e ON es.employee_id = e.id
         WHERE es.id = %s
@@ -3601,7 +3614,7 @@ def download_evening_pdf(settle_id):
         flash("Settlement not found", "danger")
         return redirect(url_for('evening_master'))
         
-    # 2. Items - Using Correct Table 'evening_item'
+    # 2. Items
     cursor.execute("""
         SELECT p.name, ei.total_qty, ei.sold_qty, ei.return_qty, ei.unit_price
         FROM evening_item ei
@@ -3615,11 +3628,12 @@ def download_evening_pdf(settle_id):
     pdf.alias_nb_pages()
     pdf.add_page()
     
+    # Date Format Fix: %d-%m-%Y
     d_val = data['date'].strftime('%d-%m-%Y') if data['date'] else ""
     t_val = str(data['created_at']) if data.get('created_at') else "N/A"
     
-    # Pass emp_mobile if available, otherwise empty string
-    pdf.add_info_section(data['emp_name'], "", d_val, t_val)
+    # Mobile Number Fix: Use data['emp_mobile']
+    pdf.add_info_section(data['emp_name'], data.get('emp_mobile', ''), d_val, t_val)
     
     cols = ["#", "Product", "Total", "Sold", "Price", "Amount", "Return"]
     widths = [10, 60, 20, 20, 25, 30, 25]
@@ -3686,7 +3700,8 @@ def download_evening_pdf(settle_id):
     pdf.ln(1)
     print_kv("CASH COLLECTED:", f"{float(data.get('cash_money', 0) or 0):.2f}", 15, 40, 30)
     
-    # Right Column
+    # Right Column: Employee Finance
+    # Based on evening_settle table structure (added credit/debit amount columns assumed)
     c_amt = float(data.get('emp_credit_amount', 0) or 0)
     d_amt = float(data.get('emp_debit_amount', 0) or 0)
     
@@ -3722,7 +3737,7 @@ def download_evening_pdf(settle_id):
     
     pdf.add_signature_section()
     
-    # --- OUTPUT FIX ---
+    # Return PDF
     pdf_string = pdf.output(dest='S').encode('latin-1')
     buffer = io.BytesIO(pdf_string)
     buffer.seek(0)
@@ -3741,7 +3756,6 @@ def allocation_list():
     date_filter = request.args.get('date')
     emp_filter = request.args.get('employee_id')
     
-    # FIX: Aliased e.name as emp_name for template consistency
     query = """
         SELECT ma.*, e.name as emp_name, e.image as emp_image,
                (SELECT COUNT(*) FROM morning_allocation_items WHERE allocation_id = ma.id) as item_count
@@ -3778,7 +3792,6 @@ def allocation_list():
                 local_time = a['created_at'] + timedelta(hours=5, minutes=30)
                 a['time_str'] = local_time.strftime('%I:%M %p')
             elif type_name == 'timedelta':
-                # Attempt to construct time from timedelta
                 import datetime as dt_mod
                 base = dt_mod.datetime.min
                 dummy = base + a['created_at']
@@ -6046,6 +6059,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
