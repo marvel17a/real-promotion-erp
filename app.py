@@ -5599,13 +5599,14 @@ def get_public_id_from_url(url):
     return url 
 
 
-# --- 2. Employee Ledger Route ---
+
 @app.route('/employee-ledger/<int:employee_id>')
 def emp_ledger(employee_id):
     if 'loggedin' not in session: return redirect(url_for('login'))
     
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
+    # 1. Fetch Employee
     cur.execute("SELECT id, name, position, email, phone, image FROM employees WHERE id = %s", [employee_id])
     employee = cur.fetchone()
     
@@ -5613,7 +5614,7 @@ def emp_ledger(employee_id):
         flash('Employee not found!', 'danger')
         return redirect(url_for('emp_list'))
         
-    # Fetch Transactions
+    # 2. Fetch Transactions
     cur.execute("""
         SELECT id, transaction_date, type, amount, description, created_at 
         FROM employee_transactions 
@@ -5624,14 +5625,13 @@ def emp_ledger(employee_id):
     
     cur.close()
     
-    # --- FIX START: Resolve datetime ambiguity ---
-    # The error "module 'datetime' has no attribute 'min'" happens because 'datetime' 
-    # refers to the module in your app.py global scope. We import classes locally to fix this.
+    # --- ROBUST TIME HANDLING ---
+    # We use specific imports to avoid conflicts
     from datetime import datetime as dt_class, date as date_class, timedelta
+    import pytz # Optional if installed, else manual logic below
     
-    # Sort logic handling None values
-    # x['transaction_date'] (date object) or date_class.min
-    # x['created_at'] (datetime object) or dt_class.min
+    # Sort Logic: Handle None values safely
+    # If transaction_date is None, use min date. Same for created_at.
     transactions_calc = sorted(
         transactions_from_db, 
         key=lambda x: (
@@ -5639,7 +5639,6 @@ def emp_ledger(employee_id):
             x['created_at'] or dt_class.min
         )
     )
-    # --- FIX END ---
     
     running_balance = 0.0
     total_debit = 0.0
@@ -5651,6 +5650,7 @@ def emp_ledger(employee_id):
     for t in transactions_calc:
         amt = float(t['amount'])
         
+        # Calculate Balance (Oldest first logic for math)
         if t['type'] == 'debit':
             running_balance += amt
             total_debit += amt
@@ -5664,9 +5664,10 @@ def emp_ledger(employee_id):
         t_dict = dict(t)
         t_dict['balance'] = running_balance
         
-        # Time Formatting (IST)
+        # --- TIME FORMATTING (IST) ---
+        # Converts UTC server time to IST (+5:30)
         if t.get('created_at'):
-            # Convert to IST (UTC + 5:30)
+            # Manual conversion (Robust without external libs)
             local_time = t['created_at'] + timedelta(hours=5, minutes=30)
             t_dict['time_str'] = local_time.strftime('%I:%M %p')
         else:
@@ -5674,7 +5675,7 @@ def emp_ledger(employee_id):
             
         processed_transactions.append(t_dict)
         
-    # Reverse to show Newest First for display
+    # Reverse to show Newest First in UI
     transactions_display = processed_transactions[::-1]
 
     return render_template('emp_ledger.html', 
@@ -6047,6 +6048,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
