@@ -2716,8 +2716,6 @@ def employee_document(id):
 
 # ---------- ADMIN SIDE: EDIT EMPLOYEE (admin_master.html) ----------
 
-# 2. EDIT EMPLOYEE ROUTE
-
 @app.route("/edit_employee/<int:id>", methods=["GET", "POST"])
 def edit_employee(id):
     if "loggedin" not in session:
@@ -2734,17 +2732,19 @@ def edit_employee(id):
         phone = form.get("phone", "").strip()
         
         # Dates
-        dob_str = form.get("dob", "").strip()
-        # Helper 'parse_ddmmyyyy_to_date' assumed to exist in your app.py, otherwise standard logic:
         dob = form.get("dob") or None 
-        
+        joining_date = form.get("join_date") or None # Fixed field name match
+
         # IDs
         position_id = form.get("position_id") or None
         department_id = form.get("department_id") or None
         
+        # Status (Added Logic)
+        status = form.get("status", "active").lower() # Default to active if missing
+
         # Extra Info
         emergency_contact = form.get("emergency_contact", "").strip()
-        emergency_contact_person = form.get("emergency_contact_person", "").strip() # NEW FIELD
+        emergency_contact_person = form.get("emergency_contact_person", "").strip()
         aadhar_no = form.get("aadhar_no", "").strip()
 
         # Address Info
@@ -2763,9 +2763,7 @@ def edit_employee(id):
         doc_public_id = None
 
         try:
-            # Reusing your helper 'save_file_to_cloudinary' or standard logic
             if image_file and image_file.filename:
-                # Assuming save_file_to_cloudinary exists, else use uploader
                 res = cloudinary.uploader.upload(image_file, folder="erp_employees")
                 image_public_id = res.get('secure_url')
             
@@ -2779,10 +2777,12 @@ def edit_employee(id):
                 ("email", email or None),
                 ("phone", phone or None),
                 ("dob", dob),
+                ("joining_date", joining_date),
+                ("status", status), # Include status in update
                 ("position_id", position_id),
                 ("department_id", department_id),
                 ("emergency_contact", emergency_contact or None),
-                ("emergency_contact_person", emergency_contact_person or None), # NEW FIELD
+                ("emergency_contact_person", emergency_contact_person or None),
                 ("aadhar_no", aadhar_no or None),
                 ("pincode", pincode or None),
                 ("city", city or None),
@@ -5767,6 +5767,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
