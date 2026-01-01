@@ -104,9 +104,9 @@
                         <td class="text-end pe-4">
                             <div class="btn-group shadow-sm rounded-pill" role="group">
                                 <!-- PDF -->
-                                <a href="{{ url_for('generate_morning_pdf', alloc_id=a.id) }}" target="_blank" class="btn btn-sm btn-outline-danger" title="PDF">
-                                    <i class="fa-solid fa-file-pdf"></i>
-                                </a>
+                                <a href="{{ url_for('download_morning_pdf', allocation_id=row.id) }}" class="btn btn-sm btn-outline-danger" title="Download PDF">
+    <i class="fa-solid fa-file-pdf"></i>
+</a>
 
                                 <!-- WhatsApp -->
                                 {% if a.emp_phone %}
