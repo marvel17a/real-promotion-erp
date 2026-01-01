@@ -4034,182 +4034,159 @@ def fetch_evening_data():
 # ---------------------------------------------------------
 # 2. EVENING SETTLEMENT (Final, Drafts, Finance)
 # ---------------------------------------------------------
-
 @app.route('/evening', methods=['GET', 'POST'])
 def evening():
     if "loggedin" not in session: return redirect(url_for("login"))
+    
+    conn = mysql.connection
+    cursor = conn.cursor(MySQLdb.cursors.DictCursor)
+    
+    # 1. Fetch Employees for Dropdown (GET)
+    cursor.execute("SELECT id, name, image FROM employees WHERE status='active' ORDER BY name")
+    employees = cursor.fetchall()
+    # Resolve images
+    for e in employees:
+        if e['image']:
+            if not e['image'].startswith('http'):
+                 e['image'] = url_for('static', filename='uploads/' + e['image'])
+        else:
+            e['image'] = url_for('static', filename='img/default-user.png')
 
+    # 2. Handle Form Submission (POST)
     if request.method == 'POST':
-        db_cursor = None
         try:
-            status = request.form.get('status', 'final')
+            # Basic Fields
+            alloc_id = request.form.get('allocation_id')
+            emp_id = request.form.get('h_employee')
+            date_val = request.form.get('h_date')
+            time_str = request.form.get('timestamp')
+            status = request.form.get('status') # 'draft' or 'final'
             draft_id = request.form.get('draft_id')
             
-            allocation_id = request.form.get('allocation_id')
-            employee_id = request.form.get('h_employee')
-            date_str = request.form.get('h_date') 
-            time_str = request.form.get('timestamp') 
+            # Finance Fields
+            total_amt = float(request.form.get('totalAmount') or 0)
+            discount = float(request.form.get('discount') or 0)
+            online = float(request.form.get('online') or 0)
+            cash = float(request.form.get('cash') or 0)
             
-            date_obj = parse_date(date_str)
-            if not date_obj: raise ValueError("Invalid Date")
-            formatted_date = date_obj.strftime('%Y-%m-%d')
+            # Emp Finance
+            emp_c_amt = float(request.form.get('emp_credit_amount') or 0)
+            emp_c_note = request.form.get('emp_credit_note')
+            emp_d_amt = float(request.form.get('emp_debit_amount') or 0)
+            emp_d_note = request.form.get('emp_debit_note')
+            
+            # NEW: Due Note
+            due_note = request.form.get('due_note')
 
-            total_amount = request.form.get('totalAmount') or 0
-            online = request.form.get('online') or 0
-            cash = request.form.get('cash') or 0
-            discount = request.form.get('discount') or 0
-
-            p_ids = request.form.getlist('product_id[]')
-            t_qtys = request.form.getlist('total_qty[]')
-            s_qtys = request.form.getlist('sold[]')
-            r_qtys = request.form.getlist('return[]')
+            # Product Arrays
+            prod_ids = request.form.getlist('product_id[]')
+            total_qtys = request.form.getlist('total_qty[]')
+            sold_qtys = request.form.getlist('sold[]')
+            return_qtys = request.form.getlist('return[]')
             prices = request.form.getlist('price[]')
 
-            db_cursor = mysql.connection.cursor()
-
-            # --- A. HANDLE INSERT (Try with status, fallback without) ---
-            settle_id = None
-            
-            if draft_id and draft_id.strip():
+            # A. Update/Insert Header (evening_settle)
+            if draft_id:
                 # Update existing draft
+                cursor.execute("""
+                    UPDATE evening_settle 
+                    SET total_amount=%s, cash_money=%s, online_money=%s, discount=%s,
+                        emp_credit_amount=%s, emp_credit_note=%s, 
+                        emp_debit_amount=%s, emp_debit_note=%s,
+                        due_note=%s, status=%s, created_at=%s
+                    WHERE id=%s
+                """, (total_amt, cash, online, discount, 
+                      emp_c_amt, emp_c_note, emp_d_amt, emp_d_note, 
+                      due_note, status, time_str, draft_id))
                 settle_id = draft_id
-                # Attempt update with status
-                try:
-                    update_sql = """
-                        UPDATE evening_settle 
-                        SET total_amount=%s, online_money=%s, cash_money=%s, discount=%s, status=%s, created_at=%s 
-                        WHERE id=%s
-                    """
-                    db_cursor.execute(update_sql, (total_amount, online, cash, discount, status, time_str, settle_id))
-                except MySQLdb.OperationalError as e:
-                    if e.args[0] == 1054: # Missing status col
-                         update_sql = """
-                            UPDATE evening_settle 
-                            SET total_amount=%s, online_money=%s, cash_money=%s, discount=%s, created_at=%s 
-                            WHERE id=%s
-                        """
-                         db_cursor.execute(update_sql, (total_amount, online, cash, discount, time_str, settle_id))
-                    else: raise e
-                
-                db_cursor.execute("DELETE FROM evening_item WHERE settle_id=%s", (settle_id,))
             else:
-                # Insert New
-                try:
-                    db_cursor.execute("""
-                        INSERT INTO evening_settle (allocation_id, employee_id, date, total_amount, online_money, cash_money, discount, created_at, status)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    """, (allocation_id, employee_id, formatted_date, total_amount, online, cash, discount, time_str, status))
-                except MySQLdb.OperationalError as e:
-                    # Fallback if 'status' column missing
-                    if e.args[0] == 1054:
-                        if status == 'draft': 
-                            flash("Drafts not supported yet (DB update required). Submitted as Final.", "warning")
-                        db_cursor.execute("""
-                            INSERT INTO evening_settle (allocation_id, employee_id, date, total_amount, online_money, cash_money, discount, created_at)
-                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                        """, (allocation_id, employee_id, formatted_date, total_amount, online, cash, discount, time_str))
-                    else: raise e
-                
-                settle_id = db_cursor.lastrowid
+                # Create new record
+                cursor.execute("""
+                    INSERT INTO evening_settle 
+                    (allocation_id, employee_id, date, total_amount, cash_money, online_money, discount, 
+                     emp_credit_amount, emp_credit_note, emp_debit_amount, emp_debit_note, due_note, status, created_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """, (alloc_id, emp_id, date_val, total_amt, cash, online, discount,
+                      emp_c_amt, emp_c_note, emp_d_amt, emp_d_note, due_note, status, time_str))
+                settle_id = cursor.lastrowid
 
-            # --- B. INSERT ITEMS ---
-            item_sql = "INSERT INTO evening_item (settle_id, product_id, total_qty, sold_qty, return_qty, unit_price, remaining_qty) VALUES (%s, %s, %s, %s, %s, %s, %s)"
+            # B. Update Items (Delete old items for this ID and re-insert is easiest for updates)
+            if draft_id:
+                cursor.execute("DELETE FROM evening_item WHERE settle_id=%s", (settle_id,))
             
-            for i, pid in enumerate(p_ids):
-                if not pid: continue
-                sold = int(s_qtys[i] or 0)
-                ret_qty = int(r_qtys[i] or 0)
-                rem = int(t_qtys[i] or 0) - sold - ret_qty
-                if rem < 0: rem = 0
-
-                db_cursor.execute(item_sql, (settle_id, pid, t_qtys[i], sold, ret_qty, prices[i], rem))
+            for i, pid in enumerate(prod_ids):
+                p_tot = int(total_qtys[i] or 0)
+                p_sold = int(sold_qtys[i] or 0)
+                p_ret = int(return_qtys[i] or 0)
+                p_price = float(prices[i] or 0)
                 
-                # --- C. STOCK DEDUCTION (If Final or fallback) ---
-                # If we couldn't save status='draft', we assume it's final
-                if status == 'final' or (status == 'draft' and 'status' not in str(e)):
-                    if sold > 0:
-                        db_cursor.execute("UPDATE products SET stock = stock - %s WHERE id = %s", (sold, pid))
-
-            # --- D. FINANCE INTEGRATION (Final Only) ---
+                cursor.execute("""
+                    INSERT INTO evening_item (settle_id, product_id, total_qty, sold_qty, return_qty, unit_price)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, (settle_id, pid, p_tot, p_sold, p_ret, p_price))
+                
+                # C. Inventory Logic (Only if Final)
+                if status == 'final':
+                    # Return Qty -> Add back to stock
+                    if p_ret > 0:
+                        cursor.execute("UPDATE products SET stock = stock + %s WHERE id = %s", (p_ret, pid))
+            
+            conn.commit()
+            
             if status == 'final':
-                emp_credit_amt = request.form.get('emp_credit_amount')
-                emp_credit_note = request.form.get('emp_credit_note')
-                emp_debit_amt = request.form.get('emp_debit_amount')
-                emp_debit_note = request.form.get('emp_debit_note')
-
-                # Credit
-                if emp_credit_amt and float(emp_credit_amt) > 0:
-                    credit_note_final = emp_credit_note if emp_credit_note else "Credit Entry via Evening Settlement"
-                    db_cursor.execute("""
-                        INSERT INTO employee_transactions (employee_id, transaction_date, type, amount, description, created_at)
-                        VALUES (%s, %s, 'credit', %s, %s, %s)
-                    """, (employee_id, formatted_date, emp_credit_amt, credit_note_final, time_str))
-
-                # Debit
-                if emp_debit_amt and float(emp_debit_amt) > 0:
-                    debit_note_final = emp_debit_note if emp_debit_note else "Debit Entry via Evening Settlement"
-                    db_cursor.execute("""
-                        INSERT INTO employee_transactions (employee_id, transaction_date, type, amount, description, created_at)
-                        VALUES (%s, %s, 'debit', %s, %s, %s)
-                    """, (employee_id, formatted_date, emp_debit_amt, debit_note_final, time_str))
-
-            mysql.connection.commit()
-            
-            flash("Settlement submitted successfully!", "success")
-            return redirect(url_for('evening', last_settle_id=settle_id))
+                flash("Settlement Finalized Successfully!", "success")
+                # Redirect to same page with settle_id to show locked view
+                return redirect(url_for('evening', last_id=settle_id))
+            else:
+                flash("Draft Saved Successfully!", "info")
+                return redirect(url_for('evening'))
 
         except Exception as e:
-            if db_cursor: mysql.connection.rollback()
+            conn.rollback()
             flash(f"Error: {e}", "danger")
-            app.logger.error(f"Evening Settle Error: {e}")
             return redirect(url_for('evening'))
-        finally:
-            if db_cursor: db_cursor.close()
 
-    # --- GET REQUEST (Load Page) ---
-    last_settle_id = request.args.get('last_settle_id')
-    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    # 3. Handle GET Request (Load View)
+    today = date.today().strftime('%d-%m-%Y')
     
-    cur.execute("SELECT id, name, image FROM employees WHERE status='active' ORDER BY name")
-    employees = cur.fetchall()
-    for e in employees: e['image'] = resolve_img(e['image'])
-
+    # Check for 'last_id' param (After submission view)
+    last_settle_id = request.args.get('last_id')
     draft_data = None
-    draft_items = None
-    selected_emp_id = None
-    employee_img = None
+    draft_items = []
+    selected_emp_id = ""
     
     if last_settle_id:
-        cur.execute("SELECT * FROM evening_settle WHERE id = %s", (last_settle_id,))
-        draft_data = cur.fetchone()
-        
+        # Load Final/Submitted Data
+        cursor.execute("SELECT * FROM evening_settle WHERE id=%s", (last_settle_id,))
+        draft_data = cursor.fetchone()
         if draft_data:
             selected_emp_id = draft_data['employee_id']
-            cur.execute("""
+            today = draft_data['date'].strftime('%d-%m-%Y')
+            
+            # Fetch Items with Product Names
+            cursor.execute("""
                 SELECT ei.*, p.name as product_name, p.image 
-                FROM evening_item ei 
-                JOIN products p ON ei.product_id = p.id 
-                WHERE ei.settle_id = %s
+                FROM evening_item ei
+                JOIN products p ON ei.product_id = p.id
+                WHERE ei.settle_id=%s
             """, (last_settle_id,))
-            draft_items = cur.fetchall()
+            draft_items = cursor.fetchall()
+            
+            # Resolve item images
+            for item in draft_items:
+                if item['image']:
+                    if not item['image'].startswith('http'):
+                         item['image'] = url_for('static', filename='uploads/' + item['image'])
+                else:
+                    item['image'] = url_for('static', filename='img/default-product.png')
 
-    if selected_emp_id:
-        for emp in employees:
-            if str(emp['id']) == str(selected_emp_id):
-                employee_img = emp['image']
-        if draft_items:
-            for item in draft_items: item['image'] = resolve_img(item['image'])
-
-    cur.close()
-    
     return render_template('evening.html', 
                            employees=employees, 
-                           today=date.today().strftime('%d-%m-%Y'), 
-                           last_settle_id=last_settle_id,
+                           today=today,
                            draft_data=draft_data,
                            draft_items=draft_items,
-                           selected_emp_id=selected_emp_id,
-                           employee_img=employee_img)
+                           last_settle_id=last_settle_id,
+                           selected_emp_id=selected_emp_id)
 
 # --- NEW ROUTE: DRAFT LIST PAGE ---
 @app.route('/evening/drafts')
@@ -6064,6 +6041,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
