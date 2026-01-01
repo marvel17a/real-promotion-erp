@@ -90,10 +90,19 @@ def safe_date_format(date_obj, format='%d-%m-%Y', default='N/A'):
         return date_obj.strftime(format)
     return default
 
+# --- TIMEZONE HELPERS ---
+def get_ist_now():
+    """Returns current time in IST (UTC + 5:30)"""
+    return datetime.utcnow() + timedelta(hours=5, minutes=30)
 
-# --- VIEW EVENING SETTLEMENT DETAILS ---
-# --- VIEW EVENING SETTLEMENT DETAILS (FIXED e.phone) ---
-# --- VIEW EVENING SETTLEMENT DETAILS ---
+def parse_date_input(date_str):
+    """Converts dd-mm-yyyy to yyyy-mm-dd for MySQL"""
+    try:
+        return datetime.strptime(date_str, '%d-%m-%Y').strftime('%Y-%m-%d')
+    except (ValueError, TypeError):
+        # Return as-is if it fails (might already be correct or None)
+        return date_str
+
 # --- VIEW EVENING SETTLEMENT DETAILS ---
 @app.route('/evening/view/<int:settle_id>')
 def view_evening_settlement(settle_id):
@@ -6115,6 +6124,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
