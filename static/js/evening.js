@@ -64,7 +64,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 ui.tableBody.innerHTML = `<tr><td colspan="5" class="text-center py-5 text-danger fw-bold fs-5">
                     <i class="fa-solid fa-lock me-2"></i> ${data.message}
                 </td></tr>`;
-                ui.btnFinal.disabled = true;
+                ui.btnFinal.disabled = true; // LOCK SUBMIT
             } else {
                 ui.btnFinal.disabled = false;
                 
@@ -74,9 +74,9 @@ document.addEventListener("DOMContentLoaded", () => {
                         tr.innerHTML = `
                             <td>
                                 <div class="d-flex align-items-center">
-                                    <img src="${item.image}" class="rounded border me-2 shadow-sm" width="40" height="40">
+                                    <img src="${item.image}" class="rounded border me-2" width="40" height="40">
                                     <div>
-                                        <div class="fw-bold text-dark">${item.name}</div>
+                                        <div class="fw-bold">${item.name}</div>
                                         <small class="text-muted">₹${item.price}</small>
                                     </div>
                                 </div>
@@ -93,14 +93,14 @@ document.addEventListener("DOMContentLoaded", () => {
                                 <input type="number" name="return_qty[]" class="form-control text-center text-danger fw-bold return" min="0" placeholder="0">
                             </td>
                             <td class="text-center">
-                                 <span class="badge bg-primary fs-6 remaining shadow-sm">0</span>
+                                 <span class="badge bg-primary fs-6 remaining">0</span>
                             </td>
                         `;
                         ui.tableBody.appendChild(tr);
                     });
                     recalculateTotals();
                 } else {
-                    ui.tableBody.innerHTML = `<tr><td colspan="5" class="text-center py-5 text-muted">No products found for this Employee (Check Morning Allocation).</td></tr>`;
+                    ui.tableBody.innerHTML = `<tr><td colspan="5" class="text-center py-5 text-muted">No stock found for this employee (Today or Yesterday).</td></tr>`;
                 }
             }
         } catch (err) {
@@ -174,10 +174,15 @@ document.addEventListener("DOMContentLoaded", () => {
         if(el) el.addEventListener("input", calculateDue);
     });
 
-    // --- ONE CLICK SUBMIT ---
+    // --- ONE CLICK SUBMIT LOGIC ---
     if(ui.btnFinal) {
         ui.btnFinal.addEventListener("click", function() {
-            // Sweet Alert Confirmation
+            // Check if items exist
+            if(ui.tableBody.querySelectorAll("tr").length === 0 || ui.tableBody.innerText.includes("No stock")) {
+                Swal.fire('Error', 'No products to settle.', 'error');
+                return;
+            }
+
             Swal.fire({
                 title: 'Confirm Final Submission?',
                 text: "Stock will be added back (Returns) and Financials saved.",
