@@ -41,7 +41,7 @@
             {% endif %}
         {% endwith %}
 
-        <!-- ALREADY SETTLED MESSAGE -->
+        <!-- ALREADY SETTLED MESSAGE (Added for Logic) -->
         <div id="settledMsg" class="alert alert-info shadow-sm d-none">
             <i class="fa-solid fa-check-double me-2"></i>
             <strong>Settlement Complete:</strong> Evening settlement is done for this date.
@@ -134,7 +134,7 @@
     </div>
 </div>
 
-<!-- Embedded Data -->
+<!-- Embedded Data for JS -->
 <script>
     try { window.productsData = {{ products | tojson | safe }}; } 
     catch(e) { window.productsData = []; }
