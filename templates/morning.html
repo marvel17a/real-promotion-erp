@@ -41,10 +41,10 @@
             {% endif %}
         {% endwith %}
 
-        <!-- ALREADY SETTLED MESSAGE (Hidden by default) -->
+        <!-- ALREADY SETTLED MESSAGE -->
         <div id="settledMsg" class="alert alert-info shadow-sm d-none">
             <i class="fa-solid fa-check-double me-2"></i>
-            <strong>Settlement Complete:</strong> Evening settlement is done for this date. Allocation is locked.
+            <strong>Settlement Complete:</strong> Evening settlement is done for this date.
         </div>
 
         <form id="morningForm" method="POST" action="{{ url_for('morning') }}">
@@ -76,10 +76,7 @@
                 </div>
 
                 <div class="col-md-4 text-end">
-                    <!-- Employee Photo Preview -->
-                    <img id="empPhoto" src="{{ url_for('static', filename='img/default-user.png') }}" 
-                         class="rounded-circle shadow-sm border border-3 border-white" 
-                         style="width: 60px; height: 60px; object-fit: cover;">
+                    <img id="empPhoto" src="{{ url_for('static', filename='img/default-user.png') }}" class="rounded-circle shadow-sm border border-3 border-white" width="60" height="60" style="object-fit: cover;">
                 </div>
             </div>
 
@@ -125,10 +122,10 @@
 
             <!-- Actions -->
             <div class="d-flex justify-content-end gap-3 align-items-center mt-4" id="actionButtons">
-                <button type="button" id="addRow" class="btn btn-glass btn-add-row">
+                <button type="button" id="addRow" class="btn btn-light rounded-pill shadow-sm px-4 fw-bold text-primary">
                     <i class="fa-solid fa-plus me-2"></i> Add Item
                 </button>
-                <button type="submit" class="btn btn-glass btn-save px-5">
+                <button type="submit" class="btn btn-primary rounded-pill shadow px-5 fw-bold">
                     <i class="fa-solid fa-check-circle me-2"></i> Save Allocation
                 </button>
             </div>
@@ -137,7 +134,7 @@
     </div>
 </div>
 
-<!-- Embedded Data for JS -->
+<!-- Embedded Data -->
 <script>
     try { window.productsData = {{ products | tojson | safe }}; } 
     catch(e) { window.productsData = []; }
@@ -145,7 +142,6 @@
     document.addEventListener("DOMContentLoaded", function() {
         flatpickr("#date", { dateFormat: "d-m-Y", defaultDate: "{{ today_date }}", allowInput: true });
         
-        // Employee Photo Logic
         const empSelect = document.getElementById('employee_id');
         const empPhoto = document.getElementById('empPhoto');
         if(empSelect) {
@@ -157,7 +153,6 @@
             });
         }
         
-        // Live Clock
         setInterval(() => {
             const now = new Date();
             document.getElementById('liveClock').textContent = now.toLocaleTimeString();
