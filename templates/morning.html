@@ -25,98 +25,106 @@
     <div class="glass-panel p-4 mb-4">
         
         <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
-            <h4 class="fw-800 text-dark mb-0"><i class="fa-solid fa-sun text-warning me-2"></i>Morning Allocation</h4>
-            <a href="{{ url_for('allocation_list') }}" class="btn btn-outline-secondary rounded-pill btn-sm fw-bold px-3">
-                <i class="fa-solid fa-clock-rotate-left me-2"></i> History
-            </a>
+            <h4 class="fw-bold text-dark mb-0"><i class="fa-solid fa-sun text-warning me-2"></i>Morning Allocation</h4>
+            <div id="liveClock" class="digital-clock">00:00:00 AM</div>
+        </div>
+
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <!-- ALREADY SETTLED MESSAGE (Hidden by default) -->
+        <div id="settledMsg" class="alert alert-info shadow-sm d-none">
+            <i class="fa-solid fa-check-double me-2"></i>
+            <strong>Settlement Complete:</strong> Evening settlement is done for this date. Allocation is locked.
         </div>
 
         <form id="morningForm" method="POST" action="{{ url_for('morning') }}">
-            <!-- Hidden Timestamp -->
             <input type="hidden" name="timestamp" id="timestampInput">
 
-            <!-- Controls Row - Aligned Items -->
-            <div class="row g-4 align-items-end mb-4">
-                
-                <!-- Employee Select -->
-                <div class="col-lg-5">
-                    <label class="control-label">Sales Representative</label>
-                    <div class="d-flex align-items-center gap-3">
-                        <div class="emp-photo-box">
-                            <img src="{{ url_for('static', filename='img/default-user.png') }}" id="empPhoto" alt="User">
-                        </div>
-                        <div class="flex-grow-1">
-                            <div class="input-group-glass">
-                                <span class="input-group-text"><i class="fa-solid fa-user-tie"></i></span>
-                                <select name="employee_id" id="employee_id" class="form-select" required>
-                                    <option value="" data-img="">-- Select Employee --</option>
-                                    {% for emp in employees %}
-                                    <option value="{{ emp.id }}" data-img="{{ emp.image }}">{{ emp.name }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                        </div>
+            <!-- Selection Row -->
+            <div class="row g-3 align-items-end mb-4">
+                <div class="col-md-5">
+                    <label class="form-label fw-bold text-muted small text-uppercase">Select Employee</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-white border-end-0"><i class="fa-solid fa-user text-primary"></i></span>
+                        <select name="employee_id" id="employee_id" class="form-select border-start-0 ps-0 fw-bold" required>
+                            <option value="">-- Choose Employee --</option>
+                            {% for emp in employees %}
+                            <option value="{{ emp.id }}" data-img="{{ url_for('static', filename='img/' + emp.image) if emp.image else '' }}">
+                                {{ emp.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
                     </div>
                 </div>
 
-                <!-- Date Input -->
-                <div class="col-md-4 col-lg-4">
-                    <label class="control-label">Allocation Date</label>
-                    <div class="input-group-glass">
-                        <span class="input-group-text"><i class="fa-solid fa-calendar-day"></i></span>
-                        <input type="text" name="date" id="date" class="form-control" value="{{ today_date }}" required>
+                <div class="col-md-3">
+                    <label class="form-label fw-bold text-muted small text-uppercase">Date</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-white border-end-0"><i class="fa-regular fa-calendar text-primary"></i></span>
+                        <input type="text" name="date" id="date" class="form-control border-start-0 ps-0 fw-bold flatpickr-input" value="{{ today_date }}" required>
                     </div>
                 </div>
 
-                <!-- Live Clock (Blue Box) -->
-                <div class="col-md-4 col-lg-3 ms-auto">
-                    <div class="clock-display">
-                        <span id="liveClock">00:00:00</span>
-                    </div>
+                <div class="col-md-4 text-end">
+                    <!-- Employee Photo Preview -->
+                    <img id="empPhoto" src="{{ url_for('static', filename='img/default-user.png') }}" 
+                         class="rounded-circle shadow-sm border border-3 border-white" 
+                         style="width: 60px; height: 60px; object-fit: cover;">
                 </div>
             </div>
 
-            <!-- Status Message Area -->
-            <div id="fetchMsg" class="text-center mb-3"></div>
+            <!-- Fetch Message -->
+            <div id="fetchMsg" class="alert alert-light border-0 small text-muted mb-3 d-none">
+                <i class="fa-solid fa-spinner fa-spin me-2"></i> Checking records...
+            </div>
 
-            <!-- Restock History Area -->
-            <div id="historyList"></div>
-
-            <!-- Product Table -->
-            <div class="table-responsive">
-                <table class="table styled-table" id="productTable">
-                    <thead>
+            <!-- Products Table -->
+            <div class="table-responsive rounded-4 shadow-sm mb-4 bg-white">
+                <table class="table table-hover align-middle mb-0" id="productTable">
+                    <thead class="bg-light text-secondary small text-uppercase">
                         <tr>
-                            <th class="text-center" style="width: 50px;">#</th>
-                            <th class="text-center" style="width: 70px;">Img</th>
-                            <th class="text-start">Product Name</th>
-                            <th class="text-center" style="width: 100px;">Opening</th>
-                            <th class="text-center" style="width: 120px;">Given Qty</th>
-                            <th class="text-center" style="width: 100px;">Total</th>
-                            <th class="text-end" style="width: 120px;">Price</th>
-                            <th class="text-end" style="width: 140px;">Amount</th>
-                            <th class="text-center" style="width: 50px;"><i class="fa-solid fa-trash"></i></th>
+                            <th class="ps-4" style="width: 50px;">#</th>
+                            <th style="width: 80px;">Image</th>
+                            <th>Product Name</th>
+                            <th style="width: 120px;">Price (₹)</th>
+                            <th style="width: 120px;" class="text-center">Opening</th>
+                            <th style="width: 120px;" class="text-center">Given</th>
+                            <th style="width: 120px;" class="text-center">Total</th>
+                            <th style="width: 60px;"></th>
                         </tr>
                     </thead>
-                    <tbody>
-                        <!-- Javascript will populate rows here -->
+                    <tbody class="border-top-0">
+                        <!-- Rows added via JS -->
                     </tbody>
-                    <tfoot class="table-footer">
+                    <tfoot class="bg-light fw-bold">
                         <tr>
-                            <td colspan="3" class="summary-label">Summary:</td>
-                            <td class="text-center"><span class="total-box bg-total-secondary" id="totalOpening">0</span></td>
-                            <td class="text-center"><span class="total-box bg-total-blue" id="totalGiven">0</span></td>
-                            <td class="text-center"><span class="total-box bg-total-dark" id="totalAll">0</span></td>
+                            <td colspan="4" class="text-end text-uppercase text-muted small">Total Qty:</td>
+                            <td class="text-center text-primary" id="totalOpening">0</td>
+                            <td class="text-center text-success" id="totalGiven">0</td>
+                            <td class="text-center text-dark" id="totalAll">0</td>
                             <td></td>
-                            <td class="text-end"><span class="total-box bg-total-green fs-5">₹ <span id="grandTotal">0.00</span></span></td>
+                        </tr>
+                        <tr>
+                            <td colspan="6" class="text-end text-uppercase text-muted small">Grand Total Value:</td>
+                            <td class="text-center fs-5 text-success">₹ <span id="grandTotal">0.00</span></td>
                             <td></td>
                         </tr>
                     </tfoot>
                 </table>
             </div>
 
-            <!-- Action Buttons -->
-            <div class="d-flex justify-content-between align-items-center mt-4">
+            <!-- Actions -->
+            <div class="d-flex justify-content-end gap-3 align-items-center mt-4" id="actionButtons">
                 <button type="button" id="addRow" class="btn btn-glass btn-add-row">
                     <i class="fa-solid fa-plus me-2"></i> Add Item
                 </button>
@@ -148,7 +156,15 @@
                 else empPhoto.src = "{{ url_for('static', filename='img/default-user.png') }}";
             });
         }
+        
+        // Live Clock
+        setInterval(() => {
+            const now = new Date();
+            document.getElementById('liveClock').textContent = now.toLocaleTimeString();
+            document.getElementById('timestampInput').value = now.toISOString();
+        }, 1000);
     });
 </script>
+
 <script src="{{ url_for('static', filename='js/morning.js') }}"></script>
 {% endblock %}
