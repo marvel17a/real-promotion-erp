@@ -8,8 +8,7 @@ document.addEventListener("DOMContentLoaded", () => {
         tableBody: document.querySelector("#productTable tbody"),
         addRowBtn: getEl("addRow"),
         fetchMsg: getEl("fetchMsg"),
-        settledMsg: getEl("settledMsg"),
-        actionButtons: getEl("actionButtons"),
+        historyList: getEl("historyList"),
         totals: {
             opening: getEl("totalOpening"),
             given: getEl("totalGiven"),
@@ -28,152 +27,238 @@ document.addEventListener("DOMContentLoaded", () => {
     let productOptionsHtml = '<option value="">-- Select --</option>';
     if (Array.isArray(productsData)) {
         productsData.forEach(p => {
+            // FIX: Ensure stock is a valid integer. Default to 0 if missing.
             p.stock = (p.stock === null || p.stock === undefined) ? 0 : parseInt(p.stock);
+            
             productsMap.set(String(p.id), p);
-            productOptionsHtml += `<option value="${p.id}">${p.name} (Stock: ${p.stock})</option>`;
+            // We store stock in data attribute as backup, though Map is primary
+            productOptionsHtml += `<option value="${p.id}" data-stock="${p.stock}">${p.name}</option>`;
         });
     }
 
-    // --- FETCH LOGIC ---
-    async function fetchStockData() {
-        const empId = ui.employeeSelect.value;
-        const dateVal = ui.dateInput.value;
-
-        if (!empId || !dateVal) return;
-
-        ui.fetchMsg.classList.remove("d-none");
-        ui.tableBody.innerHTML = "";
+    // --- 1. DIGITAL CLOCK ---
+    function updateClock() {
+        const now = new Date();
+        const timeString = now.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute:'2-digit', second:'2-digit' });
+        if(ui.clockDisplay) ui.clockDisplay.textContent = timeString;
         
-        // Reset UI
-        if(ui.settledMsg) ui.settledMsg.classList.add("d-none");
-        if(ui.actionButtons) ui.actionButtons.classList.remove("d-none");
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        const seconds = String(now.getSeconds()).padStart(2, '0');
+        
+        if(ui.timestampInput) ui.timestampInput.value = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    // --- 2. FETCH DATA ---
+    async function fetchStockData() {
+        const employeeId = ui.employeeSelect.value;
+        const dateStr = ui.dateInput.value;
+
+        if (!employeeId || !dateStr) return;
+
+        ui.fetchMsg.innerHTML = '<span class="text-primary"><i class="fas fa-spinner fa-spin"></i> Checking...</span>';
+        if(ui.historyList) ui.historyList.innerHTML = '';
+        ui.tableBody.innerHTML = '';
 
         try {
-            const res = await fetch(`/api/fetch_stock?employee_id=${empId}&date=${dateVal}`);
-            const data = await res.json();
+            const response = await fetch(`/api/fetch_stock?employee_id=${employeeId}&date=${dateStr}`);
+            const data = await response.json();
 
-            if (data.status === "success") {
-                // Logic: If Settled, show message and hide buttons
-                if (data.is_settled) {
-                    if(ui.settledMsg) ui.settledMsg.classList.remove("d-none");
-                    if(ui.actionButtons) ui.actionButtons.classList.add("d-none");
+            if (data.error && response.status !== 500) {
+                if(data.error.toLowerCase().includes("inactive")) {
+                    ui.fetchMsg.innerHTML = `<div class="alert alert-danger fw-bold"><i class="fa-solid fa-ban me-2"></i>${data.error}</div>`;
+                    ui.addRowBtn.disabled = true;
+                    return; 
                 }
-
-                if (data.items && data.items.length > 0) {
-                    data.items.forEach(item => {
-                        addFetchedRow(item, data.source);
+                
+                ui.addRowBtn.disabled = false;
+                isRestockMode = false;
+                ui.fetchMsg.innerHTML = '<span class="text-secondary small">Start New Allocation</span>';
+                createRow(); 
+            } else {
+                ui.addRowBtn.disabled = false;
+                isRestockMode = (data.mode === 'restock');
+                
+                if (!isRestockMode && data.opening_stock && data.opening_stock.length > 0) {
+                    data.opening_stock.forEach(stockItem => {
+                        createRow(stockItem); 
                     });
+                    ui.fetchMsg.innerHTML = '<span class="text-success small"><i class="fa-solid fa-check"></i> Stock Loaded</span>';
+                } else {
+                    createRow();
+                    ui.fetchMsg.innerHTML = isRestockMode ? '' : '<span class="text-secondary small">No pending stock</span>';
                 }
-                isRestockMode = (data.source === "restock");
-                recalculateTotals();
+
+                if (isRestockMode) {
+                    ui.fetchMsg.innerHTML = '<span class="badge bg-warning text-dark">Restock Mode</span>';
+                    
+                    if(data.existing_items && data.existing_items.length > 0) {
+                        let historyHtml = `
+                            <div class="card border-warning mb-3 shadow-sm">
+                                <div class="card-header bg-warning bg-opacity-10 text-warning fw-bold small d-flex justify-content-between">
+                                    <span><i class="fa-solid fa-box-open"></i> CURRENT STOCK WITH EMPLOYEE</span>
+                                </div>
+                                <div class="card-body p-3 d-flex flex-wrap gap-3">
+                        `;
+                        
+                        data.existing_items.forEach(item => {
+                            historyHtml += `
+                                <div class="d-flex align-items-center border rounded p-2 pe-3 bg-white shadow-sm" style="min-width: 180px;">
+                                    <div class="prod-img-box me-3" style="width:40px; height:40px;">
+                                        <img src="${item.image}" style="width:100%; height:100%; object-fit:cover;">
+                                    </div>
+                                    <div>
+                                        <div class="fw-bold small text-dark lh-1">${item.name}</div>
+                                        <span class="badge bg-primary rounded-pill mt-1">Total: ${item.qty}</span>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                        historyHtml += '</div></div>';
+                        if(ui.historyList) ui.historyList.innerHTML = historyHtml;
+                    }
+                }
             }
-        } catch (err) {
-            console.error(err);
-        } finally {
-            ui.fetchMsg.classList.add("d-none");
+            recalculateTotals();
+
+        } catch (error) {
+            console.error(error);
+            ui.fetchMsg.innerHTML = '<span class="text-danger small">Error connecting to server</span>';
+            createRow();
         }
     }
 
-    function addFetchedRow(item, source) {
+    // --- 3. ROW CREATION ---
+    function createRow(prefillData = null) {
         const tr = document.createElement("tr");
-        tr.className = "fade-in";
         
-        // If Restock: opening_qty is existing opening, given_qty is existing given.
-        // If New: opening_qty is Previous Remaining.
-        
-        let opQty = item.opening_qty || 0;
-        let givenQty = item.given_qty || 0;
-        let price = item.price || 0;
-        let img = item.image || DEFAULT_IMG;
+        let productId = "";
+        let openingVal = 0;
+        let priceVal = 0.00;
+        let imgSrc = DEFAULT_IMG;
 
-        // If restock mode, we show what was ALREADY given.
-        // If new mode, we start with 0 given.
-        
-        // Check if settled to disable inputs
-        const isSettled = ui.settledMsg && !ui.settledMsg.classList.contains("d-none");
-        const disabledAttr = isSettled ? "disabled" : "";
+        if (prefillData) {
+            productId = prefillData.product_id;
+            openingVal = prefillData.remaining;
+            priceVal = prefillData.price;
+            if(prefillData.image) imgSrc = prefillData.image;
+        }
 
         tr.innerHTML = `
-            <td class="text-center fw-bold text-muted row-index"></td>
-            <td><img src="${img}" class="rounded shadow-sm border" width="40" height="40"></td>
-            <td>
-                <input type="hidden" name="product_id[]" value="${item.product_id || item.id}">
-                <span class="fw-bold text-dark">${item.name}</span>
+            <td class="text-center text-muted fw-bold row-index"></td>
+            <td class="text-center">
+                <div class="prod-img-box">
+                    <img src="${imgSrc}" class="product-thumb" alt="img" onerror="this.src='${DEFAULT_IMG}'">
+                </div>
             </td>
-            <td><input type="number" name="price[]" class="form-control form-control-sm border-0 bg-transparent fw-bold price" value="${price}" readonly></td>
-            <td><input type="number" name="opening[]" class="form-control form-control-sm text-center opening" value="${opQty}" readonly></td>
-            <td><input type="number" name="given[]" class="form-control form-control-sm text-center fw-bold text-primary given" value="${source === 'restock' ? givenQty : 0}" ${disabledAttr}></td>
-            <td><input type="number" class="form-control form-control-sm text-center fw-bold border-0 bg-light total" value="${opQty + (source === 'restock' ? givenQty : 0)}" readonly></td>
             <td>
-                ${!isSettled && source !== 'restock' ? '<button type="button" class="btn btn-link text-danger btn-remove-row p-0"><i class="fa-solid fa-trash"></i></button>' : ''}
-            </td>
-        `;
-        ui.tableBody.appendChild(tr);
-        updateRowIndexes();
-    }
-
-    function createRow() {
-        const tr = document.createElement("tr");
-        tr.className = "fade-in";
-        tr.innerHTML = `
-            <td class="text-center fw-bold text-muted row-index"></td>
-            <td><img src="${DEFAULT_IMG}" class="rounded shadow-sm border product-thumb" width="40" height="40"></td>
-            <td>
-                <select name="product_id[]" class="form-select form-select-sm product-dropdown fw-bold border-0 bg-light">
+                <select name="product_id[]" class="form-select product-dropdown" required>
                     ${productOptionsHtml}
                 </select>
+                <!-- Warning Text -->
+                <div class="small text-danger fw-bold mt-1 stock-warning" style="display:none; font-size: 0.75rem;"></div>
             </td>
-            <td><input type="number" name="price[]" class="form-control form-control-sm border-0 bg-transparent fw-bold price" readonly></td>
-            <td><input type="number" name="opening[]" class="form-control form-control-sm text-center opening" value="0" readonly></td>
-            <td><input type="number" name="given[]" class="form-control form-control-sm text-center fw-bold text-primary given" value="0"></td>
-            <td><input type="number" class="form-control form-control-sm text-center fw-bold border-0 bg-light total" value="0" readonly></td>
-            <td><button type="button" class="btn btn-link text-danger btn-remove-row p-0"><i class="fa-solid fa-trash"></i></button></td>
+            <td><input type="number" name="opening[]" class="table-input opening" value="${openingVal}" readonly tabindex="-1"></td>
+            <td><input type="number" name="given[]" class="table-input given input-qty" min="0" placeholder="0" required></td>
+            <td><input type="number" name="total[]" class="table-input total" value="${openingVal}" readonly tabindex="-1"></td>
+            <td><input type="number" name="price[]" class="table-input price text-end" step="0.01" value="${priceVal.toFixed(2)}" readonly tabindex="-1"></td>
+            <td><input type="number" name="amount[]" class="table-input amount text-end fw-bold text-primary" value="0.00" readonly tabindex="-1"></td>
+            <td class="text-center">
+                <button type="button" class="btn btn-sm text-danger btn-remove-row"><i class="fa-solid fa-trash-can fa-lg"></i></button>
+            </td>
         `;
-        ui.tableBody.appendChild(tr);
-        updateRowIndexes();
-    }
-
-    function updateRowData(tr, productId) {
-        const product = productsMap.get(productId);
-        const imgEl = tr.querySelector(".product-thumb");
-        const priceEl = tr.querySelector(".price");
         
-        if (product) {
-            imgEl.src = (product.image && !product.image.includes("via.placeholder")) ? product.image : DEFAULT_IMG;
-            priceEl.value = product.price;
-        } else {
-            imgEl.src = DEFAULT_IMG;
-            priceEl.value = "";
+        ui.tableBody.appendChild(tr);
+        if(productId) {
+            tr.querySelector('.product-dropdown').value = productId;
         }
-        recalculateRow(tr);
+        
+        updateRowIndexes();
+        if(prefillData) recalculateRow(tr);
     }
 
-    function recalculateRow(tr) {
-        const op = parseInt(tr.querySelector(".opening").value) || 0;
-        const giv = parseInt(tr.querySelector(".given").value) || 0;
-        tr.querySelector(".total").value = op + giv;
+    // --- 4. CALCULATIONS & EVENTS ---
+    function updateRowData(row, productId) {
+        const priceInput = row.querySelector(".price");
+        const img = row.querySelector(".product-thumb");
+        const warningEl = row.querySelector(".stock-warning");
+        
+        // Reset warnings
+        warningEl.style.display = 'none';
+        
+        const product = productsMap.get(productId);
+        if (product) {
+            priceInput.value = parseFloat(product.price).toFixed(2);
+            if(product.image) {
+                img.src = product.image;
+            } else {
+                img.src = DEFAULT_IMG;
+            }
+            recalculateRow(row); 
+        } else {
+            img.src = DEFAULT_IMG;
+            priceInput.value = "0.00";
+        }
+    }
+
+    function recalculateRow(row) {
+        const opening = parseInt(row.querySelector(".opening").value) || 0;
+        const givenInput = row.querySelector(".given");
+        let given = parseInt(givenInput.value) || 0;
+        const price = parseFloat(row.querySelector(".price").value) || 0;
+        
+        // --- INVENTORY CHECK ---
+        const dropdown = row.querySelector(".product-dropdown");
+        const productId = dropdown.value;
+        const warningEl = row.querySelector(".stock-warning");
+
+        if (productId) {
+            const product = productsMap.get(productId);
+            // Default to a very large number if product not found to avoid blocking
+            const maxAvailable = product ? parseInt(product.stock) : 999999; 
+
+            if (given > maxAvailable) {
+                given = maxAvailable;
+                givenInput.value = maxAvailable; 
+                warningEl.innerHTML = `<i class="fa-solid fa-triangle-exclamation me-1"></i>Only ${maxAvailable} left!`;
+                warningEl.style.display = 'block';
+                // Optional: add visual shake or red border
+                givenInput.style.borderColor = 'red';
+            } else {
+                warningEl.style.display = 'none';
+                givenInput.style.borderColor = '';
+            }
+        }
+        // -----------------------
+
+        const total = opening + given;
+        const amount = total * price;
+
+        row.querySelector(".total").value = total;
+        row.querySelector(".amount").value = amount.toFixed(2);
+        
         recalculateTotals();
     }
 
     function recalculateTotals() {
-        let tOp = 0, tGiv = 0, tAll = 0, tGrand = 0;
-        
-        ui.tableBody.querySelectorAll("tr").forEach(tr => {
-            const op = parseInt(tr.querySelector(".opening").value) || 0;
-            const giv = parseInt(tr.querySelector(".given").value) || 0;
-            const price = parseFloat(tr.querySelector(".price").value) || 0;
-            const tot = op + giv;
-            
-            tOp += op;
-            tGiv += giv;
-            tAll += tot;
-            tGrand += (tot * price);
+        let tOpening = 0, tGiven = 0, tAll = 0, tGrand = 0;
+        ui.tableBody.querySelectorAll("tr").forEach(row => {
+            if(!row.querySelector(".opening")) return;
+            tOpening += parseInt(row.querySelector(".opening").value) || 0;
+            tGiven += parseInt(row.querySelector(".given").value) || 0;
+            tAll += parseInt(row.querySelector(".total").value) || 0;
+            tGrand += parseFloat(row.querySelector(".amount").value) || 0;
         });
 
-        if(ui.totals.opening) ui.totals.opening.textContent = tOp;
-        if(ui.totals.given) ui.totals.given.textContent = tGiv;
-        if(ui.totals.all) ui.totals.all.textContent = tAll;
-        if(ui.totals.grand) ui.totals.grand.textContent = tGrand.toFixed(2);
+        ui.totals.opening.textContent = tOpening;
+        ui.totals.given.textContent = tGiven;
+        ui.totals.all.textContent = tAll;
+        ui.totals.grand.textContent = tGrand.toFixed(2);
     }
 
     function updateRowIndexes() {
@@ -182,10 +267,13 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // --- EVENTS ---
-    if(ui.addRowBtn) ui.addRowBtn.addEventListener("click", (e) => { e.preventDefault(); createRow(); });
-    if(ui.employeeSelect) ui.employeeSelect.addEventListener("change", fetchStockData);
-    if(ui.dateInput) ui.dateInput.addEventListener("change", fetchStockData);
+    ui.addRowBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        createRow();
+    });
+
+    ui.employeeSelect.addEventListener("change", fetchStockData);
+    ui.dateInput.addEventListener("change", fetchStockData);
 
     ui.tableBody.addEventListener("click", e => {
         if (e.target.closest(".btn-remove-row")) {
@@ -208,11 +296,15 @@ document.addEventListener("DOMContentLoaded", () => {
             recalculateRow(e.target.closest("tr"));
         }
     });
-    
-    // Clock
-    setInterval(() => {
-        const now = new Date();
-        if(ui.clockDisplay) ui.clockDisplay.textContent = now.toLocaleTimeString();
-        if(ui.timestampInput) ui.timestampInput.value = now.toISOString();
-    }, 1000);
+
+    document.addEventListener("keydown", function (e) {
+        if (e.key === "Enter" && e.target.tagName !== "BUTTON") {
+            e.preventDefault();
+            const inputs = Array.from(document.querySelectorAll("input:not([readonly]), select"));
+            const index = inputs.indexOf(e.target);
+            if (index > -1 && index < inputs.length - 1) {
+                inputs[index + 1].focus();
+            }
+        }
+    });
 });
