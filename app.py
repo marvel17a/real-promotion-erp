@@ -4297,7 +4297,7 @@ def resolve_img(image_path):
 ##########################################################################################################33
 @app.route("/morning", methods=["GET", "POST"])
 def morning():
-    if "user_id" not in session: return redirect(url_for("login"))
+    if "loggedin" not in session: return redirect(url_for("login"))
 
     # USE GLOBAL 'mysql' INSTANCE
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
@@ -4454,7 +4454,7 @@ def api_fetch_evening_data():
 
 @app.route("/evening", methods=["GET", "POST"])
 def evening():
-    if "user_id" not in session: return redirect(url_for("login"))
+    if "loggedin" not in session: return redirect(url_for("login"))
     
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
@@ -6372,6 +6372,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
