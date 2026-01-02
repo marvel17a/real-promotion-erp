@@ -7,11 +7,8 @@ document.addEventListener("DOMContentLoaded", () => {
         fetchButton: getEl("btnFetch"),
         tableBody: getEl("rowsArea"),
         fetchMsg: getEl("fetchMsg"),
-        hidden: {
-            allocationId: getEl('allocation_id'),
-            employee: getEl('h_employee'),
-            date: getEl('h_date'),
-        },
+        btnFinal: getEl("btnFinal"),
+        form: getEl("eveningForm"),
         footer: {
             total: getEl('totTotal'),
             sold: getEl('totSold'),
@@ -28,269 +25,177 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     };
     
-    // Live Clock Logic
-    function updateClock() {
+    // Live Clock
+    setInterval(() => {
         const now = new Date();
-        const timeString = now.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute:'2-digit', second:'2-digit' });
-        const clockEl = getEl('liveClock');
-        if(clockEl) clockEl.textContent = timeString;
+        const el = getEl('liveClock');
+        if(el) el.textContent = now.toLocaleTimeString();
+    }, 1000);
 
-        const year = now.getFullYear();
-        const month = String(now.getMonth() + 1).padStart(2, '0');
-        const day = String(now.getDate()).padStart(2, '0');
-        const hours = String(now.getHours()).padStart(2, '0');
-        const minutes = String(now.getMinutes()).padStart(2, '0');
-        const seconds = String(now.getSeconds()).padStart(2, '0');
-        const tsInput = getEl('timestampInput');
-        if(tsInput) tsInput.value = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+    // Flatpickr
+    flatpickr("#date", { dateFormat: "d-m-Y", defaultDate: "today", allowInput: true });
+
+    // Employee Photo
+    if(ui.employeeSelect) {
+        ui.employeeSelect.addEventListener('change', function() {
+            const opt = this.options[this.selectedIndex];
+            const img = opt.getAttribute('data-img');
+            const photo = getEl('empPhoto');
+            if(img && img !== "") photo.src = img;
+            else photo.src = "/static/img/default-user.png";
+        });
     }
-    setInterval(updateClock, 1000);
-    updateClock();
 
-
-    if (!ui.fetchButton) return;
-
-    const DEFAULT_IMG = "https://via.placeholder.com/50?text=Img";
-
+    // --- FETCH LOGIC ---
     async function fetchMorningAllocation() {
-        const employeeId = ui.employeeSelect.value;
-        const dateStr = ui.dateInput.value;
+        const empId = ui.employeeSelect.value;
+        const dateVal = ui.dateInput.value;
 
-        ui.tableBody.innerHTML = '<tr><td colspan="9" class="text-center p-4"><div class="spinner-border text-primary" role="status"></div></td></tr>';
-        if(ui.fetchMsg) {
-            ui.fetchMsg.textContent = "";
-            ui.fetchMsg.classList.add('d-none');
-        }
-
-        if (!employeeId || !dateStr) {
-            ui.tableBody.innerHTML = '<tr><td colspan="9" class="text-center text-muted p-4 fw-bold">Please Select Employee and Date first.</td></tr>';
-            return;
-        }
-
-        if(ui.hidden.employee) ui.hidden.employee.value = employeeId;
-        if(ui.hidden.date) ui.hidden.date.value = dateStr;
+        if (!empId) { alert("Please select an employee"); return; }
+        
+        ui.fetchMsg.classList.remove("d-none");
+        ui.tableBody.innerHTML = ""; // Clear current
 
         try {
-            const formData = new FormData();
-            formData.append('employee_id', employeeId);
-            formData.append('date', dateStr);
-
-            const response = await fetch(`/api/fetch_evening_data`, {
-                method: 'POST',
-                body: formData
-            });
-
-            if (!response.ok) {
-                throw new Error(`Server Error: ${response.status}`);
-            }
-
-            const data = await response.json();
-
-            if (data.status === 'error') {
-                throw new Error(data.message);
-            }
-
-            if(ui.hidden.allocationId) ui.hidden.allocationId.value = data.allocation_id;
+            const res = await fetch(`/api/fetch_evening_data?employee_id=${empId}&date=${dateVal}`);
+            const data = await res.json();
             
-            if(ui.fetchMsg) {
-                ui.fetchMsg.classList.remove('d-none');
-                ui.fetchMsg.innerHTML = '<i class="fa-solid fa-check-circle me-2"></i> Data loaded successfully';
-                ui.fetchMsg.className = "alert alert-success mt-3 rounded-3 border-0 shadow-sm fw-bold text-center";
+            if (data.status === "final") {
+                ui.tableBody.innerHTML = `<tr><td colspan="5" class="text-center py-5 text-danger fw-bold fs-5">
+                    <i class="fa-solid fa-lock me-2"></i> ${data.message}
+                </td></tr>`;
+                ui.btnFinal.disabled = true;
+            } else {
+                ui.btnFinal.disabled = false;
+                
+                if (data.status === "success" && data.items.length > 0) {
+                    data.items.forEach(item => {
+                        const tr = document.createElement("tr");
+                        tr.innerHTML = `
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <img src="${item.image}" class="rounded border me-2 shadow-sm" width="40" height="40">
+                                    <div>
+                                        <div class="fw-bold text-dark">${item.name}</div>
+                                        <small class="text-muted">₹${item.price}</small>
+                                    </div>
+                                </div>
+                                <input type="hidden" name="product_id[]" value="${item.product_id}">
+                                <input type="hidden" name="price[]" class="price" value="${item.price}">
+                            </td>
+                            <td class="text-center">
+                                <input type="number" name="total_qty[]" class="form-control text-center fw-bold bg-light total-qty" value="${item.total_qty}" readonly>
+                            </td>
+                            <td>
+                                <input type="number" name="sold_qty[]" class="form-control text-center text-success fw-bold sold" min="0" placeholder="0">
+                            </td>
+                            <td>
+                                <input type="number" name="return_qty[]" class="form-control text-center text-danger fw-bold return" min="0" placeholder="0">
+                            </td>
+                            <td class="text-center">
+                                 <span class="badge bg-primary fs-6 remaining shadow-sm">0</span>
+                            </td>
+                        `;
+                        ui.tableBody.appendChild(tr);
+                    });
+                    recalculateTotals();
+                } else {
+                    ui.tableBody.innerHTML = `<tr><td colspan="5" class="text-center py-5 text-muted">No products found for this Employee (Check Morning Allocation).</td></tr>`;
+                }
             }
-            
-            if (!data.products || data.products.length === 0) {
-                ui.tableBody.innerHTML = '<tr><td colspan="9" class="text-center text-warning p-4 fw-bold">No items allocated to this employee on this date.</td></tr>';
-                return;
-            }
-
-            // MERGE DUPLICATES (Fix for restock mode)
-            const mergedProducts = mergeDuplicateProducts(data.products);
-            renderTable(mergedProducts);
-
-        } catch (error) {
-            ui.tableBody.innerHTML = `<tr><td colspan="9" class="text-center text-danger p-4 fw-bold">${error.message}</td></tr>`;
-            if(ui.fetchMsg) {
-                ui.fetchMsg.classList.remove('d-none');
-                ui.fetchMsg.textContent = error.message;
-                ui.fetchMsg.className = "alert alert-danger mt-3 rounded-3 border-0 shadow-sm fw-bold text-center";
-            }
+        } catch (err) {
+            console.error(err);
+        } finally {
+            ui.fetchMsg.classList.add("d-none");
         }
     }
 
-    function mergeDuplicateProducts(products) {
-        const map = new Map();
-        
-        products.forEach(item => {
-            const id = String(item.id);
-            if (map.has(id)) {
-                // If exists, add qty
-                const existing = map.get(id);
-                existing.total_qty = (parseInt(existing.total_qty) || 0) + (parseInt(item.total_qty) || 0);
-            } else {
-                map.set(id, { ...item, total_qty: parseInt(item.total_qty) || 0 });
-            }
-        });
-        
-        return Array.from(map.values());
-    }
-
-    function renderTable(items) {
-        ui.tableBody.innerHTML = '';
-        
-        items.forEach((item, index) => {
-            const totalQty = parseInt(item.total_qty);
-            const price = parseFloat(item.price);
-            
-            let imgSrc = item.image || DEFAULT_IMG;
-
-            const rowHtml = `
-                <tr class="item-row">
-                    <td class="text-center text-muted fw-bold">${index + 1}</td>
-                    <td>
-                         <div class="prod-img-box">
-                            <img src="${imgSrc}" class="product-thumb" alt="img" onerror="this.src='${DEFAULT_IMG}'">
-                        </div>
-                    </td>
-                    <td>
-                        <div class="fw-bold text-dark">${item.name}</div>
-                        <input type="hidden" name="product_id[]" value="${item.id}">
-                        <input type="hidden" name="total_qty[]" class="total-qty-input" value="${totalQty}">
-                        <input type="hidden" name="price[]" class="price-input" value="${price.toFixed(2)}">
-                    </td>
-                    <td class="text-center">
-                        <input type="text" class="table-input" value="${totalQty}" readonly style="background:transparent; border:none; box-shadow:none;">
-                    </td>
-                    <td>
-                        <input type="number" name="sold[]" class="table-input sold input-sold" min="0" max="${totalQty}" placeholder="0">
-                    </td>
-                    <td>
-                        <input type="text" class="table-input text-end fw-bold" value="${price.toFixed(2)}" readonly style="background:transparent; border:none; box-shadow:none;">
-                    </td>
-                    <td class="text-end fw-bold text-primary amount-display fs-5">0.00</td>
-                    <td>
-                        <input type="number" name="return[]" class="table-input return input-return" min="0" max="${totalQty}" placeholder="0">
-                    </td>
-                    <td class="text-center">
-                        <input type="number" name="remaining[]" class="table-input text-center fw-bold text-muted remain-input" 
-                               value="${totalQty}" readonly style="background:transparent; border:none; box-shadow:none;">
-                    </td>
-                </tr>
-            `;
-            ui.tableBody.insertAdjacentHTML('beforeend', rowHtml);
-        });
-
-        recalculateTotals();
-    }
-
+    // --- CALCULATION LOGIC ---
     function recalculateTotals() {
-        let gTotal = 0, gSold = 0, gReturn = 0, gRemain = 0, gAmount = 0;
-        const rows = ui.tableBody.querySelectorAll('.item-row');
+        let tTotal = 0, tSold = 0, tReturn = 0, tRemain = 0, tAmount = 0;
 
-        rows.forEach(row => {
-            const totalQtyInput = row.querySelector('input[name="total_qty[]"]');
-            if(!totalQtyInput) return;
+        ui.tableBody.querySelectorAll("tr").forEach(row => {
+            if(!row.querySelector(".total-qty")) return;
 
-            const totalQty = parseInt(totalQtyInput.value) || 0;
-            const price = parseFloat(row.querySelector('.price-input').value) || 0;
-            
-            const soldInput = row.querySelector('.sold');
-            const returnInput = row.querySelector('.return');
-            const remainInput = row.querySelector('.remain-input');
-            const amountDisplay = row.querySelector('.amount-display');
-            
+            const total = parseInt(row.querySelector(".total-qty").value) || 0;
+            const soldInput = row.querySelector(".sold");
+            const returnInput = row.querySelector(".return");
+            const price = parseFloat(row.querySelector(".price").value) || 0;
+
             let sold = parseInt(soldInput.value) || 0;
             let ret = parseInt(returnInput.value) || 0;
 
-            // Strict Validation
-            if (sold > totalQty) {
-                alert(`Sold quantity cannot exceed Total Stock (${totalQty}).`);
-                sold = totalQty;
-                soldInput.value = totalQty;
-            }
-            if ((sold + ret) > totalQty) {
-                ret = totalQty - sold;
-                returnInput.value = ret;
-            }
+            // Auto-calculate Remaining
+            let remain = total - sold - ret;
+            if(remain < 0) remain = 0;
 
-            let remaining = totalQty - sold - ret;
-            
-            remainInput.value = remaining;
-            const revenue = sold * price;
-            amountDisplay.textContent = revenue.toFixed(2);
+            row.querySelector(".remaining").textContent = remain;
 
-            gTotal += totalQty;
-            gSold += sold;
-            gReturn += ret;
-            gRemain += remaining;
-            gAmount += revenue;
+            tTotal += total;
+            tSold += sold;
+            tReturn += ret;
+            tRemain += remain;
+            tAmount += (sold * price);
         });
 
-        if(ui.footer.total) ui.footer.total.textContent = gTotal;
-        if(ui.footer.sold) ui.footer.sold.textContent = gSold;
-        if(ui.footer.return) ui.footer.return.textContent = gReturn;
-        if(ui.footer.remain) ui.footer.remain.textContent = gRemain;
-        if(ui.footer.amount) ui.footer.amount.textContent = gAmount.toFixed(2);
+        ui.footer.total.textContent = tTotal;
+        ui.footer.sold.textContent = tSold;
+        ui.footer.return.textContent = tReturn;
+        ui.footer.remain.textContent = tRemain;
+        ui.footer.amount.textContent = tAmount.toFixed(2);
         
-        if(ui.payment.totalAmount) ui.payment.totalAmount.value = gAmount.toFixed(2);
+        ui.payment.totalAmount.value = tAmount.toFixed(2);
+        ui.payment.amount.textContent = tAmount.toFixed(2);
         
         calculateDue();
     }
 
-    // CASH SETTLEMENT VALIDATION FIX
-    function calculateDue(e) {
-        if(!ui.payment.totalAmount) return;
+    function calculateDue() {
+        const total = parseFloat(ui.payment.totalAmount.value) || 0;
+        const disc = parseFloat(ui.payment.discount.value) || 0;
+        const cash = parseFloat(ui.payment.cash.value) || 0;
+        const online = parseFloat(ui.payment.online.value) || 0;
 
-        const totalSales = parseFloat(ui.payment.totalAmount.value) || 0;
-        let disc = parseFloat(ui.payment.discount?.value) || 0;
-        let cash = parseFloat(ui.payment.cash?.value) || 0;
-        let online = parseFloat(ui.payment.online?.value) || 0;
-
-        // Validation: Prevent overpayment
-        const totalPay = disc + cash + online;
-        if (totalPay > totalSales) {
-            // If triggered by input event, correct the current input
-            if(e && e.target) {
-                const currentInput = e.target;
-                const otherSum = totalPay - (parseFloat(currentInput.value) || 0);
-                const maxAllowed = totalSales - otherSum;
-                
-                // Correct value
-                currentInput.value = maxAllowed.toFixed(2);
-                
-                // Update variable for calc
-                if(currentInput === ui.payment.discount) disc = maxAllowed;
-                if(currentInput === ui.payment.cash) cash = maxAllowed;
-                if(currentInput === ui.payment.online) online = maxAllowed;
-                
-                alert(`Payment amount cannot exceed Total Sales Value (₹${totalSales})`);
-            }
-        }
-
-        const due = totalSales - (disc + cash + online);
-        if(ui.payment.due) ui.payment.due.textContent = due.toFixed(2);
+        const due = total - disc - cash - online;
+        ui.payment.due.textContent = due.toFixed(2);
     }
 
+    // --- EVENTS ---
     ui.fetchButton.addEventListener("click", (e) => {
         e.preventDefault();
         fetchMorningAllocation();
     });
-    
-    ui.tableBody.addEventListener('input', e => {
-        if (e.target.matches('.sold, .return')) recalculateTotals();
-    });
-    
-    [ui.payment.discount, ui.payment.cash, ui.payment.online].forEach(el => {
-        if(el) el.addEventListener('input', calculateDue);
+
+    ui.tableBody.addEventListener("input", (e) => {
+        if(e.target.matches(".sold, .return")) recalculateTotals();
     });
 
-    document.addEventListener("keydown", function (e) {
-        if (e.key === "Enter" && e.target.tagName !== "BUTTON") {
-            e.preventDefault();
-            const inputs = Array.from(document.querySelectorAll("input:not([readonly]), select"));
-            const index = inputs.indexOf(e.target);
-            if (index > -1 && index < inputs.length - 1) {
-                inputs[index + 1].focus();
-            }
-        }
+    [ui.payment.discount, ui.payment.cash, ui.payment.online].forEach(el => {
+        if(el) el.addEventListener("input", calculateDue);
     });
+
+    // --- ONE CLICK SUBMIT ---
+    if(ui.btnFinal) {
+        ui.btnFinal.addEventListener("click", function() {
+            // Sweet Alert Confirmation
+            Swal.fire({
+                title: 'Confirm Final Submission?',
+                text: "Stock will be added back (Returns) and Financials saved.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#198754',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Yes, Submit!'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    const hiddenStatus = document.createElement("input");
+                    hiddenStatus.type = "hidden";
+                    hiddenStatus.name = "status";
+                    hiddenStatus.value = "final";
+                    ui.form.appendChild(hiddenStatus);
+                    ui.form.submit();
+                }
+            });
+        });
+    }
 });
