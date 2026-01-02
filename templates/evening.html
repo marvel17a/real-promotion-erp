@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 
 {% block content %}
-<!-- External Libraries -->
+<!-- External Libs -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <!-- FontAwesome -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-<!-- SweetAlert2 -->
+<!-- SweetAlert2 (Added for One-Click Submit) -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <!-- Custom CSS -->
 <link rel="stylesheet" href="{{ url_for('static', filename='css/evening.css') }}">
@@ -193,6 +193,7 @@
                 <button type="submit" name="status" value="draft" class="btn btn-warning rounded-pill px-4 shadow-sm fw-bold btn-glass-effect">
                     <i class="fa-regular fa-floppy-disk me-2"></i> Save Draft
                 </button>
+                <!-- Final Submit (Replaced Preview Modal with One-Click Popup) -->
                 <button type="button" id="btnFinal" class="btn btn-success rounded-pill px-5 shadow fw-bold btn-glass-effect">
                     <i class="fa-solid fa-check-double me-2"></i> Final Submit
                 </button>
