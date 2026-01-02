@@ -4295,96 +4295,99 @@ def resolve_img(image_path):
 # 1. MORNING ALLOCATION (Timestamp & Restock)
 # -------######################################################################
 ##########################################################################################################33
-@app.route("/morning", methods=["GET", "POST"])
+@app.route('/morning', methods=['GET', 'POST'])
 def morning():
     if "loggedin" not in session: return redirect(url_for("login"))
-
-    # USE GLOBAL 'mysql' INSTANCE
-    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
-    # FETCH EMPLOYEES & PRODUCTS
-    cur.execute("SELECT id, name, image FROM employees ORDER BY name ASC")
-    employees = cur.fetchall()
-
-    cur.execute("SELECT id, name, price, stock, image FROM products WHERE stock > 0 ORDER BY name ASC")
-    products = cur.fetchall()
+    conn = mysql.connection
+    cursor = conn.cursor(MySQLdb.cursors.DictCursor)
     
-    products_for_js = []
-    for p in products:
-        p_img = p['image'] if p['image'] else "https://via.placeholder.com/50?text=No+Img"
-        if p['image'] and not p['image'].startswith('http'):
-            p_img = url_for('static', filename=f"img/{p['image']}")
-        
-        products_for_js.append({
-            "id": p['id'], "name": p['name'], 
-            "price": float(p['price']), "stock": int(p['stock']), "image": p_img
-        })
+    try:
+        if request.method == 'POST':
+            # ... (Data retrieval logic same as before) ...
+            employee_id = request.form.get('employee_id')
+            date_str = request.form.get('date')
+            time_str = request.form.get('timestamp')
+            
+            product_ids = request.form.getlist('product_id[]')
+            opening_list = request.form.getlist('opening[]')
+            given_list = request.form.getlist('given[]')
+            price_list = request.form.getlist('price[]')
 
-    today_date = date.today().strftime("%d-%m-%Y")
+            try:
+                date_obj = datetime.strptime(date_str, '%d-%m-%Y').date()
+            except ValueError:
+                date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
+            
+            formatted_date = date_obj.strftime('%Y-%m-%d')
 
-    if request.method == "POST":
-        employee_id = request.form.get("employee_id")
-        date_str = request.form.get("date")
-        
-        product_ids = request.form.getlist("product_id[]")
-        opening_list = request.form.getlist("opening[]")
-        given_list = request.form.getlist("given[]")
-        price_list = request.form.getlist("price[]")
+            # CHECK: Restock Block if Evening is Done
+            cursor.execute("SELECT id FROM evening_settle WHERE employee_id=%s AND date=%s AND status='final'", (employee_id, formatted_date))
+            if cursor.fetchone():
+                flash("Cannot Allocate/Restock: Evening Settlement already finalized for this date.", "danger")
+                return redirect(url_for('morning'))
 
-        if not employee_id or not date_str:
-            flash("Please select employee and date.", "danger")
-            return redirect(url_for("morning"))
-
-        try:
-            formatted_date = parse_date(date_str)
-            conn = mysql.connection
-            db_cursor = conn.cursor(MySQLdb.cursors.DictCursor)
-
-            # CHECK IF EVENING ALREADY FINAL
-            db_cursor.execute("SELECT id FROM evening_settle WHERE employee_id=%s AND date=%s AND status='final'", (employee_id, formatted_date))
-            if db_cursor.fetchone():
-                flash("Cannot modify Morning Allocation: Evening Settlement is already Final for this date.", "error")
-                return redirect(url_for("morning"))
-
-            # CHECK EXISTING ALLOCATION
-            db_cursor.execute("SELECT id FROM morning_allocations WHERE employee_id=%s AND date=%s", (employee_id, formatted_date))
-            existing = db_cursor.fetchone()
+            # Check existing Morning Allocation
+            cursor.execute("SELECT id FROM morning_allocations WHERE employee_id=%s AND date=%s", (employee_id, formatted_date))
+            existing = cursor.fetchone()
 
             if existing:
-                allocation_id = existing['id']
-                flash_msg = "Stock added to existing allocation (Restock Mode)."
+                alloc_id = existing['id']
+                flash_msg = "Stock added to existing allocation (Restock)."
             else:
-                db_cursor.execute("INSERT INTO morning_allocations (employee_id, date, created_at) VALUES (%s, %s, NOW())", (employee_id, formatted_date))
-                allocation_id = conn.insert_id()
+                cursor.execute("INSERT INTO morning_allocations (employee_id, date, created_at) VALUES (%s, %s, %s)", (employee_id, formatted_date, time_str))
+                alloc_id = cursor.lastrowid
                 flash_msg = "Morning allocation saved successfully."
-
-            # SAVE ITEMS & DEDUCT STOCK
+            
+            # Insert Items & DEDUCT MAIN STOCK
             for idx, pid in enumerate(product_ids):
                 if not pid: continue
-                
                 op_q = int(opening_list[idx] or 0)
                 gv_q = int(given_list[idx] or 0)
-                u_price = float(price_list[idx] or 0)
-
-                db_cursor.execute("""
-                    INSERT INTO morning_allocation_items 
-                    (allocation_id, product_id, opening_qty, given_qty, unit_price, added_at)
-                    VALUES (%s, %s, %s, %s, %s, NOW())
-                """, (allocation_id, pid, op_q, gv_q, u_price))
-
-                if gv_q > 0:
-                    db_cursor.execute("UPDATE products SET stock = stock - %s WHERE id = %s", (gv_q, pid))
+                pr_c = float(price_list[idx] or 0.0)
+                
+                if op_q > 0 or gv_q > 0:
+                    cursor.execute("""
+                        INSERT INTO morning_allocation_items 
+                        (allocation_id, product_id, opening_qty, given_qty, unit_price) 
+                        VALUES (%s, %s, %s, %s, %s)
+                    """, (alloc_id, pid, op_q, gv_q, pr_c))
+                    
+                    # --- FIXED: MAIN STOCK DEDUCTION (Uncommented) ---
+                    if gv_q > 0:
+                        cursor.execute("UPDATE products SET stock = stock - %s WHERE id = %s", (gv_q, pid))
 
             conn.commit()
             flash(flash_msg, "success")
-            return redirect(url_for("morning"))
+            return redirect(url_for('allocation_list'))
 
-        except Exception as e:
-            if 'conn' in locals(): conn.rollback()
-            flash(f"Error: {str(e)}", "danger")
-            return redirect(url_for("morning"))
+        # GET Request
+        cursor.execute("SELECT id, name, image FROM employees WHERE status='active' ORDER BY name")
+        employees = cursor.fetchall()
+        # ... (Image resolution logic) ...
+        for e in employees:
+            if e['image'] and not e['image'].startswith('http'): e['image'] = url_for('static', filename='uploads/' + e['image'])
+            elif not e['image']: e['image'] = url_for('static', filename='img/default-user.png')
 
-    return render_template("morning.html", employees=employees, products=products_for_js, today_date=today_date)
+        cursor.execute("SELECT id, name, price, image, stock FROM products ORDER BY name")
+        products_raw = cursor.fetchall()
+        
+        products_for_js = []
+        for p in products_raw:
+            img = p['image']
+            if img and not img.startswith('http'): img = url_for('static', filename='uploads/' + img)
+            elif not img: img = url_for('static', filename='img/default-product.png')
+            
+            products_for_js.append({
+                'id': p['id'], 'name': p['name'], 'price': float(p['price']), 'image': img, 'stock': int(p['stock'])
+            })
+        
+        return render_template('morning.html', employees=employees, products=products_for_js, today_date=date.today().strftime('%d-%m-%Y'))
+
+    except Exception as e:
+        conn.rollback()
+        flash(f"Error: {e}", "danger")
+        return redirect(url_for('morning'))
 
 
 
@@ -4452,102 +4455,191 @@ def api_fetch_evening_data():
 # 2. EVENING SETTLEMENT (Final, Drafts, Finance)
 # ---------------------------------------------------------
 
-@app.route("/evening", methods=["GET", "POST"])
+@app.route('/evening', methods=['GET', 'POST'])
 def evening():
     if "loggedin" not in session: return redirect(url_for("login"))
-    
-    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    
-    cur.execute("SELECT * FROM employees ORDER BY name ASC")
-    employees = cur.fetchall()
-    today_str = date.today().strftime("%d-%m-%Y")
-    
-    if request.method == "POST":
+    conn = mysql.connection
+    cursor = conn.cursor(MySQLdb.cursors.DictCursor)
+
+    if request.method == 'POST':
         try:
-            emp_id = request.form.get("employee")
-            date_val = request.form.get("date")
-            status = request.form.get("status", "draft")
+            emp_id = request.form.get('h_employee')
+            date_val = request.form.get('h_date') # YYYY-MM-DD from hidden
+            time_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             
-            # Money
-            total_amt = float(request.form.get("totalAmount") or 0)
-            cash = float(request.form.get("cash") or 0)
-            online = float(request.form.get("online") or 0)
-            discount = float(request.form.get("discount") or 0)
+            # Check Duplicate
+            cursor.execute("SELECT id FROM evening_settle WHERE employee_id=%s AND date=%s", (emp_id, date_val))
+            if cursor.fetchone():
+                flash("Form already submitted for this date!", "warning")
+                return redirect(url_for('evening'))
+
+            # Basic Financials
+            total_amt = float(request.form.get('totalAmount') or 0)
+            discount = float(request.form.get('discount') or 0)
+            online = float(request.form.get('online') or 0)
+            cash = float(request.form.get('cash') or 0)
             
-            # Ledger
-            credit_note = request.form.get("credit_note", "")
-            credit_amt = float(request.form.get("credit_amount") or 0)
-            debit_note = request.form.get("debit_note", "")
-            debit_amt = float(request.form.get("debit_amount") or 0)
-            due_note = request.form.get("due_note", "")
+            # Emp Finance
+            emp_c_amt = float(request.form.get('emp_credit_amount') or 0)
+            emp_c_note = request.form.get('emp_credit_note')
+            emp_d_amt = float(request.form.get('emp_debit_amount') or 0)
+            emp_d_note = request.form.get('emp_debit_note')
+            due_note = request.form.get('due_note')
 
-            formatted_date = parse_date(date_val)
+            # Arrays
+            prod_ids = request.form.getlist('product_id[]')
+            total_qtys = request.form.getlist('total_qty[]')
+            sold_qtys = request.form.getlist('sold[]')
+            return_qtys = request.form.getlist('return[]')
+            prices = request.form.getlist('price[]')
 
-            # Prevent Duplicate Final
-            if status == 'final':
-                cur.execute("SELECT id FROM evening_settle WHERE employee_id=%s AND date=%s AND status='final'", (emp_id, formatted_date))
-                if cur.fetchone():
-                    flash("Settlement already finalized for this date.", "warning")
-                    return redirect(url_for("evening"))
-
-            # Insert Settlement
-            cur.execute("""
+            # 1. Insert Header
+            # Note: allocation_id is 0 or NULL since we merged multiple sources.
+            cursor.execute("""
                 INSERT INTO evening_settle 
                 (employee_id, date, total_amount, cash_money, online_money, discount, 
                  emp_credit_amount, emp_credit_note, emp_debit_amount, emp_debit_note, due_note, status, created_at)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
-            """, (emp_id, formatted_date, total_amt, cash, online, discount, credit_amt, credit_note, debit_amt, debit_note, due_note, status))
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'final', %s)
+            """, (emp_id, date_val, total_amt, cash, online, discount,
+                  emp_c_amt, emp_c_note, emp_d_amt, emp_d_note, due_note, time_str))
+            settle_id = cursor.lastrowid
+
+            # 2. Insert Items & Return Stock Logic
+            for i, pid in enumerate(prod_ids):
+                p_tot = int(total_qtys[i])
+                p_sold = int(sold_qtys[i])
+                p_ret = int(return_qtys[i])
+                p_price = float(prices[i])
+                
+                cursor.execute("""
+                    INSERT INTO evening_item (settle_id, product_id, total_qty, sold_qty, return_qty, unit_price)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, (settle_id, pid, p_tot, p_sold, p_ret, p_price))
+                
+                # Add Return back to Inventory
+                if p_ret > 0:
+                    cursor.execute("UPDATE products SET stock = stock + %s WHERE id = %s", (p_ret, pid))
+
+            # 3. Employee Ledger Entry
+            # Credit (Received/Given to Emp)
+            if emp_c_amt > 0:
+                cursor.execute("""
+                    INSERT INTO transactions (employee_id, date, type, amount, description, created_at)
+                    VALUES (%s, %s, 'credit', %s, %s, %s)
+                """, (emp_id, date_val, emp_c_amt, f"Credit via Evening Settle #{settle_id}: {emp_c_note}", time_str))
             
-            settle_id = mysql.connection.insert_id()
+            # Debit (Taken/Penalty)
+            if emp_d_amt > 0:
+                cursor.execute("""
+                    INSERT INTO transactions (employee_id, date, type, amount, description, created_at)
+                    VALUES (%s, %s, 'debit', %s, %s, %s)
+                """, (emp_id, date_val, emp_d_amt, f"Debit via Evening Settle #{settle_id}: {emp_d_note}", time_str))
 
-            # Insert Items
-            p_ids = request.form.getlist("product_id[]")
-            totals = request.form.getlist("total_qty[]")
-            solds = request.form.getlist("sold_qty[]")
-            returns = request.form.getlist("return_qty[]")
-            prices = request.form.getlist("price[]")
-
-            for i, pid in enumerate(p_ids):
-                p_tot = int(totals[i] or 0)
-                p_sold = int(solds[i] or 0)
-                p_ret = int(returns[i] or 0)
-                p_price = float(prices[i] or 0)
-                
-                # Calculate Remaining
-                p_rem = p_tot - p_sold - p_ret
-                if p_rem < 0: p_rem = 0
-
-                cur.execute("""
-                    INSERT INTO evening_item (settle_id, product_id, total_qty, sold_qty, return_qty, remaining_qty, unit_price)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
-                """, (settle_id, pid, p_tot, p_sold, p_ret, p_rem, p_price))
-
-                # STOCK LOGIC: If Final, Add Return Qty back to Stock
-                if status == 'final' and p_ret > 0:
-                    cur.execute("UPDATE products SET stock = stock + %s WHERE id = %s", (p_ret, pid))
-
-            # LEDGER TRANSACTIONS (If Final)
-            if status == 'final':
-                collection_amt = cash + online
-                if collection_amt > 0:
-                    cur.execute("INSERT INTO employee_transactions (employee_id, transaction_date, type, amount, description, created_at) VALUES (%s, %s, 'credit', %s, 'Sales Collection', NOW())", (emp_id, formatted_date, collection_amt))
-                
-                if credit_amt > 0:
-                     cur.execute("INSERT INTO employee_transactions (employee_id, transaction_date, type, amount, description, created_at) VALUES (%s, %s, 'debit', %s, %s, NOW())", (emp_id, formatted_date, credit_amt, credit_note or 'Credit Note'))
-
-                if debit_amt > 0:
-                     cur.execute("INSERT INTO employee_transactions (employee_id, transaction_date, type, amount, description, created_at) VALUES (%s, %s, 'credit', %s, %s, NOW())", (emp_id, formatted_date, debit_amt, debit_note or 'Debit Note'))
-
-            mysql.connection.commit()
-            flash("Settlement Saved Successfully!", "success")
-            return redirect(url_for("evening"))
+            conn.commit()
+            flash("Evening Settlement Submitted Successfully!", "success")
+            return redirect(url_for('admin_evening_master'))
 
         except Exception as e:
-            mysql.connection.rollback()
-            flash(f"Error: {str(e)}", "danger")
-            return redirect(url_for("evening"))
+            conn.rollback()
+            flash(f"Submission Error: {e}", "danger")
+            return redirect(url_for('evening'))
 
-    return render_template("evening.html", employees=employees, today=today_str)
+    # GET Request
+    cursor.execute("SELECT id, name, image FROM employees WHERE status='active' ORDER BY name")
+    employees = cursor.fetchall()
+    # Image logic...
+    for e in employees:
+        if e['image'] and not e['image'].startswith('http'): e['image'] = url_for('static', filename='uploads/' + e['image'])
+        elif not e['image']: e['image'] = url_for('static', filename='img/default-user.png')
+
+    return render_template('evening.html', employees=employees, today=date.today().strftime('%d-%m-%Y'))
+
+
+
+
+# --- API: FETCH EVENING DATA (Left + Given Logic) ---
+@app.route('/api/get_evening_stock', methods=['POST'])
+def get_evening_stock():
+    if "loggedin" not in session: return jsonify({'status': 'error', 'message': 'Unauthorized'})
+    
+    data = request.get_json()
+    emp_id = data.get('employee_id')
+    date_str = data.get('date') # dd-mm-yyyy
+    
+    try:
+        dt = datetime.strptime(date_str, '%d-%m-%Y')
+        fmt_date = dt.strftime('%Y-%m-%d')
+    except:
+        return jsonify({'status': 'error', 'message': 'Invalid date'})
+
+    conn = mysql.connection
+    cur = conn.cursor(MySQLdb.cursors.DictCursor)
+
+    # 1. Check if ALREADY SUBMITTED
+    cur.execute("SELECT id, status FROM evening_settle WHERE employee_id=%s AND date=%s", (emp_id, fmt_date))
+    settle = cur.fetchone()
+    if settle and settle['status'] == 'final':
+        return jsonify({'status': 'submitted', 'message': 'Evening settlement already submitted for this date.'})
+
+    # 2. Get TODAY'S Morning Allocation (Given)
+    cur.execute("""
+        SELECT mai.product_id, SUM(mai.given_qty) as today_given
+        FROM morning_allocations ma
+        JOIN morning_allocation_items mai ON ma.id = mai.allocation_id
+        WHERE ma.employee_id = %s AND ma.date = %s
+        GROUP BY mai.product_id
+    """, (emp_id, fmt_date))
+    today_allocs = {row['product_id']: row['today_given'] for row in cur.fetchall()}
+
+    # 3. Get YESTERDAY'S (Last) Remaining Stock
+    # Find the latest finalized settlement BEFORE today
+    cur.execute("""
+        SELECT id FROM evening_settle 
+        WHERE employee_id = %s AND date < %s AND status='final'
+        ORDER BY date DESC, id DESC LIMIT 1
+    """, (emp_id, fmt_date))
+    last_settle = cur.fetchone()
+    
+    prev_rem_stock = {}
+    if last_settle:
+        cur.execute("SELECT product_id, remaining_qty FROM evening_item WHERE settle_id=%s", (last_settle['id'],))
+        prev_rem_stock = {row['product_id']: row['remaining_qty'] for row in cur.fetchall()}
+
+    # 4. Merge Data & Fetch Product Details
+    final_items = []
+    
+    # Get all involved product IDs
+    all_pids = set(today_allocs.keys()) | set(prev_rem_stock.keys())
+    
+    if not all_pids:
+        return jsonify({'status': 'success', 'items': []}) # No stock data
+
+    format_ids = ','.join(map(str, all_pids))
+    cur.execute(f"SELECT id, name, price, image FROM products WHERE id IN ({format_ids})")
+    products = cur.fetchall()
+    
+    for p in products:
+        pid = p['id']
+        left = prev_rem_stock.get(pid, 0)
+        given = today_allocs.get(pid, 0)
+        total = left + given
+        
+        if total > 0: # Only show if there is something to sell
+            img = p['image']
+            if img and not img.startswith('http'): img = url_for('static', filename='uploads/' + img)
+            elif not img: img = url_for('static', filename='img/default-product.png')
+
+            final_items.append({
+                'product_id': pid,
+                'name': p['name'],
+                'image': img,
+                'price': float(p['price']),
+                'total_qty': total,
+                'prev_left': left,
+                'today_given': given
+            })
+
+    return jsonify({'status': 'success', 'items': final_items})
 
 # --- NEW ROUTE: DRAFT LIST PAGE ---
 @app.route('/evening/drafts')
@@ -6372,6 +6464,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
