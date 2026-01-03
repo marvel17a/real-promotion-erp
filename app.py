@@ -4295,6 +4295,8 @@ def resolve_img(image_path):
 # 1. MORNING ALLOCATION (Timestamp & Restock)
 # ---------------------------------------------------------
 # --- ROUTE: MORNING (Robust Save Logic) ---
+
+# --- ROUTE: MORNING (Fixed Column Error) ---
 @app.route('/morning', methods=['GET', 'POST'])
 def morning():
     if "loggedin" not in session: return redirect(url_for("login"))
@@ -4305,9 +4307,8 @@ def morning():
     # 1. POST: Handle Submission
     if request.method == 'POST':
         try:
-            # --- DEBUG PRINTS (Check your terminal when you submit) ---
+            # --- DEBUG PRINTS ---
             print("--- Morning Form Submitted ---")
-            print(f"Form Data: {request.form}")
             
             emp_id = request.form.get('employee_id')
             date_str = request.form.get('date')
@@ -4333,6 +4334,7 @@ def morning():
             formatted_date = date_obj.strftime('%Y-%m-%d')
 
             # A. Check/Insert Allocation Header
+            # The 'morning_allocations' table HAS 'created_at', so we keep it here.
             cursor.execute("SELECT id FROM morning_allocations WHERE employee_id=%s AND date=%s", (emp_id, formatted_date))
             existing = cursor.fetchone()
 
@@ -4346,6 +4348,7 @@ def morning():
                 flash_msg = "Morning allocation created successfully."
 
             # B. Insert Items
+            # FIX: Removed 'added_at' because table 'morning_allocation_items' does not have it.
             inserted_count = 0
             for i, pid in enumerate(p_ids):
                 if not pid or pid == "": continue # Skip empty rows
@@ -4359,18 +4362,16 @@ def morning():
                 if op_qty > 0 or gv_qty > 0:
                     cursor.execute("""
                         INSERT INTO morning_allocation_items 
-                        (allocation_id, product_id, opening_qty, given_qty, unit_price, added_at)
-                        VALUES (%s, %s, %s, %s, %s, %s)
-                    """, (alloc_id, pid, op_qty, gv_qty, price, time_str))
+                        (allocation_id, product_id, opening_qty, given_qty, unit_price)
+                        VALUES (%s, %s, %s, %s, %s)
+                    """, (alloc_id, pid, op_qty, gv_qty, price))
                     inserted_count += 1
 
             if inserted_count > 0:
                 conn.commit()
                 flash(flash_msg, "success")
-                print(f"Success: Saved {inserted_count} items.")
             else:
                 flash("Warning: No valid items (with quantity > 0) were found to save.", "warning")
-                print("Warning: No items saved.")
 
             return redirect(url_for('morning'))
 
@@ -6516,6 +6517,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
