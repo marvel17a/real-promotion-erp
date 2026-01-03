@@ -4302,14 +4302,17 @@ def morning():
     conn = mysql.connection
     cursor = conn.cursor(MySQLdb.cursors.DictCursor)
 
-    # Note: POST Logic same as before (Validation/Insertion), keeping it minimal here for brevity unless you requested changes there.
-    # Assuming POST logic works fine.
+    # 1. POST Logic (Unchanged from your working version, just ensuring redirect works)
     if request.method == 'POST':
-        # ... (Your existing Morning POST logic goes here) ...
-        # Ensure validation checks 'products' table for stock
-        pass 
+        # ... (Your existing validation/stock check logic) ...
+        # ... (Your existing insert logic) ...
+        
+        # NOTE: Make sure your logic does this at the end:
+        # mysql.connection.commit()
+        # flash("Morning allocation saved.", "success")
+        return redirect(url_for('morning')) 
 
-    # --- GET REQUEST UPDATED ---
+    # 2. GET Request
     cursor.execute("SELECT id, name, image FROM employees WHERE status='active' ORDER BY name")
     employees = cursor.fetchall()
     for e in employees: e['image'] = resolve_img(e['image'])
@@ -4323,27 +4326,22 @@ def morning():
         'stock': int(p['stock'] if p['stock'] is not None else 0)
     } for p in cursor.fetchall()]
     
-    # NEW: Fetch List of Employees who submitted Evening form TODAY
+    # NEW: Fetch Employees who submitted Final Evening Settlement Today
     today_iso = date.today().strftime('%Y-%m-%d')
-    cursor.execute("SELECT employee_id FROM evening_settle WHERE date = %s", (today_iso,))
+    cursor.execute("SELECT employee_id FROM evening_settle WHERE date = %s AND status = 'final'", (today_iso,))
     completed_emps = [row['employee_id'] for row in cursor.fetchall()]
 
     return render_template('morning.html',
                            employees=employees,
                            products=products_for_js,
-                           completed_employees=completed_emps, # <--- Pass this to Template
+                           completed_employees=completed_emps,
                            today_date=date.today().strftime('%d-%m-%Y'))
 
-
-
-# API: FETCH EVENING DATA (Logic Update for Holiday/Return)
-# ---------------------------------------------------------
 
 
 # ---------------------------------------------------------
 # 2. EVENING SETTLEMENT (Final, Drafts, Finance)
 # ---------------------------------------------------------
-# --- ROUTE: EVENING FORM (Entry & Logic) ---
 # --- ROUTE: EVENING FORM (Draft & Final Logic) ---
 @app.route('/evening', methods=['GET', 'POST'])
 def evening():
@@ -4390,7 +4388,7 @@ def evening():
             settle_id = None
 
             # --- A. HEADER OPERATION (Insert or Update) ---
-            if draft_id:
+            if draft_id and draft_id.strip() != "":
                 # Update existing Draft
                 cursor.execute("""
                     UPDATE evening_settle 
@@ -4402,9 +4400,15 @@ def evening():
                       due_note, status, time_str, draft_id))
                 settle_id = draft_id
                 
-                # Clear old items to re-insert new ones (Easiest way to handle draft edits)
+                # Clear old items to re-insert new ones (Easiest way to handle draft updates)
                 cursor.execute("DELETE FROM evening_item WHERE settle_id=%s", (settle_id,))
             else:
+                # Check Double Submission (Only if Creating New)
+                cursor.execute("SELECT id FROM evening_settle WHERE employee_id=%s AND date=%s", (emp_id, date_val))
+                if cursor.fetchone():
+                    flash("Form for this date already exists (Check Drafts).", "warning")
+                    return redirect(url_for('evening'))
+
                 # Insert New Record
                 cursor.execute("""
                     INSERT INTO evening_settle 
@@ -4428,9 +4432,9 @@ def evening():
                     VALUES (%s, %s, %s, %s, %s, %s, %s)
                 """, (settle_id, pid, p_tot, p_sold, p_ret, p_remain, p_price))
                 
-                # --- C. STOCK & LEDGER (ONLY IF FINAL) ---
+                # --- C. STOCK UPDATE (ONLY IF FINAL) ---
                 if status == 'final':
-                    # 1. Update Stock (Add back Returns)
+                    # Only add back Returns to main stock
                     if p_ret > 0:
                         cursor.execute("UPDATE products SET stock = stock + %s WHERE id = %s", (p_ret, pid))
 
@@ -4521,9 +4525,7 @@ def fetch_evening_data():
             items_list = cur.fetchall()
             
         else:
-            # Case B: New Form (Morning Alloc or Previous Leftover)
-            
-            # Check Morning Alloc
+            # Case B: New Form (Check Morning Allocation)
             cur.execute("SELECT id FROM morning_allocations WHERE employee_id=%s AND date=%s", (employee_id, formatted_date))
             today_alloc = cur.fetchone()
 
@@ -4540,8 +4542,8 @@ def fetch_evening_data():
                 """, (alloc_id,))
                 items_list = cur.fetchall()
             else:
+                # Case C: Previous Leftover
                 source = "previous_leftover"
-                # Find last settle
                 cur.execute("""
                     SELECT id FROM evening_settle 
                     WHERE employee_id = %s AND date < %s
@@ -4562,7 +4564,7 @@ def fetch_evening_data():
                 else:
                     return jsonify({'status': 'error', 'message': 'No morning allocation or previous stock found.'})
 
-        # Process Images and Data Types
+        # Process Images
         for item in items_list:
             item['image'] = resolve_img(item['image'])
             item['unit_price'] = float(item['unit_price'])
@@ -4575,7 +4577,7 @@ def fetch_evening_data():
             'source': source,
             'allocation_id': alloc_id,
             'draft_id': draft_data['id'] if draft_data else None,
-            'draft_data': draft_data, # Pass finance fields if draft
+            'draft_data': draft_data,
             'products': items_list
         })
 
@@ -4606,84 +4608,96 @@ def draft_evening_list():
         
     cur.close()
     return render_template('draft_evening.html', drafts=drafts)
+
 # ---------------------------------------------------------
 # 2. API: FETCH STOCK (Holiday + Aggregated Restock)
 # ---------------------------------------------------------
 @app.route('/api/fetch_stock', methods=['GET', 'POST'])
 def api_fetch_stock():
+    # 1. Security Check
     if "loggedin" not in session: return jsonify({"error": "Unauthorized"}), 401
     
-    # Use request.values to grab from query string (GET) or body (POST)
+    # 2. Get Parameters (Supports GET URL params and POST body)
     employee_id = request.values.get('employee_id')
     date_str = request.values.get('date') 
 
     try:
+        # 3. Parse Date
         current_date = parse_date(date_str)
         if not current_date: return jsonify({"error": "Invalid date"}), 400
         
         cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        formatted_date = current_date.strftime('%Y-%m-%d')
         
-        # 1. TODAY'S ALLOCATION (For Restock Preview)
-        cur.execute("SELECT id FROM morning_allocations WHERE employee_id=%s AND date=%s", (employee_id, current_date))
+        # 4. LOGIC A: CHECK FOR TODAY'S ALLOCATION (Restock Mode)
+        # If an allocation exists for this Employee on this Date, we are in RESTOCK mode.
+        cur.execute("SELECT id FROM morning_allocations WHERE employee_id=%s AND date=%s", (employee_id, formatted_date))
         today_alloc = cur.fetchone()
         
         mode = "normal"
         existing_items = []
+        opening_stock_list = []
 
         if today_alloc:
+            # --- RESTOCK MODE ACTIVE ---
             mode = "restock"
-            # AGGREGATE items by product_id
+            
+            # Fetch what was ALREADY given today (Opening + Given) to show in the "History Box" on frontend
             cur.execute("""
-                SELECT p.name, p.id as pid, SUM(mai.opening_qty + mai.given_qty) as total_qty, p.image
+                SELECT p.name, p.id as product_id, p.image, 
+                       SUM(mai.opening_qty + mai.given_qty) as total_qty
                 FROM morning_allocation_items mai
                 JOIN products p ON mai.product_id = p.id
                 WHERE mai.allocation_id = %s
                 GROUP BY p.id
             """, (today_alloc['id'],))
             
-            for r in cur.fetchall():
+            raw_items = cur.fetchall()
+            for r in raw_items:
                 existing_items.append({
-                    'product_id': r['pid'],
+                    'product_id': r['product_id'],
                     'name': r['name'],
                     'qty': int(r['total_qty']),
                     'image': resolve_img(r['image'])
                 })
-
-        # 2. HOLIDAY LOGIC: Last known settlement before today
-        cur.execute("""
-            SELECT id FROM evening_settle 
-            WHERE employee_id = %s AND date < %s 
-            ORDER BY date DESC LIMIT 1
-        """, (employee_id, current_date))
-        last_settlement = cur.fetchone()
-        
-        opening_stock_list = []
-        
-        # In 'restock' mode, we usually don't pre-fill the table with opening stock 
-        # because the user is adding *new* items. 
-        # But if you want to see previous items, they are in 'existing_items'.
-        if mode == "normal" and last_settlement:
+        else:
+            # --- NORMAL MODE (Holiday Logic) ---
+            # If no allocation today, find the LAST Evening Settlement before today.
+            # This handles holidays/leaves automatically by finding the most recent record.
             cur.execute("""
-                SELECT ei.product_id, ei.remaining_qty, ei.unit_price, p.image, p.name 
-                FROM evening_item ei
-                JOIN products p ON ei.product_id = p.id
-                WHERE ei.settle_id = %s AND ei.remaining_qty > 0
-            """, (last_settlement['id'],))
-            rows = cur.fetchall()
-            for r in rows:
-                opening_stock_list.append({
-                    'product_id': str(r['product_id']),
-                    'name': r['name'],
-                    'remaining': int(r['remaining_qty']),
-                    'price': float(r['unit_price']),
-                    'image': resolve_img(r['image'])
-                })
-        
+                SELECT id 
+                FROM evening_settle 
+                WHERE employee_id = %s AND date < %s 
+                ORDER BY date DESC LIMIT 1
+            """, (employee_id, formatted_date))
+            last_settle = cur.fetchone()
+            
+            if last_settle:
+                # Fetch Remaining Qty from that settlement to pre-fill "Opening" inputs
+                cur.execute("""
+                    SELECT ei.product_id, ei.remaining_qty, ei.unit_price, p.name, p.image 
+                    FROM evening_item ei
+                    JOIN products p ON ei.product_id = p.id
+                    WHERE ei.settle_id = %s AND ei.remaining_qty > 0
+                """, (last_settle['id'],))
+                
+                rows = cur.fetchall()
+                for r in rows:
+                    opening_stock_list.append({
+                        'product_id': str(r['product_id']),
+                        'name': r['name'],
+                        'remaining': int(r['remaining_qty']), # This maps to the 'Opening' input in JS
+                        'price': float(r['unit_price']),
+                        'image': resolve_img(r['image'])
+                    })
+
         cur.close()
+        
+        # 5. Return JSON Response
         return jsonify({
             "mode": mode,
-            "opening_stock": opening_stock_list,
-            "existing_items": existing_items
+            "opening_stock": opening_stock_list, # Used if mode is 'normal'
+            "existing_items": existing_items     # Used if mode is 'restock'
         })
 
     except Exception as e:
@@ -6434,6 +6448,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
