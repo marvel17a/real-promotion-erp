@@ -86,9 +86,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const data = await response.json();
 
-            if (data.status === 'error') {
-                throw new Error(data.message);
-            }
+            if (data.status === 'final') {
+    ui.fetchMsg.classList.remove('d-none');
+    ui.fetchMsg.className = "alert alert-warning mt-3 fw-bold text-center";
+    ui.fetchMsg.innerText = "Evening settlement already submitted for this date.";
+    ui.tableBody.innerHTML = '';
+    return;
+}
+
 
             if(ui.hidden.allocationId) ui.hidden.allocationId.value = data.allocation_id;
             
@@ -294,3 +299,4 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 });
+
