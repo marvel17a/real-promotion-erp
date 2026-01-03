@@ -136,7 +136,15 @@
                             </tr>
                             {% endfor %}
                         {% else %}
-                            <tr><td colspan="9" class="text-center p-5 text-muted fw-bold">Select Employee & Date to fetch data...</td></tr>
+                            <tr>
+    <td colspan="9" class="text-center p-5 text-muted fw-bold">
+        Select Employee & Date.<br>
+        <small class="text-secondary">
+            (Previous day stock will load automatically if available)
+        </small>
+    </td>
+</tr>
+
                         {% endif %}
                     </tbody>
                     
@@ -342,6 +350,7 @@
     });
 </script>
 {% endblock %}
+
 
 
 
