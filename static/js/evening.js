@@ -170,18 +170,20 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // 4. Calculations
-    function calculateDue() {
+    // --- 4. STRICT CALCULATIONS & VALIDATION ---
+    function calculateDue(e) {
         let grandTotal = 0;
-        let sumTotal = 0;
-        let sumSold = 0;
-        let sumReturn = 0;
+        let sumTotalQty = 0;
+        let sumSoldQty = 0;
+        let sumReturnQty = 0;
         let sumLeft = 0;
 
         const rows = ui.tableBody.querySelectorAll('tr');
 
+        // --- PART A: STOCK VALIDATION (Row by Row) ---
         rows.forEach(row => {
             const totalInp = row.querySelector('.total-qty');
-            if(!totalInp) return; // Skip invalid rows
+            if(!totalInp) return; 
 
             const total = parseInt(totalInp.value) || 0;
             const soldInp = row.querySelector('.sold-input');
@@ -194,60 +196,114 @@ document.addEventListener("DOMContentLoaded", () => {
             let sold = parseInt(soldInp.value) || 0;
             let ret = parseInt(retInp.value) || 0;
 
-            // Logic: Sold + Return cannot exceed Total
+            // [VALIDATION] Check if Sold + Return > Total Stock
             if (sold + ret > total) {
-                soldInp.classList.add('is-invalid');
-                retInp.classList.add('is-invalid');
+                // Determine which input triggered the event to adjust that specific one
+                if (e && e.target === soldInp) {
+                    alert(`Cannot sell more than available stock (${total}).\nMax possible Sold: ${total - ret}`);
+                    sold = total - ret;
+                    soldInp.value = sold; // Auto-correct Input
+                } else if (e && e.target === retInp) {
+                    alert(`Cannot return more than available stock (${total}).\nMax possible Return: ${total - sold}`);
+                    ret = total - sold;
+                    retInp.value = ret; // Auto-correct Input
+                } else {
+                    // Fallback auto-correct (Priority to Sold)
+                    if(sold > total) { sold = total; ret = 0; }
+                    else { ret = total - sold; }
+                    soldInp.value = sold;
+                    retInp.value = ret;
+                }
+            }
+
+            // Visual Styling
+            if(sold === 0 && ret === 0) {
+                soldInp.classList.remove('border-success', 'fw-bold');
             } else {
-                soldInp.classList.remove('is-invalid');
-                retInp.classList.remove('is-invalid');
+                soldInp.classList.add('border-success', 'fw-bold');
             }
 
             // Calculate Remaining
             const left = total - sold - ret;
-            leftEl.textContent = left >= 0 ? left : 0;
-            if(left < 0) leftEl.classList.add('text-danger');
-            else leftEl.classList.remove('text-danger');
+            leftEl.textContent = left;
 
             // Calculate Row Amount
             const rowAmt = sold * price;
             amtEl.textContent = rowAmt.toFixed(2);
             
-            // Accumulate Totals
+            // Accumulate
             grandTotal += rowAmt;
-            sumTotal += total;
-            sumSold += sold;
-            sumReturn += ret;
-            sumLeft += (left >= 0 ? left : 0);
+            sumTotalQty += total;
+            sumSoldQty += sold;
+            sumReturnQty += ret;
+            sumLeft += left;
         });
 
-        // Update Footer Columns (IDs must match HTML)
-        if(document.getElementById('totTotal')) document.getElementById('totTotal').textContent = sumTotal;
-        if(document.getElementById('totSold')) document.getElementById('totSold').textContent = sumSold;
-        if(document.getElementById('totReturn')) document.getElementById('totReturn').textContent = sumReturn;
-        if(document.getElementById('totRemain')) document.getElementById('totRemain').textContent = sumLeft;
-        if(document.getElementById('totAmount')) document.getElementById('totAmount').textContent = grandTotal.toFixed(2);
+        // Update Footer Stats
+        if(getEl('totTotal')) getEl('totTotal').textContent = sumTotalQty;
+        if(getEl('totSold')) getEl('totSold').textContent = sumSoldQty;
+        if(getEl('totReturn')) getEl('totReturn').textContent = sumReturnQty;
+        if(getEl('totRemain')) getEl('totRemain').textContent = sumLeft;
+        if(getEl('totAmount')) getEl('totAmount').textContent = grandTotal.toFixed(2);
 
-        // Update Hidden & Payment Fields
+        // Update Payment Total
         if(ui.payment.totalAmt) ui.payment.totalAmt.value = grandTotal.toFixed(2);
         if(ui.payment.dispTotal) ui.payment.dispTotal.textContent = grandTotal.toFixed(2);
 
-        // Payment Calc
-        const disc = parseFloat(ui.payment.discount.value) || 0;
-        const online = parseFloat(ui.payment.online.value) || 0;
-        const cash = parseFloat(ui.payment.cash.value) || 0;
+        // --- PART B: PAYMENT VALIDATION (Cash/Online/Discount) ---
+        validatePayment(grandTotal, e);
+    }
 
-        const due = grandTotal - (disc + online + cash);
+    function validatePayment(totalSales, e) {
+        let disc = parseFloat(ui.payment.discount.value) || 0;
+        let online = parseFloat(ui.payment.online.value) || 0;
+        let cash = parseFloat(ui.payment.cash.value) || 0;
+
+        const totalPayment = disc + online + cash;
+
+        // [VALIDATION] Check if Payment > Total Sales
+        // Allow variance only if Total Sales is 0 (pre-payment) or small rounding difference
+        if (totalPayment > totalSales + 1) { // +1 buffer for float rounding
+            if (e && (e.target === ui.payment.discount || e.target === ui.payment.online || e.target === ui.payment.cash)) {
+                alert(`Payment Limit Exceeded!\nTotal Sales is ₹${totalSales}\nYou entered Total Payment: ₹${totalPayment}`);
+                
+                // Auto-correct the field currently being edited
+                const currentInput = e.target;
+                const otherPayments = totalPayment - (parseFloat(currentInput.value) || 0);
+                const maxAllowed = Math.max(0, totalSales - otherPayments);
+                
+                currentInput.value = maxAllowed.toFixed(2);
+                
+                // Update variable for calc
+                if(currentInput === ui.payment.discount) disc = maxAllowed;
+                if(currentInput === ui.payment.cash) cash = maxAllowed;
+                if(currentInput === ui.payment.online) online = maxAllowed;
+            }
+        }
+
+        const due = totalSales - (disc + cash + online);
+        
+        // Update Due Amount UI
         if(ui.payment.due) ui.payment.due.textContent = due.toFixed(2);
         
-        // Update Due Note
-        const dueNote = document.getElementById('due_note');
+        // Update Due Note automatically based on balance
+        const dueNote = getEl('due_note');
         if(dueNote) {
-            if(due > 0) dueNote.value = "Pending Balance";
-            else if (due < 0) dueNote.value = "Excess Payment";
+            if(due > 1) dueNote.value = "Pending Balance";
+            else if (due < -1) dueNote.value = "Excess Payment Error";
             else dueNote.value = "Settled";
         }
     }
+
+    // --- 5. Event Listeners ---
+    // Pass 'e' (event) to calculation to know which input triggered it
+    ui.tableBody.addEventListener('input', (e) => {
+        if (e.target.matches('.sold-input, .return-input')) calculateDue(e);
+    });
+    
+    if(ui.payment.discount) ui.payment.discount.addEventListener('input', (e) => calculateDue(e));
+    if(ui.payment.online) ui.payment.online.addEventListener('input', (e) => calculateDue(e));
+    if(ui.payment.cash) ui.payment.cash.addEventListener('input', (e) => calculateDue(e));
 
     // 5. Populate Draft Data Helpers
     function populateDraft(id, d) {
@@ -306,5 +362,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     };
 });
+
 
 
