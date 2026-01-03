@@ -294,3 +294,38 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 });
+
+// --- ONE CLICK SUBMIT ---
+    const btnFinal = document.getElementById('btnFinal');
+    if(btnFinal) {
+        btnFinal.addEventListener('click', function() {
+            // Validation
+            const rows = ui.tableBody.querySelectorAll('tr.item-row');
+            if(rows.length === 0) {
+                Swal.fire('Error', 'No items to settle.', 'error');
+                return;
+            }
+
+            Swal.fire({
+                title: 'Confirm Final Submission?',
+                text: "Inventory will be updated and transactions recorded. This cannot be undone.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#198754',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Yes, Submit Final'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // Create hidden status input
+                    const form = document.getElementById('eveningForm'); // Ensure ID matches your HTML form
+                    const hiddenStatus = document.createElement("input");
+                    hiddenStatus.type = "hidden";
+                    hiddenStatus.name = "status";
+                    hiddenStatus.value = "final";
+                    form.appendChild(hiddenStatus);
+                    
+                    form.submit();
+                }
+            });
+        });
+    }
