@@ -4600,89 +4600,7 @@ def evening():
 
 
 
-# --- API: FETCH EVENING DATA (Left + Given Logic) ---
-@app.route('/api/get_evening_stock', methods=['POST'])
-def get_evening_stock():
-    if "loggedin" not in session: return jsonify({'status': 'error', 'message': 'Unauthorized'})
-    
-    data = request.get_json()
-    emp_id = data.get('employee_id')
-    date_str = data.get('date') # dd-mm-yyyy
-    
-    try:
-        dt = datetime.strptime(date_str, '%d-%m-%Y')
-        fmt_date = dt.strftime('%Y-%m-%d')
-    except:
-        return jsonify({'status': 'error', 'message': 'Invalid date format'})
 
-    conn = mysql.connection
-    cur = conn.cursor(MySQLdb.cursors.DictCursor)
-
-    # 1. Check if ALREADY SUBMITTED for this date
-    cur.execute("SELECT id, status FROM evening_settle WHERE employee_id=%s AND date=%s", (emp_id, fmt_date))
-    settle = cur.fetchone()
-    if settle and settle['status'] == 'final':
-        return jsonify({'status': 'submitted', 'message': 'Evening settlement already submitted for this date.'})
-
-    # 2. Get TODAY'S Morning Allocation (Given Qty only)
-    cur.execute("""
-        SELECT mai.product_id, SUM(mai.given_qty) as today_given
-        FROM morning_allocations ma
-        JOIN morning_allocation_items mai ON ma.id = mai.allocation_id
-        WHERE ma.employee_id = %s AND ma.date = %s
-        GROUP BY mai.product_id
-    """, (emp_id, fmt_date))
-    today_data = {row['product_id']: row['today_given'] for row in cur.fetchall()}
-
-    # 3. Get YESTERDAY'S (Most Recent Previous) Remaining Stock
-    # We look for the last finalized settlement before this date
-    cur.execute("""
-        SELECT id FROM evening_settle 
-        WHERE employee_id = %s AND date < %s AND status='final'
-        ORDER BY date DESC, id DESC LIMIT 1
-    """, (emp_id, fmt_date))
-    last_settle = cur.fetchone()
-    
-    prev_left_data = {}
-    if last_settle:
-        cur.execute("SELECT product_id, remaining_qty FROM evening_item WHERE settle_id=%s", (last_settle['id'],))
-        prev_left_data = {row['product_id']: row['remaining_qty'] for row in cur.fetchall()}
-
-    # 4. Merge & Prepare Response
-    all_pids = set(today_data.keys()) | set(prev_left_data.keys())
-    
-    if not all_pids:
-        return jsonify({'status': 'success', 'items': []}) 
-
-    format_ids = ','.join(map(str, all_pids))
-    cur.execute(f"SELECT id, name, price, image FROM products WHERE id IN ({format_ids})")
-    products = cur.fetchall()
-    
-    final_items = []
-    for p in products:
-        pid = p['id']
-        
-        # Logic: Total Available = (Yesterday Left) + (Today Given)
-        yesterday_left = prev_left_data.get(pid, 0)
-        today_given = today_data.get(pid, 0)
-        total_available = yesterday_left + today_given
-        
-        if total_available > 0:
-            img = p['image']
-            if img and not img.startswith('http'): img = url_for('static', filename='uploads/' + img)
-            elif not img: img = url_for('static', filename='img/default-product.png')
-
-            final_items.append({
-                'product_id': pid,
-                'name': p['name'],
-                'image': img,
-                'price': float(p['price']),
-                'total_qty': total_available,
-                # Extra info if needed for debugging/display
-                'breakdown': f"(Prev: {yesterday_left} + New: {today_given})"
-            })
-
-    return jsonify({'status': 'success', 'items': final_items})
 
 # --- NEW ROUTE: DRAFT LIST PAGE ---
 @app.route('/evening/drafts')
@@ -6507,6 +6425,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
