@@ -52,99 +52,102 @@ document.addEventListener("DOMContentLoaded", () => {
     updateClock();
 
     // --- 2. FETCH DATA ---
+    // --- 2. FETCH DATA FUNCTION ---
     async function fetchStockData() {
         const empId = ui.employeeSelect.value;
         const dateVal = ui.dateInput.value;
 
-        // --- NEW LOGIC: Hide Restock if Evening Done ---
+        // 1. Check if Evening Settlement is already done (Hide Buttons)
         const completedEmps = window.completedEmployees || [];
         const isEveningDone = completedEmps.includes(parseInt(empId));
 
         if (isEveningDone) {
-            if(ui.addRowBtn) ui.addRowBtn.style.display = 'none';
-            const saveBtn = document.querySelector('.btn-save');
-            if(saveBtn) saveBtn.style.display = 'none';
-
+            ui.addRowBtn.style.display = 'none';
+            document.querySelector('.btn-save').style.display = 'none';
             ui.fetchMsg.innerHTML = '<div class="alert alert-warning py-1"><i class="fa-solid fa-lock me-2"></i>Evening Settlement Done. View Only.</div>';
+            // Stop further fetching if locked (optional, but safer)
+            return; 
         } else {
-            if(ui.addRowBtn) ui.addRowBtn.style.display = 'block';
-            const saveBtn = document.querySelector('.btn-save');
-            if(saveBtn) saveBtn.style.display = 'block';
-
+            ui.addRowBtn.style.display = 'block';
+            document.querySelector('.btn-save').style.display = 'block';
             ui.fetchMsg.innerHTML = '';
         }
-        // ------------------------------------------------
 
         if (!empId || !dateVal) return;
 
-        ui.fetchMsg.innerHTML += '<span class="text-primary ms-2"><i class="fas fa-spinner fa-spin"></i> Checking...</span>';
+        // UI Reset
+        ui.fetchMsg.innerHTML = '<span class="text-primary fw-bold"><i class="fas fa-spinner fa-spin"></i> Checking stock...</span>';
         if(ui.historyList) ui.historyList.innerHTML = '';
-        ui.tableBody.innerHTML = '';
+        ui.tableBody.innerHTML = ''; // Clear table
 
         try {
             const response = await fetch(`/api/fetch_stock?employee_id=${empId}&date=${dateVal}`);
             const data = await response.json();
 
-            if (data.error && response.status !== 500) {
-                if(data.error.toLowerCase().includes("inactive")) {
-                    ui.fetchMsg.innerHTML = `<div class="alert alert-danger fw-bold"><i class="fa-solid fa-ban me-2"></i>${data.error}</div>`;
-                    ui.addRowBtn.disabled = true;
-                    return;
-                }
+            // Handle Errors
+            if (data.error) {
+                ui.fetchMsg.innerHTML = `<span class="text-danger small">${data.error}</span>`;
+                createRow(); // Add empty row fallback
+                return;
+            }
 
-                ui.addRowBtn.disabled = false;
-                isRestockMode = false;
-                ui.fetchMsg.innerHTML += '<span class="text-secondary small">Start New Allocation</span>';
-                createRow();
-            } else {
-                ui.addRowBtn.disabled = false;
-                isRestockMode = (data.mode === 'restock');
+            isRestockMode = (data.mode === 'restock');
 
-                if (!isRestockMode && data.opening_stock && data.opening_stock.length > 0) {
-                    data.opening_stock.forEach(stockItem => {
-                        createRow(stockItem);
-                    });
-                    ui.fetchMsg.innerHTML += '<span class="text-success small"><i class="fa-solid fa-check"></i> Stock Loaded</span>';
-                } else {
-                    createRow();
-                    ui.fetchMsg.innerHTML += isRestockMode ? '' : '<span class="text-secondary small">No pending stock</span>';
-                }
-
-                if (isRestockMode) {
-                    ui.fetchMsg.innerHTML = '<span class="badge bg-warning text-dark">Restock Mode</span>';
-
-                    if(data.existing_items && data.existing_items.length > 0) {
-                        let historyHtml = `
-                            <div class="card border-warning mb-3 shadow-sm">
-                                <div class="card-header bg-warning bg-opacity-10 text-warning fw-bold small d-flex justify-content-between">
-                                    <span><i class="fa-solid fa-box-open"></i> CURRENT STOCK WITH EMPLOYEE</span>
+            // --- SCENARIO A: RESTOCK MODE ---
+            if (isRestockMode) {
+                ui.fetchMsg.innerHTML = '<span class="badge bg-warning text-dark mb-2">Restock Mode Active</span>';
+                
+                // Show Allocated Products in History Section
+                if(data.existing_items && data.existing_items.length > 0) {
+                    let historyHtml = `
+                        <div class="card border-warning mb-3 shadow-sm">
+                            <div class="card-header bg-warning bg-opacity-10 text-dark fw-bold small">
+                                <i class="fa-solid fa-box-open me-1"></i> ALREADY ALLOCATED TODAY
+                            </div>
+                            <div class="card-body p-2 d-flex flex-wrap gap-2">
+                    `;
+                    
+                    data.existing_items.forEach(item => {
+                        historyHtml += `
+                            <div class="d-flex align-items-center border rounded p-1 pe-3 bg-white" style="min-width: 160px;">
+                                <img src="${item.image}" class="rounded me-2" width="40" height="40" style="object-fit:cover;">
+                                <div>
+                                    <div class="fw-bold small text-dark lh-1">${item.name}</div>
+                                    <div class="badge bg-primary mt-1">Qty: ${item.qty}</div>
                                 </div>
-                                <div class="card-body p-3 d-flex flex-wrap gap-3">
+                            </div>
                         `;
-
-                        data.existing_items.forEach(item => {
-                            historyHtml += `
-                                <div class="d-flex align-items-center border rounded p-2 pe-3 bg-white shadow-sm" style="min-width: 180px;">
-                                    <div class="prod-img-box me-3" style="width:40px; height:40px;">
-                                        <img src="${item.image}" style="width:100%; height:100%; object-fit:cover;">
-                                    </div>
-                                    <div>
-                                        <div class="fw-bold small text-dark lh-1">${item.name}</div>
-                                        <span class="badge bg-primary rounded-pill mt-1">Total: ${item.qty}</span>
-                                    </div>
-                                </div>
-                            `;
-                        });
-                        historyHtml += '</div></div>';
-                        if(ui.historyList) ui.historyList.innerHTML = historyHtml;
-                    }
+                    });
+                    
+                    historyHtml += '</div></div>';
+                    ui.historyList.innerHTML = historyHtml;
+                }
+                
+                // Add one empty row for new products
+                createRow();
+            } 
+            
+            // --- SCENARIO B: NORMAL MODE (OPENING STOCK) ---
+            else {
+                ui.fetchMsg.innerHTML = '<span class="text-success small fw-bold"><i class="fa-solid fa-check"></i> Ready for Allocation</span>';
+                
+                if (data.opening_stock && data.opening_stock.length > 0) {
+                    // Pre-fill table with Yesterday's Remaining
+                    data.opening_stock.forEach(item => {
+                        // item contains: product_id, name, remaining, price, image
+                        createRow(item); 
+                    });
+                } else {
+                    // No history, fresh start
+                    createRow();
                 }
             }
+            
             recalculateTotals();
 
         } catch (error) {
             console.error(error);
-            ui.fetchMsg.innerHTML = '<span class="text-danger small">Error connecting to server</span>';
+            ui.fetchMsg.innerHTML = '<span class="text-danger small">Connection Failed</span>';
             createRow();
         }
     }
@@ -312,3 +315,4 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 });
+
