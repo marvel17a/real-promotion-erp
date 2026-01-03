@@ -310,23 +310,28 @@
 <!-- SCRIPTS -->
 <script src="{{ url_for('static', filename='js/evening.js') }}"></script>
 <script>
-    function submitForm(status) {
-        document.getElementById('formStatus').value = status;
-        const form = document.getElementById('eveningForm');
-        const emp = document.getElementById('employee').value;
+   function submitForm(status) {
+    document.getElementById('formStatus').value = status;
 
-        if (!emp) {
-            alert("Please select an employee first.");
-            return;
-        }
+    const form = document.getElementById('eveningForm');
+    const emp = document.getElementById('employee').value;
 
-        // STEP 1: One-click submit (no preview / confirm)
-        if (status === 'final') {
-            alert("Evening settlement is being submitted.");
-        }
-
-        form.submit();
+    if (!emp) {
+        alert("Please select an employee first.");
+        return;
     }
+
+    // ONE CLICK SUBMIT LOGIC
+    if (status === 'final') {
+        alert("Evening settlement submitted successfully.");
+        form.submit();
+        return;
+    }
+
+    // Draft save remains unchanged
+    form.submit();
+}
+
     document.addEventListener("DOMContentLoaded", function() {
         flatpickr("#date", { dateFormat: "d-m-Y", defaultDate: "{{ today }}", allowInput: true });
         
@@ -351,6 +356,7 @@
     });
 </script>
 {% endblock %}
+
 
 
 
