@@ -98,6 +98,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // 3. Render Table Function
+    // --- 3. Render Table (Fixed 9 Columns to match Header) ---
     function renderTable(products, source) {
         ui.tableBody.innerHTML = "";
         
@@ -106,7 +107,7 @@ document.addEventListener("DOMContentLoaded", () => {
         
         if(source === 'previous_leftover') {
             badgeClass = 'bg-info text-dark';
-            badgeText = 'Loaded Previous Remaining Stock (No Morning Alloc)';
+            badgeText = 'Loaded Previous Remaining Stock';
         } else if (source === 'draft') {
             badgeClass = 'bg-warning text-dark';
             badgeText = 'Resumed from Draft';
@@ -115,41 +116,53 @@ document.addEventListener("DOMContentLoaded", () => {
         ui.msg.innerHTML = `<span class="badge ${badgeClass} mb-3 shadow-sm px-3 py-2"><i class="fa-solid fa-layer-group me-2"></i>${badgeText}</span>`;
 
         if(!products || products.length === 0) {
-            ui.tableBody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted">No products found.</td></tr>';
+            ui.tableBody.innerHTML = '<tr><td colspan="9" class="text-center py-4 text-muted">No products found.</td></tr>';
             return;
         }
 
-        products.forEach(p => {
-            const row = document.createElement('tr');
-            
-            // Handle Draft Values (if present) or default 0
+        products.forEach((p, index) => {
             const soldVal = (p.sold_qty !== undefined && p.sold_qty !== 0) ? p.sold_qty : '';
             const retVal = (p.return_qty !== undefined && p.return_qty !== 0) ? p.return_qty : '';
 
+            const row = document.createElement('tr');
             row.innerHTML = `
-                <td class="ps-4">
-                    <div class="d-flex align-items-center">
-                        <img src="${p.image}" class="rounded me-2 border" width="40" height="40" style="object-fit:cover;">
-                        <div>
-                            <div class="fw-bold text-dark small">${p.name}</div>
-                            <input type="hidden" name="product_id[]" value="${p.product_id || p.id}">
-                        </div>
+                <td class="text-center text-muted fw-bold align-middle">${index + 1}</td>
+                
+                <td class="text-center align-middle">
+                    <div class="prod-img-box mx-auto" style="width: 40px; height: 40px;">
+                        <img src="${p.image}" class="rounded border" style="width: 100%; height: 100%; object-fit: cover;">
                     </div>
                 </td>
-                <td class="text-center">
+                
+                <td class="align-middle">
+                    <div class="fw-bold text-dark small">${p.name}</div>
+                    <input type="hidden" name="product_id[]" value="${p.product_id || p.id}">
+                </td>
+                
+                <td class="align-middle">
                     <input type="text" name="total_qty[]" class="form-control-plaintext text-center fw-bold text-secondary py-0 total-qty" value="${p.total_qty}" readonly>
                 </td>
-                <td>
-                    <input type="number" name="sold[]" class="form-control form-control-sm text-center fw-bold sold-input shadow-sm" placeholder="0" min="0" value="${soldVal}">
+                
+                <td class="align-middle">
+                    <input type="number" name="sold[]" class="form-control form-control-sm text-center fw-bold sold-input shadow-sm border-success" placeholder="0" min="0" value="${soldVal}">
                 </td>
-                <td>
-                    <input type="number" name="return[]" class="form-control form-control-sm text-center return-input shadow-sm" placeholder="0" min="0" value="${retVal}">
+                
+                <td class="align-middle text-end">
+                    <div class="input-group input-group-sm justify-content-end">
+                        <span class="input-group-text border-0 bg-transparent pe-1 text-muted">₹</span>
+                        <input type="text" name="price[]" class="form-control-plaintext price-val text-end p-0" value="${p.unit_price.toFixed(2)}" readonly style="width: 50px;">
+                    </div>
                 </td>
-                <td class="text-center text-muted small">
-                    ₹${p.unit_price}
-                    <input type="hidden" name="price[]" class="price-val" value="${p.unit_price}">
+                
+                <td class="align-middle text-end pe-3">
+                    <span class="fw-bold text-primary row-amt">0.00</span>
                 </td>
-                <td class="text-end pe-4 fw-bold text-dark row-amt">0.00</td>
+                
+                <td class="align-middle">
+                    <input type="number" name="return[]" class="form-control form-control-sm text-center return-input shadow-sm border-danger" placeholder="0" min="0" value="${retVal}">
+                </td>
+                
+                <td class="text-center fw-bold text-muted remaining-qty align-middle">0</td>
             `;
             ui.tableBody.appendChild(row);
         });
@@ -159,6 +172,11 @@ document.addEventListener("DOMContentLoaded", () => {
     // 4. Calculations
     function calculateDue() {
         let grandTotal = 0;
+        let sumTotal = 0;
+        let sumSold = 0;
+        let sumReturn = 0;
+        let sumLeft = 0;
+
         const rows = ui.tableBody.querySelectorAll('tr');
 
         rows.forEach(row => {
@@ -169,14 +187,15 @@ document.addEventListener("DOMContentLoaded", () => {
             const soldInp = row.querySelector('.sold-input');
             const retInp = row.querySelector('.return-input');
             const price = parseFloat(row.querySelector('.price-val').value) || 0;
+            
             const amtEl = row.querySelector('.row-amt');
+            const leftEl = row.querySelector('.remaining-qty');
 
             let sold = parseInt(soldInp.value) || 0;
             let ret = parseInt(retInp.value) || 0;
 
             // Logic: Sold + Return cannot exceed Total
             if (sold + ret > total) {
-                // Visual warning
                 soldInp.classList.add('is-invalid');
                 retInp.classList.add('is-invalid');
             } else {
@@ -184,11 +203,32 @@ document.addEventListener("DOMContentLoaded", () => {
                 retInp.classList.remove('is-invalid');
             }
 
+            // Calculate Remaining
+            const left = total - sold - ret;
+            leftEl.textContent = left >= 0 ? left : 0;
+            if(left < 0) leftEl.classList.add('text-danger');
+            else leftEl.classList.remove('text-danger');
+
+            // Calculate Row Amount
             const rowAmt = sold * price;
             amtEl.textContent = rowAmt.toFixed(2);
+            
+            // Accumulate Totals
             grandTotal += rowAmt;
+            sumTotal += total;
+            sumSold += sold;
+            sumReturn += ret;
+            sumLeft += (left >= 0 ? left : 0);
         });
 
+        // Update Footer Columns (IDs must match HTML)
+        if(document.getElementById('totTotal')) document.getElementById('totTotal').textContent = sumTotal;
+        if(document.getElementById('totSold')) document.getElementById('totSold').textContent = sumSold;
+        if(document.getElementById('totReturn')) document.getElementById('totReturn').textContent = sumReturn;
+        if(document.getElementById('totRemain')) document.getElementById('totRemain').textContent = sumLeft;
+        if(document.getElementById('totAmount')) document.getElementById('totAmount').textContent = grandTotal.toFixed(2);
+
+        // Update Hidden & Payment Fields
         if(ui.payment.totalAmt) ui.payment.totalAmt.value = grandTotal.toFixed(2);
         if(ui.payment.dispTotal) ui.payment.dispTotal.textContent = grandTotal.toFixed(2);
 
@@ -200,9 +240,13 @@ document.addEventListener("DOMContentLoaded", () => {
         const due = grandTotal - (disc + online + cash);
         if(ui.payment.due) ui.payment.due.textContent = due.toFixed(2);
         
-        // Update hidden due note if needed
+        // Update Due Note
         const dueNote = document.getElementById('due_note');
-        if(dueNote) dueNote.value = due > 0 ? "Pending Balance" : "Cleared";
+        if(dueNote) {
+            if(due > 0) dueNote.value = "Pending Balance";
+            else if (due < 0) dueNote.value = "Excess Payment";
+            else dueNote.value = "Settled";
+        }
     }
 
     // 5. Populate Draft Data Helpers
@@ -262,4 +306,5 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     };
 });
+
 
