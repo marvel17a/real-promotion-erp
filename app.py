@@ -4294,7 +4294,7 @@ def resolve_img(image_path):
 # ---------------------------------------------------------
 # 1. MORNING ALLOCATION (Timestamp & Restock)
 # ---------------------------------------------------------
-# --- ROUTE: MORNING (With Restock Hide Logic) ---
+# --- ROUTE: MORNING (Robust Save Logic) ---
 @app.route('/morning', methods=['GET', 'POST'])
 def morning():
     if "loggedin" not in session: return redirect(url_for("login"))
@@ -4302,15 +4302,83 @@ def morning():
     conn = mysql.connection
     cursor = conn.cursor(MySQLdb.cursors.DictCursor)
 
-    # 1. POST Logic (Unchanged from your working version, just ensuring redirect works)
+    # 1. POST: Handle Submission
     if request.method == 'POST':
-        # ... (Your existing validation/stock check logic) ...
-        # ... (Your existing insert logic) ...
-        
-        # NOTE: Make sure your logic does this at the end:
-        # mysql.connection.commit()
-        # flash("Morning allocation saved.", "success")
-        return redirect(url_for('morning')) 
+        try:
+            # --- DEBUG PRINTS (Check your terminal when you submit) ---
+            print("--- Morning Form Submitted ---")
+            print(f"Form Data: {request.form}")
+            
+            emp_id = request.form.get('employee_id')
+            date_str = request.form.get('date')
+            time_str = request.form.get('timestamp')
+            
+            # Arrays
+            p_ids = request.form.getlist('product_id[]')
+            opens = request.form.getlist('opening[]')
+            givens = request.form.getlist('given[]')
+            prices = request.form.getlist('price[]')
+
+            # Validation
+            if not emp_id or not date_str:
+                flash("Error: Employee and Date are required.", "danger")
+                return redirect(url_for('morning'))
+
+            if not p_ids:
+                flash("Error: No products added to the list.", "warning")
+                return redirect(url_for('morning'))
+
+            # Parse Date
+            date_obj = parse_date(date_str)
+            formatted_date = date_obj.strftime('%Y-%m-%d')
+
+            # A. Check/Insert Allocation Header
+            cursor.execute("SELECT id FROM morning_allocations WHERE employee_id=%s AND date=%s", (emp_id, formatted_date))
+            existing = cursor.fetchone()
+
+            if existing:
+                alloc_id = existing['id']
+                flash_msg = "Stock updated in existing allocation."
+            else:
+                cursor.execute("INSERT INTO morning_allocations (employee_id, date, created_at) VALUES (%s, %s, %s)", 
+                               (emp_id, formatted_date, time_str))
+                alloc_id = cursor.lastrowid
+                flash_msg = "Morning allocation created successfully."
+
+            # B. Insert Items
+            inserted_count = 0
+            for i, pid in enumerate(p_ids):
+                if not pid or pid == "": continue # Skip empty rows
+                
+                # Safe Integer Conversion
+                op_qty = int(opens[i]) if (i < len(opens) and opens[i]) else 0
+                gv_qty = int(givens[i]) if (i < len(givens) and givens[i]) else 0
+                price = float(prices[i]) if (i < len(prices) and prices[i]) else 0.0
+
+                # Only save if there is some stock involved
+                if op_qty > 0 or gv_qty > 0:
+                    cursor.execute("""
+                        INSERT INTO morning_allocation_items 
+                        (allocation_id, product_id, opening_qty, given_qty, unit_price, added_at)
+                        VALUES (%s, %s, %s, %s, %s, %s)
+                    """, (alloc_id, pid, op_qty, gv_qty, price, time_str))
+                    inserted_count += 1
+
+            if inserted_count > 0:
+                conn.commit()
+                flash(flash_msg, "success")
+                print(f"Success: Saved {inserted_count} items.")
+            else:
+                flash("Warning: No valid items (with quantity > 0) were found to save.", "warning")
+                print("Warning: No items saved.")
+
+            return redirect(url_for('morning'))
+
+        except Exception as e:
+            conn.rollback()
+            print(f"Morning Submit Error: {e}")
+            flash(f"Error saving data: {str(e)}", "danger")
+            return redirect(url_for('morning'))
 
     # 2. GET Request
     cursor.execute("SELECT id, name, image FROM employees WHERE status='active' ORDER BY name")
@@ -4326,9 +4394,9 @@ def morning():
         'stock': int(p['stock'] if p['stock'] is not None else 0)
     } for p in cursor.fetchall()]
     
-    # NEW: Fetch Employees who submitted Final Evening Settlement Today
+    # Completed Check
     today_iso = date.today().strftime('%Y-%m-%d')
-    cursor.execute("SELECT employee_id FROM evening_settle WHERE date = %s AND status = 'final'", (today_iso,))
+    cursor.execute("SELECT employee_id FROM evening_settle WHERE date = %s AND status='final'", (today_iso,))
     completed_emps = [row['employee_id'] for row in cursor.fetchall()]
 
     return render_template('morning.html',
@@ -6448,6 +6516,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
