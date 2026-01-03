@@ -78,6 +78,10 @@
 
             <!-- Status Message Area -->
             <div id="fetchMsg" class="text-center mb-3"></div>
+            <div id="settledMsg" class="alert alert-info shadow-sm d-none">
+    <i class="fa-solid fa-check-double me-2"></i>
+    <strong>Settlement Complete:</strong> Evening settlement is done for this date.
+</div>
 
             <!-- Restock History Area -->
             <div id="historyList"></div>
@@ -152,3 +156,4 @@
 </script>
 <script src="{{ url_for('static', filename='js/morning.js') }}"></script>
 {% endblock %}
+
