@@ -84,7 +84,8 @@
 
         <div id="fetchMsg" class="alert alert-info d-none mt-3 rounded-3 border-0 shadow-sm fw-bold text-center"></div>
 
-        <form method="POST" action="{{ url_for('evening') }}" id="eveningForm">
+        
+            <form id="eveningForm" method="POST" action="{{ url_for('evening') }}" class="d-none">
             <input type="hidden" name="allocation_id" id="allocation_id" value="{{ draft_data.allocation_id if draft_data else '' }}">
             <input type="hidden" name="h_employee" id="h_employee" value="{{ draft_data.employee_id if draft_data else '' }}">
             <input type="hidden" name="h_date" id="h_date" value="{{ draft_data.date if draft_data else '' }}">
@@ -355,6 +356,7 @@
     });
 </script>
 {% endblock %}
+
 
 
 
