@@ -51,91 +51,90 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!ui.fetchButton) return;
 
     const DEFAULT_IMG = "https://via.placeholder.com/50?text=Img";
+async function fetchMorningAllocation() {
+    const employeeId = ui.employeeSelect.value;
+    const dateStr = ui.dateInput.value;
 
-    async function fetchMorningAllocation() {
-        const employeeId = ui.employeeSelect.value;
-        const dateStr = ui.dateInput.value;
+    // Show loading spinner
+    ui.tableBody.innerHTML = '<tr><td colspan="9" class="text-center p-4"><div class="spinner-border text-primary" role="status"></div></td></tr>';
 
-        ui.tableBody.innerHTML = '<tr><td colspan="9" class="text-center p-4"><div class="spinner-border text-primary" role="status"></div></td></tr>';
-        if(ui.fetchMsg) {
-            ui.fetchMsg.textContent = "";
-            ui.fetchMsg.classList.add('d-none');
+    // Reset UI
+    if (ui.fetchMsg) {
+        ui.fetchMsg.textContent = "";
+        ui.fetchMsg.classList.add('d-none');
+    }
+    const btnSubmit = document.getElementById('btnFinal');
+    if (btnSubmit) btnSubmit.disabled = false;
+
+    // Validate inputs
+    if (!employeeId || !dateStr) {
+        ui.tableBody.innerHTML = '<tr><td colspan="9" class="text-center text-muted p-4 fw-bold">Please Select Employee and Date first.</td></tr>';
+        return;
+    }
+
+    if (ui.hidden.employee) ui.hidden.employee.value = employeeId;
+    if (ui.hidden.date) ui.hidden.date.value = dateStr;
+
+    try {
+        // API call
+        const response = await fetch(`/api/get_evening_stock`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ employee_id: employeeId, date: dateStr })
+        });
+
+        if (!response.ok) {
+            throw new Error(`Server Error: ${response.status}`);
         }
 
-        if (!employeeId || !dateStr) {
-            ui.tableBody.innerHTML = '<tr><td colspan="9" class="text-center text-muted p-4 fw-bold">Please Select Employee and Date first.</td></tr>';
+        const data = await response.json();
+
+        // --- LOCK / SUBMITTED CHECK ---
+        if (data.status === 'submitted' || data.status === 'final') {
+            ui.fetchMsg.classList.remove('d-none');
+            ui.fetchMsg.className = "alert alert-warning mt-3 fw-bold text-center";
+            ui.fetchMsg.innerHTML = "<i class='fa-solid fa-lock me-2'></i> Settlement already submitted/finalized.";
+            ui.tableBody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">View Mode Only</td></tr>';
+            if (btnSubmit) btnSubmit.disabled = true;
             return;
         }
 
-        if(ui.hidden.employee) ui.hidden.employee.value = employeeId;
-        if(ui.hidden.date) ui.hidden.date.value = dateStr;
+        // Allocation ID
+        if (ui.hidden.allocationId) ui.hidden.allocationId.value = data.allocation_id;
 
-        try {
-            const formData = new FormData();
-            formData.append('employee_id', employeeId);
-            formData.append('date', dateStr);
+        // Success message
+        if (ui.fetchMsg) {
+            ui.fetchMsg.classList.remove('d-none');
+            ui.fetchMsg.innerHTML = '<i class="fa-solid fa-check-circle me-2"></i> Data loaded successfully';
+            ui.fetchMsg.className = "alert alert-success mt-3 rounded-3 border-0 shadow-sm fw-bold text-center";
+        }
 
-               const response = await fetch(`/api/get_evening_stock`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-        employee_id: employeeId,
-        date: dateStr
-    })
-});
+        // No items case
+        if (!Array.isArray(data.items) || data.items.length === 0) {
+            ui.tableBody.innerHTML = `
+                <tr>
+                    <td colspan="9" class="text-center text-warning p-4 fw-bold">
+                        No items available for this employee on selected date.
+                    </td>
+                </tr>
+            `;
+            return;
+        }
 
+        // --- MERGE DUPLICATES + RENDER ---
+        const mergedProducts = mergeDuplicateProducts(data.items);
+        renderTable(mergedProducts);
 
-            if (!response.ok) {
-                throw new Error(`Server Error: ${response.status}`);
-            }
-
-            const data = await response.json();
-
-      if (data.status === 'submitted') {
-    ui.fetchMsg.classList.remove('d-none');
-    ui.fetchMsg.className = "alert alert-warning mt-3 fw-bold text-center";
-    ui.fetchMsg.innerHTML = "Evening settlement already submitted for this date.";
-    ui.tableBody.innerHTML = '';
-    return;
-}
-
-
-
-            if(ui.hidden.allocationId) ui.hidden.allocationId.value = data.allocation_id;
-            
-            if(ui.fetchMsg) {
-                ui.fetchMsg.classList.remove('d-none');
-                ui.fetchMsg.innerHTML = '<i class="fa-solid fa-check-circle me-2"></i> Data loaded successfully';
-                ui.fetchMsg.className = "alert alert-success mt-3 rounded-3 border-0 shadow-sm fw-bold text-center";
-            }
-            
-          if (!Array.isArray(data.items) || data.items.length === 0) {
-    ui.tableBody.innerHTML = `
-        <tr>
-            <td colspan="9" class="text-center text-warning p-4 fw-bold">
-                No items available for this employee on selected date.
-            </td>
-        </tr>
-    `;
-    return;
-}
-
-
-           // MERGE DUPLICATES (Fix for restock mode)
-// BACKEND RETURNS `items`, NOT `products`
-const mergedProducts = mergeDuplicateProducts(data.items);
-renderTable(mergedProducts);
-
-
-        } catch (error) {
-            ui.tableBody.innerHTML = `<tr><td colspan="9" class="text-center text-danger p-4 fw-bold">${error.message}</td></tr>`;
-            if(ui.fetchMsg) {
-                ui.fetchMsg.classList.remove('d-none');
-                ui.fetchMsg.textContent = error.message;
-                ui.fetchMsg.className = "alert alert-danger mt-3 rounded-3 border-0 shadow-sm fw-bold text-center";
-            }
+    } catch (error) {
+        ui.tableBody.innerHTML = `<tr><td colspan="9" class="text-center text-danger p-4 fw-bold">${error.message}</td></tr>`;
+        if (ui.fetchMsg) {
+            ui.fetchMsg.classList.remove('d-none');
+            ui.fetchMsg.textContent = error.message;
+            ui.fetchMsg.className = "alert alert-danger mt-3 rounded-3 border-0 shadow-sm fw-bold text-center";
         }
     }
+}
+
 
   function mergeDuplicateProducts(products) {
     if (!Array.isArray(products)) return [];
@@ -323,6 +322,41 @@ renderTable(mergedProducts);
         }
     });
 });
+
+// --- ONE CLICK SUBMIT ---
+    const btnFinal = document.getElementById('btnFinal');
+    if(btnFinal) {
+        btnFinal.addEventListener('click', function() {
+            // Validation
+            const rows = ui.tableBody.querySelectorAll('tr.item-row');
+            if(rows.length === 0) {
+                Swal.fire('Error', 'No items to settle.', 'error');
+                return;
+            }
+
+            Swal.fire({
+                title: 'Confirm Final Submission?',
+                text: "Inventory will be updated and transactions recorded. This cannot be undone.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#198754',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Yes, Submit Final'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // Create hidden status input
+                    const form = document.getElementById('eveningForm'); // Ensure ID matches your HTML form
+                    const hiddenStatus = document.createElement("input");
+                    hiddenStatus.type = "hidden";
+                    hiddenStatus.name = "status";
+                    hiddenStatus.value = "final";
+                    form.appendChild(hiddenStatus);
+                    
+                    form.submit();
+                }
+            });
+        });
+    }
 
 
 
