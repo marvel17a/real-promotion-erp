@@ -84,6 +84,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 } else if (data.status === 'submitted') {
                     // Show "Already Submitted" Block
                     if(ui.block) ui.block.classList.remove('d-none');
+                    ui.form.classList.add('d-none');
                     ui.msg.textContent = "";
                 } else {
                     ui.msg.innerHTML = `<span class="text-danger"><i class="fa-solid fa-triangle-exclamation"></i> ${data.message}</span>`;
@@ -261,3 +262,4 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     };
 });
+
