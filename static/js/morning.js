@@ -56,131 +56,154 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // --- 2. FETCH DATA ---
     async function fetchStockData() {
-        const employeeId = ui.employeeSelect.value;
-        const dateStr = ui.dateInput.value;
+    const employeeId = ui.employeeSelect.value;
+    const dateStr = ui.dateInput.value;
 
-        if (!employeeId || !dateStr) return;
+    if (!employeeId || !dateStr) return;
 
-        ui.fetchMsg.innerHTML = '<span class="text-primary"><i class="fas fa-spinner fa-spin"></i> Checking...</span>';
-        if(ui.historyList) ui.historyList.innerHTML = '';
-        ui.tableBody.innerHTML = '';
+    ui.fetchMsg.innerHTML = '<span class="text-primary"><i class="fas fa-spinner fa-spin"></i> Checking...</span>';
+    if (ui.historyList) ui.historyList.innerHTML = '';
+    ui.tableBody.innerHTML = '';
 
-        try {
-            const response = await fetch(`/api/fetch_stock?employee_id=${employeeId}&date=${dateStr}`);
-            const data = await response.json();
+    // Reset settled message if present
+    const settledMsg = document.getElementById("settledMsg");
+    if (settledMsg) settledMsg.classList.add("d-none");
 
-            if (data.error && response.status !== 500) {
-                if(data.error.toLowerCase().includes("inactive")) {
-                    ui.fetchMsg.innerHTML = `<div class="alert alert-danger fw-bold"><i class="fa-solid fa-ban me-2"></i>${data.error}</div>`;
-                    ui.addRowBtn.disabled = true;
-                    return; 
-                }
-                
-                ui.addRowBtn.disabled = false;
-                isRestockMode = false;
-                ui.fetchMsg.innerHTML = '<span class="text-secondary small">Start New Allocation</span>';
-                createRow(); 
+    try {
+        const response = await fetch(`/api/fetch_stock?employee_id=${employeeId}&date=${dateStr}`);
+        const data = await response.json();
+
+        if (data.error && response.status !== 500) {
+            if (data.error.toLowerCase().includes("inactive")) {
+                ui.fetchMsg.innerHTML = `<div class="alert alert-danger fw-bold"><i class="fa-solid fa-ban me-2"></i>${data.error}</div>`;
+                ui.addRowBtn.disabled = true;
+                return;
+            }
+
+            ui.addRowBtn.disabled = false;
+            isRestockMode = false;
+            ui.fetchMsg.innerHTML = '<span class="text-secondary small">Start New Allocation</span>';
+            createRow();
+        } else {
+            // --- LOCK LOGIC ---
+            const isSettled = data.is_settled === true;
+            if (isSettled) {
+                ui.addRowBtn.disabled = true;
+                if (settledMsg) settledMsg.classList.remove("d-none");
+                ui.fetchMsg.innerHTML = '<span class="badge bg-secondary">Locked: Evening Settlement Done</span>';
             } else {
                 ui.addRowBtn.disabled = false;
-                isRestockMode = (data.mode === 'restock');
-                
-                if (!isRestockMode && data.opening_stock && data.opening_stock.length > 0) {
-                    data.opening_stock.forEach(stockItem => {
-                        createRow(stockItem); 
-                    });
-                    ui.fetchMsg.innerHTML = '<span class="text-success small"><i class="fa-solid fa-check"></i> Stock Loaded</span>';
-                } else {
-                    createRow();
+            }
+
+            isRestockMode = (data.mode === 'restock');
+
+            if (!isRestockMode && data.opening_stock && data.opening_stock.length > 0) {
+                data.opening_stock.forEach(stockItem => {
+                    // Pass lock status into createRow
+                    createRow(stockItem, isSettled);
+                });
+                ui.fetchMsg.innerHTML = '<span class="text-success small"><i class="fa-solid fa-check"></i> Stock Loaded</span>';
+            } else {
+                // If locked, create disabled row
+                createRow(null, isSettled);
+                if (!isSettled) {
                     ui.fetchMsg.innerHTML = isRestockMode ? '' : '<span class="text-secondary small">No pending stock</span>';
                 }
+            }
 
-                if (isRestockMode) {
-                    ui.fetchMsg.innerHTML = '<span class="badge bg-warning text-dark">Restock Mode</span>';
-                    
-                    if(data.existing_items && data.existing_items.length > 0) {
-                        let historyHtml = `
-                            <div class="card border-warning mb-3 shadow-sm">
-                                <div class="card-header bg-warning bg-opacity-10 text-warning fw-bold small d-flex justify-content-between">
-                                    <span><i class="fa-solid fa-box-open"></i> CURRENT STOCK WITH EMPLOYEE</span>
+            if (isRestockMode) {
+                ui.fetchMsg.innerHTML = '<span class="badge bg-warning text-dark">Restock Mode</span>';
+
+                if (data.existing_items && data.existing_items.length > 0) {
+                    let historyHtml = `
+                        <div class="card border-warning mb-3 shadow-sm">
+                            <div class="card-header bg-warning bg-opacity-10 text-warning fw-bold small d-flex justify-content-between">
+                                <span><i class="fa-solid fa-box-open"></i> CURRENT STOCK WITH EMPLOYEE</span>
+                            </div>
+                            <div class="card-body p-3 d-flex flex-wrap gap-3">
+                    `;
+
+                    data.existing_items.forEach(item => {
+                        historyHtml += `
+                            <div class="d-flex align-items-center border rounded p-2 pe-3 bg-white shadow-sm" style="min-width: 180px;">
+                                <div class="prod-img-box me-3" style="width:40px; height:40px;">
+                                    <img src="${item.image}" style="width:100%; height:100%; object-fit:cover;">
                                 </div>
-                                <div class="card-body p-3 d-flex flex-wrap gap-3">
+                                <div>
+                                    <div class="fw-bold small text-dark lh-1">${item.name}</div>
+                                    <span class="badge bg-primary rounded-pill mt-1">Total: ${item.qty}</span>
+                                </div>
+                            </div>
                         `;
-                        
-                        data.existing_items.forEach(item => {
-                            historyHtml += `
-                                <div class="d-flex align-items-center border rounded p-2 pe-3 bg-white shadow-sm" style="min-width: 180px;">
-                                    <div class="prod-img-box me-3" style="width:40px; height:40px;">
-                                        <img src="${item.image}" style="width:100%; height:100%; object-fit:cover;">
-                                    </div>
-                                    <div>
-                                        <div class="fw-bold small text-dark lh-1">${item.name}</div>
-                                        <span class="badge bg-primary rounded-pill mt-1">Total: ${item.qty}</span>
-                                    </div>
-                                </div>
-                            `;
-                        });
-                        historyHtml += '</div></div>';
-                        if(ui.historyList) ui.historyList.innerHTML = historyHtml;
-                    }
+                    });
+
+                    historyHtml += '</div></div>';
+                    if (ui.historyList) ui.historyList.innerHTML = historyHtml;
                 }
             }
-            recalculateTotals();
-
-        } catch (error) {
-            console.error(error);
-            ui.fetchMsg.innerHTML = '<span class="text-danger small">Error connecting to server</span>';
-            createRow();
         }
+
+        recalculateTotals();
+
+    } catch (error) {
+        console.error(error);
+        ui.fetchMsg.innerHTML = '<span class="text-danger small">Error connecting to server</span>';
+        createRow();
     }
+}
+
 
     // --- 3. ROW CREATION ---
-    function createRow(prefillData = null) {
-        const tr = document.createElement("tr");
-        
-        let productId = "";
-        let openingVal = 0;
-        let priceVal = 0.00;
-        let imgSrc = DEFAULT_IMG;
+    function createRow(prefillData = null, isLocked = false) {
+        const tr = document.createElement("tr");
+        
+        let productId = "";
+        let openingVal = 0;
+        let priceVal = 0.00;
+        let imgSrc = DEFAULT_IMG;
 
-        if (prefillData) {
-            productId = prefillData.product_id;
-            openingVal = prefillData.remaining;
-            priceVal = prefillData.price;
-            if(prefillData.image) imgSrc = prefillData.image;
-        }
+        if (prefillData) {
+            productId = prefillData.product_id;
+            openingVal = prefillData.remaining;
+            priceVal = prefillData.price;
+            if(prefillData.image) imgSrc = prefillData.image;
+        }
 
-        tr.innerHTML = `
-            <td class="text-center text-muted fw-bold row-index"></td>
-            <td class="text-center">
-                <div class="prod-img-box">
-                    <img src="${imgSrc}" class="product-thumb" alt="img" onerror="this.src='${DEFAULT_IMG}'">
-                </div>
-            </td>
-            <td>
-                <select name="product_id[]" class="form-select product-dropdown" required>
-                    ${productOptionsHtml}
-                </select>
-                <!-- Warning Text -->
-                <div class="small text-danger fw-bold mt-1 stock-warning" style="display:none; font-size: 0.75rem;"></div>
-            </td>
-            <td><input type="number" name="opening[]" class="table-input opening" value="${openingVal}" readonly tabindex="-1"></td>
-            <td><input type="number" name="given[]" class="table-input given input-qty" min="0" placeholder="0" required></td>
-            <td><input type="number" name="total[]" class="table-input total" value="${openingVal}" readonly tabindex="-1"></td>
-            <td><input type="number" name="price[]" class="table-input price text-end" step="0.01" value="${priceVal.toFixed(2)}" readonly tabindex="-1"></td>
-            <td><input type="number" name="amount[]" class="table-input amount text-end fw-bold text-primary" value="0.00" readonly tabindex="-1"></td>
-            <td class="text-center">
-                <button type="button" class="btn btn-sm text-danger btn-remove-row"><i class="fa-solid fa-trash-can fa-lg"></i></button>
-            </td>
-        `;
-        
-        ui.tableBody.appendChild(tr);
-        if(productId) {
-            tr.querySelector('.product-dropdown').value = productId;
-        }
-        
-        updateRowIndexes();
-        if(prefillData) recalculateRow(tr);
-    }
+        // LOCKING ATTRIBUTE
+        const lockAttr = isLocked ? "disabled readonly" : "";
+        const hideDelete = isLocked ? 'style="display:none;"' : '';
+
+        tr.innerHTML = `
+            <td class="text-center text-muted fw-bold row-index"></td>
+            <td class="text-center">
+                <div class="prod-img-box">
+                    <img src="${imgSrc}" class="product-thumb" alt="img" onerror="this.src='${DEFAULT_IMG}'">
+                </div>
+            </td>
+            <td>
+                <select name="product_id[]" class="form-select product-dropdown" required ${lockAttr}>
+                    ${productOptionsHtml}
+                </select>
+                <div class="small text-danger fw-bold mt-1 stock-warning" style="display:none; font-size: 0.75rem;"></div>
+            </td>
+            <td><input type="number" name="opening[]" class="table-input opening" value="${openingVal}" readonly tabindex="-1"></td>
+            <td><input type="number" name="given[]" class="table-input given input-qty" min="0" placeholder="0" required ${lockAttr}></td>
+            <td><input type="number" name="total[]" class="table-input total" value="${openingVal}" readonly tabindex="-1"></td>
+            <td><input type="number" name="price[]" class="table-input price text-end" step="0.01" value="${priceVal.toFixed(2)}" readonly tabindex="-1"></td>
+            <td><input type="number" name="amount[]" class="table-input amount text-end fw-bold text-primary" value="0.00" readonly tabindex="-1"></td>
+            <td class="text-center">
+                <button type="button" class="btn btn-sm text-danger btn-remove-row" ${hideDelete} ${lockAttr}><i class="fa-solid fa-trash-can fa-lg"></i></button>
+            </td>
+        `;
+        
+        ui.tableBody.appendChild(tr);
+        if(productId) {
+            tr.querySelector('.product-dropdown').value = productId;
+        }
+        
+        updateRowIndexes();
+        if(prefillData) recalculateRow(tr);
+    }
 
     // --- 4. CALCULATIONS & EVENTS ---
     function updateRowData(row, productId) {
@@ -308,3 +331,4 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 });
+
