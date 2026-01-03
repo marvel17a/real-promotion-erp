@@ -306,14 +306,18 @@
         const form = document.getElementById('eveningForm');
         const emp = document.getElementById('employee').value;
 
-        if(!emp) { alert("Please select an employee first."); return; }
+        if (!emp) {
+            alert("Please select an employee first.");
+            return;
+        }
 
-        if(status === 'final') {
-            if(!confirm("Are you sure you want to SUBMIT this settlement? Inventory will be deducted.")) return;
-        } 
+        // STEP 1: One-click submit (no preview / confirm)
+        if (status === 'final') {
+            alert("Evening settlement is being submitted.");
+        }
+
         form.submit();
     }
-
     document.addEventListener("DOMContentLoaded", function() {
         flatpickr("#date", { dateFormat: "d-m-Y", defaultDate: "{{ today }}", allowInput: true });
         
@@ -338,5 +342,6 @@
     });
 </script>
 {% endblock %}
+
 
 
