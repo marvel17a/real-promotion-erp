@@ -75,10 +75,15 @@ document.addEventListener("DOMContentLoaded", () => {
             formData.append('employee_id', employeeId);
             formData.append('date', dateStr);
 
-            const response = await fetch(`/api/fetch_evening_data`, {
-                method: 'POST',
-                body: formData
-            });
+               const response = await fetch(`/api/get_evening_stock`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+        employee_id: employeeId,
+        date: dateStr
+    })
+});
+
 
             if (!response.ok) {
                 throw new Error(`Server Error: ${response.status}`);
@@ -86,13 +91,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const data = await response.json();
 
-            if (data.status === 'final') {
+      if (data.status === 'submitted') {
     ui.fetchMsg.classList.remove('d-none');
     ui.fetchMsg.className = "alert alert-warning mt-3 fw-bold text-center";
-    ui.fetchMsg.innerText = "Evening settlement already submitted for this date.";
+    ui.fetchMsg.innerHTML = "Evening settlement already submitted for this date.";
     ui.tableBody.innerHTML = '';
     return;
 }
+
 
 
             if(ui.hidden.allocationId) ui.hidden.allocationId.value = data.allocation_id;
@@ -103,7 +109,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 ui.fetchMsg.className = "alert alert-success mt-3 rounded-3 border-0 shadow-sm fw-bold text-center";
             }
             
-            if (!data.products || data.products.length === 0) {
+            if (!data.items || data.items.length === 0) {
+
                 ui.tableBody.innerHTML = '<tr><td colspan="9" class="text-center text-warning p-4 fw-bold">No items allocated to this employee on this date.</td></tr>';
                 return;
             }
@@ -299,4 +306,5 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 });
+
 
