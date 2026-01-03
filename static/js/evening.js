@@ -51,116 +51,88 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!ui.fetchButton) return;
 
     const DEFAULT_IMG = "https://via.placeholder.com/50?text=Img";
-async function fetchMorningAllocation() {
-    const employeeId = ui.employeeSelect.value;
-    const dateStr = ui.dateInput.value;
 
-    // Show loading spinner
-    ui.tableBody.innerHTML = '<tr><td colspan="9" class="text-center p-4"><div class="spinner-border text-primary" role="status"></div></td></tr>';
+    async function fetchMorningAllocation() {
+        const employeeId = ui.employeeSelect.value;
+        const dateStr = ui.dateInput.value;
 
-    // Reset UI
-    if (ui.fetchMsg) {
-        ui.fetchMsg.textContent = "";
-        ui.fetchMsg.classList.add('d-none');
-    }
-    const btnSubmit = document.getElementById('btnFinal');
-    if (btnSubmit) btnSubmit.disabled = false;
-
-    // Validate inputs
-    if (!employeeId || !dateStr) {
-        ui.tableBody.innerHTML = '<tr><td colspan="9" class="text-center text-muted p-4 fw-bold">Please Select Employee and Date first.</td></tr>';
-        return;
-    }
-
-    if (ui.hidden.employee) ui.hidden.employee.value = employeeId;
-    if (ui.hidden.date) ui.hidden.date.value = dateStr;
-
-    try {
-        // API call
-        const response = await fetch(`/api/get_evening_stock`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ employee_id: employeeId, date: dateStr })
-        });
-
-        if (!response.ok) {
-            throw new Error(`Server Error: ${response.status}`);
+        ui.tableBody.innerHTML = '<tr><td colspan="9" class="text-center p-4"><div class="spinner-border text-primary" role="status"></div></td></tr>';
+        if(ui.fetchMsg) {
+            ui.fetchMsg.textContent = "";
+            ui.fetchMsg.classList.add('d-none');
         }
 
-        const data = await response.json();
-
-        // --- LOCK / SUBMITTED CHECK ---
-        if (data.status === 'submitted' || data.status === 'final') {
-            ui.fetchMsg.classList.remove('d-none');
-            ui.fetchMsg.className = "alert alert-warning mt-3 fw-bold text-center";
-            ui.fetchMsg.innerHTML = "<i class='fa-solid fa-lock me-2'></i> Settlement already submitted/finalized.";
-            ui.tableBody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">View Mode Only</td></tr>';
-            if (btnSubmit) btnSubmit.disabled = true;
+        if (!employeeId || !dateStr) {
+            ui.tableBody.innerHTML = '<tr><td colspan="9" class="text-center text-muted p-4 fw-bold">Please Select Employee and Date first.</td></tr>';
             return;
         }
 
-        // Allocation ID
-        if (ui.hidden.allocationId) ui.hidden.allocationId.value = data.allocation_id;
+        if(ui.hidden.employee) ui.hidden.employee.value = employeeId;
+        if(ui.hidden.date) ui.hidden.date.value = dateStr;
 
-        // Success message
-        if (ui.fetchMsg) {
-            ui.fetchMsg.classList.remove('d-none');
-            ui.fetchMsg.innerHTML = '<i class="fa-solid fa-check-circle me-2"></i> Data loaded successfully';
-            ui.fetchMsg.className = "alert alert-success mt-3 rounded-3 border-0 shadow-sm fw-bold text-center";
-        }
+        try {
+            const formData = new FormData();
+            formData.append('employee_id', employeeId);
+            formData.append('date', dateStr);
 
-        // No items case
-        if (!Array.isArray(data.items) || data.items.length === 0) {
-            ui.tableBody.innerHTML = `
-                <tr>
-                    <td colspan="9" class="text-center text-warning p-4 fw-bold">
-                        No items available for this employee on selected date.
-                    </td>
-                </tr>
-            `;
-            return;
-        }
-
-        // --- MERGE DUPLICATES + RENDER ---
-        const mergedProducts = mergeDuplicateProducts(data.items);
-        renderTable(mergedProducts);
-
-    } catch (error) {
-        ui.tableBody.innerHTML = `<tr><td colspan="9" class="text-center text-danger p-4 fw-bold">${error.message}</td></tr>`;
-        if (ui.fetchMsg) {
-            ui.fetchMsg.classList.remove('d-none');
-            ui.fetchMsg.textContent = error.message;
-            ui.fetchMsg.className = "alert alert-danger mt-3 rounded-3 border-0 shadow-sm fw-bold text-center";
-        }
-    }
-}
-
-
-  function mergeDuplicateProducts(products) {
-    if (!Array.isArray(products)) return [];
-
-    const map = new Map();
-
-    products.forEach(item => {
-        const id = String(item.product_id ?? item.id);
-
-        if (map.has(id)) {
-            const existing = map.get(id);
-            existing.total_qty =
-                (parseInt(existing.total_qty) || 0) +
-                (parseInt(item.total_qty) || 0);
-        } else {
-            map.set(id, {
-                ...item,
-                id: item.product_id ?? item.id,
-                total_qty: parseInt(item.total_qty) || 0
+            const response = await fetch(`/api/fetch_evening_data`, {
+                method: 'POST',
+                body: formData
             });
+
+            if (!response.ok) {
+                throw new Error(`Server Error: ${response.status}`);
+            }
+
+            const data = await response.json();
+
+            if (data.status === 'error') {
+                throw new Error(data.message);
+            }
+
+            if(ui.hidden.allocationId) ui.hidden.allocationId.value = data.allocation_id;
+            
+            if(ui.fetchMsg) {
+                ui.fetchMsg.classList.remove('d-none');
+                ui.fetchMsg.innerHTML = '<i class="fa-solid fa-check-circle me-2"></i> Data loaded successfully';
+                ui.fetchMsg.className = "alert alert-success mt-3 rounded-3 border-0 shadow-sm fw-bold text-center";
+            }
+            
+            if (!data.products || data.products.length === 0) {
+                ui.tableBody.innerHTML = '<tr><td colspan="9" class="text-center text-warning p-4 fw-bold">No items allocated to this employee on this date.</td></tr>';
+                return;
+            }
+
+            // MERGE DUPLICATES (Fix for restock mode)
+            const mergedProducts = mergeDuplicateProducts(data.products);
+            renderTable(mergedProducts);
+
+        } catch (error) {
+            ui.tableBody.innerHTML = `<tr><td colspan="9" class="text-center text-danger p-4 fw-bold">${error.message}</td></tr>`;
+            if(ui.fetchMsg) {
+                ui.fetchMsg.classList.remove('d-none');
+                ui.fetchMsg.textContent = error.message;
+                ui.fetchMsg.className = "alert alert-danger mt-3 rounded-3 border-0 shadow-sm fw-bold text-center";
+            }
         }
-    });
+    }
 
-    return Array.from(map.values());
-}
-
+    function mergeDuplicateProducts(products) {
+        const map = new Map();
+        
+        products.forEach(item => {
+            const id = String(item.id);
+            if (map.has(id)) {
+                // If exists, add qty
+                const existing = map.get(id);
+                existing.total_qty = (parseInt(existing.total_qty) || 0) + (parseInt(item.total_qty) || 0);
+            } else {
+                map.set(id, { ...item, total_qty: parseInt(item.total_qty) || 0 });
+            }
+        });
+        
+        return Array.from(map.values());
+    }
 
     function renderTable(items) {
         ui.tableBody.innerHTML = '';
@@ -322,42 +294,3 @@ async function fetchMorningAllocation() {
         }
     });
 });
-
-// --- ONE CLICK SUBMIT ---
-    const btnFinal = document.getElementById('btnFinal');
-    if(btnFinal) {
-        btnFinal.addEventListener('click', function() {
-            // Validation
-            const rows = ui.tableBody.querySelectorAll('tr.item-row');
-            if(rows.length === 0) {
-                Swal.fire('Error', 'No items to settle.', 'error');
-                return;
-            }
-
-            Swal.fire({
-                title: 'Confirm Final Submission?',
-                text: "Inventory will be updated and transactions recorded. This cannot be undone.",
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#198754',
-                cancelButtonColor: '#d33',
-                confirmButtonText: 'Yes, Submit Final'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    // Create hidden status input
-                    const form = document.getElementById('eveningForm'); // Ensure ID matches your HTML form
-                    const hiddenStatus = document.createElement("input");
-                    hiddenStatus.type = "hidden";
-                    hiddenStatus.name = "status";
-                    hiddenStatus.value = "final";
-                    form.appendChild(hiddenStatus);
-                    
-                    form.submit();
-                }
-            });
-        });
-    }
-
-
-
-
