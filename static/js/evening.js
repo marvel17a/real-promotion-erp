@@ -109,15 +109,23 @@ document.addEventListener("DOMContentLoaded", () => {
                 ui.fetchMsg.className = "alert alert-success mt-3 rounded-3 border-0 shadow-sm fw-bold text-center";
             }
             
-            if (!data.items || data.items.length === 0) {
+          if (!Array.isArray(data.items) || data.items.length === 0) {
+    ui.tableBody.innerHTML = `
+        <tr>
+            <td colspan="9" class="text-center text-warning p-4 fw-bold">
+                No items available for this employee on selected date.
+            </td>
+        </tr>
+    `;
+    return;
+}
 
-                ui.tableBody.innerHTML = '<tr><td colspan="9" class="text-center text-warning p-4 fw-bold">No items allocated to this employee on this date.</td></tr>';
-                return;
-            }
 
-            // MERGE DUPLICATES (Fix for restock mode)
-            const mergedProducts = mergeDuplicateProducts(data.products);
-            renderTable(mergedProducts);
+           // MERGE DUPLICATES (Fix for restock mode)
+// BACKEND RETURNS `items`, NOT `products`
+const mergedProducts = mergeDuplicateProducts(data.items);
+renderTable(mergedProducts);
+
 
         } catch (error) {
             ui.tableBody.innerHTML = `<tr><td colspan="9" class="text-center text-danger p-4 fw-bold">${error.message}</td></tr>`;
@@ -129,22 +137,31 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    function mergeDuplicateProducts(products) {
-        const map = new Map();
-        
-        products.forEach(item => {
-            const id = String(item.id);
-            if (map.has(id)) {
-                // If exists, add qty
-                const existing = map.get(id);
-                existing.total_qty = (parseInt(existing.total_qty) || 0) + (parseInt(item.total_qty) || 0);
-            } else {
-                map.set(id, { ...item, total_qty: parseInt(item.total_qty) || 0 });
-            }
-        });
-        
-        return Array.from(map.values());
-    }
+  function mergeDuplicateProducts(products) {
+    if (!Array.isArray(products)) return [];
+
+    const map = new Map();
+
+    products.forEach(item => {
+        const id = String(item.product_id ?? item.id);
+
+        if (map.has(id)) {
+            const existing = map.get(id);
+            existing.total_qty =
+                (parseInt(existing.total_qty) || 0) +
+                (parseInt(item.total_qty) || 0);
+        } else {
+            map.set(id, {
+                ...item,
+                id: item.product_id ?? item.id,
+                total_qty: parseInt(item.total_qty) || 0
+            });
+        }
+    });
+
+    return Array.from(map.values());
+}
+
 
     function renderTable(items) {
         ui.tableBody.innerHTML = '';
@@ -306,6 +323,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 });
+
 
 
 
