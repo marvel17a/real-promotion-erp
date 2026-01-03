@@ -12,7 +12,33 @@ document.addEventListener("DOMContentLoaded", () => {
         tableBody: getEl("rowsArea"),
         msg: getEl("fetchMsg"),
         block: getEl("submittedBlock"), // For "Already Submitted" view
+
+        // --- LIVE CLOCK LOGIC ---
+    function updateClock() {
+        const now = new Date();
+        // 1. Update Display
+        const timeString = now.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute:'2-digit', second:'2-digit' });
+        const clockEl = getEl('liveClock');
+        if(clockEl) clockEl.textContent = timeString;
+
+        // 2. Update Hidden Timestamp for Backend
+        // Format: YYYY-MM-DD HH:MM:SS
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        const seconds = String(now.getSeconds()).padStart(2, '0');
         
+        const timestampInput = document.getElementById('timestampInput');
+        if(timestampInput) {
+            timestampInput.value = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+        }
+    }
+
+    // Start the clock immediately and update every second
+    setInterval(updateClock, 1000);
+    updateClock(); // Run once on load to avoid 00:00:00 delay
         // Hidden Inputs for Backend
         hidden: {
             allocId: getEl('allocation_id'),
@@ -362,6 +388,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     };
 });
+
 
 
 
