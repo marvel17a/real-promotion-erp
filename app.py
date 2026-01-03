@@ -4531,14 +4531,14 @@ def evening():
             if emp_c_amt > 0:
                 # Credit: Given TO employee (e.g. Salary, Expense Reimbursement)
                 cursor.execute("""
-                    INSERT INTO transactions (employee_id, date, type, amount, description, created_at)
+                    INSERT INTO employee_transactions (employee_id, date, type, amount, description, created_at)
                     VALUES (%s, %s, 'credit', %s, %s, %s)
                 """, (emp_id, date_val, emp_c_amt, f"Credit via Evening #{settle_id}: {emp_c_note}", time_str))
             
             if emp_d_amt > 0:
                 # Debit: Taken FROM employee (e.g. Advance Return, Penalty)
                 cursor.execute("""
-                    INSERT INTO transactions (employee_id, date, type, amount, description, created_at)
+                    INSERT INTO employee_transactions (employee_id, date, type, amount, description, created_at)
                     VALUES (%s, %s, 'debit', %s, %s, %s)
                 """, (emp_id, date_val, emp_d_amt, f"Debit via Evening #{settle_id}: {emp_d_note}", time_str))
 
@@ -6470,6 +6470,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
