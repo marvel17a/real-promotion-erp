@@ -27,11 +27,8 @@ document.addEventListener("DOMContentLoaded", () => {
     let productOptionsHtml = '<option value="">-- Select --</option>';
     if (Array.isArray(productsData)) {
         productsData.forEach(p => {
-            // FIX: Ensure stock is a valid integer. Default to 0 if missing.
             p.stock = (p.stock === null || p.stock === undefined) ? 0 : parseInt(p.stock);
-            
             productsMap.set(String(p.id), p);
-            // We store stock in data attribute as backup, though Map is primary
             productOptionsHtml += `<option value="${p.id}" data-stock="${p.stock}">${p.name}</option>`;
         });
     }
@@ -56,47 +53,66 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // --- 2. FETCH DATA ---
     async function fetchStockData() {
-        const employeeId = ui.employeeSelect.value;
-        const dateStr = ui.dateInput.value;
+        const empId = ui.employeeSelect.value;
+        const dateVal = ui.dateInput.value;
 
-        if (!employeeId || !dateStr) return;
+        // --- NEW LOGIC: Hide Restock if Evening Done ---
+        const completedEmps = window.completedEmployees || [];
+        const isEveningDone = completedEmps.includes(parseInt(empId));
 
-        ui.fetchMsg.innerHTML = '<span class="text-primary"><i class="fas fa-spinner fa-spin"></i> Checking...</span>';
+        if (isEveningDone) {
+            if(ui.addRowBtn) ui.addRowBtn.style.display = 'none';
+            const saveBtn = document.querySelector('.btn-save');
+            if(saveBtn) saveBtn.style.display = 'none';
+
+            ui.fetchMsg.innerHTML = '<div class="alert alert-warning py-1"><i class="fa-solid fa-lock me-2"></i>Evening Settlement Done. View Only.</div>';
+        } else {
+            if(ui.addRowBtn) ui.addRowBtn.style.display = 'block';
+            const saveBtn = document.querySelector('.btn-save');
+            if(saveBtn) saveBtn.style.display = 'block';
+
+            ui.fetchMsg.innerHTML = '';
+        }
+        // ------------------------------------------------
+
+        if (!empId || !dateVal) return;
+
+        ui.fetchMsg.innerHTML += '<span class="text-primary ms-2"><i class="fas fa-spinner fa-spin"></i> Checking...</span>';
         if(ui.historyList) ui.historyList.innerHTML = '';
         ui.tableBody.innerHTML = '';
 
         try {
-            const response = await fetch(`/api/fetch_stock?employee_id=${employeeId}&date=${dateStr}`);
+            const response = await fetch(`/api/fetch_stock?employee_id=${empId}&date=${dateVal}`);
             const data = await response.json();
 
             if (data.error && response.status !== 500) {
                 if(data.error.toLowerCase().includes("inactive")) {
                     ui.fetchMsg.innerHTML = `<div class="alert alert-danger fw-bold"><i class="fa-solid fa-ban me-2"></i>${data.error}</div>`;
                     ui.addRowBtn.disabled = true;
-                    return; 
+                    return;
                 }
-                
+
                 ui.addRowBtn.disabled = false;
                 isRestockMode = false;
-                ui.fetchMsg.innerHTML = '<span class="text-secondary small">Start New Allocation</span>';
-                createRow(); 
+                ui.fetchMsg.innerHTML += '<span class="text-secondary small">Start New Allocation</span>';
+                createRow();
             } else {
                 ui.addRowBtn.disabled = false;
                 isRestockMode = (data.mode === 'restock');
-                
+
                 if (!isRestockMode && data.opening_stock && data.opening_stock.length > 0) {
                     data.opening_stock.forEach(stockItem => {
-                        createRow(stockItem); 
+                        createRow(stockItem);
                     });
-                    ui.fetchMsg.innerHTML = '<span class="text-success small"><i class="fa-solid fa-check"></i> Stock Loaded</span>';
+                    ui.fetchMsg.innerHTML += '<span class="text-success small"><i class="fa-solid fa-check"></i> Stock Loaded</span>';
                 } else {
                     createRow();
-                    ui.fetchMsg.innerHTML = isRestockMode ? '' : '<span class="text-secondary small">No pending stock</span>';
+                    ui.fetchMsg.innerHTML += isRestockMode ? '' : '<span class="text-secondary small">No pending stock</span>';
                 }
 
                 if (isRestockMode) {
                     ui.fetchMsg.innerHTML = '<span class="badge bg-warning text-dark">Restock Mode</span>';
-                    
+
                     if(data.existing_items && data.existing_items.length > 0) {
                         let historyHtml = `
                             <div class="card border-warning mb-3 shadow-sm">
@@ -105,7 +121,7 @@ document.addEventListener("DOMContentLoaded", () => {
                                 </div>
                                 <div class="card-body p-3 d-flex flex-wrap gap-3">
                         `;
-                        
+
                         data.existing_items.forEach(item => {
                             historyHtml += `
                                 <div class="d-flex align-items-center border rounded p-2 pe-3 bg-white shadow-sm" style="min-width: 180px;">
@@ -136,7 +152,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // --- 3. ROW CREATION ---
     function createRow(prefillData = null) {
         const tr = document.createElement("tr");
-        
+
         let productId = "";
         let openingVal = 0;
         let priceVal = 0.00;
@@ -160,7 +176,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 <select name="product_id[]" class="form-select product-dropdown" required>
                     ${productOptionsHtml}
                 </select>
-                <!-- Warning Text -->
                 <div class="small text-danger fw-bold mt-1 stock-warning" style="display:none; font-size: 0.75rem;"></div>
             </td>
             <td><input type="number" name="opening[]" class="table-input opening" value="${openingVal}" readonly tabindex="-1"></td>
@@ -172,12 +187,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 <button type="button" class="btn btn-sm text-danger btn-remove-row"><i class="fa-solid fa-trash-can fa-lg"></i></button>
             </td>
         `;
-        
+
         ui.tableBody.appendChild(tr);
-        if(productId) {
-            tr.querySelector('.product-dropdown').value = productId;
-        }
-        
+        if(productId) tr.querySelector('.product-dropdown').value = productId;
+
         updateRowIndexes();
         if(prefillData) recalculateRow(tr);
     }
@@ -187,19 +200,14 @@ document.addEventListener("DOMContentLoaded", () => {
         const priceInput = row.querySelector(".price");
         const img = row.querySelector(".product-thumb");
         const warningEl = row.querySelector(".stock-warning");
-        
-        // Reset warnings
+
         warningEl.style.display = 'none';
-        
+
         const product = productsMap.get(productId);
         if (product) {
             priceInput.value = parseFloat(product.price).toFixed(2);
-            if(product.image) {
-                img.src = product.image;
-            } else {
-                img.src = DEFAULT_IMG;
-            }
-            recalculateRow(row); 
+            img.src = product.image || DEFAULT_IMG;
+            recalculateRow(row);
         } else {
             img.src = DEFAULT_IMG;
             priceInput.value = "0.00";
@@ -211,37 +219,33 @@ document.addEventListener("DOMContentLoaded", () => {
         const givenInput = row.querySelector(".given");
         let given = parseInt(givenInput.value) || 0;
         const price = parseFloat(row.querySelector(".price").value) || 0;
-        
-        // --- INVENTORY CHECK ---
+
         const dropdown = row.querySelector(".product-dropdown");
         const productId = dropdown.value;
         const warningEl = row.querySelector(".stock-warning");
 
         if (productId) {
             const product = productsMap.get(productId);
-            // Default to a very large number if product not found to avoid blocking
-            const maxAvailable = product ? parseInt(product.stock) : 999999; 
+            const maxAvailable = product ? parseInt(product.stock) : 999999;
 
             if (given > maxAvailable) {
                 given = maxAvailable;
-                givenInput.value = maxAvailable; 
+                givenInput.value = maxAvailable;
                 warningEl.innerHTML = `<i class="fa-solid fa-triangle-exclamation me-1"></i>Only ${maxAvailable} left!`;
                 warningEl.style.display = 'block';
-                // Optional: add visual shake or red border
                 givenInput.style.borderColor = 'red';
             } else {
                 warningEl.style.display = 'none';
                 givenInput.style.borderColor = '';
             }
         }
-        // -----------------------
 
         const total = opening + given;
         const amount = total * price;
 
         row.querySelector(".total").value = total;
         row.querySelector(".amount").value = amount.toFixed(2);
-        
+
         recalculateTotals();
     }
 
