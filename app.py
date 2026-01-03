@@ -4548,6 +4548,7 @@ def evening():
 
 
 # --- API: FETCH EVENING DATA (Draft Aware) ---
+# --- API: FETCH EVENING DATA (Fixed: Merges Duplicate Products) ---
 @app.route('/api/fetch_evening_data', methods=['POST'])
 def fetch_evening_data():
     if "loggedin" not in session: return jsonify({'status': 'error', 'message': 'Unauthorized'})
@@ -4580,9 +4581,9 @@ def fetch_evening_data():
             if existing_record['status'] == 'final':
                 return jsonify({'status': 'submitted', 'message': 'Evening form is already submitted for this date.'})
             
-            # Case A: Resume DRAFT
+            # Case A: Resume DRAFT (Already merged when saved, so simple fetch)
             source = "draft"
-            draft_data = existing_record # Contains finance info
+            draft_data = existing_record
             alloc_id = existing_record['allocation_id']
             
             cur.execute("""
@@ -4601,13 +4602,18 @@ def fetch_evening_data():
             if today_alloc:
                 source = "morning"
                 alloc_id = today_alloc['id']
+                
+                # --- FIX: GROUP BY product_id AND SUM(qty) ---
+                # This merges Restock items with Opening items
                 cur.execute("""
-                    SELECT p.id as product_id, p.name, p.image, mai.unit_price, 
-                           (mai.opening_qty + mai.given_qty) as total_qty,
+                    SELECT p.id as product_id, p.name, p.image, 
+                           MAX(mai.unit_price) as unit_price, 
+                           SUM(mai.opening_qty + mai.given_qty) as total_qty,
                            0 as sold_qty, 0 as return_qty
                     FROM morning_allocation_items mai
                     JOIN products p ON mai.product_id = p.id
                     WHERE mai.allocation_id = %s
+                    GROUP BY p.id, p.name, p.image
                 """, (alloc_id,))
                 items_list = cur.fetchall()
             else:
@@ -4621,19 +4627,22 @@ def fetch_evening_data():
                 last_settle = cur.fetchone()
 
                 if last_settle:
+                    # Previous leftovers are usually already unique, but GROUP BY is safer
                     cur.execute("""
-                        SELECT p.id as product_id, p.name, p.image, ei.unit_price, 
-                               ei.remaining_qty as total_qty,
+                        SELECT p.id as product_id, p.name, p.image, 
+                               MAX(ei.unit_price) as unit_price, 
+                               SUM(ei.remaining_qty) as total_qty,
                                0 as sold_qty, 0 as return_qty
                         FROM evening_item ei
                         JOIN products p ON ei.product_id = p.id
                         WHERE ei.settle_id = %s AND ei.remaining_qty > 0
+                        GROUP BY p.id, p.name, p.image
                     """, (last_settle['id'],))
                     items_list = cur.fetchall()
                 else:
                     return jsonify({'status': 'error', 'message': 'No morning allocation or previous stock found.'})
 
-        # Process Images
+        # Process Images and Data Types
         for item in items_list:
             item['image'] = resolve_img(item['image'])
             item['unit_price'] = float(item['unit_price'])
@@ -6517,6 +6526,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
