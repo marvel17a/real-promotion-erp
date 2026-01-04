@@ -95,12 +95,12 @@
 <form id="eveningForm" ... class="d-none">
         
             <form id="eveningForm" method="POST" action="{{ url_for('evening') }}" class="d-none">
-            <input type="hidden" name="allocation_id" id="allocation_id" value="{{ draft_data.allocation_id if draft_data else '' }}">
-            <input type="hidden" name="h_employee" id="h_employee" value="{{ draft_data.employee_id if draft_data else '' }}">
-            <input type="hidden" name="h_date" id="h_date" value="{{ draft_data.date if draft_data else '' }}">
-            <input type="hidden" name="timestamp" id="timestampInput">
-            <input type="hidden" name="status" id="formStatus" value="final">
-            <input type="hidden" name="draft_id" value="{{ draft_data.id if draft_data and not last_settle_id else '' }}">
+    <input type="hidden" name="allocation_id" id="allocation_id">
+    <input type="hidden" name="h_employee" id="h_employee">
+    <input type="hidden" name="h_date" id="h_date">
+    <input type="hidden" name="timestamp" id="timestampInput">
+    <input type="hidden" name="status" id="formStatus" value="final">
+    <input type="hidden" name="draft_id" id="draft_id">
 
             <!-- TABLE SECTION -->
             <div class="table-responsive mb-4">
@@ -365,6 +365,7 @@
     });
 </script>
 {% endblock %}
+
 
 
 
