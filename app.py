@@ -4551,6 +4551,7 @@ def evening():
 # --- API: FETCH EVENING DATA (Fixed: Merges Duplicate Products) ---
 # --- API: FETCH EVENING DATA (Fixed Duplicate Check) ---
 # --- API: FETCH EVENING DATA (Fixed Leftover Logic & Allocation ID) ---
+# --- API: FETCH EVENING DATA (Fix for Leftover Stock Logic) ---
 @app.route('/api/fetch_evening_data', methods=['POST'])
 def fetch_evening_data():
     if "loggedin" not in session: return jsonify({'status': 'error', 'message': 'Unauthorized'})
@@ -4567,7 +4568,7 @@ def fetch_evening_data():
         
         cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
-        # 1. CHECK EXISTING RECORD
+        # 1. CHECK EXISTING RECORD (Draft/Final for Today)
         cur.execute("""
             SELECT * FROM evening_settle 
             WHERE employee_id=%s AND date=%s
@@ -4605,6 +4606,7 @@ def fetch_evening_data():
                 # Case B: Today's Allocation Found
                 source = "morning"
                 alloc_id = today_alloc['id']
+                # Merge Duplicates (Group By)
                 cur.execute("""
                     SELECT p.id as product_id, p.name, p.image, 
                            MAX(mai.unit_price) as unit_price, 
@@ -4628,8 +4630,9 @@ def fetch_evening_data():
                 last_settle = cur.fetchone()
 
                 if last_settle:
-                    # IMPORTANT: Keep the same allocation_id from the previous chain
-                    alloc_id = last_settle['allocation_id']
+                    # We continue the chain from the last settlement
+                    # If last_settle['allocation_id'] is 0 or None, we pass 0.
+                    alloc_id = last_settle.get('allocation_id') or 0
                     
                     cur.execute("""
                         SELECT p.id as product_id, p.name, p.image, 
@@ -4643,6 +4646,7 @@ def fetch_evening_data():
                     """, (last_settle['id'],))
                     items_list = cur.fetchall()
                 else:
+                    # No history found at all
                     return jsonify({'status': 'error', 'message': 'No stock found. (No morning allocation today & no previous history)'})
 
         # Process Images
@@ -4656,7 +4660,7 @@ def fetch_evening_data():
         return jsonify({
             'status': 'success',
             'source': source,
-            'allocation_id': alloc_id,
+            'allocation_id': alloc_id if alloc_id else '',
             'draft_id': draft_data['id'] if draft_data else None,
             'draft_data': draft_data,
             'products': items_list
@@ -6546,6 +6550,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
