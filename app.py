@@ -4189,11 +4189,7 @@ def download_evening_pdf(settle_id):
     return send_file(buffer, as_attachment=True, download_name=f"Evening_Settle_{settle_id}.pdf", mimetype='application/pdf')
 
 
-
-
-
-
-# --- FIXED ALLOCATION LIST ROUTE ---
+# --- ROUTE: ALLOCATION LIST (With Status & Correct Time) ---
 @app.route('/allocation_list', methods=['GET'])
 def allocation_list():
     if "loggedin" not in session: return redirect(url_for("login"))
@@ -4201,12 +4197,22 @@ def allocation_list():
     conn = mysql.connection
     cursor = conn.cursor(MySQLdb.cursors.DictCursor)
 
+    # Filters
     date_filter = request.args.get('date')
     emp_filter = request.args.get('employee_id')
     
+    # Query logic:
+    # 1. Fetch Allocation Info
+    # 2. Check evening_settle table for matching allocation_id to determine status
     query = """
-        SELECT ma.*, e.name as emp_name, e.image as emp_image,
-               (SELECT COUNT(*) FROM morning_allocation_items WHERE allocation_id = ma.id) as item_count
+        SELECT 
+            ma.id, 
+            ma.date, 
+            ma.created_at, 
+            e.name as emp_name, 
+            e.image as emp_image,
+            (SELECT COUNT(*) FROM morning_allocation_items WHERE allocation_id = ma.id) as item_count,
+            (SELECT status FROM evening_settle WHERE allocation_id = ma.id LIMIT 1) as evening_status
         FROM morning_allocations ma
         JOIN employees e ON ma.employee_id = e.id
         WHERE 1=1
@@ -4214,10 +4220,12 @@ def allocation_list():
     params = []
 
     if date_filter:
-        query += " AND ma.date = %s"
-        params.append(parse_date(date_filter)) 
+        d_obj = parse_date(date_filter)
+        if d_obj:
+            query += " AND ma.date = %s"
+            params.append(d_obj.strftime('%Y-%m-%d'))
     
-    if emp_filter:
+    if emp_filter and emp_filter != 'all':
         query += " AND ma.employee_id = %s"
         params.append(emp_filter)
 
@@ -4226,41 +4234,47 @@ def allocation_list():
     cursor.execute(query, tuple(params))
     allocations = cursor.fetchall()
 
+    # Post-process for Frontend
     for a in allocations:
-        if a['emp_image']:
-            if not a['emp_image'].startswith('http'):
-                 a['emp_image'] = url_for('static', filename='uploads/' + a['emp_image'])
+        # Image
+        a['emp_image'] = resolve_img(a['emp_image'])
+        
+        # Date Formatting (dd-mm-yyyy)
+        if isinstance(a['date'], (date, datetime)):
+            a['formatted_date'] = a['date'].strftime('%d-%m-%Y')
         else:
-            a['emp_image'] = url_for('static', filename='img/default-user.png')
+            a['formatted_date'] = str(a['date'])
 
-        # Robust check for Timestamp
+        # Time Formatting (12-hour AM/PM) - Adjusting for IST if needed
         if a.get('created_at'):
-            type_name = type(a['created_at']).__name__
-            if type_name == 'datetime':
-                local_time = a['created_at'] + timedelta(hours=5, minutes=30)
-                a['time_str'] = local_time.strftime('%I:%M %p')
-            elif type_name == 'timedelta':
-                import datetime as dt_mod
-                base = dt_mod.datetime.min
-                dummy = base + a['created_at']
-                a['time_str'] = dummy.strftime('%I:%M %p')
-            else:
-                a['time_str'] = str(a['created_at'])
+            # Assuming created_at is UTC, add 5:30 for IST display
+            # If your DB is already IST, remove the timedelta
+            local_time = a['created_at'] + timedelta(hours=5, minutes=30)
+            a['formatted_time'] = local_time.strftime('%I:%M %p')
         else:
-            a['time_str'] = "00:00"
+            a['formatted_time'] = "-"
 
-    cursor.execute("SELECT id, name FROM employees ORDER BY name")
+        # Status Logic
+        if a['evening_status'] == 'final':
+            a['status_badge'] = 'Submitted'
+            a['status_class'] = 'bg-success'
+            a['is_locked'] = True
+        elif a['evening_status'] == 'draft':
+            a['status_badge'] = 'Draft'
+            a['status_class'] = 'bg-warning text-dark'
+            a['is_locked'] = False # Typically editable if just draft
+        else:
+            a['status_badge'] = 'Pending'
+            a['status_class'] = 'bg-danger'
+            a['is_locked'] = False
+
+    cursor.execute("SELECT id, name FROM employees WHERE status='active' ORDER BY name")
     employees = cursor.fetchall()
 
     return render_template('allocation_list.html', 
                            allocations=allocations, 
                            employees=employees,
                            filters={'date': date_filter, 'employee_id': emp_filter})
-
-
-
-
-
 
 # --- Helper: Robust Date Parsing ---
 
@@ -6564,6 +6578,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
