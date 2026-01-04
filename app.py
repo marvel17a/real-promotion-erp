@@ -4550,35 +4550,28 @@ def evening():
 # --- API: FETCH EVENING DATA (Draft Aware) ---
 # --- API: FETCH EVENING DATA (Fixed: Merges Duplicate Products) ---
 # --- API: FETCH EVENING DATA (Fixed Duplicate Check) ---
+# --- API: FETCH EVENING DATA (Fixed Leftover Logic & Allocation ID) ---
 @app.route('/api/fetch_evening_data', methods=['POST'])
 def fetch_evening_data():
     if "loggedin" not in session: return jsonify({'status': 'error', 'message': 'Unauthorized'})
 
     try:
-        # 1. Get & Validate Inputs
-        emp_id_raw = request.form.get('employee_id')
-        date_str = request.form.get('date') # dd-mm-yyyy
+        employee_id = request.form.get('employee_id')
+        date_str = request.form.get('date')
         
-        if not emp_id_raw or not date_str:
+        if not employee_id or not date_str:
             return jsonify({'status': 'error', 'message': 'Missing parameters'})
 
-        # Robust Type Casting
-        employee_id = int(emp_id_raw) 
         target_date = datetime.strptime(date_str, '%d-%m-%Y').date()
-        formatted_date = target_date.strftime('%Y-%m-%d') # Format for MySQL (YYYY-MM-DD)
+        formatted_date = target_date.strftime('%Y-%m-%d')
         
         cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
-        # 2. CRITICAL CHECK: Is form ALREADY submitted for this date?
+        # 1. CHECK EXISTING RECORD
         cur.execute("""
-            SELECT id, status, allocation_id, date, total_amount, 
-                   cash_money, online_money, discount, 
-                   emp_credit_amount, emp_credit_note, 
-                   emp_debit_amount, emp_debit_note, due_note
-            FROM evening_settle 
+            SELECT * FROM evening_settle 
             WHERE employee_id=%s AND date=%s
         """, (employee_id, formatted_date))
-        
         existing_record = cur.fetchone()
 
         items_list = []
@@ -4587,15 +4580,10 @@ def fetch_evening_data():
         draft_data = None
 
         if existing_record:
-            # If record exists and status is 'final' -> BLOCK IT
-            # Also handle case where status might be None (treat as final for safety)
-            if existing_record['status'] == 'final' or existing_record['status'] is None:
-                return jsonify({
-                    'status': 'submitted', 
-                    'message': 'Evening settlement for this date is already finalized.'
-                })
+            if existing_record['status'] == 'final':
+                return jsonify({'status': 'submitted', 'message': 'Evening form is already submitted for this date.'})
             
-            # If record exists and status is 'draft' -> RESUME IT
+            # Case A: Resume DRAFT
             source = "draft"
             draft_data = existing_record
             alloc_id = existing_record['allocation_id']
@@ -4609,16 +4597,14 @@ def fetch_evening_data():
             items_list = cur.fetchall()
             
         else:
-            # 3. No Evening Record -> Fetch New Data (Morning or Leftover)
-            
-            # Check Morning Alloc
+            # 2. NEW FORM: Check Morning Allocation First
             cur.execute("SELECT id FROM morning_allocations WHERE employee_id=%s AND date=%s", (employee_id, formatted_date))
             today_alloc = cur.fetchone()
 
             if today_alloc:
+                # Case B: Today's Allocation Found
                 source = "morning"
                 alloc_id = today_alloc['id']
-                # Merge logic (Group By)
                 cur.execute("""
                     SELECT p.id as product_id, p.name, p.image, 
                            MAX(mai.unit_price) as unit_price, 
@@ -4631,16 +4617,20 @@ def fetch_evening_data():
                 """, (alloc_id,))
                 items_list = cur.fetchall()
             else:
-                # Previous Leftover
+                # Case C: Previous Leftover (Fetch from Last Settlement)
                 source = "previous_leftover"
                 cur.execute("""
-                    SELECT id FROM evening_settle 
+                    SELECT id, allocation_id 
+                    FROM evening_settle 
                     WHERE employee_id = %s AND date < %s
                     ORDER BY date DESC LIMIT 1
                 """, (employee_id, formatted_date))
                 last_settle = cur.fetchone()
 
                 if last_settle:
+                    # IMPORTANT: Keep the same allocation_id from the previous chain
+                    alloc_id = last_settle['allocation_id']
+                    
                     cur.execute("""
                         SELECT p.id as product_id, p.name, p.image, 
                                MAX(ei.unit_price) as unit_price, 
@@ -4653,10 +4643,9 @@ def fetch_evening_data():
                     """, (last_settle['id'],))
                     items_list = cur.fetchall()
                 else:
-                    # Return success but empty items if nothing found (prevents crash)
-                    items_list = [] 
+                    return jsonify({'status': 'error', 'message': 'No stock found. (No morning allocation today & no previous history)'})
 
-        # Process Images/Types
+        # Process Images
         for item in items_list:
             item['image'] = resolve_img(item['image'])
             item['unit_price'] = float(item['unit_price'])
@@ -4674,7 +4663,7 @@ def fetch_evening_data():
         })
 
     except Exception as e:
-        print(f"Evening API Error: {e}") # Check render logs if error persists
+        print(f"Fetch Error: {e}")
         return jsonify({'status': 'error', 'message': str(e)})
     finally:
         if 'cur' in locals(): cur.close()
@@ -6557,6 +6546,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
