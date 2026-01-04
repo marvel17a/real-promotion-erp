@@ -4704,99 +4704,6 @@ def draft_evening_list():
     cur.close()
     return render_template('draft_evening.html', drafts=drafts)
 
-# ---------------------------------------------------------
-# 2. API: FETCH STOCK (Holiday + Aggregated Restock)
-# ---------------------------------------------------------
-@app.route('/api/fetch_stock', methods=['GET', 'POST'])
-def api_fetch_stock():
-    # 1. Security Check
-    if "loggedin" not in session: return jsonify({"error": "Unauthorized"}), 401
-    
-    # 2. Get Parameters (Supports GET URL params and POST body)
-    employee_id = request.values.get('employee_id')
-    date_str = request.values.get('date') 
-
-    try:
-        # 3. Parse Date
-        current_date = parse_date(date_str)
-        if not current_date: return jsonify({"error": "Invalid date"}), 400
-        
-        cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-        formatted_date = current_date.strftime('%Y-%m-%d')
-        
-        # 4. LOGIC A: CHECK FOR TODAY'S ALLOCATION (Restock Mode)
-        # If an allocation exists for this Employee on this Date, we are in RESTOCK mode.
-        cur.execute("SELECT id FROM morning_allocations WHERE employee_id=%s AND date=%s", (employee_id, formatted_date))
-        today_alloc = cur.fetchone()
-        
-        mode = "normal"
-        existing_items = []
-        opening_stock_list = []
-
-        if today_alloc:
-            # --- RESTOCK MODE ACTIVE ---
-            mode = "restock"
-            
-            # Fetch what was ALREADY given today (Opening + Given) to show in the "History Box" on frontend
-            cur.execute("""
-                SELECT p.name, p.id as product_id, p.image, 
-                       SUM(mai.opening_qty + mai.given_qty) as total_qty
-                FROM morning_allocation_items mai
-                JOIN products p ON mai.product_id = p.id
-                WHERE mai.allocation_id = %s
-                GROUP BY p.id
-            """, (today_alloc['id'],))
-            
-            raw_items = cur.fetchall()
-            for r in raw_items:
-                existing_items.append({
-                    'product_id': r['product_id'],
-                    'name': r['name'],
-                    'qty': int(r['total_qty']),
-                    'image': resolve_img(r['image'])
-                })
-        else:
-            # --- NORMAL MODE (Holiday Logic) ---
-            # If no allocation today, find the LAST Evening Settlement before today.
-            # This handles holidays/leaves automatically by finding the most recent record.
-            cur.execute("""
-                SELECT id 
-                FROM evening_settle 
-                WHERE employee_id = %s AND date < %s 
-                ORDER BY date DESC LIMIT 1
-            """, (employee_id, formatted_date))
-            last_settle = cur.fetchone()
-            
-            if last_settle:
-                # Fetch Remaining Qty from that settlement to pre-fill "Opening" inputs
-                cur.execute("""
-                    SELECT ei.product_id, ei.remaining_qty, ei.unit_price, p.name, p.image 
-                    FROM evening_item ei
-                    JOIN products p ON ei.product_id = p.id
-                    WHERE ei.settle_id = %s AND ei.remaining_qty > 0
-                """, (last_settle['id'],))
-                
-                rows = cur.fetchall()
-                for r in rows:
-                    opening_stock_list.append({
-                        'product_id': str(r['product_id']),
-                        'name': r['name'],
-                        'remaining': int(r['remaining_qty']), # This maps to the 'Opening' input in JS
-                        'price': float(r['unit_price']),
-                        'image': resolve_img(r['image'])
-                    })
-
-        cur.close()
-        
-        # 5. Return JSON Response
-        return jsonify({
-            "mode": mode,
-            "opening_stock": opening_stock_list, # Used if mode is 'normal'
-            "existing_items": existing_items     # Used if mode is 'restock'
-        })
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
 
 
 
@@ -6559,6 +6466,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
