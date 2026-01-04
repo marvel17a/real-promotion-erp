@@ -135,8 +135,8 @@
 
 <!-- Embedded Data for JS -->
 <script>
-    // NEW: Store completed employees from Backend
-    window.completedEmployees = {{ completed_employees | tojson | safe }};
+    
+   
     try { window.productsData = {{ products | tojson | safe }}; } 
     catch(e) { window.productsData = []; }
     
@@ -159,5 +159,6 @@
 </script>
 <script src="{{ url_for('static', filename='js/morning.js') }}"></script>
 {% endblock %}
+
 
 
