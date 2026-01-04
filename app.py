@@ -4188,8 +4188,7 @@ def download_evening_pdf(settle_id):
     
     return send_file(buffer, as_attachment=True, download_name=f"Evening_Settle_{settle_id}.pdf", mimetype='application/pdf')
 
-
-# --- ROUTE: ALLOCATION LIST (With Status & Correct Time) ---
+# --- ROUTE: ALLOCATION LIST (Correct Time & Status) ---
 @app.route('/allocation_list', methods=['GET'])
 def allocation_list():
     if "loggedin" not in session: return redirect(url_for("login"))
@@ -4201,9 +4200,7 @@ def allocation_list():
     date_filter = request.args.get('date')
     emp_filter = request.args.get('employee_id')
     
-    # Query logic:
-    # 1. Fetch Allocation Info
-    # 2. Check evening_settle table for matching allocation_id to determine status
+    # Query: Fetch Allocation + Check Status in Subquery
     query = """
         SELECT 
             ma.id, 
@@ -4229,6 +4226,7 @@ def allocation_list():
         query += " AND ma.employee_id = %s"
         params.append(emp_filter)
 
+    # Order by Date DESC, then Time DESC
     query += " ORDER BY ma.date DESC, ma.created_at DESC"
 
     cursor.execute(query, tuple(params))
@@ -4243,14 +4241,28 @@ def allocation_list():
         if isinstance(a['date'], (date, datetime)):
             a['formatted_date'] = a['date'].strftime('%d-%m-%Y')
         else:
-            a['formatted_date'] = str(a['date'])
+            try:
+                # If string YYYY-MM-DD
+                d_temp = datetime.strptime(str(a['date']), '%Y-%m-%d')
+                a['formatted_date'] = d_temp.strftime('%d-%m-%Y')
+            except:
+                a['formatted_date'] = str(a['date'])
 
-        # Time Formatting (12-hour AM/PM) - Adjusting for IST if needed
+        # Time Formatting (12-hour AM/PM with Seconds)
+        # We assume 'created_at' is stored in UTC or Server Time.
+        # We add timedelta(hours=5, minutes=30) for IST conversion.
         if a.get('created_at'):
-            # Assuming created_at is UTC, add 5:30 for IST display
-            # If your DB is already IST, remove the timedelta
-            local_time = a['created_at'] + timedelta(hours=5, minutes=30)
-            a['formatted_time'] = local_time.strftime('%I:%M %p')
+            if isinstance(a['created_at'], timedelta):
+                # Rare case: if database returns timedelta
+                dummy_date = datetime.min + a['created_at']
+                a['formatted_time'] = dummy_date.strftime('%I:%M:%S %p')
+            elif isinstance(a['created_at'], datetime):
+                # Standard datetime object
+                local_time = a['created_at'] + timedelta(hours=5, minutes=30)
+                a['formatted_time'] = local_time.strftime('%I:%M:%S %p')
+            else:
+                # String fallback
+                a['formatted_time'] = str(a['created_at'])
         else:
             a['formatted_time'] = "-"
 
@@ -4262,7 +4274,7 @@ def allocation_list():
         elif a['evening_status'] == 'draft':
             a['status_badge'] = 'Draft'
             a['status_class'] = 'bg-warning text-dark'
-            a['is_locked'] = False # Typically editable if just draft
+            a['is_locked'] = False 
         else:
             a['status_badge'] = 'Pending'
             a['status_class'] = 'bg-danger'
@@ -6578,6 +6590,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
