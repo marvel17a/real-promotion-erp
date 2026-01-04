@@ -1,8 +1,6 @@
 document.addEventListener("DOMContentLoaded", () => {
     
-    // --- 1. UI DEFINITIONS ---
     const getEl = (id) => document.getElementById(id);
-    
     const ui = {
         empSelect: getEl("employee"), 
         dateInput: getEl("date"),
@@ -22,8 +20,8 @@ document.addEventListener("DOMContentLoaded", () => {
         },
         
         payment: {
-            totalAmt: getEl('totalAmount'), // Hidden input
-            dispTotal: getEl('totAmount'),  // Footer display text
+            totalAmt: getEl('totalAmount'),
+            dispTotal: getEl('totAmount'),
             discount: getEl('discount'),
             cash: getEl('cash'),
             online: getEl('online'),
@@ -38,7 +36,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     };
 
-    // --- 2. LIVE CLOCK LOGIC ---
+    // Live Clock
     function updateClock() {
         const now = new Date();
         const timeString = now.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute:'2-digit', second:'2-digit' });
@@ -58,7 +56,7 @@ document.addEventListener("DOMContentLoaded", () => {
     setInterval(updateClock, 1000);
     updateClock();
 
-    // --- 3. FETCH DATA LOGIC ---
+    // Fetch Logic
     if(ui.fetchBtn) {
         ui.fetchBtn.addEventListener('click', async () => {
             const empId = ui.empSelect.value;
@@ -84,17 +82,17 @@ document.addEventListener("DOMContentLoaded", () => {
                 const data = await res.json();
 
                 if (data.status === 'success') {
-                    // RENDER TABLE
                     renderTable(data.products, data.source);
                     
-                    // SET HIDDEN VALUES
-                    if(ui.hidden.allocId) ui.hidden.allocId.value = data.allocation_id || '';
+                    // Populate Hidden Fields
+                    // Use '0' string if null/undefined so DB insert doesn't fail if schema expects int
+                    if(ui.hidden.allocId) ui.hidden.allocId.value = (data.allocation_id !== null) ? data.allocation_id : '0';
                     if(ui.hidden.hEmp) ui.hidden.hEmp.value = empId;
                     
                     const [d, m, y] = dateVal.split('-');
                     if(ui.hidden.hDate) ui.hidden.hDate.value = `${y}-${m}-${d}`;
 
-                    // DRAFT LOGIC
+                    // Draft Data
                     if (data.source === 'draft' && data.draft_data) {
                         populateDraft(data.draft_id, data.draft_data);
                     } else {
@@ -120,7 +118,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // --- 4. RENDER TABLE (9 Columns) ---
+    // Render Table (9 Columns)
     function renderTable(products, source) {
         ui.tableBody.innerHTML = "";
         
@@ -133,8 +131,6 @@ document.addEventListener("DOMContentLoaded", () => {
             badge = '<span class="badge bg-success mb-2">Morning Allocation</span>';
         }
         
-        // Show message above table inside form or msg area if preferred
-        // Here we prepend it to msg area if visible, or handle it via a specific status div
         const statusDiv = document.getElementById('fetchMsg');
         if(statusDiv) {
             statusDiv.innerHTML = badge;
@@ -187,7 +183,7 @@ document.addEventListener("DOMContentLoaded", () => {
         calculateDue();
     }
 
-    // --- 5. CALCULATIONS & VALIDATION ---
+    // Calculations & Validation
     function calculateDue(e) {
         let grandTotal = 0;
         let sumTotal = 0;
@@ -211,19 +207,17 @@ document.addEventListener("DOMContentLoaded", () => {
             let sold = parseInt(soldInp.value) || 0;
             let ret = parseInt(retInp.value) || 0;
 
-            // Strict Validation: Sold + Return <= Total
+            // Validation
             if (sold + ret > total) {
-                // Determine which input caused the error
                 if (e && e.target === soldInp) {
-                    alert(`Limit Exceeded! You only have ${total} items.\nMax Sold possible: ${total - ret}`);
+                    alert(`Limit Exceeded! Max Sold: ${total - ret}`);
                     sold = total - ret;
                     soldInp.value = sold;
                 } else if (e && e.target === retInp) {
-                    alert(`Limit Exceeded! You only have ${total} items.\nMax Return possible: ${total - sold}`);
+                    alert(`Limit Exceeded! Max Return: ${total - sold}`);
                     ret = total - sold;
                     retInp.value = ret;
                 } else {
-                    // Fallback reset
                     soldInp.classList.add('is-invalid');
                     retInp.classList.add('is-invalid');
                 }
@@ -232,15 +226,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 retInp.classList.remove('is-invalid');
             }
 
-            // Calc Remaining
             const left = total - sold - ret;
             if(leftEl) leftEl.textContent = left;
             
-            // Calc Amount
             const rowAmt = sold * price;
             amtEl.textContent = rowAmt.toFixed(2);
 
-            // Accumulate
             grandTotal += rowAmt;
             sumTotal += total;
             sumSold += sold;
@@ -248,7 +239,7 @@ document.addEventListener("DOMContentLoaded", () => {
             sumLeft += left;
         });
 
-        // Update Footer
+        // Footer
         if(ui.footer.totalQty) ui.footer.totalQty.textContent = sumTotal;
         if(ui.footer.soldQty) ui.footer.soldQty.textContent = sumSold;
         if(ui.footer.returnQty) ui.footer.returnQty.textContent = sumReturn;
@@ -257,18 +248,17 @@ document.addEventListener("DOMContentLoaded", () => {
         if(ui.payment.totalAmt) ui.payment.totalAmt.value = grandTotal.toFixed(2);
         if(ui.payment.dispTotal) ui.payment.dispTotal.textContent = grandTotal.toFixed(2);
 
-        // Payment Logic
+        // Payment
         const disc = parseFloat(ui.payment.discount.value) || 0;
         const online = parseFloat(ui.payment.online.value) || 0;
         const cash = parseFloat(ui.payment.cash.value) || 0;
 
         const totalPay = disc + online + cash;
         
-        // Strict Payment Validation
         if(totalPay > grandTotal + 1.0) {
             if(e && [ui.payment.discount, ui.payment.online, ui.payment.cash].includes(e.target)) {
-                alert(`Payment (${totalPay}) cannot exceed Total Sales (${grandTotal})`);
-                e.target.value = 0; // Reset invalid input
+                alert(`Payment cannot exceed Total Sales (${grandTotal})`);
+                e.target.value = 0;
             }
         }
 
@@ -283,7 +273,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // --- 6. HELPERS ---
+    // Draft Helpers
     function populateDraft(id, d) {
         if(ui.hidden.draftId) ui.hidden.draftId.value = id;
         if(ui.payment.discount) ui.payment.discount.value = d.discount || '';
@@ -309,7 +299,7 @@ document.addEventListener("DOMContentLoaded", () => {
         document.querySelectorAll('[name^="emp_"]').forEach(el => el.value = '');
     }
 
-    // --- 7. LISTENERS ---
+    // Listeners
     ui.tableBody.addEventListener('input', (e) => {
         if (e.target.matches('.sold-input, .return-input')) calculateDue(e);
     });
