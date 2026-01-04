@@ -4681,6 +4681,140 @@ def api_fetch_stock():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
+# --- API: FETCH EVENING DATA (Safe Type Handling & Logic) ---
+@app.route('/api/fetch_evening_data', methods=['POST'])
+def fetch_evening_data():
+    if "loggedin" not in session: return jsonify({'status': 'error', 'message': 'Unauthorized'})
+
+    try:
+        emp_id_raw = request.form.get('employee_id')
+        date_str = request.form.get('date')
+        
+        if not emp_id_raw or not date_str:
+            return jsonify({'status': 'error', 'message': 'Missing parameters'})
+
+        # Robust Date Parsing
+        target_date = parse_date(date_str)
+        if not target_date:
+            return jsonify({'status': 'error', 'message': 'Invalid Date'})
+        
+        formatted_date = target_date.strftime('%Y-%m-%d')
+        employee_id = int(emp_id_raw)
+        
+        cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+        # 1. CHECK EXISTING RECORD
+        cur.execute("""
+            SELECT * FROM evening_settle 
+            WHERE employee_id=%s AND date=%s
+        """, (employee_id, formatted_date))
+        existing_record = cur.fetchone()
+
+        items_list = []
+        alloc_id = None
+        source = ""
+        draft_data = None
+
+        if existing_record:
+            if existing_record['status'] == 'final':
+                return jsonify({'status': 'submitted', 'message': 'Already submitted.'})
+            
+            # Resume Draft
+            source = "draft"
+            draft_data = existing_record
+            alloc_id = existing_record['allocation_id']
+            cur.execute("""
+                SELECT ei.*, p.name, p.image 
+                FROM evening_item ei
+                JOIN products p ON ei.product_id = p.id
+                WHERE ei.settle_id = %s
+            """, (existing_record['id'],))
+            items_list = cur.fetchall()
+            
+        else:
+            # 2. Check Morning Allocation (Today)
+            cur.execute("SELECT id FROM morning_allocations WHERE employee_id=%s AND date=%s", (employee_id, formatted_date))
+            today_alloc = cur.fetchone()
+
+            if today_alloc:
+                source = "morning"
+                alloc_id = today_alloc['id']
+                # FIXED SQL: COALESCE handles NULLs, MAX handles non-grouped columns safely
+                cur.execute("""
+                    SELECT p.id as product_id, p.name, p.image, 
+                           MAX(mai.unit_price) as unit_price, 
+                           SUM(COALESCE(mai.opening_qty,0) + COALESCE(mai.given_qty,0)) as total_qty,
+                           0 as sold_qty, 0 as return_qty
+                    FROM morning_allocation_items mai
+                    JOIN products p ON mai.product_id = p.id
+                    WHERE mai.allocation_id = %s
+                    GROUP BY p.id, p.name, p.image
+                """, (alloc_id,))
+                items_list = cur.fetchall()
+            else:
+                # 3. Previous Leftover (Last Settlement)
+                source = "previous_leftover"
+                cur.execute("""
+                    SELECT id, allocation_id 
+                    FROM evening_settle 
+                    WHERE employee_id = %s AND date < %s
+                    ORDER BY date DESC LIMIT 1
+                """, (employee_id, formatted_date))
+                last_settle = cur.fetchone()
+
+                if last_settle:
+                    alloc_id = last_settle.get('allocation_id') or 0
+                    cur.execute("""
+                        SELECT p.id as product_id, p.name, p.image, 
+                               MAX(ei.unit_price) as unit_price, 
+                               SUM(ei.remaining_qty) as total_qty,
+                               0 as sold_qty, 0 as return_qty
+                        FROM evening_item ei
+                        JOIN products p ON ei.product_id = p.id
+                        WHERE ei.settle_id = %s AND ei.remaining_qty > 0
+                        GROUP BY p.id, p.name, p.image
+                    """, (last_settle['id'],))
+                    items_list = cur.fetchall()
+                else:
+                    return jsonify({'status': 'error', 'message': 'No stock found (No morning allocation & no previous history).'})
+
+        # --- DATA CLEANING (Crucial to prevent JSON errors) ---
+        cleaned_items = []
+        for item in items_list:
+            cleaned_items.append({
+                'product_id': item.get('product_id') or item.get('id'),
+                'name': item['name'],
+                'image': resolve_img(item['image']),
+                'unit_price': float(item['unit_price'] or 0),
+                'total_qty': int(item['total_qty'] or 0),
+                'sold_qty': int(item['sold_qty'] or 0),
+                'return_qty': int(item['return_qty'] or 0)
+            })
+
+        # Clean Draft Data (Dates & Decimals)
+        if draft_data:
+            if isinstance(draft_data.get('date'), (date, datetime)):
+                draft_data['date'] = draft_data['date'].strftime('%Y-%m-%d')
+            # Convert Decimals to float
+            for k, v in draft_data.items():
+                if isinstance(v, Decimal): draft_data[k] = float(v)
+
+        return jsonify({
+            'status': 'success',
+            'source': source,
+            'allocation_id': alloc_id if alloc_id is not None else '',
+            'draft_id': draft_data['id'] if draft_data else None,
+            'draft_data': draft_data,
+            'products': cleaned_items
+        })
+
+    except Exception as e:
+        print(f"FETCH ERROR DEBUG: {e}") # This will show in Render Logs
+        return jsonify({'status': 'error', 'message': f"Server Error: {str(e)}"})
+    finally:
+        if 'cur' in locals(): cur.close()
+
 # --- NEW ROUTE: DRAFT LIST PAGE ---
 @app.route('/evening/drafts')
 def draft_evening_list():
@@ -6466,6 +6600,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
