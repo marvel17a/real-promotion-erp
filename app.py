@@ -4313,23 +4313,16 @@ def resolve_img(image_path):
         return url_for('static', filename='img/default-product.png')
 
 
-
-
-# ---------------------------------------------------------
-# 1. MORNING ALLOCATION (Timestamp & Restock)
-# ---------------------------------------------------------
-# --- ROUTE: MORNING (Robust Save Logic) ---
-
-# --- ROUTE: MORNING (Fixed Column Error) ---
-# --- ROUTE: MORNING (Deduct Stock on Allocation) ---
+# Morning route
 @app.route('/morning', methods=['GET', 'POST'])
 def morning():
-    if "loggedin" not in session: return redirect(url_for("login"))
+    if "loggedin" not in session:
+        return redirect(url_for("login"))
     
     conn = mysql.connection
     cursor = conn.cursor(MySQLdb.cursors.DictCursor)
 
-    # 1. POST: Handle Submission
+    # 1. POST: Handle Submission (keep your full robust logic)
     if request.method == 'POST':
         try:
             print("--- Morning Form Submitted ---")
@@ -4352,9 +4345,9 @@ def morning():
             formatted_date = date_obj.strftime('%Y-%m-%d')
 
             # --- VALIDATION STEP: Check Stock Availability First ---
-            # We only check 'given' qty because 'opening' is already with employee
             for i, pid in enumerate(p_ids):
-                if not pid: continue
+                if not pid: 
+                    continue
                 gv_qty = int(givens[i]) if (i < len(givens) and givens[i]) else 0
                 
                 if gv_qty > 0:
@@ -4372,29 +4365,30 @@ def morning():
                 alloc_id = existing['id']
                 flash_msg = "Stock updated in existing allocation."
             else:
-                cursor.execute("INSERT INTO morning_allocations (employee_id, date, created_at) VALUES (%s, %s, %s)", 
-                               (emp_id, formatted_date, time_str))
+                cursor.execute(
+                    "INSERT INTO morning_allocations (employee_id, date, created_at) VALUES (%s, %s, %s)", 
+                    (emp_id, formatted_date, time_str)
+                )
                 alloc_id = cursor.lastrowid
                 flash_msg = "Morning allocation created successfully."
 
             # B. Insert Items & DEDUCT Stock
             inserted_count = 0
             for i, pid in enumerate(p_ids):
-                if not pid: continue
+                if not pid: 
+                    continue
                 
                 op_qty = int(opens[i]) if (i < len(opens) and opens[i]) else 0
                 gv_qty = int(givens[i]) if (i < len(givens) and givens[i]) else 0
                 price = float(prices[i]) if (i < len(prices) and prices[i]) else 0.0
 
                 if op_qty > 0 or gv_qty > 0:
-                    # 1. Save Record
                     cursor.execute("""
                         INSERT INTO morning_allocation_items 
                         (allocation_id, product_id, opening_qty, given_qty, unit_price)
                         VALUES (%s, %s, %s, %s, %s)
                     """, (alloc_id, pid, op_qty, gv_qty, price))
                     
-                    # 2. DEDUCT STOCK (Only Given Qty comes from Warehouse)
                     if gv_qty > 0:
                         cursor.execute("UPDATE products SET stock = stock - %s WHERE id = %s", (gv_qty, pid))
                     
@@ -4417,7 +4411,8 @@ def morning():
     # 2. GET Request
     cursor.execute("SELECT id, name, image FROM employees WHERE status='active' ORDER BY name")
     employees = cursor.fetchall()
-    for e in employees: e['image'] = resolve_img(e['image'])
+    for e in employees:
+        e['image'] = resolve_img(e['image'])
 
     cursor.execute("SELECT id, name, price, image, stock FROM products ORDER BY name")
     products_for_js = [{
@@ -4427,16 +4422,16 @@ def morning():
         'image': resolve_img(p['image']),
         'stock': int(p['stock'] if p['stock'] is not None else 0)
     } for p in cursor.fetchall()]
-    
-    today_iso = date.today().strftime('%Y-%m-%d')
-    cursor.execute("SELECT employee_id FROM evening_settle WHERE date = %s AND status='final'", (today_iso,))
-    completed_emps = [row['employee_id'] for row in cursor.fetchall()]
 
-    return render_template('morning.html',
-                           employees=employees,
-                           products=products_for_js,
-                           completed_employees=completed_emps,
-                           today_date=date.today().strftime('%d-%m-%Y'))
+    # ✅ Update applied: completed_employees logic removed
+
+    return render_template(
+        'morning.html',
+        employees=employees,
+        products=products_for_js,
+        today_date=date.today().strftime('%d-%m-%Y')
+    )
+
 
 
 
@@ -4589,128 +4584,102 @@ def evening():
 
 
 # --- API: FETCH EVENING DATA (Logic: Draft -> Morning -> Leftover) ---
-@app.route('/api/fetch_evening_data', methods=['POST'])
-def fetch_evening_data():
-    if "loggedin" not in session: return jsonify({'status': 'error', 'message': 'Unauthorized'})
+# --- ROUTE: API FETCH STOCK (Fixed Date-Specific Lock) ---
+@app.route('/api/fetch_stock', methods=['GET', 'POST'])
+def api_fetch_stock():
+    if "loggedin" not in session: return jsonify({"error": "Unauthorized"}), 401
+    
+    employee_id = request.values.get('employee_id')
+    date_str = request.values.get('date') 
 
     try:
-        emp_id_raw = request.form.get('employee_id')
-        date_str = request.form.get('date')
-        
-        if not emp_id_raw or not date_str:
-            return jsonify({'status': 'error', 'message': 'Missing parameters'})
-
-        target_date = parse_date(date_str)
-        if not target_date: return jsonify({'status': 'error', 'message': 'Invalid Date'})
-        
-        formatted_date = target_date.strftime('%Y-%m-%d')
-        employee_id = int(emp_id_raw)
+        current_date = parse_date(date_str)
+        if not current_date: return jsonify({"error": "Invalid date"}), 400
         
         cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-
-        # 1. CHECK EXISTING (Draft/Final)
+        formatted_date = current_date.strftime('%Y-%m-%d')
+        
+        # --- NEW LOGIC: Check Evening Status for THIS SPECIFIC DATE ---
         cur.execute("""
-            SELECT * FROM evening_settle 
-            WHERE employee_id=%s AND date=%s
+            SELECT id FROM evening_settle 
+            WHERE employee_id=%s AND date=%s AND status='final'
         """, (employee_id, formatted_date))
-        existing_record = cur.fetchone()
+        is_evening_done = True if cur.fetchone() else False
 
-        items_list = []
-        alloc_id = None
-        source = ""
-        draft_data = None
+        # If Evening is done, we don't need to fetch stock logic, just return the flag
+        if is_evening_done:
+            cur.close()
+            return jsonify({
+                "mode": "locked",
+                "evening_settled": True,
+                "message": "Evening settlement is already finalized for this date."
+            })
 
-        if existing_record:
-            if existing_record['status'] == 'final':
-                return jsonify({'status': 'submitted', 'message': 'Already submitted.'})
-            
-            # Resume Draft
-            source = "draft"
-            draft_data = existing_record
-            alloc_id = existing_record['allocation_id']
+        # --- NORMAL STOCK FETCH LOGIC (If not locked) ---
+        cur.execute("SELECT id FROM morning_allocations WHERE employee_id=%s AND date=%s", (employee_id, formatted_date))
+        today_alloc = cur.fetchone()
+        
+        mode = "normal"
+        existing_items = []
+        opening_stock_list = []
+
+        if today_alloc:
+            mode = "restock"
             cur.execute("""
-                SELECT ei.*, p.name, p.image 
-                FROM evening_item ei
-                JOIN products p ON ei.product_id = p.id
-                WHERE ei.settle_id = %s
-            """, (existing_record['id'],))
-            items_list = cur.fetchall()
+                SELECT p.name, p.id as product_id, p.image, 
+                       SUM(mai.opening_qty + mai.given_qty) as total_qty
+                FROM morning_allocation_items mai
+                JOIN products p ON mai.product_id = p.id
+                WHERE mai.allocation_id = %s
+                GROUP BY p.id
+            """, (today_alloc['id'],))
             
+            raw_items = cur.fetchall()
+            for r in raw_items:
+                existing_items.append({
+                    'product_id': r['product_id'],
+                    'name': r['name'],
+                    'qty': int(r['total_qty']),
+                    'image': resolve_img(r['image'])
+                })
         else:
-            # 2. New Form: Check Morning Alloc
-            cur.execute("SELECT id FROM morning_allocations WHERE employee_id=%s AND date=%s", (employee_id, formatted_date))
-            today_alloc = cur.fetchone()
-
-            if today_alloc:
-                source = "morning"
-                alloc_id = today_alloc['id']
+            # Holiday Logic: Last Settlement BEFORE today
+            cur.execute("""
+                SELECT id 
+                FROM evening_settle 
+                WHERE employee_id = %s AND date < %s 
+                ORDER BY date DESC LIMIT 1
+            """, (employee_id, formatted_date))
+            last_settle = cur.fetchone()
+            
+            if last_settle:
                 cur.execute("""
-                    SELECT p.id as product_id, p.name, p.image, 
-                           MAX(mai.unit_price) as unit_price, 
-                           SUM(mai.opening_qty + mai.given_qty) as total_qty,
-                           0 as sold_qty, 0 as return_qty
-                    FROM morning_allocation_items mai
-                    JOIN products p ON mai.product_id = p.id
-                    WHERE mai.allocation_id = %s
-                    GROUP BY p.id, p.name, p.image
-                """, (alloc_id,))
-                items_list = cur.fetchall()
-            else:
-                # 3. Previous Leftover
-                source = "previous_leftover"
-                cur.execute("""
-                    SELECT id, allocation_id 
-                    FROM evening_settle 
-                    WHERE employee_id = %s AND date < %s
-                    ORDER BY date DESC LIMIT 1
-                """, (employee_id, formatted_date))
-                last_settle = cur.fetchone()
+                    SELECT ei.product_id, ei.remaining_qty, ei.unit_price, p.name, p.image 
+                    FROM evening_item ei
+                    JOIN products p ON ei.product_id = p.id
+                    WHERE ei.settle_id = %s AND ei.remaining_qty > 0
+                """, (last_settle['id'],))
+                
+                rows = cur.fetchall()
+                for r in rows:
+                    opening_stock_list.append({
+                        'product_id': str(r['product_id']),
+                        'name': r['name'],
+                        'remaining': int(r['remaining_qty']),
+                        'price': float(r['unit_price']),
+                        'image': resolve_img(r['image'])
+                    })
 
-                if last_settle:
-                    alloc_id = last_settle.get('allocation_id') or 0
-                    cur.execute("""
-                        SELECT p.id as product_id, p.name, p.image, 
-                               MAX(ei.unit_price) as unit_price, 
-                               SUM(ei.remaining_qty) as total_qty,
-                               0 as sold_qty, 0 as return_qty
-                        FROM evening_item ei
-                        JOIN products p ON ei.product_id = p.id
-                        WHERE ei.settle_id = %s AND ei.remaining_qty > 0
-                        GROUP BY p.id, p.name, p.image
-                    """, (last_settle['id'],))
-                    items_list = cur.fetchall()
-                else:
-                    return jsonify({'status': 'error', 'message': 'No stock history found.'})
-
-        # Sanitize Data
-        for item in items_list:
-            item['image'] = resolve_img(item['image'])
-            item['unit_price'] = float(item['unit_price'])
-            item['total_qty'] = int(item['total_qty'])
-            item['sold_qty'] = int(item['sold_qty'] or 0)
-            item['return_qty'] = int(item['return_qty'] or 0)
-
-        if draft_data:
-            # Helper: Convert decimals/dates for JSON
-            if isinstance(draft_data.get('date'), (date, datetime)):
-                draft_data['date'] = draft_data['date'].strftime('%Y-%m-%d')
-            for k, v in draft_data.items():
-                if isinstance(v, Decimal): draft_data[k] = float(v)
-
+        cur.close()
         return jsonify({
-            'status': 'success',
-            'source': source,
-            'allocation_id': alloc_id if alloc_id is not None else '',
-            'draft_id': draft_data['id'] if draft_data else None,
-            'draft_data': draft_data,
-            'products': items_list
+            "mode": mode,
+            "evening_settled": False, # Explicitly False here
+            "opening_stock": opening_stock_list,
+            "existing_items": existing_items
         })
 
     except Exception as e:
-        print(f"Fetch Error: {e}")
-        return jsonify({'status': 'error', 'message': str(e)})
-    finally:
-        if 'cur' in locals(): cur.close()
+        return jsonify({"error": str(e)}), 500
 
 # --- NEW ROUTE: DRAFT LIST PAGE ---
 @app.route('/evening/drafts')
@@ -6590,6 +6559,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
