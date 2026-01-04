@@ -61,6 +61,18 @@ document.addEventListener("DOMContentLoaded", () => {
     updateClock(); // Run once on load to avoid 00:00:00 delay
 
     // 2. Fetch Logic
+    //if(ui.fetchBtn) {
+      //  ui.fetchBtn.addEventListener('click', async () => {
+        //    const empId = ui.empSelect.value;
+          //  const dateVal = ui.dateInput.value;
+
+            //if (!empId || !dateVal) {
+              //  alert("Please select Employee and Date.");
+                //return;
+            
+//}
+
+    // --- 2. Fetch Logic ---
     if(ui.fetchBtn) {
         ui.fetchBtn.addEventListener('click', async () => {
             const empId = ui.empSelect.value;
@@ -70,6 +82,63 @@ document.addEventListener("DOMContentLoaded", () => {
                 alert("Please select Employee and Date.");
                 return;
             }
+
+            // UI Reset (Hide everything first)
+            ui.msg.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Checking status...';
+            ui.form.classList.add('d-none'); // Hide Form
+            if(ui.block) ui.block.classList.add('d-none'); // Hide Block
+
+            try {
+                const formData = new FormData();
+                formData.append('employee_id', empId);
+                formData.append('date', dateVal);
+
+                const res = await fetch('/api/fetch_evening_data', { method: 'POST', body: formData });
+                const data = await res.json();
+
+                if (data.status === 'success') {
+                    // 1. DATA FOUND - SHOW FORM
+                    renderTable(data.products, data.source);
+                    
+                    // Fill Hidden Inputs
+                    if(ui.hidden.allocId) ui.hidden.allocId.value = data.allocation_id || '';
+                    if(ui.hidden.hEmp) ui.hidden.hEmp.value = empId;
+                    
+                    // Date Conversion
+                    const [d, m, y] = dateVal.split('-');
+                    if(ui.hidden.hDate) ui.hidden.hDate.value = `${y}-${m}-${d}`;
+
+                    // Handle Draft
+                    if (data.source === 'draft' && data.draft_data) {
+                        populateDraft(data.draft_id, data.draft_data);
+                    } else {
+                        resetDraft();
+                    }
+
+                    // Reveal Form
+                    ui.form.classList.remove('d-none');
+                    ui.msg.textContent = "";
+                    calculateDue(); 
+
+                } else if (data.status === 'submitted') {
+                    // 2. ALREADY SUBMITTED - SHOW BLOCKER
+                    // Explicitly ensure form is hidden
+                    ui.form.classList.add('d-none'); 
+                    // Show the 'Submitted' div
+                    if(ui.block) ui.block.classList.remove('d-none');
+                    ui.msg.textContent = "";
+                    
+                } else {
+                    // 3. ERROR OR NO DATA
+                    ui.msg.innerHTML = `<span class="text-danger"><i class="fa-solid fa-triangle-exclamation"></i> ${data.message}</span>`;
+                }
+
+            } catch (e) {
+                console.error("Fetch Error:", e);
+                ui.msg.innerHTML = '<span class="text-danger">Server Error. Please check connection.</span>';
+            }
+        });
+    }
 
             // UI Loading State
             ui.msg.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Fetching data...';
@@ -389,6 +458,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     };
 });
+
 
 
 
