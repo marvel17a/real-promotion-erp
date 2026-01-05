@@ -4189,6 +4189,7 @@ def download_evening_pdf(settle_id):
     return send_file(buffer, as_attachment=True, download_name=f"Evening_Settle_{settle_id}.pdf", mimetype='application/pdf')
 
 # --- ROUTE: ALLOCATION LIST (Correct Time & Status) ---
+# --- ROUTE: ALLOCATION LIST (Fixed Time & Design) ---
 @app.route('/allocation_list', methods=['GET'])
 def allocation_list():
     if "loggedin" not in session: return redirect(url_for("login"))
@@ -4200,7 +4201,6 @@ def allocation_list():
     date_filter = request.args.get('date')
     emp_filter = request.args.get('employee_id')
     
-    # Query: Fetch Allocation + Check Status in Subquery
     query = """
         SELECT 
             ma.id, 
@@ -4226,42 +4226,31 @@ def allocation_list():
         query += " AND ma.employee_id = %s"
         params.append(emp_filter)
 
-    # Order by Date DESC, then Time DESC
     query += " ORDER BY ma.date DESC, ma.created_at DESC"
 
     cursor.execute(query, tuple(params))
     allocations = cursor.fetchall()
 
-    # Post-process for Frontend
     for a in allocations:
         # Image
         a['emp_image'] = resolve_img(a['emp_image'])
         
-        # Date Formatting (dd-mm-yyyy)
+        # Date Formatting
         if isinstance(a['date'], (date, datetime)):
             a['formatted_date'] = a['date'].strftime('%d-%m-%Y')
         else:
-            try:
-                # If string YYYY-MM-DD
-                d_temp = datetime.strptime(str(a['date']), '%Y-%m-%d')
-                a['formatted_date'] = d_temp.strftime('%d-%m-%Y')
-            except:
-                a['formatted_date'] = str(a['date'])
+            a['formatted_date'] = str(a['date'])
 
-        # Time Formatting (12-hour AM/PM with Seconds)
-        # We assume 'created_at' is stored in UTC or Server Time.
-        # We add timedelta(hours=5, minutes=30) for IST conversion.
+        # --- TIME FIX: Do NOT add +5:30 here. Use stored time directly. ---
         if a.get('created_at'):
-            if isinstance(a['created_at'], timedelta):
-                # Rare case: if database returns timedelta
+            if isinstance(a['created_at'], datetime):
+                # Just format the time we retrieved
+                a['formatted_time'] = a['created_at'].strftime('%I:%M:%S %p')
+            elif isinstance(a['created_at'], timedelta):
+                # Handle duration case
                 dummy_date = datetime.min + a['created_at']
                 a['formatted_time'] = dummy_date.strftime('%I:%M:%S %p')
-            elif isinstance(a['created_at'], datetime):
-                # Standard datetime object
-                local_time = a['created_at'] + timedelta(hours=5, minutes=30)
-                a['formatted_time'] = local_time.strftime('%I:%M:%S %p')
             else:
-                # String fallback
                 a['formatted_time'] = str(a['created_at'])
         else:
             a['formatted_time'] = "-"
@@ -4287,6 +4276,9 @@ def allocation_list():
                            allocations=allocations, 
                            employees=employees,
                            filters={'date': date_filter, 'employee_id': emp_filter})
+
+
+# --- ROUTE: MORNING (Capture Live Clock Time) ---
 
 # --- Helper: Robust Date Parsing ---
 
@@ -4314,6 +4306,7 @@ def resolve_img(image_path):
 
 
 # Morning route
+# --- ROUTE: MORNING (Time Fix & Robust Logic) ---
 @app.route('/morning', methods=['GET', 'POST'])
 def morning():
     if "loggedin" not in session:
@@ -4322,14 +4315,23 @@ def morning():
     conn = mysql.connection
     cursor = conn.cursor(MySQLdb.cursors.DictCursor)
 
-    # 1. POST: Handle Submission (keep your full robust logic)
+    # 1. POST: Handle Submission
     if request.method == 'POST':
         try:
             print("--- Morning Form Submitted ---")
             
             emp_id = request.form.get('employee_id')
             date_str = request.form.get('date')
+            
+            # --- TIME FIX START ---
+            # 1. Try to get time from the Frontend Live Clock
             time_str = request.form.get('timestamp')
+            
+            # 2. If frontend time is missing/empty, generate Server-Side IST Time
+            if not time_str:
+                ist_now = datetime.utcnow() + timedelta(hours=5, minutes=30)
+                time_str = ist_now.strftime('%Y-%m-%d %H:%M:%S')
+            # --- TIME FIX END ---
             
             p_ids = request.form.getlist('product_id[]')
             opens = request.form.getlist('opening[]')
@@ -4344,10 +4346,9 @@ def morning():
             date_obj = parse_date(date_str)
             formatted_date = date_obj.strftime('%Y-%m-%d')
 
-            # --- VALIDATION STEP: Check Stock Availability First ---
+            # --- VALIDATION: Check Stock Availability ---
             for i, pid in enumerate(p_ids):
-                if not pid: 
-                    continue
+                if not pid: continue
                 gv_qty = int(givens[i]) if (i < len(givens) and givens[i]) else 0
                 
                 if gv_qty > 0:
@@ -4365,6 +4366,7 @@ def morning():
                 alloc_id = existing['id']
                 flash_msg = "Stock updated in existing allocation."
             else:
+                # Insert with the CORRECTED time_str
                 cursor.execute(
                     "INSERT INTO morning_allocations (employee_id, date, created_at) VALUES (%s, %s, %s)", 
                     (emp_id, formatted_date, time_str)
@@ -4375,8 +4377,7 @@ def morning():
             # B. Insert Items & DEDUCT Stock
             inserted_count = 0
             for i, pid in enumerate(p_ids):
-                if not pid: 
-                    continue
+                if not pid: continue
                 
                 op_qty = int(opens[i]) if (i < len(opens) and opens[i]) else 0
                 gv_qty = int(givens[i]) if (i < len(givens) and givens[i]) else 0
@@ -4422,8 +4423,6 @@ def morning():
         'image': resolve_img(p['image']),
         'stock': int(p['stock'] if p['stock'] is not None else 0)
     } for p in cursor.fetchall()]
-
-    # ✅ Update applied: completed_employees logic removed
 
     return render_template(
         'morning.html',
@@ -6600,6 +6599,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
