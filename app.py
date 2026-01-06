@@ -4581,10 +4581,6 @@ def evening():
 
     return render_template('evening.html', employees=employees, today=date.today().strftime('%d-%m-%Y'))
 
-
-# --- API: FETCH EVENING DATA (Logic: Draft -> Morning -> Leftover) ---
-# --- ROUTE: API FETCH STOCK (Fixed Date-Specific Lock) ---
-# --- ROUTE: API FETCH STOCK (Morning - Aggregated View) ---
 # --- 1. EVENING FETCH API (Python-Based Aggregation - Robust) ---
 @app.route('/api/fetch_evening_data', methods=['POST'])
 def fetch_evening_data():
@@ -6640,6 +6636,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
