@@ -4584,6 +4584,7 @@ def evening():
 
 # --- API: FETCH EVENING DATA (Logic: Draft -> Morning -> Leftover) ---
 # --- ROUTE: API FETCH STOCK (Fixed Date-Specific Lock) ---
+# --- ROUTE: API FETCH STOCK (Morning - Aggregated View) ---
 @app.route('/api/fetch_stock', methods=['GET', 'POST'])
 def api_fetch_stock():
     if "loggedin" not in session: return jsonify({"error": "Unauthorized"}), 401
@@ -4598,15 +4599,12 @@ def api_fetch_stock():
         cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
         formatted_date = current_date.strftime('%Y-%m-%d')
         
-        # --- NEW LOGIC: Check Evening Status for THIS SPECIFIC DATE ---
+        # 1. Check Evening Status
         cur.execute("""
             SELECT id FROM evening_settle 
             WHERE employee_id=%s AND date=%s AND status='final'
         """, (employee_id, formatted_date))
-        is_evening_done = True if cur.fetchone() else False
-
-        # If Evening is done, we don't need to fetch stock logic, just return the flag
-        if is_evening_done:
+        if cur.fetchone():
             cur.close()
             return jsonify({
                 "mode": "locked",
@@ -4614,24 +4612,33 @@ def api_fetch_stock():
                 "message": "Evening settlement is already finalized for this date."
             })
 
-        # --- NORMAL STOCK FETCH LOGIC (If not locked) ---
-        cur.execute("SELECT id FROM morning_allocations WHERE employee_id=%s AND date=%s", (employee_id, formatted_date))
-        today_alloc = cur.fetchone()
+        # 2. Check for ANY Allocations Today
+        cur.execute("""
+            SELECT id FROM morning_allocations 
+            WHERE employee_id=%s AND date=%s
+        """, (employee_id, formatted_date))
+        today_allocs = cur.fetchall() # Get ALL allocations
         
         mode = "normal"
         existing_items = []
         opening_stock_list = []
 
-        if today_alloc:
+        if today_allocs:
             mode = "restock"
-            cur.execute("""
+            # Get IDs of ALL today's allocations
+            all_alloc_ids = [row['id'] for row in today_allocs]
+            format_strings = ','.join(['%s'] * len(all_alloc_ids))
+            
+            # Aggregate items from ALL allocations
+            query = f"""
                 SELECT p.name, p.id as product_id, p.image, 
                        SUM(mai.opening_qty + mai.given_qty) as total_qty
                 FROM morning_allocation_items mai
                 JOIN products p ON mai.product_id = p.id
-                WHERE mai.allocation_id = %s
+                WHERE mai.allocation_id IN ({format_strings})
                 GROUP BY p.id
-            """, (today_alloc['id'],))
+            """
+            cur.execute(query, tuple(all_alloc_ids))
             
             raw_items = cur.fetchall()
             for r in raw_items:
@@ -4642,7 +4649,7 @@ def api_fetch_stock():
                     'image': resolve_img(r['image'])
                 })
         else:
-            # Holiday Logic: Last Settlement BEFORE today
+            # Normal Mode: Fetch Last Settlement
             cur.execute("""
                 SELECT id 
                 FROM evening_settle 
@@ -4672,7 +4679,7 @@ def api_fetch_stock():
         cur.close()
         return jsonify({
             "mode": mode,
-            "evening_settled": False, # Explicitly False here
+            "evening_settled": False,
             "opening_stock": opening_stock_list,
             "existing_items": existing_items
         })
@@ -4682,6 +4689,7 @@ def api_fetch_stock():
 
 
 # --- API: FETCH EVENING DATA (Safe Type Handling & Logic) ---
+# --- ROUTE: API FETCH EVENING DATA (The Aggregator Fix) ---
 @app.route('/api/fetch_evening_data', methods=['POST'])
 def fetch_evening_data():
     if "loggedin" not in session: return jsonify({'status': 'error', 'message': 'Unauthorized'})
@@ -4693,17 +4701,15 @@ def fetch_evening_data():
         if not emp_id_raw or not date_str:
             return jsonify({'status': 'error', 'message': 'Missing parameters'})
 
-        # Robust Date Parsing
         target_date = parse_date(date_str)
-        if not target_date:
-            return jsonify({'status': 'error', 'message': 'Invalid Date'})
+        if not target_date: return jsonify({'status': 'error', 'message': 'Invalid Date'})
         
         formatted_date = target_date.strftime('%Y-%m-%d')
         employee_id = int(emp_id_raw)
         
         cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
-        # 1. CHECK EXISTING RECORD
+        # 1. CHECK EXISTING EVENING RECORD (Draft/Final)
         cur.execute("""
             SELECT * FROM evening_settle 
             WHERE employee_id=%s AND date=%s
@@ -4732,25 +4738,65 @@ def fetch_evening_data():
             items_list = cur.fetchall()
             
         else:
-            # 2. Check Morning Allocation (Today)
-            cur.execute("SELECT id FROM morning_allocations WHERE employee_id=%s AND date=%s", (employee_id, formatted_date))
-            today_alloc = cur.fetchone()
+            # 2. CHECK ALL MORNING ALLOCATIONS (Morning + Restocks)
+            # Find ALL allocation IDs for this employee on this date
+            cur.execute("""
+                SELECT id FROM morning_allocations 
+                WHERE employee_id=%s AND date=%s 
+                ORDER BY created_at ASC
+            """, (employee_id, formatted_date))
+            today_allocs = cur.fetchall()
 
-            if today_alloc:
+            if today_allocs:
                 source = "morning"
-                alloc_id = today_alloc['id']
-                # FIXED SQL: COALESCE handles NULLs, MAX handles non-grouped columns safely
-                cur.execute("""
-                    SELECT p.id as product_id, p.name, p.image, 
-                           MAX(mai.unit_price) as unit_price, 
-                           SUM(COALESCE(mai.opening_qty,0) + COALESCE(mai.given_qty,0)) as total_qty,
-                           0 as sold_qty, 0 as return_qty
+                # We use the FIRST allocation ID as the primary link, but calculate sums from ALL
+                first_alloc_id = today_allocs[0]['id']
+                all_alloc_ids = [row['id'] for row in today_allocs]
+                
+                # Create a placeholder string for SQL IN clause (e.g., %s, %s, %s)
+                format_strings = ','.join(['%s'] * len(all_alloc_ids))
+                
+                # --- AGGREGATION QUERY ---
+                # Logic: Total Qty = (Opening of FIRST Alloc) + (Sum of Given of ALL Allocs)
+                # Why? Because Opening of Restock is just current-hand stock, not new stock from warehouse.
+                # Only 'Given' adds new stock from warehouse.
+                query = f"""
+                    SELECT 
+                        p.id as product_id, 
+                        p.name, 
+                        p.image, 
+                        MAX(mai.unit_price) as unit_price,
+                        
+                        -- Calculate Total:
+                        (
+                            -- 1. Get Opening from the FIRST allocation only (Start of Day)
+                            COALESCE(
+                                (SELECT opening_qty FROM morning_allocation_items 
+                                 WHERE allocation_id = %s AND product_id = p.id LIMIT 1), 
+                            0)
+                            + 
+                            -- 2. Add SUM of Given from ALL allocations (Morning + Restocks)
+                            SUM(COALESCE(mai.given_qty, 0))
+                        ) as total_qty,
+                        
+                        0 as sold_qty, 
+                        0 as return_qty
+                        
                     FROM morning_allocation_items mai
                     JOIN products p ON mai.product_id = p.id
-                    WHERE mai.allocation_id = %s
+                    WHERE mai.allocation_id IN ({format_strings})
                     GROUP BY p.id, p.name, p.image
-                """, (alloc_id,))
+                """
+                
+                # Params: First ID (for subquery) + All IDs (for main query)
+                params = [first_alloc_id] + all_alloc_ids
+                cur.execute(query, tuple(params))
                 items_list = cur.fetchall()
+                
+                # Link to the latest allocation ID for reference, or keep first. 
+                # Keeping first usually maintains the day's chain better.
+                alloc_id = first_alloc_id 
+
             else:
                 # 3. Previous Leftover (Last Settlement)
                 source = "previous_leftover"
@@ -4776,9 +4822,9 @@ def fetch_evening_data():
                     """, (last_settle['id'],))
                     items_list = cur.fetchall()
                 else:
-                    return jsonify({'status': 'error', 'message': 'No stock found (No morning allocation & no previous history).'})
+                    return jsonify({'status': 'error', 'message': 'No stock found (No allocations today & no history).'})
 
-        # --- DATA CLEANING (Crucial to prevent JSON errors) ---
+        # Data Type Cleaning
         cleaned_items = []
         for item in items_list:
             cleaned_items.append({
@@ -4791,11 +4837,9 @@ def fetch_evening_data():
                 'return_qty': int(item['return_qty'] or 0)
             })
 
-        # Clean Draft Data (Dates & Decimals)
         if draft_data:
             if isinstance(draft_data.get('date'), (date, datetime)):
                 draft_data['date'] = draft_data['date'].strftime('%Y-%m-%d')
-            # Convert Decimals to float
             for k, v in draft_data.items():
                 if isinstance(v, Decimal): draft_data[k] = float(v)
 
@@ -4809,7 +4853,7 @@ def fetch_evening_data():
         })
 
     except Exception as e:
-        print(f"FETCH ERROR DEBUG: {e}") # This will show in Render Logs
+        print(f"FETCH ERROR DEBUG: {e}")
         return jsonify({'status': 'error', 'message': f"Server Error: {str(e)}"})
     finally:
         if 'cur' in locals(): cur.close()
@@ -6599,6 +6643,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
