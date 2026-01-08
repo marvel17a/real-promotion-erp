@@ -1,6 +1,8 @@
 document.addEventListener("DOMContentLoaded", () => {
     
+    // --- 1. UI DEFINITIONS ---
     const getEl = (id) => document.getElementById(id);
+    
     const ui = {
         empSelect: getEl("employee"), 
         dateInput: getEl("date"),
@@ -20,8 +22,8 @@ document.addEventListener("DOMContentLoaded", () => {
         },
         
         payment: {
-            totalAmt: getEl('totalAmount'),
-            dispTotal: getEl('totAmount'),
+            totalAmt: getEl('totalAmount'), // Hidden input
+            dispTotal: getEl('totAmount'),  // Footer display text
             discount: getEl('discount'),
             cash: getEl('cash'),
             online: getEl('online'),
@@ -36,7 +38,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     };
 
-    // Live Clock
+    // --- 2. LIVE CLOCK LOGIC ---
     function updateClock() {
         const now = new Date();
         const timeString = now.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute:'2-digit', second:'2-digit' });
@@ -56,7 +58,7 @@ document.addEventListener("DOMContentLoaded", () => {
     setInterval(updateClock, 1000);
     updateClock();
 
-    // Fetch Logic
+    // --- 3. FETCH DATA LOGIC ---
     if(ui.fetchBtn) {
         ui.fetchBtn.addEventListener('click', async () => {
             const empId = ui.empSelect.value;
@@ -82,17 +84,17 @@ document.addEventListener("DOMContentLoaded", () => {
                 const data = await res.json();
 
                 if (data.status === 'success') {
+                    // RENDER TABLE
                     renderTable(data.products, data.source);
                     
-                    // Populate Hidden Fields
-                    // Use '0' string if null/undefined so DB insert doesn't fail if schema expects int
-                    if(ui.hidden.allocId) ui.hidden.allocId.value = (data.allocation_id !== null) ? data.allocation_id : '0';
+                    // SET HIDDEN VALUES
+                    if(ui.hidden.allocId) ui.hidden.allocId.value = data.allocation_id || '';
                     if(ui.hidden.hEmp) ui.hidden.hEmp.value = empId;
                     
                     const [d, m, y] = dateVal.split('-');
                     if(ui.hidden.hDate) ui.hidden.hDate.value = `${y}-${m}-${d}`;
 
-                    // Draft Data
+                    // DRAFT LOGIC
                     if (data.source === 'draft' && data.draft_data) {
                         populateDraft(data.draft_id, data.draft_data);
                     } else {
@@ -118,7 +120,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // Render Table (9 Columns)
+    // --- 4. RENDER TABLE (9 Columns) ---
     function renderTable(products, source) {
         ui.tableBody.innerHTML = "";
         
@@ -183,7 +185,7 @@ document.addEventListener("DOMContentLoaded", () => {
         calculateDue();
     }
 
-    // Calculations & Validation
+    // --- 5. CALCULATIONS & VALIDATION ---
     function calculateDue(e) {
         let grandTotal = 0;
         let sumTotal = 0;
@@ -207,17 +209,19 @@ document.addEventListener("DOMContentLoaded", () => {
             let sold = parseInt(soldInp.value) || 0;
             let ret = parseInt(retInp.value) || 0;
 
-            // Validation
+            // Strict Validation: Sold + Return <= Total
             if (sold + ret > total) {
+                // Determine which input caused the error
                 if (e && e.target === soldInp) {
-                    alert(`Limit Exceeded! Max Sold: ${total - ret}`);
+                    // alert(`Limit Exceeded! You only have ${total} items.\nMax Sold possible: ${total - ret}`);
                     sold = total - ret;
                     soldInp.value = sold;
                 } else if (e && e.target === retInp) {
-                    alert(`Limit Exceeded! Max Return: ${total - sold}`);
+                    // alert(`Limit Exceeded! You only have ${total} items.\nMax Return possible: ${total - sold}`);
                     ret = total - sold;
                     retInp.value = ret;
                 } else {
+                    // Fallback reset
                     soldInp.classList.add('is-invalid');
                     retInp.classList.add('is-invalid');
                 }
@@ -226,12 +230,15 @@ document.addEventListener("DOMContentLoaded", () => {
                 retInp.classList.remove('is-invalid');
             }
 
+            // Calc Remaining
             const left = total - sold - ret;
             if(leftEl) leftEl.textContent = left;
             
+            // Calc Amount
             const rowAmt = sold * price;
             amtEl.textContent = rowAmt.toFixed(2);
 
+            // Accumulate
             grandTotal += rowAmt;
             sumTotal += total;
             sumSold += sold;
@@ -239,41 +246,76 @@ document.addEventListener("DOMContentLoaded", () => {
             sumLeft += left;
         });
 
-        // Footer
+        // Update Footer
         if(ui.footer.totalQty) ui.footer.totalQty.textContent = sumTotal;
         if(ui.footer.soldQty) ui.footer.soldQty.textContent = sumSold;
         if(ui.footer.returnQty) ui.footer.returnQty.textContent = sumReturn;
         if(ui.footer.remainQty) ui.footer.remainQty.textContent = sumLeft;
         
+        // Update Totals
         if(ui.payment.totalAmt) ui.payment.totalAmt.value = grandTotal.toFixed(2);
         if(ui.payment.dispTotal) ui.payment.dispTotal.textContent = grandTotal.toFixed(2);
 
-        // Payment
+        // --- PAYMENT LOGIC UPDATE ---
         const disc = parseFloat(ui.payment.discount.value) || 0;
         const online = parseFloat(ui.payment.online.value) || 0;
         const cash = parseFloat(ui.payment.cash.value) || 0;
 
         const totalPay = disc + online + cash;
         
-        if(totalPay > grandTotal + 1.0) {
-            if(e && [ui.payment.discount, ui.payment.online, ui.payment.cash].includes(e.target)) {
-                alert(`Payment cannot exceed Total Sales (${grandTotal})`);
-                e.target.value = 0;
+        // VALIDATION REMOVED: Allow higher payment (Employee Profit)
+        // if(totalPay > grandTotal + 1.0) { ... } // Removed this block
+
+        const due = grandTotal - totalPay;
+        
+        if(ui.payment.due) {
+            // Logic for Color & Text
+            const dueEl = ui.payment.due;
+            const balanceBox = document.querySelector('.balance-box'); // Parent Box
+            
+            // Create or Get the small info text element
+            let profitInfoEl = document.getElementById('profitInfo');
+            if(!profitInfoEl) {
+                profitInfoEl = document.createElement('div');
+                profitInfoEl.id = 'profitInfo';
+                profitInfoEl.className = 'text-center small fw-bold mb-1';
+                profitInfoEl.style.fontSize = '0.8rem';
+                // Insert before balance box content
+                if(balanceBox) balanceBox.insertBefore(profitInfoEl, balanceBox.firstChild);
+            }
+
+            if (due > 0) {
+                // Pending (Red)
+                dueEl.textContent = due.toFixed(2);
+                dueEl.style.color = '#dc3545'; // Red
+                profitInfoEl.textContent = "Pending from Employee";
+                profitInfoEl.style.color = '#dc3545';
+            } else if (due < 0) {
+                // Profit/Extra (Green)
+                const extra = Math.abs(due).toFixed(2);
+                dueEl.textContent = "+" + extra; // Show as positive extra
+                dueEl.style.color = '#198754'; // Green
+                profitInfoEl.textContent = `Amount paid in cash : Rs.${extra}`;
+                profitInfoEl.style.color = '#198754';
+            } else {
+                // Settled (Zero)
+                dueEl.textContent = "0.00";
+                dueEl.style.color = '#0d6efd'; // Blue
+                profitInfoEl.textContent = "Settled";
+                profitInfoEl.style.color = '#6c757d';
             }
         }
 
-        const due = grandTotal - (disc + online + cash);
-        if(ui.payment.due) ui.payment.due.textContent = due.toFixed(2);
-
+        // Auto Due Note Update
         const dueNote = getEl('due_note');
         if(dueNote) {
             if(due > 1) dueNote.value = "Pending Balance";
-            else if (due < -1) dueNote.value = "Overpaid";
+            else if (due < -1) dueNote.value = "Extra Payment (Profit)";
             else dueNote.value = "Settled";
         }
     }
 
-    // Draft Helpers
+    // --- 6. HELPERS ---
     function populateDraft(id, d) {
         if(ui.hidden.draftId) ui.hidden.draftId.value = id;
         if(ui.payment.discount) ui.payment.discount.value = d.discount || '';
@@ -299,7 +341,7 @@ document.addEventListener("DOMContentLoaded", () => {
         document.querySelectorAll('[name^="emp_"]').forEach(el => el.value = '');
     }
 
-    // Listeners
+    // --- 7. LISTENERS ---
     ui.tableBody.addEventListener('input', (e) => {
         if (e.target.matches('.sold-input, .return-input')) calculateDue(e);
     });
@@ -315,8 +357,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
     window.submitFinal = function() {
         if(ui.hidden.status) ui.hidden.status.value = 'final';
+        
         const total = parseFloat(ui.payment.totalAmt.value) || 0;
+        // Removed 0 check to allow profit on 0 sales if needed, but usually good to keep warning
         if (total === 0 && !confirm("Total Sales is 0. Submit?")) return;
+        
         if(confirm("CONFIRM SETTLEMENT?\n\n- Returns will add to stock.\n- Ledger will be updated.")) {
             ui.form.submit();
         }
