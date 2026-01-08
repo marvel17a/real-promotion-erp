@@ -4215,6 +4215,8 @@ def resolve_img(image_path):
         return url
     except:
         return url_for('static', filename='img/default-product.png')
+
+
 # ==========================================
 # 1. API: FETCH MORNING STOCK (Robust Aggregation)
 # ==========================================
@@ -4290,14 +4292,14 @@ def api_fetch_stock():
             raw_given = cur.fetchall()
             combined_map = {}
 
-            # Add Opening
+            # Add Opening to Combined Map
             for pid, data in opening_stock_map.items():
                 combined_map[pid] = {
                     'product_id': pid, 'name': data['name'], 'image': data['image'], 
                     'qty': data['remaining'] # Start with opening
                 }
 
-            # Add Today's Given
+            # Add Today's Given to Combined Map
             for r in raw_given:
                 pid = str(r['product_id'])
                 if pid not in combined_map:
@@ -4404,6 +4406,7 @@ def fetch_evening_data():
             for item in cur.fetchall():
                 pid = item['product_id']
                 added = int(item['total_given'])
+                
                 if pid not in stock_map:
                     stock_map[pid] = {
                         'product_id': pid, 'name': item['name'], 'image': resolve_img(item['image']),
@@ -4428,16 +4431,6 @@ def fetch_evening_data():
         return jsonify({'status': 'error', 'message': str(e)})
     finally:
         if 'cur' in locals(): cur.close()
-
-def clean_products(items):
-    res = []
-    for i in items:
-        res.append({
-            'product_id': i['product_id'], 'name': i['name'], 'image': resolve_img(i['image']),
-            'unit_price': float(i['unit_price']), 'total_qty': int(i.get('total_qty') or i.get('remaining_qty') or 0),
-            'sold_qty': int(i.get('sold_qty', 0)), 'return_qty': int(i.get('return_qty', 0))
-        })
-    return res
 
 
 # ==========================================
@@ -6484,6 +6477,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
