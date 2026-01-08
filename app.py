@@ -4652,7 +4652,7 @@ def fetch_evening_data():
         if 'cur' in locals(): cur.close()
 
 
-# --- 2. API: FETCH MORNING STOCK (Shows Previous Leftover + Today's Restock) ---
+# --- API: FETCH MORNING STOCK (Fix: Always Send Opening Stock) ---
 @app.route('/api/fetch_stock', methods=['GET', 'POST'])
 def api_fetch_stock():
     if "loggedin" not in session: return jsonify({"error": "Unauthorized"}), 401
@@ -4667,13 +4667,14 @@ def api_fetch_stock():
         
         cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
         
-        # 1. Check if Evening is Finalized for this date
+        # 1. Check Evening Lock
         cur.execute("SELECT id FROM evening_settle WHERE employee_id=%s AND date=%s AND status='final'", (employee_id, formatted_date))
         if cur.fetchone():
             cur.close()
             return jsonify({"mode": "locked", "evening_settled": True})
 
-        # 2. FETCH OPENING STOCK (From Last Settlement Before Today)
+        # 2. ALWAYS FETCH OPENING STOCK (From Last Settlement Before Today)
+        # This ensures Opening column is populated even in Restock mode
         opening_stock_list = []
         cur.execute("""
             SELECT id FROM evening_settle 
@@ -4694,12 +4695,12 @@ def api_fetch_stock():
                 opening_stock_list.append({
                     'product_id': str(r['product_id']),
                     'name': r['name'],
-                    'remaining': int(r['remaining_qty']),
+                    'remaining': int(r['remaining_qty']), # Used for 'Opening' input
                     'price': float(r['unit_price']),
                     'image': resolve_img(r['image'])
                 })
 
-        # 3. FETCH EXISTING ALLOCATIONS TODAY (Restock Info)
+        # 3. CHECK TODAY'S ALLOCATIONS (Restock Info)
         existing_items = []
         mode = "normal"
         
@@ -4711,7 +4712,7 @@ def api_fetch_stock():
             all_ids = tuple([row['id'] for row in today_allocs])
             format_strings = ','.join(['%s'] * len(all_ids))
             
-            # Sum up all 'given_qty' for today
+            # Sum up 'given_qty' for today (For History Box)
             cur.execute(f"""
                 SELECT mai.product_id, SUM(mai.given_qty) as total_given, p.name, p.image
                 FROM morning_allocation_items mai
@@ -4720,21 +4721,21 @@ def api_fetch_stock():
                 GROUP BY mai.product_id
             """, all_ids)
             
-            raw = cur.fetchall()
-            for r in raw:
-                existing_items.append({
-                    'product_id': r['product_id'],
-                    'name': r['name'],
-                    'image': resolve_img(r['image']),
-                    'qty': int(r['total_given']) # Showing what was GIVEN today
-                })
+            for r in cur.fetchall():
+                if int(r['total_given']) > 0:
+                    existing_items.append({
+                        'product_id': r['product_id'],
+                        'name': r['name'],
+                        'image': resolve_img(r['image']),
+                        'qty': int(r['total_given']) # Show what was ADDED today
+                    })
 
         cur.close()
         return jsonify({
             "mode": mode,
             "evening_settled": False,
-            "opening_stock": opening_stock_list, # From previous day
-            "existing_items": existing_items     # From today's earlier allocations
+            "opening_stock": opening_stock_list, # Now available in BOTH modes
+            "existing_items": existing_items     # Only for Restock display
         })
 
     except Exception as e:
@@ -6618,6 +6619,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
