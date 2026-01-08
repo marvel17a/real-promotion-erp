@@ -16,115 +16,250 @@ document.addEventListener("DOMContentLoaded", () => {
             grand: getEl("grandTotal")
         }
     };
+
     if (!ui.employeeSelect || !ui.tableBody) return;
 
+    let isRestockMode = false;
+    const productsData = window.productsData || [];
     let productOptionsHtml = '<option value="">-- Select --</option>';
-    if (window.productsData) window.productsData.forEach(p => productOptionsHtml += `<option value="${p.id}" data-price="${p.price}" data-stock="${p.stock}" data-img="${p.image}">${p.name}</option>`);
+    
+    // Product Map for quick access
+    const productsMap = new Map();
+    if (Array.isArray(productsData)) {
+        productsData.forEach(p => {
+            p.stock = (p.stock === null || p.stock === undefined) ? 0 : parseInt(p.stock);
+            productsMap.set(String(p.id), p);
+            productOptionsHtml += `<option value="${p.id}" data-stock="${p.stock}">${p.name}</option>`;
+        });
+    }
+    
     const DEFAULT_IMG = "https://via.placeholder.com/50?text=Img";
 
+    // 1. Digital Clock
     function updateClock() {
         const now = new Date();
         if(ui.clockDisplay) ui.clockDisplay.textContent = now.toLocaleTimeString('en-US', { hour12: true });
-        if(ui.timestampInput) ui.timestampInput.value = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0') + ' ' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0') + ':' + String(now.getSeconds()).padStart(2,'0');
+        
+        const iso = now.getFullYear() + '-' + 
+                   String(now.getMonth()+1).padStart(2,'0') + '-' + 
+                   String(now.getDate()).padStart(2,'0') + ' ' + 
+                   String(now.getHours()).padStart(2,'0') + ':' + 
+                   String(now.getMinutes()).padStart(2,'0') + ':' + 
+                   String(now.getSeconds()).padStart(2,'0');
+        
+        if(ui.timestampInput) ui.timestampInput.value = iso;
     }
     setInterval(updateClock, 1000);
     updateClock();
 
+    // 2. Fetch Data
     async function fetchStockData() {
         const empId = ui.employeeSelect.value;
         const dateVal = ui.dateInput.value;
+
         if (!empId || !dateVal) return;
 
-        ui.fetchMsg.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Checking...';
-        ui.historyList.innerHTML = '';
+        ui.fetchMsg.innerHTML = '<span class="text-primary fw-bold"><i class="fas fa-spinner fa-spin"></i> Checking stock...</span>';
+        if(ui.historyList) ui.historyList.innerHTML = '';
         ui.tableBody.innerHTML = '';
-        ui.addRowBtn.style.display = 'none';
+
+        const saveBtn = document.querySelector('.btn-save');
+        if(ui.addRowBtn) ui.addRowBtn.style.display = 'none';
+        if(saveBtn) saveBtn.style.display = 'none';
 
         try {
             const response = await fetch(`/api/fetch_stock?employee_id=${empId}&date=${dateVal}`);
             const data = await response.json();
 
+            // Check Lock
             if (data.evening_settled) {
-                ui.fetchMsg.innerHTML = '<div class="alert alert-warning py-2 shadow-sm"><i class="fa-solid fa-lock me-2"></i>Evening Finalized.</div>';
-                document.querySelector('.btn-save').style.display = 'none';
+                ui.fetchMsg.innerHTML = '<div class="alert alert-warning py-2 shadow-sm"><i class="fa-solid fa-lock me-2"></i>Evening Settlement Complete.</div>';
                 return;
             }
-            ui.addRowBtn.style.display = 'block';
-            document.querySelector('.btn-save').style.display = 'block';
 
-            if (data.mode === 'restock') {
-                ui.fetchMsg.innerHTML = '<span class="badge bg-warning text-dark mb-2">Restock Mode</span>';
+            // Unlock
+            if(ui.addRowBtn) ui.addRowBtn.style.display = 'block';
+            if(saveBtn) saveBtn.style.display = 'block';
+
+            if (data.error) {
+                ui.fetchMsg.innerHTML = `<span class="text-danger small">${data.error}</span>`;
+                createRow(); return;
+            }
+
+            // Determine Mode
+            isRestockMode = (data.mode === 'restock');
+
+            // --- RESTOCK MODE ---
+            if (isRestockMode) {
+                ui.fetchMsg.innerHTML = '<span class="badge bg-warning text-dark mb-2">Restock Mode Active</span>';
+                
+                // Show "Already Given Today" in History Box
                 if(data.existing_items && data.existing_items.length > 0) {
-                    let html = `<div class="card border-warning mb-3 shadow-sm"><div class="card-header bg-warning bg-opacity-10 small fw-bold">TOTAL STOCK WITH EMPLOYEE (Aggregated)</div><div class="card-body p-2 d-flex flex-wrap gap-2">`;
+                    let html = `<div class="card border-warning mb-3 shadow-sm"><div class="card-header bg-warning bg-opacity-10 text-dark fw-bold small">ALREADY GIVEN TODAY</div><div class="card-body p-2 d-flex flex-wrap gap-2">`;
                     data.existing_items.forEach(item => {
-                        html += `<div class="d-flex align-items-center border rounded p-1 pe-3 bg-white"><img src="${item.image}" width="35" class="rounded me-2"><div><div class="small fw-bold lh-1">${item.name}</div><div class="badge bg-secondary mt-1">Total: ${item.qty}</div></div></div>`;
+                        html += `<div class="d-flex align-items-center border rounded p-1 pe-3 bg-white" style="min-width:160px;"><img src="${item.image}" class="rounded me-2" width="40" height="40" style="object-fit:cover;"><div><div class="small fw-bold text-dark lh-1">${item.name}</div><div class="badge bg-secondary ms-auto">Total: ${item.qty}</div></div></div>`;
                     });
                     html += `</div></div>`;
                     ui.historyList.innerHTML = html;
                 }
             } else {
-                ui.fetchMsg.innerHTML = '<span class="text-success small fw-bold">New Allocation</span>';
+                // Normal Mode
+                ui.fetchMsg.innerHTML = '<span class="text-success small fw-bold">Ready for Allocation</span>';
             }
-            
-            // Populate Opening in Table (Always)
+
+            // --- POPULATE TABLE (For BOTH Modes) ---
+            // Fix: Populate "Opening" rows even in Restock mode
+            // This is the CRITICAL FIX: We use opening_stock from backend which contains yesterday's leftover
             if (data.opening_stock && data.opening_stock.length > 0) {
                 data.opening_stock.forEach(item => createRow(item));
             } else {
+                // If no opening stock, just add an empty row for new input
                 createRow();
             }
             
-            // Ensure at least one row in Restock
-            if(data.mode === 'restock' && ui.tableBody.children.length === 0) createRow();
-            
+            // In Restock mode, user might want to add NEW items, so ensure at least one empty row exists if table is empty
+            // OR if opening stock rows were added (which are read-only for product selection usually), add a new row for input
+            // But usually in restock, we want to see opening, but add MORE to given. 
+            // The existing rows allow editing 'Given', so that's fine.
+            // If user wants to add a NEW product not in opening stock, they can click "Add Item".
+
             recalculateTotals();
 
         } catch (error) {
             console.error(error);
-            ui.fetchMsg.innerHTML = '<span class="text-danger small">Error</span>';
-            ui.addRowBtn.style.display = 'block';
+            ui.fetchMsg.innerHTML = '<span class="text-danger small">Connection Failed</span>';
+            if(ui.addRowBtn) ui.addRowBtn.style.display = 'block';
             createRow();
         }
     }
 
-    function createRow(data = null) {
+    // 3. Create Row Helper
+    function createRow(prefillData = null) {
         const tr = document.createElement("tr");
-        let open = data ? data.remaining : 0;
-        let price = data ? data.price : 0;
-        let img = data ? data.image : DEFAULT_IMG;
+        let pid = "", open = 0, price = 0, img = DEFAULT_IMG;
+
+        if(prefillData) {
+            pid = prefillData.product_id;
+            open = prefillData.remaining;
+            price = prefillData.price;
+            if(prefillData.image) img = prefillData.image;
+        }
 
         tr.innerHTML = `
-            <td class="text-center row-index"></td>
-            <td><img src="${img}" class="product-thumb" width="40"></td>
+            <td class="text-center text-muted fw-bold row-index"></td>
+            <td class="text-center"><div class="prod-img-box"><img src="${img}" class="product-thumb" onerror="this.src='${DEFAULT_IMG}'"></div></td>
             <td>
                 <select name="product_id[]" class="form-select product-dropdown" required>${productOptionsHtml}</select>
                 <div class="small text-danger fw-bold mt-1 stock-warning" style="display:none;"></div>
             </td>
-            <td><input type="number" name="opening[]" class="form-control opening" value="${open}" readonly></td>
-            <td><input type="number" name="given[]" class="form-control given" value="0"></td>
-            <td><input type="number" name="total[]" class="form-control total" value="${open}" readonly></td>
-            <td><input type="number" name="price[]" class="form-control price text-end" value="${price.toFixed(2)}" readonly></td>
-            <td><input type="number" name="amount[]" class="form-control amount text-end" value="0.00" readonly></td>
-            <td><button type="button" class="btn btn-danger btn-sm remove-row">X</button></td>
+            <td><input type="number" name="opening[]" class="table-input opening" value="${open}" readonly tabindex="-1"></td>
+            <td><input type="number" name="given[]" class="table-input given input-qty" min="0" placeholder="0" required></td>
+            <td><input type="number" name="total[]" class="table-input total" value="${open}" readonly tabindex="-1"></td>
+            <td><input type="number" name="price[]" class="table-input price text-end" value="${price.toFixed(2)}" readonly tabindex="-1"></td>
+            <td><input type="number" name="amount[]" class="table-input amount text-end fw-bold text-primary" value="0.00" readonly tabindex="-1"></td>
+            <td class="text-center"><button type="button" class="btn btn-sm text-danger btn-remove-row"><i class="fa-solid fa-trash-can fa-lg"></i></button></td>
         `;
         ui.tableBody.appendChild(tr);
-        if(data) tr.querySelector('.product-dropdown').value = data.product_id;
-
-        tr.querySelector('.product-dropdown').addEventListener('change', function() {
-            const opt = this.selectedOptions[0];
-            tr.querySelector('.price').value = opt.getAttribute('data-price') || 0;
-            tr.querySelector('.product-thumb').src = opt.getAttribute('data-img') || DEFAULT_IMG;
-        });
-        tr.querySelector('.given').addEventListener('input', function() {
-            const op = parseInt(tr.querySelector('.opening').value)||0;
-            const giv = parseInt(this.value)||0;
-            const pr = parseFloat(tr.querySelector('.price').value)||0;
-            tr.querySelector('.total').value = op + giv;
-            tr.querySelector('.amount').value = ((op + giv) * pr).toFixed(2);
-        });
-        tr.querySelector('.remove-row').addEventListener('click', function() { tr.remove(); });
+        if(pid) tr.querySelector('.product-dropdown').value = pid;
+        
+        updateRowIndexes();
+        if(prefillData) recalculateRow(tr);
     }
 
+    // 4. Calculations
+    function updateRowData(row, pid) {
+        const priceInput = row.querySelector(".price");
+        const img = row.querySelector(".product-thumb");
+        const prod = productsMap.get(pid);
+        
+        if(prod) {
+            priceInput.value = parseFloat(prod.price).toFixed(2);
+            img.src = prod.image || DEFAULT_IMG;
+        } else {
+            priceInput.value = "0.00";
+            img.src = DEFAULT_IMG;
+        }
+        recalculateRow(row);
+    }
+
+    function recalculateRow(row) {
+        const op = parseInt(row.querySelector(".opening").value) || 0;
+        const givInput = row.querySelector(".given");
+        let giv = parseInt(givInput.value) || 0;
+        const pr = parseFloat(row.querySelector(".price").value) || 0;
+        const pid = row.querySelector(".product-dropdown").value;
+        const warn = row.querySelector(".stock-warning");
+
+        if(pid) {
+            const p = productsMap.get(pid);
+            const max = p ? p.stock : 9999;
+            if(giv > max) {
+                giv = max; givInput.value = max;
+                warn.innerHTML = `<i class="fa-solid fa-triangle-exclamation me-1"></i>Only ${max} left`;
+                warn.style.display = 'block';
+                givInput.style.borderColor = 'red';
+            } else { 
+                warn.style.display = 'none'; 
+                givInput.style.borderColor = '';
+            }
+        }
+
+        const tot = op + giv;
+        row.querySelector(".total").value = tot;
+        row.querySelector(".amount").value = (tot * pr).toFixed(2);
+        recalculateTotals();
+    }
+
+    function recalculateTotals() {
+        let tOpen = 0, tGiv = 0, tTot = 0, tAmt = 0;
+        ui.tableBody.querySelectorAll("tr").forEach(row => {
+            // Check if row is valid (not deleted)
+            if(!row.querySelector(".opening")) return;
+            
+            tOpen += parseInt(row.querySelector(".opening").value)||0;
+            tGiv += parseInt(row.querySelector(".given").value)||0;
+            tTot += parseInt(row.querySelector(".total").value)||0;
+            tAmt += parseFloat(row.querySelector(".amount").value)||0;
+        });
+        ui.totals.opening.textContent = tOpen;
+        ui.totals.given.textContent = tGiv;
+        ui.totals.all.textContent = tTot;
+        ui.totals.grand.textContent = tAmt.toFixed(2);
+    }
+
+    function updateRowIndexes() {
+        ui.tableBody.querySelectorAll("tr").forEach((tr, i) => tr.querySelector(".row-index").textContent = i + 1);
+    }
+
+    // --- EVENTS ---
+    ui.addRowBtn.addEventListener("click", (e) => { e.preventDefault(); createRow(); });
     ui.employeeSelect.addEventListener("change", fetchStockData);
     ui.dateInput.addEventListener("change", fetchStockData);
-    ui.addRowBtn.addEventListener("click", () => createRow());
+    
+    ui.tableBody.addEventListener("click", e => {
+        if(e.target.closest(".btn-remove-row")) {
+            if(confirm("Remove row?")) { e.target.closest("tr").remove(); updateRowIndexes(); recalculateTotals(); }
+        }
+    });
+
+    ui.tableBody.addEventListener("change", e => {
+        if(e.target.matches(".product-dropdown")) {
+            updateRowData(e.target.closest("tr"), e.target.value);
+        }
+    });
+
+    ui.tableBody.addEventListener("input", e => {
+        if(e.target.matches(".given")) {
+            recalculateRow(e.target.closest("tr"));
+        }
+    });
+
+    document.addEventListener("keydown", function (e) {
+        if (e.key === "Enter" && e.target.tagName !== "BUTTON") {
+            e.preventDefault();
+            const inputs = Array.from(document.querySelectorAll("input:not([readonly]), select"));
+            const index = inputs.indexOf(e.target);
+            if (index > -1 && index < inputs.length - 1) inputs[index + 1].focus();
+        }
+    });
 });
