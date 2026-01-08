@@ -23,7 +23,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const productsData = window.productsData || [];
     let productOptionsHtml = '<option value="">-- Select --</option>';
     
-    // Product Map
+    // Product Map for quick access
     const productsMap = new Map();
     if (Array.isArray(productsData)) {
         productsData.forEach(p => {
@@ -93,7 +93,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (isRestockMode) {
                 ui.fetchMsg.innerHTML = '<span class="badge bg-warning text-dark mb-2">Restock Mode Active</span>';
                 
-                // Show "Already Given Today"
+                // Show "Already Given Today" in History Box
                 if(data.existing_items && data.existing_items.length > 0) {
                     let html = `<div class="card border-warning mb-3 shadow-sm"><div class="card-header bg-warning bg-opacity-10 text-dark fw-bold small">ALREADY GIVEN TODAY</div><div class="card-body p-2 d-flex flex-wrap gap-2">`;
                     data.existing_items.forEach(item => {
@@ -107,15 +107,21 @@ document.addEventListener("DOMContentLoaded", () => {
                 ui.fetchMsg.innerHTML = '<span class="text-success small fw-bold">Ready for Allocation</span>';
             }
 
-            // --- POPULATE TABLE (Always fill Opening) ---
+            // --- POPULATE TABLE (For BOTH Modes) ---
+            // Fix: Populate "Opening" rows even in Restock mode
+            // This is the CRITICAL FIX: We use opening_stock from backend which contains yesterday's leftover
             if (data.opening_stock && data.opening_stock.length > 0) {
                 data.opening_stock.forEach(item => createRow(item));
             } else {
+                // If no opening stock, just add an empty row for new input
                 createRow();
             }
             
-            // Ensure at least one row in Restock
-            if(isRestockMode && ui.tableBody.children.length === 0) createRow();
+            // In Restock mode, user might want to add NEW items, so ensure at least one empty row exists if table is empty
+            // OR if opening stock rows were added (which are read-only for product selection usually), add a new row for input
+            // But usually in restock, we want to see opening, but add MORE to given. 
+            // The existing rows allow editing 'Given', so that's fine.
+            // If user wants to add a NEW product not in opening stock, they can click "Add Item".
 
             recalculateTotals();
 
@@ -154,7 +160,15 @@ document.addEventListener("DOMContentLoaded", () => {
             <td class="text-center"><button type="button" class="btn btn-sm text-danger btn-remove-row"><i class="fa-solid fa-trash-can fa-lg"></i></button></td>
         `;
         ui.tableBody.appendChild(tr);
-        if(pid) tr.querySelector('.product-dropdown').value = pid;
+        
+        // Set dropdown value if data exists
+        if(pid) {
+            const sel = tr.querySelector('.product-dropdown');
+            sel.value = pid;
+            // Note: We don't trigger 'change' event here to avoid overwriting the 'opening' value
+            // But we might need to if image isn't set. The prefillData handles image/price.
+        }
+        
         updateRowIndexes();
         if(prefillData) recalculateRow(tr);
     }
@@ -206,7 +220,9 @@ document.addEventListener("DOMContentLoaded", () => {
     function recalculateTotals() {
         let tOpen = 0, tGiv = 0, tTot = 0, tAmt = 0;
         ui.tableBody.querySelectorAll("tr").forEach(row => {
+            // Check if row is valid (not deleted)
             if(!row.querySelector(".opening")) return;
+            
             tOpen += parseInt(row.querySelector(".opening").value)||0;
             tGiv += parseInt(row.querySelector(".given").value)||0;
             tTot += parseInt(row.querySelector(".total").value)||0;
@@ -222,7 +238,7 @@ document.addEventListener("DOMContentLoaded", () => {
         ui.tableBody.querySelectorAll("tr").forEach((tr, i) => tr.querySelector(".row-index").textContent = i + 1);
     }
 
-    // Events
+    // --- EVENTS ---
     ui.addRowBtn.addEventListener("click", (e) => { e.preventDefault(); createRow(); });
     ui.employeeSelect.addEventListener("change", fetchStockData);
     ui.dateInput.addEventListener("change", fetchStockData);
