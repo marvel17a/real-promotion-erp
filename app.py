@@ -4216,7 +4216,6 @@ def resolve_img(image_path):
     except:
         return url_for('static', filename='img/default-product.png')
 
-
 # ==========================================
 # 1. API: FETCH MORNING STOCK (Robust Aggregation)
 # ==========================================
@@ -4279,7 +4278,8 @@ def api_fetch_stock():
             all_ids = tuple([row['id'] for row in today_allocs])
             format_strings = ','.join(['%s'] * len(all_ids))
             
-            # Sum of ALL 'given_qty' for today
+            # Aggregate ALL stock (Opening + All Given Today) for the History Box
+            # First, get today's total given
             cur.execute(f"""
                 SELECT mai.product_id, SUM(mai.given_qty) as total_given, p.name, p.image
                 FROM morning_allocation_items mai
@@ -4289,36 +4289,26 @@ def api_fetch_stock():
             """, all_ids)
             
             raw_given = cur.fetchall()
-            
-            # For the History Box: Show Opening + Given Today
+            combined_map = {}
+
+            # Add Opening to Combined Map (Base)
+            for pid, data in opening_stock_map.items():
+                combined_map[pid] = {
+                    'product_id': pid, 'name': data['name'], 'image': data['image'], 
+                    'qty': data['remaining'] # Start with opening
+                }
+
+            # Add Today's Given to Combined Map
             for r in raw_given:
                 pid = str(r['product_id'])
-                qty = int(r['total_given'])
-                
-                # Add opening if present
-                if pid in opening_stock_map:
-                    qty += opening_stock_map[pid]['remaining']
-                
-                existing_items.append({
-                    'product_id': pid,
-                    'name': r['name'],
-                    'image': resolve_img(r['image']),
-                    'qty': qty 
-                })
+                if pid not in combined_map:
+                    combined_map[pid] = {'product_id': pid, 'name': r['name'], 'image': resolve_img(r['image']), 'qty': 0}
+                combined_map[pid]['qty'] += int(r['total_given'])
             
-            # Also add items that were in opening but not given today (for complete picture)
-            for pid, data in opening_stock_map.items():
-                found = False
-                for item in existing_items:
-                    if item['product_id'] == pid:
-                        found = True
-                        break
-                if not found:
-                    existing_items.append({
-                        'product_id': pid, 'name': data['name'], 'image': data['image'], 'qty': data['remaining']
-                    })
+            existing_items = list(combined_map.values())
 
         # Convert opening map to list for "Normal" mode table population
+        # We send this ALWAYS so the frontend can populate the 'Opening' column even in Restock mode
         opening_stock_list = list(opening_stock_map.values())
 
         cur.close()
@@ -6496,6 +6486,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
