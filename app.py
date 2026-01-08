@@ -4337,8 +4337,7 @@ def morning():
     return render_template('morning.html', employees=employees, products=products_for_js, today_date=date.today().strftime('%d-%m-%Y'))
 
 
-# --- ROUTE: EVENING FORM (Entry & Submission) ---
-# --- 1. API: FETCH EVENING DATA (The Aggregator Fix) ---
+# --- API: FETCH EVENING DATA (The Aggregator Fix) ---
 @app.route('/api/fetch_evening_data', methods=['POST'])
 def fetch_evening_data():
     if "loggedin" not in session: return jsonify({'status': 'error', 'message': 'Unauthorized'})
@@ -4358,7 +4357,7 @@ def fetch_evening_data():
         
         cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
-        # A. CHECK IF ALREADY SUBMITTED (Draft/Final)
+        # A. CHECK EXISTING RECORD (Draft/Final)
         cur.execute("SELECT * FROM evening_settle WHERE employee_id=%s AND date=%s", (employee_id, formatted_date))
         existing = cur.fetchone()
 
@@ -4538,7 +4537,7 @@ def api_fetch_stock():
                     'image': resolve_img(r['image'])
                 })
 
-        # 3. FETCH TODAY'S GIVEN STOCK (Aggregation for Display)
+        # 3. FETCH EXISTING ALLOCATIONS TODAY (Restock Info)
         existing_items = []
         mode = "normal"
         
@@ -4550,7 +4549,7 @@ def api_fetch_stock():
             all_ids = tuple([row['id'] for row in today_allocs])
             format_strings = ','.join(['%s'] * len(all_ids))
             
-            # Sum up all 'given_qty' for today. We don't care about 'opening' here because
+            # Sum up 'given_qty' ONLY. We don't care about 'opening' here because
             # Opening is already handled by Step 2 above.
             cur.execute(f"""
                 SELECT mai.product_id, SUM(mai.given_qty) as total_given, p.name, p.image
@@ -6571,6 +6570,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
