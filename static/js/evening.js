@@ -85,12 +85,14 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (data.status === 'success') {
                     renderTable(data.products, data.source);
                     
+                    // Populate Hidden Fields
                     if(ui.hidden.allocId) ui.hidden.allocId.value = (data.allocation_id !== null) ? data.allocation_id : '0';
                     if(ui.hidden.hEmp) ui.hidden.hEmp.value = empId;
                     
                     const [d, m, y] = dateVal.split('-');
                     if(ui.hidden.hDate) ui.hidden.hDate.value = `${y}-${m}-${d}`;
 
+                    // Draft Data
                     if (data.source === 'draft' && data.draft_data) {
                         populateDraft(data.draft_id, data.draft_data);
                     } else {
@@ -116,7 +118,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // Render Table
+    // Render Table (9 Columns)
     function renderTable(products, source) {
         ui.tableBody.innerHTML = "";
         
@@ -205,8 +207,9 @@ document.addEventListener("DOMContentLoaded", () => {
             let sold = parseInt(soldInp.value) || 0;
             let ret = parseInt(retInp.value) || 0;
 
-            // Validation
+            // Strict Validation: Sold + Return <= Total
             if (sold + ret > total) {
+                // Determine which input caused the error
                 if (e && e.target === soldInp) {
                     alert(`Limit Exceeded! Max Sold: ${total - ret}`);
                     sold = total - ret;
@@ -216,6 +219,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     ret = total - sold;
                     retInp.value = ret;
                 } else {
+                    // Fallback reset
                     soldInp.classList.add('is-invalid');
                     retInp.classList.add('is-invalid');
                 }
@@ -224,12 +228,15 @@ document.addEventListener("DOMContentLoaded", () => {
                 retInp.classList.remove('is-invalid');
             }
 
+            // Calc Remaining
             const left = total - sold - ret;
             if(leftEl) leftEl.textContent = left;
             
+            // Calc Amount
             const rowAmt = sold * price;
             amtEl.textContent = rowAmt.toFixed(2);
 
+            // Accumulate
             grandTotal += rowAmt;
             sumTotal += total;
             sumSold += sold;
@@ -237,16 +244,17 @@ document.addEventListener("DOMContentLoaded", () => {
             sumLeft += left;
         });
 
-        // Footer
+        // Update Footer
         if(ui.footer.totalQty) ui.footer.totalQty.textContent = sumTotal;
         if(ui.footer.soldQty) ui.footer.soldQty.textContent = sumSold;
         if(ui.footer.returnQty) ui.footer.returnQty.textContent = sumReturn;
         if(ui.footer.remainQty) ui.footer.remainQty.textContent = sumLeft;
         
+        // Update Totals
         if(ui.payment.totalAmt) ui.payment.totalAmt.value = grandTotal.toFixed(2);
         if(ui.payment.dispTotal) ui.payment.dispTotal.textContent = grandTotal.toFixed(2);
 
-        // Payment
+        // Payment Logic
         const disc = parseFloat(ui.payment.discount.value) || 0;
         const online = parseFloat(ui.payment.online.value) || 0;
         const cash = parseFloat(ui.payment.cash.value) || 0;
@@ -285,9 +293,9 @@ document.addEventListener("DOMContentLoaded", () => {
             } else {
                 // Settled
                 dueEl.textContent = "0.00";
-                dueEl.style.color = 'yello';
+                dueEl.style.color = '#0d6efd';
                 profitInfoEl.textContent = "Settled";
-                profitInfoEl.style.color = 'yello';
+                profitInfoEl.style.color = '#6c757d';
             }
         }
 
@@ -299,11 +307,12 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
+    // --- 6. HELPERS ---
     function populateDraft(id, d) {
         if(ui.hidden.draftId) ui.hidden.draftId.value = id;
-        ui.payment.discount.value = d.discount || '';
-        ui.payment.online.value = d.online_money || '';
-        ui.payment.cash.value = d.cash_money || '';
+        if(ui.payment.discount) ui.payment.discount.value = d.discount || '';
+        if(ui.payment.online) ui.payment.online.value = d.online_money || '';
+        if(ui.payment.cash) ui.payment.cash.value = d.cash_money || '';
         
         setVal('emp_credit_amount', d.emp_credit_amount);
         setVal('emp_credit_note', d.emp_credit_note);
@@ -318,13 +327,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function resetDraft() {
         if(ui.hidden.draftId) ui.hidden.draftId.value = '';
-        ui.payment.discount.value = '';
-        ui.payment.online.value = '';
-        ui.payment.cash.value = '';
+        if(ui.payment.discount) ui.payment.discount.value = '';
+        if(ui.payment.online) ui.payment.online.value = '';
+        if(ui.payment.cash) ui.payment.cash.value = '';
         document.querySelectorAll('[name^="emp_"]').forEach(el => el.value = '');
     }
 
-    // Listeners
+    // --- 7. LISTENERS ---
     ui.tableBody.addEventListener('input', (e) => {
         if (e.target.matches('.sold-input, .return-input')) calculateDue(e);
     });
@@ -340,8 +349,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     window.submitFinal = function() {
         if(ui.hidden.status) ui.hidden.status.value = 'final';
+        
         const total = parseFloat(ui.payment.totalAmt.value) || 0;
         if (total === 0 && !confirm("Total Sales is 0. Submit?")) return;
+        
         if(confirm("CONFIRM SETTLEMENT?\n\n- Returns will add to stock.\n- Ledger will be updated.")) {
             ui.form.submit();
         }
