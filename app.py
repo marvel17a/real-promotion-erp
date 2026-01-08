@@ -4215,127 +4215,6 @@ def resolve_img(image_path):
         return url
     except:
         return url_for('static', filename='img/default-product.png')
-
-# --- ROUTE: MORNING (Robust Time Fix & Stock Logic) ---
-@app.route('/morning', methods=['GET', 'POST'])
-def morning():
-    if "loggedin" not in session:
-        return redirect(url_for("login"))
-    
-    conn = mysql.connection
-    cursor = conn.cursor(MySQLdb.cursors.DictCursor)
-
-    # 1. POST: Handle Submission
-    if request.method == 'POST':
-        try:
-            print("--- Morning Form Submitted ---")
-            
-            emp_id = request.form.get('employee_id')
-            date_str = request.form.get('date')
-            
-            # --- TIME FIX: Priority to Frontend Clock, Fallback to Server IST ---
-            # This ensures we get the EXACT time visible on the user's screen
-            time_str = request.form.get('timestamp')
-            
-            if not time_str or time_str.strip() == "":
-                # If JS clock failed or wasn't sent, generate IST time on server
-                ist_now = datetime.utcnow() + timedelta(hours=5, minutes=30)
-                time_str = ist_now.strftime('%Y-%m-%d %H:%M:%S')
-            # ------------------------------------------------------------------
-            
-            p_ids = request.form.getlist('product_id[]')
-            opens = request.form.getlist('opening[]')
-            givens = request.form.getlist('given[]')
-            prices = request.form.getlist('price[]')
-
-            if not emp_id or not date_str:
-                flash("Error: Employee and Date are required.", "danger")
-                return redirect(url_for('morning'))
-
-            # Parse Date
-            date_obj = parse_date(date_str)
-            formatted_date = date_obj.strftime('%Y-%m-%d')
-
-            # --- VALIDATION: Check Stock Availability ---
-            for i, pid in enumerate(p_ids):
-                if not pid: continue
-                gv_qty = int(givens[i]) if (i < len(givens) and givens[i]) else 0
-                
-                if gv_qty > 0:
-                    cursor.execute("SELECT name, stock FROM products WHERE id = %s", (pid,))
-                    prod = cursor.fetchone()
-                    if prod and int(prod['stock']) < gv_qty:
-                        flash(f"Insufficient Stock! '{prod['name']}' has only {prod['stock']} left. You tried to give {gv_qty}.", "danger")
-                        return redirect(url_for('morning'))
-
-            # A. Check/Insert Allocation Header
-            cursor.execute("SELECT id FROM morning_allocations WHERE employee_id=%s AND date=%s", (emp_id, formatted_date))
-            existing = cursor.fetchone()
-
-            if existing:
-                alloc_id = existing['id']
-                flash_msg = "Stock updated in existing allocation."
-            else:
-                # INSERT with the CORRECTED time_str
-                cursor.execute(
-                    "INSERT INTO morning_allocations (employee_id, date, created_at) VALUES (%s, %s, %s)", 
-                    (emp_id, formatted_date, time_str)
-                )
-                alloc_id = cursor.lastrowid
-                flash_msg = "Morning allocation created successfully."
-
-            # B. Insert Items & DEDUCT Stock
-            inserted_count = 0
-            for i, pid in enumerate(p_ids):
-                if not pid: continue
-                
-                op_qty = int(opens[i]) if (i < len(opens) and opens[i]) else 0
-                gv_qty = int(givens[i]) if (i < len(givens) and givens[i]) else 0
-                price = float(prices[i]) if (i < len(prices) and prices[i]) else 0.0
-
-                if op_qty > 0 or gv_qty > 0:
-                    cursor.execute("""
-                        INSERT INTO morning_allocation_items 
-                        (allocation_id, product_id, opening_qty, given_qty, unit_price)
-                        VALUES (%s, %s, %s, %s, %s)
-                    """, (alloc_id, pid, op_qty, gv_qty, price))
-                    
-                    # Deduct Stock Logic (Preserved)
-                    if gv_qty > 0:
-                        cursor.execute("UPDATE products SET stock = stock - %s WHERE id = %s", (gv_qty, pid))
-                    
-                    inserted_count += 1
-
-            if inserted_count > 0:
-                conn.commit()
-                flash(flash_msg, "success")
-            else:
-                flash("Warning: No items to allocate.", "warning")
-
-            return redirect(url_for('morning'))
-
-        except Exception as e:
-            conn.rollback()
-            print(f"Morning Submit Error: {e}")
-            flash(f"Error saving data: {str(e)}", "danger")
-            return redirect(url_for('morning'))
-
-    # 2. GET Request
-    cursor.execute("SELECT id, name, image FROM employees WHERE status='active' ORDER BY name")
-    employees = cursor.fetchall()
-    for e in employees: e['image'] = resolve_img(e['image'])
-
-    cursor.execute("SELECT id, name, price, image, stock FROM products ORDER BY name")
-    products_for_js = [{
-        'id': p['id'], 
-        'name': p['name'], 
-        'price': float(p['price']), 
-        'image': resolve_img(p['image']),
-        'stock': int(p['stock'] if p['stock'] is not None else 0)
-    } for p in cursor.fetchall()]
-    
-    return render_template('morning.html', employees=employees, products=products_for_js, today_date=date.today().strftime('%d-%m-%Y'))
-
 # ==========================================
 # 1. API: FETCH MORNING STOCK (Robust Aggregation)
 # ==========================================
@@ -4561,7 +4440,100 @@ def clean_products(items):
     return res
 
 
-# --- 3. ROUTE: EVENING SUBMISSION (Duplicate Fix) ---
+# ==========================================
+# 3. ROUTE: MORNING SUBMIT (Robust Logic)
+# ==========================================
+@app.route('/morning', methods=['GET', 'POST'])
+def morning():
+    if "loggedin" not in session: return redirect(url_for("login"))
+    
+    conn = mysql.connection
+    cursor = conn.cursor(MySQLdb.cursors.DictCursor)
+
+    if request.method == 'POST':
+        try:
+            print("--- Morning Form Submitted ---")
+            
+            emp_id = request.form.get('employee_id')
+            date_str = request.form.get('date')
+            time_str = request.form.get('timestamp')
+            
+            if not time_str or time_str.strip() == "":
+                ist_now = datetime.utcnow() + timedelta(hours=5, minutes=30)
+                time_str = ist_now.strftime('%Y-%m-%d %H:%M:%S')
+
+            p_ids = request.form.getlist('product_id[]')
+            opens = request.form.getlist('opening[]')
+            givens = request.form.getlist('given[]')
+            prices = request.form.getlist('price[]')
+
+            if not emp_id or not date_str:
+                flash("Error: Employee and Date are required.", "danger")
+                return redirect(url_for('morning'))
+
+            formatted_date = parse_date(date_str).strftime('%Y-%m-%d')
+
+            # Stock Check
+            for i, pid in enumerate(p_ids):
+                if not pid: continue
+                gv = int(givens[i] or 0)
+                if gv > 0:
+                    cursor.execute("SELECT name, stock FROM products WHERE id = %s", (pid,))
+                    p = cursor.fetchone()
+                    if p and int(p['stock']) < gv:
+                        flash(f"Low Stock: {p['name']} (Has {p['stock']})", "danger")
+                        return redirect(url_for('morning'))
+
+            # Insert Header (Always NEW for Restock support)
+            cursor.execute("INSERT INTO morning_allocations (employee_id, date, created_at) VALUES (%s, %s, %s)", 
+                           (emp_id, formatted_date, time_str))
+            alloc_id = cursor.lastrowid
+
+            # Insert Items
+            cnt = 0
+            for i, pid in enumerate(p_ids):
+                if not pid: continue
+                op = int(opens[i] or 0)
+                gv = int(givens[i] or 0)
+                pr = float(prices[i] or 0)
+
+                if op > 0 or gv > 0:
+                    cursor.execute("INSERT INTO morning_allocation_items (allocation_id, product_id, opening_qty, given_qty, unit_price) VALUES (%s, %s, %s, %s, %s)", 
+                                   (alloc_id, pid, op, gv, pr))
+                    if gv > 0:
+                        cursor.execute("UPDATE products SET stock = stock - %s WHERE id = %s", (gv, pid))
+                    cnt += 1
+
+            if cnt > 0:
+                conn.commit()
+                flash("Morning allocation saved.", "success")
+            else:
+                flash("No items saved.", "warning")
+            
+            return redirect(url_for('morning'))
+
+        except Exception as e:
+            conn.rollback()
+            flash(f"Error saving data: {str(e)}", "danger")
+            return redirect(url_for('morning'))
+
+    # GET
+    cursor.execute("SELECT id, name, image FROM employees WHERE status='active' ORDER BY name")
+    emps = cursor.fetchall()
+    for e in emps: e['image'] = resolve_img(e['image'])
+
+    cursor.execute("SELECT id, name, price, image, stock FROM products ORDER BY name")
+    prods = [{
+        'id': p['id'], 'name': p['name'], 'price': float(p['price']), 
+        'image': resolve_img(p['image']), 'stock': int(p['stock'] or 0)
+    } for p in cursor.fetchall()]
+    
+    return render_template('morning.html', employees=emps, products=prods, today_date=date.today().strftime('%d-%m-%Y'))
+
+
+# ==========================================
+# 4. ROUTE: EVENING SUBMIT (Duplicate Fix)
+# ==========================================
 @app.route('/evening', methods=['GET', 'POST'])
 def evening():
     if "loggedin" not in session: return redirect(url_for("login"))
@@ -4571,34 +4543,24 @@ def evening():
     
     if request.method == 'POST':
         try:
-            # Data Collection
             status = request.form.get('status')
             draft_id = request.form.get('draft_id')
-            alloc_id = request.form.get('allocation_id') 
+            alloc_id = request.form.get('allocation_id')
             emp_id = request.form.get('h_employee')
             date_val = request.form.get('h_date')
             
             ist_now = datetime.utcnow() + timedelta(hours=5, minutes=30)
             time_str = ist_now.strftime('%Y-%m-%d %H:%M:%S') 
             
-            # --- DUPLICATE KEY FIX ---
-            # If alloc_id is used by a DIFFERENT date's settlement, unlink it (set to NULL).
             final_alloc_id = None
             if alloc_id and alloc_id.strip() not in ['', '0']:
                 cursor.execute("SELECT id, date FROM evening_settle WHERE allocation_id = %s", (alloc_id,))
                 link = cursor.fetchone()
-                
-                if link:
-                    # If used by different date, break link (set NULL) to allow save
-                    if str(link['date']) != str(date_val):
-                        final_alloc_id = None 
-                    else:
-                        final_alloc_id = alloc_id # Updating same day
+                if link and str(link['date']) != str(date_val):
+                    final_alloc_id = None
                 else:
-                    final_alloc_id = alloc_id # New link
-            # -------------------------
+                    final_alloc_id = alloc_id
 
-            # Finance variables
             total_amt = float(request.form.get('totalAmount') or 0)
             discount = float(request.form.get('discount') or 0)
             online = float(request.form.get('online') or 0)
@@ -4610,7 +4572,6 @@ def evening():
             emp_d_n = request.form.get('emp_debit_note')
             due_n = request.form.get('due_note')
 
-            # Update/Insert Header
             if draft_id and draft_id.strip() != "":
                 cursor.execute("""
                     UPDATE evening_settle SET total_amount=%s, cash_money=%s, online_money=%s, discount=%s, 
@@ -4632,7 +4593,6 @@ def evening():
                 """, (final_alloc_id, emp_id, date_val, total_amt, cash, online, discount, emp_c, emp_c_n, emp_d, emp_d_n, due_n, status, time_str))
                 settle_id = cursor.lastrowid
 
-            # ITEMS
             p_ids = request.form.getlist('product_id[]')
             t_qtys = request.form.getlist('total_qty[]')
             s_qtys = request.form.getlist('sold[]')
@@ -4645,7 +4605,7 @@ def evening():
                 sold = int(float(s_qtys[i] or 0))
                 ret = int(float(r_qtys[i] or 0))
                 pr = float(prices[i] or 0)
-                rem = max(0, tot - sold - ret) # Correct Next Day Opening
+                rem = max(0, tot - sold - ret) 
 
                 cursor.execute("INSERT INTO evening_item (settle_id, product_id, total_qty, sold_qty, return_qty, remaining_qty, unit_price) VALUES (%s, %s, %s, %s, %s, %s, %s)", 
                                (settle_id, pid, tot, sold, ret, rem, pr))
@@ -4653,7 +4613,6 @@ def evening():
                 if status == 'final' and ret > 0:
                     cursor.execute("UPDATE products SET stock = stock + %s WHERE id = %s", (ret, pid))
 
-            # LEDGER logic (Standard)
             if status == 'final':
                 if emp_c > 0: cursor.execute("INSERT INTO employee_transactions (employee_id, transaction_date, type, amount, description, created_at) VALUES (%s, %s, 'credit', %s, %s, %s)", (emp_id, date_val, emp_c, f"Credit #{settle_id}", time_str))
                 if emp_d > 0: cursor.execute("INSERT INTO employee_transactions (employee_id, transaction_date, type, amount, description, created_at) VALUES (%s, %s, 'debit', %s, %s, %s)", (emp_id, date_val, emp_d, f"Debit #{settle_id}", time_str))
@@ -4667,15 +4626,13 @@ def evening():
             flash(f"Error: {e}", "danger")
             return redirect(url_for('evening'))
 
-    # GET
     cursor.execute("SELECT id, name, image FROM employees WHERE status='active' ORDER BY name")
     emps = cursor.fetchall()
     for e in emps: e['image'] = resolve_img(e['image'])
     return render_template('evening.html', employees=emps, today=date.today().strftime('%d-%m-%Y'))
 
 
-
-# --- ROUTE: ALLOCATION LIST (Formatted Date/Time & Status Check) ---
+# --- 5. ROUTE: ALLOCATION LIST (Formatted Date/Time & Status Check) ---
 @app.route('/allocation_list', methods=['GET'])
 def allocation_list():
     if "loggedin" not in session: return redirect(url_for("login"))
@@ -4686,14 +4643,10 @@ def allocation_list():
     date_filter = request.args.get('date')
     emp_filter = request.args.get('employee_id')
     
-    # Query: Get Allocation + Check Status in Evening Table
     query = """
         SELECT 
-            ma.id, 
-            ma.date, 
-            ma.created_at, 
-            e.name as emp_name, 
-            e.image as emp_image,
+            ma.id, ma.date, ma.created_at, 
+            e.name as emp_name, e.image as emp_image,
             (SELECT COUNT(*) FROM morning_allocation_items WHERE allocation_id = ma.id) as item_count,
             (SELECT status FROM evening_settle WHERE allocation_id = ma.id LIMIT 1) as evening_status
         FROM morning_allocations ma
@@ -4720,49 +4673,29 @@ def allocation_list():
     for a in allocations:
         a['emp_image'] = resolve_img(a['emp_image'])
         
-        # 1. Date Format: dd-mm-yyyy
         if isinstance(a['date'], (date, datetime)):
             a['formatted_date'] = a['date'].strftime('%d-%m-%Y')
         else:
-            try:
-                d_temp = datetime.strptime(str(a['date']), '%Y-%m-%d')
-                a['formatted_date'] = d_temp.strftime('%d-%m-%Y')
-            except:
-                a['formatted_date'] = str(a['date'])
+            try: a['formatted_date'] = datetime.strptime(str(a['date']), '%Y-%m-%d').strftime('%d-%m-%Y')
+            except: a['formatted_date'] = str(a['date'])
 
-        # 2. Time Format: 12-Hour (06:30 PM)
         if a.get('created_at'):
-            if isinstance(a['created_at'], datetime):
-                a['formatted_time'] = a['created_at'].strftime('%I:%M %p')
-            elif isinstance(a['created_at'], timedelta):
-                dummy = datetime.min + a['created_at']
-                a['formatted_time'] = dummy.strftime('%I:%M %p')
-            else:
-                a['formatted_time'] = str(a['created_at'])
-        else:
-            a['formatted_time'] = "-"
+            if isinstance(a['created_at'], datetime): a['formatted_time'] = a['created_at'].strftime('%I:%M:%S %p')
+            elif isinstance(a['created_at'], timedelta): a['formatted_time'] = (datetime.min + a['created_at']).strftime('%I:%M:%S %p')
+            else: a['formatted_time'] = str(a['created_at'])
+        else: a['formatted_time'] = "-"
 
-        # 3. Status Badge & Locking Logic
         if a['evening_status'] == 'final':
-            a['status_badge'] = 'Submitted'
-            a['status_class'] = 'bg-success'
-            a['is_locked'] = True
+            a['status_badge'] = 'Submitted'; a['status_class'] = 'bg-success'; a['is_locked'] = True
         elif a['evening_status'] == 'draft':
-            a['status_badge'] = 'Draft'
-            a['status_class'] = 'bg-warning text-dark'
-            a['is_locked'] = False
+            a['status_badge'] = 'Draft'; a['status_class'] = 'bg-warning text-dark'; a['is_locked'] = False 
         else:
-            a['status_badge'] = 'Pending'
-            a['status_class'] = 'bg-danger'
-            a['is_locked'] = False
+            a['status_badge'] = 'Pending'; a['status_class'] = 'bg-danger'; a['is_locked'] = False
 
     cursor.execute("SELECT id, name FROM employees WHERE status='active' ORDER BY name")
     employees = cursor.fetchall()
 
-    return render_template('allocation_list.html', 
-                           allocations=allocations, 
-                           employees=employees, 
-                           filters={'date': date_filter, 'employee_id': emp_filter})
+    return render_template('allocation_list.html', allocations=allocations, employees=employees, filters={'date': date_filter, 'employee_id': emp_filter})
 
 
 
@@ -6551,6 +6484,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
