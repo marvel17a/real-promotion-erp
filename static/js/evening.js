@@ -21,8 +21,8 @@ document.addEventListener("DOMContentLoaded", () => {
         },
         
         payment: {
-            totalAmt: getEl('totalAmount'),
-            dispTotal: getEl('totAmount'),
+            totalAmt: getEl('totalAmount'), // Hidden input
+            dispTotal: getEl('totAmount'),  // Footer display text
             discount: getEl('discount'),
             cash: getEl('cash'),
             online: getEl('online'),
@@ -37,27 +37,27 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     };
 
-    // Live Clock
+    // --- 2. LIVE CLOCK LOGIC ---
     function updateClock() {
         const now = new Date();
-        const timeString = now.toLocaleTimeString('en-US', { hour12: true });
+        const timeString = now.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute:'2-digit', second:'2-digit' });
         const clockEl = getEl('liveClock');
         if(clockEl) clockEl.textContent = timeString;
 
         if(ui.hidden.timestamp) {
-            const iso = now.getFullYear() + '-' + 
-                       String(now.getMonth()+1).padStart(2,'0') + '-' + 
-                       String(now.getDate()).padStart(2,'0') + ' ' + 
-                       String(now.getHours()).padStart(2,'0') + ':' + 
-                       String(now.getMinutes()).padStart(2,'0') + ':' + 
-                       String(now.getSeconds()).padStart(2,'0');
-            ui.hidden.timestamp.value = iso;
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            ui.hidden.timestamp.value = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
         }
     }
     setInterval(updateClock, 1000);
     updateClock();
 
-    // Fetch Logic
+    // --- 3. FETCH DATA LOGIC ---
     if(ui.fetchBtn) {
         ui.fetchBtn.addEventListener('click', async () => {
             const empId = ui.empSelect.value;
@@ -83,16 +83,17 @@ document.addEventListener("DOMContentLoaded", () => {
                 const data = await res.json();
 
                 if (data.status === 'success') {
+                    // RENDER TABLE
                     renderTable(data.products, data.source);
                     
-                    // Populate Hidden Fields
-                    if(ui.hidden.allocId) ui.hidden.allocId.value = (data.allocation_id !== null) ? data.allocation_id : '0';
+                    // SET HIDDEN VALUES
+                    if(ui.hidden.allocId) ui.hidden.allocId.value = data.allocation_id || '';
                     if(ui.hidden.hEmp) ui.hidden.hEmp.value = empId;
                     
                     const [d, m, y] = dateVal.split('-');
                     if(ui.hidden.hDate) ui.hidden.hDate.value = `${y}-${m}-${d}`;
 
-                    // Draft Data
+                    // DRAFT LOGIC
                     if (data.source === 'draft' && data.draft_data) {
                         populateDraft(data.draft_id, data.draft_data);
                     } else {
@@ -118,7 +119,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // Render Table (9 Columns)
+    // --- 4. RENDER TABLE (9 Columns) ---
     function renderTable(products, source) {
         ui.tableBody.innerHTML = "";
         
@@ -183,7 +184,7 @@ document.addEventListener("DOMContentLoaded", () => {
         calculateDue();
     }
 
-    // Calculations & Validation
+    // --- 5. CALCULATIONS & VALIDATION ---
     function calculateDue(e) {
         let grandTotal = 0;
         let sumTotal = 0;
@@ -211,11 +212,11 @@ document.addEventListener("DOMContentLoaded", () => {
             if (sold + ret > total) {
                 // Determine which input caused the error
                 if (e && e.target === soldInp) {
-                    alert(`Limit Exceeded! Max Sold: ${total - ret}`);
+                    // alert(`Limit Exceeded! Max Sold: ${total - ret}`);
                     sold = total - ret;
                     soldInp.value = sold;
                 } else if (e && e.target === retInp) {
-                    alert(`Limit Exceeded! Max Return: ${total - sold}`);
+                    // alert(`Limit Exceeded! Max Return: ${total - sold}`);
                     ret = total - sold;
                     retInp.value = ret;
                 } else {
@@ -260,6 +261,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const cash = parseFloat(ui.payment.cash.value) || 0;
 
         const totalPay = disc + online + cash;
+        
         const due = grandTotal - totalPay;
         
         if(ui.payment.due) {
@@ -351,6 +353,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if(ui.hidden.status) ui.hidden.status.value = 'final';
         
         const total = parseFloat(ui.payment.totalAmt.value) || 0;
+        // Removed 0 check to allow profit on 0 sales if needed, but usually good to keep warning
         if (total === 0 && !confirm("Total Sales is 0. Submit?")) return;
         
         if(confirm("CONFIRM SETTLEMENT?\n\n- Returns will add to stock.\n- Ledger will be updated.")) {
