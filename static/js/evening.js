@@ -18,31 +18,18 @@ document.addEventListener("DOMContentLoaded", () => {
             timestamp: getEl('timestampInput')
         },
         payment: {
-            totalAmt: getEl('totalAmount'),
-            dispTotal: getEl('totAmount'),
-            discount: getEl('discount'),
-            cash: getEl('cash'),
-            online: getEl('online'),
-            due: getEl('dueAmount')
+            totalAmt: getEl('totalAmount'), dispTotal: getEl('totAmount'),
+            discount: getEl('discount'), cash: getEl('cash'), online: getEl('online'), due: getEl('dueAmount')
         },
         footer: {
-            totalQty: getEl('totTotal'), soldQty: getEl('totSold'),
-            returnQty: getEl('totReturn'), remainQty: getEl('totRemain')
+            totalQty: getEl('totTotal'), soldQty: getEl('totSold'), returnQty: getEl('totReturn'), remainQty: getEl('totRemain')
         }
     };
 
     function updateClock() {
         const now = new Date();
         if(getEl('liveClock')) getEl('liveClock').textContent = now.toLocaleTimeString('en-US', { hour12: true });
-        
-        // Backend ISO format
-        const iso = now.getFullYear() + '-' + 
-                   String(now.getMonth()+1).padStart(2,'0') + '-' + 
-                   String(now.getDate()).padStart(2,'0') + ' ' + 
-                   String(now.getHours()).padStart(2,'0') + ':' + 
-                   String(now.getMinutes()).padStart(2,'0') + ':' + 
-                   String(now.getSeconds()).padStart(2,'0');
-        
+        const iso = now.toISOString().slice(0, 19).replace('T', ' ');
         if(ui.hidden.timestamp) ui.hidden.timestamp.value = iso;
     }
     setInterval(updateClock, 1000);
@@ -64,12 +51,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 fd.append('date', dateVal);
 
                 const res = await fetch('/api/fetch_evening_data', { method: 'POST', body: fd });
-                
-                // Safety: Get text first to debug 500 errors
                 const text = await res.text();
                 let data;
-                try { data = JSON.parse(text); } 
-                catch(e) { throw new Error("Server returned Invalid JSON (Check Server Logs)"); }
+                try { data = JSON.parse(text); } catch(e) { throw new Error("Server Error (Invalid JSON). Check logs."); }
 
                 if (data.status === 'success') {
                     renderTable(data.products, data.source);
@@ -100,7 +84,7 @@ document.addEventListener("DOMContentLoaded", () => {
     function renderTable(products, source) {
         ui.tableBody.innerHTML = "";
         let badge = source === 'draft' ? 'Draft' : (source === 'previous_leftover' ? 'Previous Leftover' : 'Morning Allocation (Aggregated)');
-        getEl('fetchMsg').innerHTML = `<span class="badge bg-info text-dark">${badge}</span>`;
+        if(getEl('fetchMsg')) getEl('fetchMsg').innerHTML = `<span class="badge bg-info text-dark mb-2">${badge}</span>`;
 
         if(!products || !products.length) { ui.tableBody.innerHTML = '<tr><td colspan="9" class="text-center">No Stock Found</td></tr>'; return; }
 
@@ -108,7 +92,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const row = document.createElement('tr');
             row.innerHTML = `
                 <td class="text-center">${i+1}</td>
-                <td><img src="${p.image}" width="40"></td>
+                <td><img src="${p.image}" width="40" class="rounded"></td>
                 <td>${p.name}<input type="hidden" name="product_id[]" value="${p.product_id}"></td>
                 <td><input type="text" name="total_qty[]" class="form-control-plaintext text-center fw-bold total-qty" value="${p.total_qty}" readonly></td>
                 <td><input type="number" name="sold[]" class="form-control text-center sold-input" value="${p.sold_qty || ''}" placeholder="0"></td>
@@ -132,12 +116,7 @@ document.addEventListener("DOMContentLoaded", () => {
             let ret = parseInt(retInp.value) || 0;
             const price = parseFloat(row.querySelector('.price-val').value) || 0;
 
-            if (sold + ret > tot) {
-                soldInp.style.borderColor = 'red';
-                // Logic to reset or warn
-            } else {
-                soldInp.style.borderColor = '';
-            }
+            if (sold + ret > tot) { soldInp.style.borderColor = 'red'; } else { soldInp.style.borderColor = ''; }
 
             const rem = tot - sold - ret;
             row.querySelector('.remaining-qty').textContent = rem;
@@ -150,7 +129,6 @@ document.addEventListener("DOMContentLoaded", () => {
         ui.payment.totalAmt.value = gTotal.toFixed(2);
         ui.payment.dispTotal.textContent = gTotal.toFixed(2);
         
-        // Footers
         if(ui.footer.totalQty) ui.footer.totalQty.textContent = tQty;
         if(ui.footer.soldQty) ui.footer.soldQty.textContent = tSold;
         if(ui.footer.returnQty) ui.footer.returnQty.textContent = tRet;
@@ -159,21 +137,18 @@ document.addEventListener("DOMContentLoaded", () => {
         const disc = parseFloat(ui.payment.discount.value) || 0;
         const online = parseFloat(ui.payment.online.value) || 0;
         const cash = parseFloat(ui.payment.cash.value) || 0;
-        ui.payment.due.textContent = (gTotal - (disc + online + cash)).toFixed(2);
+        if(ui.payment.due) ui.payment.due.textContent = (gTotal - (disc + online + cash)).toFixed(2);
     }
 
-    // Events
     ui.tableBody.addEventListener('input', e => { if(e.target.matches('.sold-input, .return-input')) calculateDue(); });
     [ui.payment.discount, ui.payment.online, ui.payment.cash].forEach(el => el.addEventListener('input', calculateDue));
 
-    // Helpers
     function populateDraft(id, d) {
         ui.hidden.draftId.value = id;
         ui.payment.discount.value = d.discount || '';
         ui.payment.online.value = d.online_money || '';
         ui.payment.cash.value = d.cash_money || '';
-        document.querySelector('[name="emp_credit_amount"]').value = d.emp_credit_amount || '';
-        // ... (fill other ledger fields)
+        // Add ledger fields if needed
     }
     function resetDraft() {
         ui.hidden.draftId.value = '';
@@ -183,5 +158,5 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     window.saveDraft = function() { ui.hidden.status.value = 'draft'; ui.form.submit(); };
-    window.submitFinal = function() { ui.hidden.status.value = 'final'; if(confirm("Submit Final?")) ui.form.submit(); };
+    window.submitFinal = function() { ui.hidden.status.value = 'final'; if(confirm("Confirm Final Submit?")) ui.form.submit(); };
 });
