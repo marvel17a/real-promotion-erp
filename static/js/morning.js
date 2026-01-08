@@ -95,9 +95,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 
                 // Show "Already Given Today" in History Box
                 if(data.existing_items && data.existing_items.length > 0) {
-                    let html = `<div class="card border-warning mb-3 shadow-sm"><div class="card-header bg-warning bg-opacity-10 text-dark fw-bold small">ALREADY GIVEN TODAY</div><div class="card-body p-2 d-flex flex-wrap gap-2">`;
+                    let html = `<div class="card border-warning mb-3 shadow-sm"><div class="card-header bg-warning bg-opacity-10 text-dark fw-bold small">TOTAL STOCK WITH EMPLOYEE (Aggregated)</div><div class="card-body p-2 d-flex flex-wrap gap-2">`;
                     data.existing_items.forEach(item => {
-                        html += `<div class="d-flex align-items-center border rounded p-1 pe-3 bg-white" style="min-width:160px;"><img src="${item.image}" class="rounded me-2" width="40" height="40" style="object-fit:cover;"><div><div class="small fw-bold text-dark lh-1">${item.name}</div><div class="badge bg-secondary ms-auto">Added: ${item.qty}</div></div></div>`;
+                        html += `<div class="d-flex align-items-center border rounded p-1 pe-3 bg-white" style="min-width:160px;"><img src="${item.image}" class="rounded me-2" width="40" height="40" style="object-fit:cover;"><div><div class="small fw-bold text-dark lh-1">${item.name}</div><div class="badge bg-secondary ms-auto">Total: ${item.qty}</div></div></div>`;
                     });
                     html += `</div></div>`;
                     ui.historyList.innerHTML = html;
@@ -107,21 +107,15 @@ document.addEventListener("DOMContentLoaded", () => {
                 ui.fetchMsg.innerHTML = '<span class="text-success small fw-bold">Ready for Allocation</span>';
             }
 
-            // --- POPULATE TABLE (For BOTH Modes) ---
-            // Fix: Populate "Opening" rows even in Restock mode
-            // This is the CRITICAL FIX: We use opening_stock from backend which contains yesterday's leftover
+            // --- POPULATE TABLE (Always fill Opening) ---
             if (data.opening_stock && data.opening_stock.length > 0) {
                 data.opening_stock.forEach(item => createRow(item));
             } else {
-                // If no opening stock, just add an empty row for new input
                 createRow();
             }
             
-            // In Restock mode, user might want to add NEW items, so ensure at least one empty row exists if table is empty
-            // OR if opening stock rows were added (which are read-only for product selection usually), add a new row for input
-            // But usually in restock, we want to see opening, but add MORE to given. 
-            // The existing rows allow editing 'Given', so that's fine.
-            // If user wants to add a NEW product not in opening stock, they can click "Add Item".
+            // In Restock mode, ensure at least one empty row for new input
+            if(isRestockMode && ui.tableBody.children.length === 0) createRow();
 
             recalculateTotals();
 
@@ -160,14 +154,7 @@ document.addEventListener("DOMContentLoaded", () => {
             <td class="text-center"><button type="button" class="btn btn-sm text-danger btn-remove-row"><i class="fa-solid fa-trash-can fa-lg"></i></button></td>
         `;
         ui.tableBody.appendChild(tr);
-        
-        // Set dropdown value if data exists
-        if(pid) {
-            const sel = tr.querySelector('.product-dropdown');
-            sel.value = pid;
-            // Note: We don't trigger 'change' event here to avoid overwriting the 'opening' value
-            // But we might need to if image isn't set. The prefillData handles image/price.
-        }
+        if(pid) tr.querySelector('.product-dropdown').value = pid;
         
         updateRowIndexes();
         if(prefillData) recalculateRow(tr);
@@ -220,9 +207,7 @@ document.addEventListener("DOMContentLoaded", () => {
     function recalculateTotals() {
         let tOpen = 0, tGiv = 0, tTot = 0, tAmt = 0;
         ui.tableBody.querySelectorAll("tr").forEach(row => {
-            // Check if row is valid (not deleted)
             if(!row.querySelector(".opening")) return;
-            
             tOpen += parseInt(row.querySelector(".opening").value)||0;
             tGiv += parseInt(row.querySelector(".given").value)||0;
             tTot += parseInt(row.querySelector(".total").value)||0;
