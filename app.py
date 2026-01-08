@@ -4279,8 +4279,7 @@ def api_fetch_stock():
             all_ids = tuple([row['id'] for row in today_allocs])
             format_strings = ','.join(['%s'] * len(all_ids))
             
-            # Aggregate ALL stock (Opening + All Given Today) for the History Box
-            # First, get today's total given
+            # Sum of ALL 'given_qty' for today
             cur.execute(f"""
                 SELECT mai.product_id, SUM(mai.given_qty) as total_given, p.name, p.image
                 FROM morning_allocation_items mai
@@ -4290,23 +4289,34 @@ def api_fetch_stock():
             """, all_ids)
             
             raw_given = cur.fetchall()
-            combined_map = {}
-
-            # Add Opening to Combined Map
-            for pid, data in opening_stock_map.items():
-                combined_map[pid] = {
-                    'product_id': pid, 'name': data['name'], 'image': data['image'], 
-                    'qty': data['remaining'] # Start with opening
-                }
-
-            # Add Today's Given to Combined Map
+            
+            # For the History Box: Show Opening + Given Today
             for r in raw_given:
                 pid = str(r['product_id'])
-                if pid not in combined_map:
-                    combined_map[pid] = {'product_id': pid, 'name': r['name'], 'image': resolve_img(r['image']), 'qty': 0}
-                combined_map[pid]['qty'] += int(r['total_given'])
+                qty = int(r['total_given'])
+                
+                # Add opening if present
+                if pid in opening_stock_map:
+                    qty += opening_stock_map[pid]['remaining']
+                
+                existing_items.append({
+                    'product_id': pid,
+                    'name': r['name'],
+                    'image': resolve_img(r['image']),
+                    'qty': qty 
+                })
             
-            existing_items = list(combined_map.values())
+            # Also add items that were in opening but not given today (for complete picture)
+            for pid, data in opening_stock_map.items():
+                found = False
+                for item in existing_items:
+                    if item['product_id'] == pid:
+                        found = True
+                        break
+                if not found:
+                    existing_items.append({
+                        'product_id': pid, 'name': data['name'], 'image': data['image'], 'qty': data['remaining']
+                    })
 
         # Convert opening map to list for "Normal" mode table population
         opening_stock_list = list(opening_stock_map.values())
@@ -4432,6 +4442,16 @@ def fetch_evening_data():
     finally:
         if 'cur' in locals(): cur.close()
 
+def clean_products(items):
+    res = []
+    for i in items:
+        res.append({
+            'product_id': i['product_id'], 'name': i['name'], 'image': resolve_img(i['image']),
+            'unit_price': float(i['unit_price']), 'total_qty': int(i.get('total_qty') or i.get('remaining_qty') or 0),
+            'sold_qty': int(i.get('sold_qty', 0)), 'return_qty': int(i.get('return_qty', 0))
+        })
+    return res
+
 
 # ==========================================
 # 3. ROUTE: MORNING SUBMIT (Robust Logic)
@@ -4550,7 +4570,7 @@ def evening():
                 cursor.execute("SELECT id, date FROM evening_settle WHERE allocation_id = %s", (alloc_id,))
                 link = cursor.fetchone()
                 if link and str(link['date']) != str(date_val):
-                    final_alloc_id = None
+                    final_alloc_id = None 
                 else:
                     final_alloc_id = alloc_id
 
@@ -4689,7 +4709,6 @@ def allocation_list():
     employees = cursor.fetchall()
 
     return render_template('allocation_list.html', allocations=allocations, employees=employees, filters={'date': date_filter, 'employee_id': emp_filter})
-
 
 
 # --- NEW ROUTE: DRAFT LIST PAGE ---
@@ -6477,6 +6496,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
