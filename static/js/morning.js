@@ -32,181 +32,199 @@ document.addEventListener("DOMContentLoaded", () => {
             productOptionsHtml += `<option value="${p.id}" data-stock="${p.stock}">${p.name}</option>`;
         });
     }
+    
+    const DEFAULT_IMG = "https://via.placeholder.com/50?text=Img";
 
-    // --- LIVE CLOCK ---
-    setInterval(() => {
+    // 1. Digital Clock
+    function updateClock() {
         const now = new Date();
-        if(ui.clockDisplay) ui.clockDisplay.textContent = now.toLocaleTimeString();
-        if(ui.timestampInput) {
-            const pad = n => String(n).padStart(2, '0');
-            ui.timestampInput.value = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
-        }
-    }, 1000);
+        if(ui.clockDisplay) ui.clockDisplay.textContent = now.toLocaleTimeString('en-US', { hour12: true });
+        
+        const iso = now.getFullYear() + '-' + 
+                   String(now.getMonth()+1).padStart(2,'0') + '-' + 
+                   String(now.getDate()).padStart(2,'0') + ' ' + 
+                   String(now.getHours()).padStart(2,'0') + ':' + 
+                   String(now.getMinutes()).padStart(2,'0') + ':' + 
+                   String(now.getSeconds()).padStart(2,'0');
+        
+        if(ui.timestampInput) ui.timestampInput.value = iso;
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
 
-    // --- FETCH DATA ---
+    // 2. Fetch Data
     async function fetchStockData() {
         const empId = ui.employeeSelect.value;
         const dateVal = ui.dateInput.value;
-        if(!empId || !dateVal) return;
 
-        ui.fetchMsg.innerHTML = '<span class="text-info"><i class="fa-solid fa-spinner fa-spin"></i> Checking stock...</span>';
-        
+        if (!empId || !dateVal) return;
+
+        ui.fetchMsg.innerHTML = '<span class="text-primary fw-bold"><i class="fas fa-spinner fa-spin"></i> Checking stock...</span>';
+        if(ui.historyList) ui.historyList.innerHTML = '';
+        ui.tableBody.innerHTML = '';
+
+        const saveBtn = document.querySelector('.btn-save');
+        if(ui.addRowBtn) ui.addRowBtn.style.display = 'none';
+        if(saveBtn) saveBtn.style.display = 'none';
+
         try {
+            // Using FormData for robust POST request (matches backend expectation)
             const formData = new FormData();
-            formData.append("employee_id", empId);
-            formData.append("date", dateVal);
+            formData.append('employee_id', empId);
+            formData.append('date', dateVal);
 
-            const res = await fetch("/api/fetch_stock", { method: "POST", body: formData });
-            // Handle HTTP errors
-            if (!res.ok) throw new Error(`Server returned ${res.status}`);
-            
-            const data = await res.json();
+            const response = await fetch('/api/fetch_stock', { method: 'POST', body: formData });
+            const data = await response.json();
 
+            // Check Error (Connection Failed or DB Error)
             if (data.error) {
-                // Show the specific error from backend
-                ui.fetchMsg.innerHTML = `<span class="text-danger"><i class="fa-solid fa-triangle-exclamation"></i> ${data.error}</span>`;
+                ui.fetchMsg.innerHTML = `<span class="text-danger small">${data.error}</span>`;
+                // Allow user to add row anyway in case it's a new day and just no data
+                createRow(); 
+                if(ui.addRowBtn) ui.addRowBtn.style.display = 'block';
+                if(saveBtn) saveBtn.style.display = 'block';
                 return;
             }
 
+            // Check Lock
             if (data.evening_settled) {
-                ui.fetchMsg.innerHTML = '<span class="text-danger fw-bold">Evening Settlement Done for this date. Locked.</span>';
-                ui.addRowBtn.disabled = true;
-                ui.tableBody.innerHTML = "";
+                ui.fetchMsg.innerHTML = '<div class="alert alert-warning py-2 shadow-sm"><i class="fa-solid fa-lock me-2"></i>Evening Settlement Complete.</div>';
                 return;
-            } else {
-                ui.addRowBtn.disabled = false;
             }
 
-            ui.tableBody.innerHTML = "";
+            // Unlock
+            if(ui.addRowBtn) ui.addRowBtn.style.display = 'block';
+            if(saveBtn) saveBtn.style.display = 'block';
+
+            // Determine Mode
             isRestockMode = (data.mode === 'restock');
 
+            // --- RESTOCK MODE ---
             if (isRestockMode) {
-                ui.fetchMsg.innerHTML = '<span class="badge bg-warning text-dark"><i class="fa-solid fa-rotate"></i> Restock Mode (Aggregated)</span>';
+                ui.fetchMsg.innerHTML = '<span class="badge bg-warning text-dark mb-2">Restock Mode Active</span>';
                 
-                // Show Allocation History (Existing Items)
-                if (data.existing_items && data.existing_items.length > 0) {
-                    renderHistory(data.existing_items);
-                } else {
-                    if(ui.historyList) ui.historyList.innerHTML = '<div class="text-muted small">No items given yet today.</div>';
+                // Show "Already Given Today" (Aggregated from Backend)
+                if(data.existing_items && data.existing_items.length > 0) {
+                    let html = `<div class="card border-warning mb-3 shadow-sm"><div class="card-header bg-warning bg-opacity-10 text-dark fw-bold small">ALREADY GIVEN TODAY (Aggregated)</div><div class="card-body p-2 d-flex flex-wrap gap-2">`;
+                    data.existing_items.forEach(item => {
+                        html += `<div class="d-flex align-items-center border rounded p-1 pe-3 bg-white" style="min-width:160px;"><img src="${item.image}" class="rounded me-2" width="40" height="40" style="object-fit:cover;"><div><div class="small fw-bold text-dark lh-1">${item.name}</div><div class="badge bg-secondary ms-auto">Total: ${item.qty}</div></div></div>`;
+                    });
+                    html += `</div></div>`;
+                    ui.historyList.innerHTML = html;
                 }
-                
-                // Add empty row for new allocation
-                createRow(); 
-
             } else {
-                ui.fetchMsg.innerHTML = '<span class="badge bg-success"><i class="fa-solid fa-sun"></i> Fresh Morning Allocation</span>';
-                if(ui.historyList) ui.historyList.innerHTML = "";
-
-                // Populate opening stock (Yesterday's Leftover)
-                if (data.opening_stock && data.opening_stock.length > 0) {
-                    data.opening_stock.forEach(item => createRow(item));
-                } else {
-                    createRow();
-                }
+                // Normal Mode
+                ui.fetchMsg.innerHTML = '<span class="text-success small fw-bold">Ready for Allocation</span>';
             }
+
+            // --- POPULATE TABLE ---
+            // We use the opening_stock list which is now correctly sent by backend for both modes
+            if (data.opening_stock && data.opening_stock.length > 0) {
+                data.opening_stock.forEach(item => createRow(item));
+            } else {
+                createRow();
+            }
+            
             recalculateTotals();
 
-        } catch (err) {
-            console.error(err);
-            ui.fetchMsg.innerHTML = `<span class="text-danger">Connection Failed: ${err.message}</span>`;
+        } catch (error) {
+            console.error(error);
+            ui.fetchMsg.innerHTML = '<span class="text-danger small">Connection Failed</span>';
+            if(ui.addRowBtn) ui.addRowBtn.style.display = 'block';
+            createRow();
         }
     }
 
-    function renderHistory(items) {
-        if(!ui.historyList) return;
-        let html = '<div class="d-flex flex-wrap gap-2">';
-        items.forEach(item => {
-            html += `
-            <div class="border rounded px-2 py-1 bg-light shadow-sm d-flex align-items-center gap-2">
-                <img src="${item.image}" width="30" height="30" class="rounded">
-                <div>
-                    <div class="fw-bold small lh-1">${item.name}</div>
-                    <div class="text-primary small fw-bold">Qty: ${item.qty}</div>
-                </div>
-            </div>`;
-        });
-        html += '</div>';
-        ui.historyList.innerHTML = html;
-    }
-
-    function createRow(data = null) {
+    // 3. Create Row Helper
+    function createRow(prefillData = null) {
         const tr = document.createElement("tr");
-        tr.className = "fade-in";
-        
-        const productId = data ? data.product_id : "";
-        const openingVal = data ? data.remaining : 0;
-        // In restock mode, opening is 0 for new rows. In normal mode, it's leftover.
-        // But if data is provided (normal mode), we lock opening.
-        const openingReadonly = data ? "readonly" : ""; 
+        let pid = "", open = 0, price = 0, img = DEFAULT_IMG;
 
-        // Build options ensuring selected value
-        let options = productOptionsHtml.replace(`value="${productId}"`, `value="${productId}" selected`);
+        if(prefillData) {
+            pid = prefillData.product_id;
+            open = prefillData.remaining;
+            price = prefillData.price;
+            if(prefillData.image) img = prefillData.image;
+        }
 
         tr.innerHTML = `
-            <td class="text-center fw-bold text-muted row-index"></td>
+            <td class="text-center text-muted fw-bold row-index"></td>
+            <td class="text-center"><div class="prod-img-box"><img src="${img}" class="product-thumb" onerror="this.src='${DEFAULT_IMG}'"></div></td>
             <td>
-                <select name="product_id[]" class="form-select product-dropdown">
-                    ${options}
-                </select>
+                <select name="product_id[]" class="form-select product-dropdown" required>${productOptionsHtml}</select>
+                <div class="small text-danger fw-bold mt-1 stock-warning" style="display:none;"></div>
             </td>
-            <td>
-                <div class="input-group input-group-sm">
-                    <span class="input-group-text border-0 bg-transparent">₹</span>
-                    <input type="number" name="price[]" class="form-control-plaintext price" readonly value="${data ? data.price : 0}">
-                </div>
-            </td>
-            <td>
-                <input type="number" name="opening[]" class="form-control form-control-sm text-center opening" 
-                       value="${openingVal}" ${openingReadonly} min="0">
-            </td>
-            <td>
-                <input type="number" name="given[]" class="form-control form-control-sm text-center given" value="0" min="0">
-            </td>
-            <td class="text-center fw-bold text-primary total-qty">
-                ${openingVal}
-            </td>
-            <td class="text-center">
-                <button type="button" class="btn btn-link text-danger p-0 btn-remove-row"><i class="fa-solid fa-trash-can"></i></button>
-            </td>
+            <td><input type="number" name="opening[]" class="table-input opening" value="${open}" readonly tabindex="-1"></td>
+            <td><input type="number" name="given[]" class="table-input given input-qty" min="0" placeholder="0" required></td>
+            <td><input type="number" name="total[]" class="table-input total" value="${open}" readonly tabindex="-1"></td>
+            <td><input type="number" name="price[]" class="table-input price text-end" value="${price.toFixed(2)}" readonly tabindex="-1"></td>
+            <td><input type="number" name="amount[]" class="table-input amount text-end fw-bold text-primary" value="0.00" readonly tabindex="-1"></td>
+            <td class="text-center"><button type="button" class="btn btn-sm text-danger btn-remove-row"><i class="fa-solid fa-trash-can fa-lg"></i></button></td>
         `;
         ui.tableBody.appendChild(tr);
+        if(pid) tr.querySelector('.product-dropdown').value = pid;
+        
         updateRowIndexes();
+        if(prefillData) recalculateRow(tr);
     }
 
-    function updateRowData(tr, productId) {
-        const prod = productsMap.get(productId);
-        const priceInput = tr.querySelector(".price");
-        if (prod) {
-            priceInput.value = prod.price;
+    // 4. Calculations
+    function updateRowData(row, pid) {
+        const priceInput = row.querySelector(".price");
+        const img = row.querySelector(".product-thumb");
+        const prod = productsMap.get(pid);
+        
+        if(prod) {
+            priceInput.value = parseFloat(prod.price).toFixed(2);
+            img.src = prod.image || DEFAULT_IMG;
         } else {
-            priceInput.value = 0;
+            priceInput.value = "0.00";
+            img.src = DEFAULT_IMG;
         }
+        recalculateRow(row);
     }
 
-    function recalculateRow(tr) {
-        const op = parseInt(tr.querySelector(".opening").value) || 0;
-        const giv = parseInt(tr.querySelector(".given").value) || 0;
-        const total = op + giv;
-        tr.querySelector(".total-qty").textContent = total;
+    function recalculateRow(row) {
+        const op = parseInt(row.querySelector(".opening").value) || 0;
+        const givInput = row.querySelector(".given");
+        let giv = parseInt(givInput.value) || 0;
+        const pr = parseFloat(row.querySelector(".price").value) || 0;
+        const pid = row.querySelector(".product-dropdown").value;
+        const warn = row.querySelector(".stock-warning");
+
+        if(pid) {
+            const p = productsMap.get(pid);
+            const max = p ? p.stock : 9999;
+            if(giv > max) {
+                giv = max; givInput.value = max;
+                warn.innerHTML = `<i class="fa-solid fa-triangle-exclamation me-1"></i>Only ${max} left`;
+                warn.style.display = 'block';
+                givInput.style.borderColor = 'red';
+            } else { 
+                warn.style.display = 'none'; 
+                givInput.style.borderColor = '';
+            }
+        }
+
+        const tot = op + giv;
+        row.querySelector(".total").value = tot;
+        row.querySelector(".amount").value = (tot * pr).toFixed(2);
         recalculateTotals();
     }
 
     function recalculateTotals() {
-        let tOp = 0, tGiv = 0, tAll = 0, tAmt = 0;
-        ui.tableBody.querySelectorAll("tr").forEach(tr => {
-            const op = parseInt(tr.querySelector(".opening").value) || 0;
-            const giv = parseInt(tr.querySelector(".given").value) || 0;
-            const pr = parseFloat(tr.querySelector(".price").value) || 0;
+        let tOpen = 0, tGiv = 0, tTot = 0, tAmt = 0;
+        ui.tableBody.querySelectorAll("tr").forEach(row => {
+            if(!row.querySelector(".opening")) return;
             
-            tOp += op;
-            tGiv += giv;
-            tAll += (op + giv);
-            tAmt += (giv * pr); // Only charge for Given, typically? Or Opening too? Usually Morning form calc value of Given.
+            tOpen += parseInt(row.querySelector(".opening").value)||0;
+            tGiv += parseInt(row.querySelector(".given").value)||0;
+            tTot += parseInt(row.querySelector(".total").value)||0;
+            tAmt += parseFloat(row.querySelector(".amount").value)||0;
         });
-
-        ui.totals.opening.textContent = tOp;
+        ui.totals.opening.textContent = tOpen;
         ui.totals.given.textContent = tGiv;
-        ui.totals.all.textContent = tAll;
+        ui.totals.all.textContent = tTot;
         ui.totals.grand.textContent = tAmt.toFixed(2);
     }
 
@@ -232,8 +250,17 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     ui.tableBody.addEventListener("input", e => {
-        if(e.target.matches(".given") || e.target.matches(".opening")) {
+        if(e.target.matches(".given")) {
             recalculateRow(e.target.closest("tr"));
+        }
+    });
+
+    document.addEventListener("keydown", function (e) {
+        if (e.key === "Enter" && e.target.tagName !== "BUTTON") {
+            e.preventDefault();
+            const inputs = Array.from(document.querySelectorAll("input:not([readonly]), select"));
+            const index = inputs.indexOf(e.target);
+            if (index > -1 && index < inputs.length - 1) inputs[index + 1].focus();
         }
     });
 });
