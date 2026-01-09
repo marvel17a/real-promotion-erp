@@ -23,7 +23,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const productsData = window.productsData || [];
     let productOptionsHtml = '<option value="">-- Select --</option>';
     
-    // Product Map for quick access
     const productsMap = new Map();
     if (Array.isArray(productsData)) {
         productsData.forEach(p => {
@@ -68,23 +67,12 @@ document.addEventListener("DOMContentLoaded", () => {
         if(saveBtn) saveBtn.style.display = 'none';
 
         try {
-            // Using FormData for robust POST request (matches backend expectation)
             const formData = new FormData();
-            formData.append('employee_id', empId);
-            formData.append('date', dateVal);
+            formData.append("employee_id", empId);
+            formData.append("date", dateVal);
 
-            const response = await fetch('/api/fetch_stock', { method: 'POST', body: formData });
+            const response = await fetch("/api/fetch_stock", { method: "POST", body: formData });
             const data = await response.json();
-
-            // Check Error (Connection Failed or DB Error)
-            if (data.error) {
-                ui.fetchMsg.innerHTML = `<span class="text-danger small">${data.error}</span>`;
-                // Allow user to add row anyway in case it's a new day and just no data
-                createRow(); 
-                if(ui.addRowBtn) ui.addRowBtn.style.display = 'block';
-                if(saveBtn) saveBtn.style.display = 'block';
-                return;
-            }
 
             // Check Lock
             if (data.evening_settled) {
@@ -96,35 +84,44 @@ document.addEventListener("DOMContentLoaded", () => {
             if(ui.addRowBtn) ui.addRowBtn.style.display = 'block';
             if(saveBtn) saveBtn.style.display = 'block';
 
-            // Determine Mode
+            if (data.error) {
+                ui.fetchMsg.innerHTML = `<span class="text-danger small">${data.error}</span>`;
+                createRow(); return;
+            }
+
             isRestockMode = (data.mode === 'restock');
 
-            // --- RESTOCK MODE ---
+            // --- RESTOCK MODE DISPLAY ---
             if (isRestockMode) {
-                ui.fetchMsg.innerHTML = '<span class="badge bg-warning text-dark mb-2">Restock Mode Active</span>';
+                ui.fetchMsg.innerHTML = '<span class="badge bg-warning text-dark mb-2">Restock Mode (Aggregated)</span>';
                 
-                // Show "Already Given Today" (Aggregated from Backend)
+                // Show History (Allocations done so far today)
                 if(data.existing_items && data.existing_items.length > 0) {
-                    let html = `<div class="card border-warning mb-3 shadow-sm"><div class="card-header bg-warning bg-opacity-10 text-dark fw-bold small">ALREADY GIVEN TODAY (Aggregated)</div><div class="card-body p-2 d-flex flex-wrap gap-2">`;
+                    let html = `<div class="card border-warning mb-3 shadow-sm"><div class="card-header bg-warning bg-opacity-10 text-dark fw-bold small">ALREADY GIVEN TODAY</div><div class="card-body p-2 d-flex flex-wrap gap-2">`;
                     data.existing_items.forEach(item => {
-                        html += `<div class="d-flex align-items-center border rounded p-1 pe-3 bg-white" style="min-width:160px;"><img src="${item.image}" class="rounded me-2" width="40" height="40" style="object-fit:cover;"><div><div class="small fw-bold text-dark lh-1">${item.name}</div><div class="badge bg-secondary ms-auto">Total: ${item.qty}</div></div></div>`;
+                        html += `<div class="d-flex align-items-center border rounded p-1 pe-3 bg-white" style="min-width:160px;"><img src="${item.image}" class="rounded me-2" width="40" height="40" style="object-fit:cover;"><div><div class="small fw-bold text-dark lh-1">${item.name}</div><div class="badge bg-secondary ms-auto">Given: ${item.qty}</div></div></div>`;
                     });
                     html += `</div></div>`;
                     ui.historyList.innerHTML = html;
                 }
             } else {
-                // Normal Mode
-                ui.fetchMsg.innerHTML = '<span class="text-success small fw-bold">Ready for Allocation</span>';
+                ui.fetchMsg.innerHTML = '<span class="text-success small fw-bold">Fresh Allocation</span>';
             }
 
-            // --- POPULATE TABLE ---
-            // We use the opening_stock list which is now correctly sent by backend for both modes
+            // --- POPULATE TABLE (With Aggregated Opening) ---
+            // 'data.opening_stock' now contains [Yesterday Left + Today's Given So Far]
+            // This satisfies the requirement: "opening me bhi dikhna chahiye"
             if (data.opening_stock && data.opening_stock.length > 0) {
                 data.opening_stock.forEach(item => createRow(item));
             } else {
                 createRow();
             }
             
+            // Add extra empty row in restock mode for convenience
+            if (isRestockMode && (!data.opening_stock || data.opening_stock.length === 0)) {
+               createRow();
+            }
+
             recalculateTotals();
 
         } catch (error) {
@@ -142,27 +139,33 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if(prefillData) {
             pid = prefillData.product_id;
-            open = prefillData.remaining;
+            open = prefillData.remaining; // This comes from backend as (LastLeft + TodayGiven)
             price = prefillData.price;
             if(prefillData.image) img = prefillData.image;
+        }
+
+        // Dropdown selection logic
+        let options = productOptionsHtml;
+        if(pid) {
+            // Select the item
+            options = options.replace(`value="${pid}"`, `value="${pid}" selected`);
         }
 
         tr.innerHTML = `
             <td class="text-center text-muted fw-bold row-index"></td>
             <td class="text-center"><div class="prod-img-box"><img src="${img}" class="product-thumb" onerror="this.src='${DEFAULT_IMG}'"></div></td>
             <td>
-                <select name="product_id[]" class="form-select product-dropdown" required>${productOptionsHtml}</select>
+                <select name="product_id[]" class="form-select product-dropdown" required>${options}</select>
                 <div class="small text-danger fw-bold mt-1 stock-warning" style="display:none;"></div>
             </td>
             <td><input type="number" name="opening[]" class="table-input opening" value="${open}" readonly tabindex="-1"></td>
-            <td><input type="number" name="given[]" class="table-input given input-qty" min="0" placeholder="0" required></td>
+            <td><input type="number" name="given[]" class="table-input given input-qty" min="0" placeholder="0" required value="0"></td>
             <td><input type="number" name="total[]" class="table-input total" value="${open}" readonly tabindex="-1"></td>
             <td><input type="number" name="price[]" class="table-input price text-end" value="${price.toFixed(2)}" readonly tabindex="-1"></td>
             <td><input type="number" name="amount[]" class="table-input amount text-end fw-bold text-primary" value="0.00" readonly tabindex="-1"></td>
             <td class="text-center"><button type="button" class="btn btn-sm text-danger btn-remove-row"><i class="fa-solid fa-trash-can fa-lg"></i></button></td>
         `;
         ui.tableBody.appendChild(tr);
-        if(pid) tr.querySelector('.product-dropdown').value = pid;
         
         updateRowIndexes();
         if(prefillData) recalculateRow(tr);
@@ -196,8 +199,8 @@ document.addEventListener("DOMContentLoaded", () => {
             const p = productsMap.get(pid);
             const max = p ? p.stock : 9999;
             if(giv > max) {
-                giv = max; givInput.value = max;
-                warn.innerHTML = `<i class="fa-solid fa-triangle-exclamation me-1"></i>Only ${max} left`;
+                // Warning only
+                warn.innerHTML = `<i class="fa-solid fa-triangle-exclamation me-1"></i>Only ${max} in warehouse`;
                 warn.style.display = 'block';
                 givInput.style.borderColor = 'red';
             } else { 
@@ -206,9 +209,13 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         }
 
-        const tot = op + giv;
+        const tot = op + giv; // Visual Total = Aggregated Opening + New Given
         row.querySelector(".total").value = tot;
-        row.querySelector(".amount").value = (tot * pr).toFixed(2);
+        // Amount calculation: usually charged on Given Qty only? 
+        // Or Total? In allocation context, 'Amount' is usually value of goods handed over.
+        // Assuming we track value of *Given* items for this specific transaction.
+        row.querySelector(".amount").value = (giv * pr).toFixed(2);
+        
         recalculateTotals();
     }
 
