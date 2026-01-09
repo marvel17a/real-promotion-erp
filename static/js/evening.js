@@ -210,17 +210,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
             // Strict Validation: Sold + Return <= Total
             if (sold + ret > total) {
-                // Determine which input caused the error
                 if (e && e.target === soldInp) {
-                    // alert(`Limit Exceeded! Max Sold: ${total - ret}`);
                     sold = total - ret;
                     soldInp.value = sold;
                 } else if (e && e.target === retInp) {
-                    // alert(`Limit Exceeded! Max Return: ${total - sold}`);
                     ret = total - sold;
                     retInp.value = ret;
                 } else {
-                    // Fallback reset
                     soldInp.classList.add('is-invalid');
                     retInp.classList.add('is-invalid');
                 }
@@ -261,43 +257,41 @@ document.addEventListener("DOMContentLoaded", () => {
         const cash = parseFloat(ui.payment.cash.value) || 0;
 
         const totalPay = disc + online + cash;
-        
         const due = grandTotal - totalPay;
         
         if(ui.payment.due) {
             ui.payment.due.textContent = due.toFixed(2);
             
-            // Due Amount Coloring Logic
+            // Due Amount Coloring & Status Message Logic
             const dueEl = ui.payment.due;
-            const balanceBox = document.querySelector('.balance-box'); 
-            
-            let profitInfoEl = document.getElementById('profitInfo');
-            if(!profitInfoEl) {
-                profitInfoEl = document.createElement('div');
-                profitInfoEl.id = 'profitInfo';
-                profitInfoEl.className = 'text-center small fw-bold mb-1';
-                profitInfoEl.style.fontSize = '0.8rem';
-                if(balanceBox) balanceBox.insertBefore(profitInfoEl, balanceBox.firstChild);
-            }
+            const msgEl = getEl('paymentStatusMsg'); // New Message Container
 
             if (due > 0) {
                 // Pending (Red)
-                dueEl.style.color = '#dc3545';
-                profitInfoEl.textContent = "Pending from Employee";
-                profitInfoEl.style.color = '#dc3545';
+                dueEl.style.color = '#dc3545'; // Red
+                if(msgEl) {
+                    msgEl.textContent = `Pending from Employee: ₹${due.toFixed(2)}`;
+                    msgEl.className = 'text-end mb-2 fw-bold small text-danger';
+                }
             } else if (due < 0) {
                 // Profit (Green)
                 const extra = Math.abs(due).toFixed(2);
                 dueEl.textContent = "+" + extra; 
-                dueEl.style.color = '#198754';
-                profitInfoEl.textContent = `Amount paid in cash : Rs.${extra}`;
-                profitInfoEl.style.color = '#198754';
+                dueEl.style.color = '#198754'; // Green
+                
+                if(msgEl) {
+                    msgEl.textContent = `Amount paid in cash : Rs.${extra}`;
+                    msgEl.className = 'text-end mb-2 fw-bold small text-success';
+                }
             } else {
                 // Settled
                 dueEl.textContent = "0.00";
-                dueEl.style.color = '#0d6efd';
-                profitInfoEl.textContent = "Settled";
-                profitInfoEl.style.color = '#6c757d';
+                dueEl.style.color = '#0d6efd'; // Blue
+                
+                if(msgEl) {
+                    msgEl.textContent = "Settled";
+                    msgEl.className = 'text-end mb-2 fw-bold small text-muted';
+                }
             }
         }
 
@@ -353,7 +347,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if(ui.hidden.status) ui.hidden.status.value = 'final';
         
         const total = parseFloat(ui.payment.totalAmt.value) || 0;
-        // Removed 0 check to allow profit on 0 sales if needed, but usually good to keep warning
+        // Removed 0 check to allow profit on 0 sales if needed
         if (total === 0 && !confirm("Total Sales is 0. Submit?")) return;
         
         if(confirm("CONFIRM SETTLEMENT?\n\n- Returns will add to stock.\n- Ledger will be updated.")) {
