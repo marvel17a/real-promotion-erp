@@ -21,8 +21,8 @@ document.addEventListener("DOMContentLoaded", () => {
         },
         
         payment: {
-            totalAmt: getEl('totalAmount'), // Hidden input
-            dispTotal: getEl('totAmount'),  // Footer display text
+            totalAmt: getEl('totalAmount'), 
+            dispTotal: getEl('totAmount'),  
             discount: getEl('discount'),
             cash: getEl('cash'),
             online: getEl('online'),
@@ -37,27 +37,22 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     };
 
-    // --- 2. LIVE CLOCK LOGIC ---
+    // --- LIVE CLOCK ---
     function updateClock() {
         const now = new Date();
-        const timeString = now.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute:'2-digit', second:'2-digit' });
+        const timeString = now.toLocaleTimeString('en-US', { hour12: true });
         const clockEl = getEl('liveClock');
         if(clockEl) clockEl.textContent = timeString;
 
         if(ui.hidden.timestamp) {
-            const year = now.getFullYear();
-            const month = String(now.getMonth() + 1).padStart(2, '0');
-            const day = String(now.getDate()).padStart(2, '0');
-            const hours = String(now.getHours()).padStart(2, '0');
-            const minutes = String(now.getMinutes()).padStart(2, '0');
-            const seconds = String(now.getSeconds()).padStart(2, '0');
-            ui.hidden.timestamp.value = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+            const pad = n => String(n).padStart(2, '0');
+            ui.hidden.timestamp.value = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
         }
     }
     setInterval(updateClock, 1000);
     updateClock();
 
-    // --- 3. FETCH DATA LOGIC ---
+    // --- FETCH DATA ---
     if(ui.fetchBtn) {
         ui.fetchBtn.addEventListener('click', async () => {
             const empId = ui.empSelect.value;
@@ -83,17 +78,15 @@ document.addEventListener("DOMContentLoaded", () => {
                 const data = await res.json();
 
                 if (data.status === 'success') {
-                    // RENDER TABLE
                     renderTable(data.products, data.source);
                     
-                    // SET HIDDEN VALUES
                     if(ui.hidden.allocId) ui.hidden.allocId.value = data.allocation_id || '';
                     if(ui.hidden.hEmp) ui.hidden.hEmp.value = empId;
                     
+                    // Convert d-m-Y to Y-m-d for hidden input if needed
                     const [d, m, y] = dateVal.split('-');
                     if(ui.hidden.hDate) ui.hidden.hDate.value = `${y}-${m}-${d}`;
 
-                    // DRAFT LOGIC
                     if (data.source === 'draft' && data.draft_data) {
                         populateDraft(data.draft_id, data.draft_data);
                     } else {
@@ -119,7 +112,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // --- 4. RENDER TABLE (9 Columns) ---
+    // --- RENDER TABLE ---
     function renderTable(products, source) {
         ui.tableBody.innerHTML = "";
         
@@ -127,9 +120,9 @@ document.addEventListener("DOMContentLoaded", () => {
         if(source === 'draft') {
             badge = '<span class="badge bg-warning text-dark mb-2">Draft Mode - Resumed</span>';
         } else if (source === 'previous_leftover') {
-            badge = '<span class="badge bg-info text-dark mb-2">Previous Leftover Stock (No Morning Allocation)</span>';
+            badge = '<span class="badge bg-info text-dark mb-2">Previous Leftover Stock (No Morning Allocation Today)</span>';
         } else {
-            badge = '<span class="badge bg-success mb-2">Morning Allocation (Aggregated)</span>';
+            badge = '<span class="badge bg-success mb-2">Morning Allocation + Restock (Aggregated)</span>';
         }
         
         const statusDiv = document.getElementById('fetchMsg');
@@ -184,7 +177,7 @@ document.addEventListener("DOMContentLoaded", () => {
         calculateDue();
     }
 
-    // --- 5. CALCULATIONS & VALIDATION ---
+    // --- CALCULATIONS ---
     function calculateDue(e) {
         let grandTotal = 0;
         let sumTotal = 0;
@@ -208,7 +201,6 @@ document.addEventListener("DOMContentLoaded", () => {
             let sold = parseInt(soldInp.value) || 0;
             let ret = parseInt(retInp.value) || 0;
 
-            // Strict Validation: Sold + Return <= Total
             if (sold + ret > total) {
                 if (e && e.target === soldInp) {
                     sold = total - ret;
@@ -216,24 +208,15 @@ document.addEventListener("DOMContentLoaded", () => {
                 } else if (e && e.target === retInp) {
                     ret = total - sold;
                     retInp.value = ret;
-                } else {
-                    soldInp.classList.add('is-invalid');
-                    retInp.classList.add('is-invalid');
                 }
-            } else {
-                soldInp.classList.remove('is-invalid');
-                retInp.classList.remove('is-invalid');
             }
 
-            // Calc Remaining
             const left = total - sold - ret;
             if(leftEl) leftEl.textContent = left;
             
-            // Calc Amount
             const rowAmt = sold * price;
             amtEl.textContent = rowAmt.toFixed(2);
 
-            // Accumulate
             grandTotal += rowAmt;
             sumTotal += total;
             sumSold += sold;
@@ -241,17 +224,14 @@ document.addEventListener("DOMContentLoaded", () => {
             sumLeft += left;
         });
 
-        // Update Footer
         if(ui.footer.totalQty) ui.footer.totalQty.textContent = sumTotal;
         if(ui.footer.soldQty) ui.footer.soldQty.textContent = sumSold;
         if(ui.footer.returnQty) ui.footer.returnQty.textContent = sumReturn;
         if(ui.footer.remainQty) ui.footer.remainQty.textContent = sumLeft;
         
-        // Update Totals
         if(ui.payment.totalAmt) ui.payment.totalAmt.value = grandTotal.toFixed(2);
         if(ui.payment.dispTotal) ui.payment.dispTotal.textContent = grandTotal.toFixed(2);
 
-        // Payment Logic
         const disc = parseFloat(ui.payment.discount.value) || 0;
         const online = parseFloat(ui.payment.online.value) || 0;
         const cash = parseFloat(ui.payment.cash.value) || 0;
@@ -260,50 +240,39 @@ document.addEventListener("DOMContentLoaded", () => {
         const due = grandTotal - totalPay;
         
         if(ui.payment.due) {
-            ui.payment.due.textContent = due.toFixed(2);
+            // Update Message Container
+            const msgEl = getEl('paymentStatusMsg');
             
-            // Due Amount Coloring & Status Message Logic
-            const dueEl = ui.payment.due;
-            const msgEl = getEl('paymentStatusMsg'); // New Message Container
-
-            if (due > 0) {
+            if (due > 0.99) {
                 // Pending (Red)
-                dueEl.style.color = '#dc3545'; // Red
+                ui.payment.due.textContent = due.toFixed(2);
+                ui.payment.due.style.color = '#dc3545';
                 if(msgEl) {
                     msgEl.textContent = `Pending from Employee: ₹${due.toFixed(2)}`;
                     msgEl.className = 'text-end mb-2 fw-bold small text-danger';
                 }
-            } else if (due < 0) {
+            } else if (due < -0.99) {
                 // Profit (Green)
                 const extra = Math.abs(due).toFixed(2);
-                dueEl.textContent = "+" + extra; 
-                dueEl.style.color = '#198754'; // Green
-                
+                ui.payment.due.textContent = "+" + extra; 
+                ui.payment.due.style.color = '#198754';
                 if(msgEl) {
                     msgEl.textContent = `Amount paid in cash : Rs.${extra}`;
                     msgEl.className = 'text-end mb-2 fw-bold small text-success';
                 }
             } else {
                 // Settled
-                dueEl.textContent = "0.00";
-                dueEl.style.color = '#0d6efd'; // Blue
-                
+                ui.payment.due.textContent = "0.00";
+                ui.payment.due.style.color = '#0d6efd';
                 if(msgEl) {
                     msgEl.textContent = "Settled";
                     msgEl.className = 'text-end mb-2 fw-bold small text-muted';
                 }
             }
         }
-
-        const dueNote = getEl('due_note');
-        if(dueNote) {
-            if(due > 1) dueNote.value = "Pending Balance";
-            else if (due < -1) dueNote.value = "Extra Payment (Profit)";
-            else dueNote.value = "Settled";
-        }
     }
 
-    // --- 6. HELPERS ---
+    // --- HELPERS ---
     function populateDraft(id, d) {
         if(ui.hidden.draftId) ui.hidden.draftId.value = id;
         if(ui.payment.discount) ui.payment.discount.value = d.discount || '';
@@ -329,7 +298,7 @@ document.addEventListener("DOMContentLoaded", () => {
         document.querySelectorAll('[name^="emp_"]').forEach(el => el.value = '');
     }
 
-    // --- 7. LISTENERS ---
+    // --- LISTENERS ---
     ui.tableBody.addEventListener('input', (e) => {
         if (e.target.matches('.sold-input, .return-input')) calculateDue(e);
     });
@@ -345,11 +314,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     window.submitFinal = function() {
         if(ui.hidden.status) ui.hidden.status.value = 'final';
-        
-        const total = parseFloat(ui.payment.totalAmt.value) || 0;
-        // Removed 0 check to allow profit on 0 sales if needed
-        if (total === 0 && !confirm("Total Sales is 0. Submit?")) return;
-        
         if(confirm("CONFIRM SETTLEMENT?\n\n- Returns will add to stock.\n- Ledger will be updated.")) {
             ui.form.submit();
         }
