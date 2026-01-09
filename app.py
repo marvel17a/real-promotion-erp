@@ -4218,15 +4218,19 @@ def resolve_img(image_path):
 
 
 
-# =========================================================
-# 1. API: FETCH MORNING STOCK (Fixed Aggregation & Error Handling)
-# =========================================================
+
+# ==========================================
+# 1. API: FETCH MORNING STOCK (Fix for Holiday + Restock)
+# ==========================================
 @app.route('/api/fetch_stock', methods=['GET', 'POST'])
 def api_fetch_stock():
     if "loggedin" not in session: return jsonify({"error": "Unauthorized"}), 401
     
     employee_id = request.values.get('employee_id')
     date_str = request.values.get('date') 
+
+    if not employee_id or not date_str:
+        return jsonify({"error": "Missing parameters"}), 400
 
     try:
         current_date = parse_date(date_str)
@@ -4241,7 +4245,8 @@ def api_fetch_stock():
             cur.close()
             return jsonify({"mode": "locked", "evening_settled": True})
 
-        # 2. FETCH OPENING STOCK (From Last Settlement Before Today)
+        # 2. FETCH OPENING STOCK (From LAST SETTLEMENT before today)
+        # This handles holidays automatically. It finds the most recent settlement.
         opening_stock_map = {}
         cur.execute("""
             SELECT id FROM evening_settle 
@@ -4268,58 +4273,64 @@ def api_fetch_stock():
                     'image': resolve_img(r['image'])
                 }
 
-        # 3. FETCH TODAY'S GIVEN (Aggregation Logic)
+        # 3. FETCH TODAY'S ALLOCATION (For Restock Mode)
+        # We check if an allocation ALREADY exists for today
+        cur.execute("SELECT id FROM morning_allocations WHERE employee_id=%s AND date=%s", (employee_id, formatted_date))
+        today_alloc = cur.fetchone()
+        
         existing_items = []
         mode = "normal"
         
-        # Fetch ALL allocations for today
-        cur.execute("SELECT id FROM morning_allocations WHERE employee_id=%s AND date=%s", (employee_id, formatted_date))
-        today_allocs = cur.fetchall()
-        
-        if today_allocs:
+        if today_alloc:
             mode = "restock"
-            all_ids = [row['id'] for row in today_allocs]
+            alloc_id = today_alloc['id']
             
-            if all_ids:
-                # Safe Parameterized IN clause
-                placeholders = ', '.join(['%s'] * len(all_ids))
-                
-                # Aggregate SUM of ALL given quantities today
-                query = f"""
-                    SELECT mai.product_id, SUM(mai.given_qty) as total_given, p.name, p.image
-                    FROM morning_allocation_items mai
-                    JOIN products p ON mai.product_id = p.id
-                    WHERE mai.allocation_id IN ({placeholders})
-                    GROUP BY mai.product_id
-                """
-                cur.execute(query, tuple(all_ids))
-                raw_given = cur.fetchall()
-                
-                combined_map = {}
+            # Fetch aggregated items for this allocation
+            # We join with products to get details
+            cur.execute("""
+                SELECT mai.product_id, mai.given_qty, mai.opening_qty, p.name, p.image
+                FROM morning_allocation_items mai
+                JOIN products p ON mai.product_id = p.id
+                WHERE mai.allocation_id = %s
+            """, (alloc_id,))
+            
+            raw_given = cur.fetchall()
+            
+            # Combine Opening + Today's Given for the "History View"
+            combined_map = {}
 
-                # Start with Opening Stock
-                for pid, data in opening_stock_map.items():
+            # Start with base opening stock
+            for pid, data in opening_stock_map.items():
+                combined_map[pid] = {
+                    'product_id': pid, 'name': data['name'], 'image': data['image'], 
+                    'qty': data['remaining'] 
+                }
+
+            # Add/Merge Today's Given
+            for r in raw_given:
+                pid = str(r['product_id'])
+                added_qty = int(r['given_qty'])
+                opening_qty = int(r['opening_qty']) # This should match opening_stock_map usually
+                
+                if pid not in combined_map:
                     combined_map[pid] = {
-                        'product_id': pid, 'name': data['name'], 'image': data['image'], 
-                        'qty': data['remaining'] 
+                        'product_id': pid, 
+                        'name': r['name'], 
+                        'image': resolve_img(r['image']), 
+                        'qty': 0
                     }
-
-                # Add Aggregated Given
-                for r in raw_given:
-                    pid = str(r['product_id'])
-                    added_qty = int(r['total_given'])
-                    
-                    if pid not in combined_map:
-                        combined_map[pid] = {'product_id': pid, 'name': r['name'], 'image': resolve_img(r['image']), 'qty': 0}
-                    
-                    if 'qty' in combined_map[pid]:
-                        combined_map[pid]['qty'] += added_qty
-                    else:
-                        combined_map[pid]['qty'] = added_qty
                 
-                existing_items = list(combined_map.values())
+                # Logic: If item exists in combined (from opening), we just add 'given'.
+                # If it's a new item added today, qty is just 'given'.
+                # Note: In restock logic, we want to show TOTAL stock currently with employee.
+                if pid in opening_stock_map:
+                     combined_map[pid]['qty'] = opening_qty + added_qty
+                else:
+                     combined_map[pid]['qty'] = added_qty
+            
+            existing_items = list(combined_map.values())
 
-        # Convert opening map to list for "Normal" mode
+        # Convert opening map to list for "Normal" mode table population
         opening_stock_list = list(opening_stock_map.values())
 
         cur.close()
@@ -4331,13 +4342,12 @@ def api_fetch_stock():
         })
 
     except Exception as e:
-        # Return error text to be handled by JS
-        return jsonify({"error": f"Server Error: {str(e)}"}), 200
+        return jsonify({"error": str(e)}), 500
 
 
-# =========================================================
-# 2. API: FETCH EVENING DATA (The Aggregator)
-# =========================================================
+# ==========================================
+# 2. API: FETCH EVENING DATA (Correct Aggregation)
+# ==========================================
 @app.route('/api/fetch_evening_data', methods=['POST'])
 def fetch_evening_data():
     if "loggedin" not in session: return jsonify({'status': 'error', 'message': 'Unauthorized'})
@@ -4350,13 +4360,12 @@ def fetch_evening_data():
 
         target_date = parse_date(date_str)
         if not target_date: return jsonify({'status': 'error', 'message': 'Invalid Date'})
-        
         formatted_date = target_date.strftime('%Y-%m-%d')
         employee_id = int(emp_id_raw)
         
         cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
-        # A. CHECK EXISTING RECORD (Draft/Final)
+        # A. CHECK EXISTING RECORD
         cur.execute("SELECT * FROM evening_settle WHERE employee_id=%s AND date=%s", (employee_id, formatted_date))
         existing = cur.fetchone()
 
@@ -4387,10 +4396,10 @@ def fetch_evening_data():
                 'products': items
             })
 
-        # --- B. AGGREGATION LOGIC (Total = Opening + ALL Morning Allocations) ---
+        # --- B. AGGREGATION LOGIC (Total = Opening + Today's Given) ---
         stock_map = {} 
 
-        # 1. FETCH OPENING (Yesterday's Leftover)
+        # 1. FETCH OPENING (Last Settle before today)
         cur.execute("""
             SELECT id FROM evening_settle WHERE employee_id=%s AND date < %s ORDER BY date DESC LIMIT 1
         """, (employee_id, formatted_date))
@@ -4399,8 +4408,7 @@ def fetch_evening_data():
         if last_settle:
             cur.execute("""
                 SELECT ei.product_id, ei.remaining_qty, ei.unit_price, p.name, p.image
-                FROM evening_item ei JOIN products p ON ei.product_id = p.id 
-                WHERE ei.settle_id = %s AND ei.remaining_qty > 0
+                FROM evening_item ei JOIN products p ON ei.product_id = p.id WHERE ei.settle_id = %s AND ei.remaining_qty > 0
             """, (last_settle['id'],))
             for item in cur.fetchall():
                 pid = item['product_id']
@@ -4409,57 +4417,150 @@ def fetch_evening_data():
                     'unit_price': float(item['unit_price']), 'total_qty': int(item['remaining_qty'])
                 }
 
-        # 2. FETCH TODAY'S GIVEN (Sum of ALL Allocations)
-        cur.execute("SELECT id FROM morning_allocations WHERE employee_id=%s AND date=%s", (employee_id, formatted_date))
-        today_allocs = cur.fetchall()
+        # 2. FETCH TODAY'S GIVEN (From Morning Allocations)
+        # NOTE: Since we fixed Morning to update a SINGLE row per product per day, we don't need complex grouping here.
+        # But we still query sum just in case.
+        cur.execute("""
+            SELECT mai.product_id, SUM(mai.given_qty) as total_given, MAX(mai.unit_price) as unit_price, p.name, p.image, ma.id as alloc_id
+            FROM morning_allocations ma
+            JOIN morning_allocation_items mai ON ma.id = mai.allocation_id
+            JOIN products p ON mai.product_id = p.id
+            WHERE ma.employee_id=%s AND ma.date=%s
+            GROUP BY mai.product_id
+        """, (employee_id, formatted_date))
         
-        primary_alloc_id = None
-        
-        if today_allocs:
-            primary_alloc_id = today_allocs[0]['id'] 
-            all_ids = [row['id'] for row in today_allocs]
-            
-            placeholders = ', '.join(['%s'] * len(all_ids))
+        today_items = cur.fetchall()
+        primary_alloc_id = today_items[0]['alloc_id'] if today_items else (last_settle.get('allocation_id') if last_settle else '')
 
-            # SUM() all 'given_qty' for these allocations
-            query = f"""
-                SELECT mai.product_id, SUM(mai.given_qty) as total_given, MAX(mai.unit_price) as unit_price, p.name, p.image
-                FROM morning_allocation_items mai JOIN products p ON mai.product_id = p.id
-                WHERE mai.allocation_id IN ({placeholders}) GROUP BY mai.product_id
-            """
-            cur.execute(query, tuple(all_ids))
+        for item in today_items:
+            pid = item['product_id']
+            added = int(item['total_given'])
             
-            for item in cur.fetchall():
-                pid = item['product_id']
-                added = int(item['total_given'])
-                
-                if pid not in stock_map:
-                    stock_map[pid] = {
-                        'product_id': pid, 'name': item['name'], 'image': resolve_img(item['image']),
-                        'unit_price': float(item['unit_price']), 'total_qty': 0
-                    }
-                stock_map[pid]['total_qty'] += added
+            if pid not in stock_map:
+                stock_map[pid] = {
+                    'product_id': pid, 'name': item['name'], 'image': resolve_img(item['image']),
+                    'unit_price': float(item['unit_price']), 'total_qty': 0
+                }
+            stock_map[pid]['total_qty'] += added
 
         final_list = [x for x in stock_map.values() if x['total_qty'] > 0]
         
-        if not final_list: 
-            return jsonify({'status': 'error', 'message': 'No stock records found for this date.'})
+        if not final_list: return jsonify({'status': 'error', 'message': 'No stock found.'})
 
         return jsonify({
             'status': 'success', 
-            'source': 'morning' if today_allocs else 'previous_leftover',
-            'allocation_id': primary_alloc_id if primary_alloc_id else (last_settle.get('allocation_id') if last_settle else ''),
+            'source': 'morning' if today_items else 'previous_leftover',
+            'allocation_id': primary_alloc_id,
             'draft_id': None, 'draft_data': None,
             'products': final_list
         })
 
     except Exception as e:
-        return jsonify({'status': 'error', 'message': f"DB Error: {str(e)}"})
+        print(f"Fetch Error: {e}")
+        return jsonify({'status': 'error', 'message': str(e)})
     finally:
         if 'cur' in locals(): cur.close()
 
-# --- ROUTES FOR PAGES (Unchanged Structure) ---
 
+# ==========================================
+# 3. ROUTE: MORNING SUBMIT (DUPLICATE FIX)
+# ==========================================
+@app.route('/morning', methods=['GET', 'POST'])
+def morning():
+    if "loggedin" not in session: return redirect(url_for("login"))
+    
+    conn = mysql.connection
+    cursor = conn.cursor(MySQLdb.cursors.DictCursor)
+
+    if request.method == 'POST':
+        try:
+            emp_id = request.form.get('employee_id')
+            date_str = request.form.get('date')
+            time_str = request.form.get('timestamp')
+            
+            if not time_str or time_str.strip() == "":
+                ist_now = datetime.utcnow() + timedelta(hours=5, minutes=30)
+                time_str = ist_now.strftime('%Y-%m-%d %H:%M:%S')
+
+            p_ids = request.form.getlist('product_id[]')
+            opens = request.form.getlist('opening[]')
+            givens = request.form.getlist('given[]')
+            prices = request.form.getlist('price[]')
+
+            formatted_date = parse_date(date_str).strftime('%Y-%m-%d')
+
+            # --- 1. CHECK EXISTING ALLOCATION (The Fix) ---
+            cursor.execute("SELECT id FROM morning_allocations WHERE employee_id=%s AND date=%s", (emp_id, formatted_date))
+            existing_alloc = cursor.fetchone()
+
+            if existing_alloc:
+                # UPDATE MODE (Restock)
+                alloc_id = existing_alloc['id']
+            else:
+                # INSERT MODE (New Day)
+                cursor.execute("INSERT INTO morning_allocations (employee_id, date, created_at) VALUES (%s, %s, %s)", 
+                               (emp_id, formatted_date, time_str))
+                alloc_id = cursor.lastrowid
+
+            cnt = 0
+            for i, pid in enumerate(p_ids):
+                if not pid: continue
+                op = int(opens[i] or 0)
+                gv = int(givens[i] or 0)
+                pr = float(prices[i] or 0)
+
+                # Only proceed if we are giving stock OR there is opening stock
+                if op > 0 or gv > 0:
+                    
+                    # --- 2. UPSERT ITEM (Update if exists, else Insert) ---
+                    # Check if this product already exists in this allocation
+                    cursor.execute("SELECT id, given_qty FROM morning_allocation_items WHERE allocation_id=%s AND product_id=%s", (alloc_id, pid))
+                    existing_item = cursor.fetchone()
+
+                    if existing_item:
+                        # Item exists: Update Quantity (Merge)
+                        # We ADD the new 'given' quantity to the existing one.
+                        # Note: We do NOT add 'opening' again, opening is fixed for the day.
+                        new_given = int(existing_item['given_qty']) + gv
+                        cursor.execute("UPDATE morning_allocation_items SET given_qty=%s, unit_price=%s WHERE id=%s", 
+                                       (new_given, pr, existing_item['id']))
+                    else:
+                        # New Item: Insert
+                        cursor.execute("INSERT INTO morning_allocation_items (allocation_id, product_id, opening_qty, given_qty, unit_price) VALUES (%s, %s, %s, %s, %s)", 
+                                       (alloc_id, pid, op, gv, pr))
+
+                    # --- 3. DEDUCT STOCK FROM MAIN INVENTORY ---
+                    if gv > 0:
+                        cursor.execute("UPDATE products SET stock = stock - %s WHERE id = %s", (gv, pid))
+                    
+                    cnt += 1
+
+            if cnt > 0:
+                conn.commit()
+                flash("Allocation saved successfully (Stock Merged).", "success")
+            else:
+                flash("No items saved.", "warning")
+            return redirect(url_for('morning'))
+
+        except Exception as e:
+            conn.rollback()
+            flash(f"Error saving data: {str(e)}", "danger")
+            return redirect(url_for('morning'))
+
+    # GET REQUEST
+    cursor.execute("SELECT id, name, image FROM employees WHERE status='active' ORDER BY name")
+    emps = cursor.fetchall()
+    for e in emps: e['image'] = resolve_img(e['image'])
+
+    cursor.execute("SELECT id, name, price, image, stock FROM products ORDER BY name")
+    prods = [{
+        'id': p['id'], 'name': p['name'], 'price': float(p['price']), 
+        'image': resolve_img(p['image']), 'stock': int(p['stock'] or 0)
+    } for p in cursor.fetchall()]
+    
+    return render_template('morning.html', employees=emps, products=prods, today_date=date.today().strftime('%d-%m-%Y'))
+
+# --- OTHER ROUTES (EVENING POST, LOGIN, ETC) REMAIN SAME ---
 @app.route('/evening', methods=['GET', 'POST'])
 def evening():
     if "loggedin" not in session: return redirect(url_for("login"))
@@ -4547,72 +4648,6 @@ def evening():
     emps = cursor.fetchall()
     for e in emps: e['image'] = resolve_img(e['image'])
     return render_template('evening.html', employees=emps, today=date.today().strftime('%d-%m-%Y'))
-
-@app.route('/morning', methods=['GET', 'POST'])
-def morning():
-    if "loggedin" not in session: return redirect(url_for("login"))
-    
-    conn = mysql.connection
-    cursor = conn.cursor(MySQLdb.cursors.DictCursor)
-
-    if request.method == 'POST':
-        try:
-            emp_id = request.form.get('employee_id')
-            date_str = request.form.get('date')
-            time_str = request.form.get('timestamp')
-            
-            if not time_str or time_str.strip() == "":
-                ist_now = datetime.utcnow() + timedelta(hours=5, minutes=30)
-                time_str = ist_now.strftime('%Y-%m-%d %H:%M:%S')
-
-            p_ids = request.form.getlist('product_id[]')
-            opens = request.form.getlist('opening[]')
-            givens = request.form.getlist('given[]')
-            prices = request.form.getlist('price[]')
-
-            formatted_date = parse_date(date_str).strftime('%Y-%m-%d')
-
-            cursor.execute("INSERT INTO morning_allocations (employee_id, date, created_at) VALUES (%s, %s, %s)", 
-                           (emp_id, formatted_date, time_str))
-            alloc_id = cursor.lastrowid
-
-            cnt = 0
-            for i, pid in enumerate(p_ids):
-                if not pid: continue
-                op = int(opens[i] or 0)
-                gv = int(givens[i] or 0)
-                pr = float(prices[i] or 0)
-
-                if op > 0 or gv > 0:
-                    cursor.execute("INSERT INTO morning_allocation_items (allocation_id, product_id, opening_qty, given_qty, unit_price) VALUES (%s, %s, %s, %s, %s)", 
-                                   (alloc_id, pid, op, gv, pr))
-                    if gv > 0:
-                        cursor.execute("UPDATE products SET stock = stock - %s WHERE id = %s", (gv, pid))
-                    cnt += 1
-
-            if cnt > 0:
-                conn.commit()
-                flash("Morning allocation saved.", "success")
-            else:
-                flash("No items saved.", "warning")
-            return redirect(url_for('morning'))
-
-        except Exception as e:
-            conn.rollback()
-            flash(f"Error saving data: {str(e)}", "danger")
-            return redirect(url_for('morning'))
-
-    cursor.execute("SELECT id, name, image FROM employees WHERE status='active' ORDER BY name")
-    emps = cursor.fetchall()
-    for e in emps: e['image'] = resolve_img(e['image'])
-
-    cursor.execute("SELECT id, name, price, image, stock FROM products ORDER BY name")
-    prods = [{
-        'id': p['id'], 'name': p['name'], 'price': float(p['price']), 
-        'image': resolve_img(p['image']), 'stock': int(p['stock'] or 0)
-    } for p in cursor.fetchall()]
-    
-    return render_template('morning.html', employees=emps, products=prods, today_date=date.today().strftime('%d-%m-%Y'))
 
 
 # --- 5. ROUTE: ALLOCATION LIST (Formatted Date/Time & Status Check) ---
@@ -6466,6 +6501,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
