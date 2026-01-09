@@ -4291,14 +4291,14 @@ def api_fetch_stock():
             raw_given = cur.fetchall()
             combined_map = {}
 
-            # Add Opening
+            # Add Opening to Combined Map (Base)
             for pid, data in opening_stock_map.items():
                 combined_map[pid] = {
                     'product_id': pid, 'name': data['name'], 'image': data['image'], 
                     'qty': data['remaining'] # Start with opening
                 }
 
-            # Add Today's Given
+            # Add Today's Given to Combined Map
             for r in raw_given:
                 pid = str(r['product_id'])
                 if pid not in combined_map:
@@ -4308,6 +4308,7 @@ def api_fetch_stock():
             existing_items = list(combined_map.values())
 
         # Convert opening map to list for "Normal" mode table population
+        # We send this ALWAYS so the frontend can populate the 'Opening' column even in Restock mode
         opening_stock_list = list(opening_stock_map.values())
 
         cur.close()
@@ -6485,6 +6486,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
