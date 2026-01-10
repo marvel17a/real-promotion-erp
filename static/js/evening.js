@@ -5,7 +5,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const ui = {
         empSelect: getEl("employee"), 
         dateInput: getEl("date"),
-        // btnFetch Removed
+        // btnFetch Removed as per request
         form: getEl("eveningForm"),
         tableBody: getEl("rowsArea"),
         msg: getEl("fetchMsg"),
@@ -17,7 +17,7 @@ document.addEventListener("DOMContentLoaded", () => {
             hDate: getEl('h_date'),
             status: getEl('formStatus'),
             draftId: getEl('draft_id'),
-            timestamp: getEl('timestampInput')
+            timestamp: getEl('timestampInput') // This is the hidden field we update
         },
         
         payment: {
@@ -37,22 +37,30 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     };
 
-    // --- LIVE CLOCK ---
+    // --- 2. LIVE CLOCK & TIMESTAMP LOGIC ---
     function updateClock() {
         const now = new Date();
+        
+        // 1. Update Visual Clock
         const timeString = now.toLocaleTimeString('en-US', { hour12: true });
         const clockEl = getEl('liveClock');
         if(clockEl) clockEl.textContent = timeString;
 
+        // 2. Update Hidden Input with ISO format for Backend
+        // Format: YYYY-MM-DD HH:MM:SS
+        const pad = n => String(n).padStart(2, '0');
+        const isoString = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+        
         if(ui.hidden.timestamp) {
-            const pad = n => String(n).padStart(2, '0');
-            ui.hidden.timestamp.value = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+            ui.hidden.timestamp.value = isoString;
         }
     }
+    
+    // Update every second
     setInterval(updateClock, 1000);
-    updateClock();
+    updateClock(); // Run immediately
 
-    // --- AUTO FETCH DATA LOGIC ---
+    // --- 3. AUTO FETCH DATA LOGIC ---
     async function fetchData() {
         const empId = ui.empSelect.value;
         const dateVal = ui.dateInput.value;
@@ -118,7 +126,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if(ui.dateInput) ui.dateInput.addEventListener('change', fetchData);
 
 
-    // --- RENDER TABLE ---
+    // --- 4. RENDER TABLE ---
     function renderTable(products, source) {
         ui.tableBody.innerHTML = "";
         
@@ -126,7 +134,6 @@ document.addEventListener("DOMContentLoaded", () => {
         if(source === 'draft') {
             badge = '<span class="badge bg-warning text-dark mb-2">Draft Mode - Resumed</span>';
         } else if (source === 'fresh') {
-            // Updated badge text to be generic
             badge = '<span class="badge bg-success mb-2">Active Allocation</span>';
         }
         
@@ -183,7 +190,7 @@ document.addEventListener("DOMContentLoaded", () => {
         calculateDue();
     }
 
-    // --- CALCULATIONS ---
+    // --- 5. CALCULATIONS ---
     function calculateDue(e) {
         let grandTotal = 0;
         let sumTotal = 0;
@@ -274,7 +281,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // --- HELPERS ---
+    // --- 6. HELPERS ---
     function populateDraft(id, d) {
         if(ui.hidden.draftId) ui.hidden.draftId.value = id;
         if(ui.payment.discount) ui.payment.discount.value = d.discount || '';
@@ -300,7 +307,7 @@ document.addEventListener("DOMContentLoaded", () => {
         document.querySelectorAll('[name^="emp_"]').forEach(el => el.value = '');
     }
 
-    // --- LISTENERS ---
+    // --- 7. LISTENERS ---
     ui.tableBody.addEventListener('input', (e) => {
         if (e.target.matches('.sold-input, .return-input')) calculateDue(e);
     });
@@ -318,6 +325,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if(ui.hidden.status) ui.hidden.status.value = 'final';
         
         const total = parseFloat(ui.payment.totalAmt.value) || 0;
+        // Removed 0 check to allow profit on 0 sales if needed
         if (total === 0 && !confirm("Total Sales is 0. Submit?")) return;
         
         if(confirm("CONFIRM SETTLEMENT?\n\n- Returns will add to stock.\n- Ledger will be updated.")) {
