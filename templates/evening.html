@@ -78,7 +78,14 @@
             </div>
         </div>
 
+       
         <div id="fetchMsg" class="alert alert-info d-none mt-3 rounded-3 border-0 shadow-sm fw-bold text-center"></div>
+        
+        <!-- Already Submitted Block -->
+        <div id="submittedBlock" class="d-none text-center p-5 border rounded bg-light">
+            <h3 class="text-success fw-bold"><i class="fa-solid fa-check-circle me-2"></i>Already Submitted</h3>
+            <p class="text-muted">Settlement for this date and employee is final.</p>
+        </div>
 
         <form method="POST" action="{{ url_for('evening') }}" id="eveningForm">
             <input type="hidden" name="allocation_id" id="allocation_id" value="{{ draft_data.allocation_id if draft_data else '' }}">
@@ -328,4 +335,5 @@
     });
 </script>
 {% endblock %}
+
 
