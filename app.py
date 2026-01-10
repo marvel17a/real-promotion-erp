@@ -4636,7 +4636,7 @@ def morning():
     
     return render_template('morning.html', employees=emps, products=prods, today_date=date.today().strftime('%d-%m-%Y'))
 # ==========================================
-# ROUTE: EVENING SUBMIT (Time Fix)
+# ROUTE: EVENING SUBMIT (Time Fix Applied)
 # ==========================================
 @app.route('/evening', methods=['GET', 'POST'])
 def evening():
@@ -4653,9 +4653,15 @@ def evening():
             emp_id = request.form.get('h_employee')
             date_val = request.form.get('h_date')
             
-            # --- TIME FIX: Capture exact IST Time ---
-            ist_now = get_ist_now()
-            time_str = ist_now.strftime('%Y-%m-%d %H:%M:%S') 
+            # --- TIME FIX: Use Frontend Client Time if available ---
+            client_timestamp = request.form.get('timestamp')
+            
+            if client_timestamp and client_timestamp.strip():
+                time_str = client_timestamp # Use what the clock showed
+            else:
+                # Fallback to Server IST
+                ist_now = get_ist_now()
+                time_str = ist_now.strftime('%Y-%m-%d %H:%M:%S') 
             
             # Check existing
             cursor.execute("SELECT id FROM evening_settle WHERE employee_id=%s AND date=%s", (emp_id, date_val))
@@ -4717,16 +4723,14 @@ def evening():
                 if status == 'final' and ret > 0:
                     cursor.execute("UPDATE products SET stock = stock + %s WHERE id = %s", (ret, pid))
 
-            # --- TIME FIX: Ledger Entry with Exact Time ---
+            # --- LEDGER: Use Same Time String ---
             if status == 'final':
-                # Credit (Received)
                 if emp_c > 0: 
                     cursor.execute("""
                         INSERT INTO employee_transactions (employee_id, transaction_date, type, amount, description, created_at) 
                         VALUES (%s, %s, 'credit', %s, %s, %s)
                     """, (emp_id, date_val, emp_c, f"Credit #{settle_id}: {emp_c_n or 'Evening Settle'}", time_str))
                 
-                # Debit (Given)
                 if emp_d > 0: 
                     cursor.execute("""
                         INSERT INTO employee_transactions (employee_id, transaction_date, type, amount, description, created_at) 
@@ -4746,6 +4750,7 @@ def evening():
     emps = cursor.fetchall()
     for e in emps: e['image'] = resolve_img(e['image'])
     return render_template('evening.html', employees=emps, today=date.today().strftime('%d-%m-%Y'))
+
 
 # --- 5. ROUTE: ALLOCATION LIST (Formatted Date/Time & Status Check) ---
 @app.route('/allocation_list', methods=['GET'])
@@ -6278,11 +6283,9 @@ def add_opening_balance(employee_id):
     
     return render_template('add_opening_balance.html', employee=emp, existing=existing)
 
-# Paste this into your app.py, replacing the existing add_transaction route
-
 
 # ==========================================
-# ROUTE: ADD TRANSACTION (Time Fix)
+# ROUTE: ADD TRANSACTION (Time Fix Applied)
 # ==========================================
 @app.route('/add-transaction/<int:employee_id>', methods=['GET', 'POST'])
 def add_transaction(employee_id):
@@ -6297,13 +6300,18 @@ def add_transaction(employee_id):
         amount = request.form['amount']
         description = request.form['description']
         
-        # --- TIME FIX: Use Current IST Time ---
-        ist_now = get_ist_now().strftime('%Y-%m-%d %H:%M:%S')
+        # --- TIME FIX: Use Frontend Client Time if available ---
+        client_time = request.form.get('client_time')
+        
+        if client_time and client_time.strip():
+            final_time = client_time # Use device time from form
+        else:
+            final_time = get_ist_now().strftime('%Y-%m-%d %H:%M:%S') # Fallback
         
         cur.execute("""
             INSERT INTO employee_transactions (employee_id, transaction_date, type, amount, description, created_at)
             VALUES (%s, %s, %s, %s, %s, %s)
-        """, (employee_id, trans_date, trans_type, amount, description, ist_now))
+        """, (employee_id, trans_date, trans_type, amount, description, final_time))
         
         mysql.connection.commit()
         cur.close()
@@ -6317,7 +6325,6 @@ def add_transaction(employee_id):
     selected_type = request.args.get('type', 'credit') 
     
     return render_template('add_transaction.html', employee=employee, selected_type=selected_type)
-
 
 @app.route('/edit-transaction/<int:transaction_id>', methods=['GET', 'POST'])
 def edit_transaction(transaction_id):
@@ -6594,6 +6601,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
