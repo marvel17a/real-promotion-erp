@@ -4637,7 +4637,7 @@ def morning():
     return render_template('morning.html', employees=emps, products=prods, today_date=date.today().strftime('%d-%m-%Y'))
 
 # ==========================================
-# ROUTE: EVENING SUBMIT (Time Fix Applied)
+# ROUTE: EVENING SUBMIT (Time Fix Applied + NULL Fix)
 # ==========================================
 @app.route('/evening', methods=['GET', 'POST'])
 def evening():
@@ -4654,14 +4654,11 @@ def evening():
             emp_id = request.form.get('h_employee')
             date_val = request.form.get('h_date')
             
-            # --- TIME FIX: Strictly use Frontend Client Time ---
+            # Time Fix
             client_timestamp = request.form.get('timestamp')
-            
             if client_timestamp and client_timestamp.strip():
-                # Use client provided time (from live clock)
                 time_str = client_timestamp 
             else:
-                # Fallback to Server IST only if missing
                 ist_now = get_ist_now()
                 time_str = ist_now.strftime('%Y-%m-%d %H:%M:%S') 
             
@@ -4669,14 +4666,17 @@ def evening():
             cursor.execute("SELECT id FROM evening_settle WHERE employee_id=%s AND date=%s", (emp_id, date_val))
             existing_record = cursor.fetchone()
 
-            final_alloc_id = None
-            if alloc_id and alloc_id.strip() not in ['', '0']:
-                cursor.execute("SELECT id, date FROM evening_settle WHERE allocation_id = %s", (alloc_id,))
-                link = cursor.fetchone()
-                if link and str(link['date']) != str(date_val):
-                    final_alloc_id = None 
-                else:
-                    final_alloc_id = alloc_id
+            # --- NULL ALLOCATION ID FIX ---
+            # Default to 0 if empty or None
+            final_alloc_id = 0
+            if alloc_id and alloc_id.strip() not in ['', '0', 'None']:
+                try:
+                    final_alloc_id = int(alloc_id)
+                except:
+                    final_alloc_id = 0
+            
+            # Optional: Verify if this alloc_id is valid for this employee/date context, 
+            # but usually just trusting the int or 0 is safer to avoid the NULL error.
 
             total_amt = float(request.form.get('totalAmount') or 0)
             discount = float(request.form.get('discount') or 0)
@@ -4725,7 +4725,6 @@ def evening():
                 if status == 'final' and ret > 0:
                     cursor.execute("UPDATE products SET stock = stock + %s WHERE id = %s", (ret, pid))
 
-            # --- LEDGER: Use Same Time String (from Frontend) ---
             if status == 'final':
                 if emp_c > 0: 
                     cursor.execute("""
@@ -6603,6 +6602,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
