@@ -21,9 +21,13 @@
             </div>
         </div>
 
-        <form method="POST" action="{{ url_for('add_transaction', employee_id=employee.id) }}">
+        <!-- Form -->
+        <form method="POST" action="{{ url_for('add_transaction', employee_id=employee.id) }}" id="addTransForm">
             
-            <!-- Type Selection (Visual Cards) -->
+            <!-- HIDDEN INPUT FOR DEVICE TIME -->
+            <input type="hidden" name="client_time" id="clientTime">
+            
+            <!-- Type Selection -->
             <label class="form-label fw-bold mb-3">Transaction Type</label>
             <div class="row g-3 mb-4">
                 <div class="col-6">
@@ -32,7 +36,7 @@
                     <label class="trans-card-label credit" for="credit">
                         <i class="fa-solid fa-circle-arrow-down fa-2x text-success mb-2"></i>
                         <span class="fw-bold text-dark">Credit</span>
-                        <small class="text-muted"> (Receive)</small>
+                        <small class="text-muted">Money In (Receive)</small>
                     </label>
                 </div>
                 <div class="col-6">
@@ -41,7 +45,7 @@
                     <label class="trans-card-label debit" for="debit">
                         <i class="fa-solid fa-circle-arrow-up fa-2x text-danger mb-2"></i>
                         <span class="fw-bold text-dark">Debit</span>
-                        <small class="text-muted"> (Give)</small>
+                        <small class="text-muted">Money Out (Give)</small>
                     </label>
                 </div>
             </div>
@@ -81,6 +85,16 @@
             altFormat: "F j, Y", 
             defaultDate: "today",
             allowInput: true
+        });
+
+        // Capture Client Time on Submit
+        const form = document.getElementById('addTransForm');
+        form.addEventListener('submit', function() {
+            const now = new Date();
+            // Format: YYYY-MM-DD HH:MM:SS
+            const pad = n => String(n).padStart(2, '0');
+            const isoString = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+            document.getElementById('clientTime').value = isoString;
         });
     });
 </script>
