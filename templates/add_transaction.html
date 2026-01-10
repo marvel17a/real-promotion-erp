@@ -21,20 +21,18 @@
             </div>
         </div>
 
-        <!-- Form Action matches your route: /add-transaction/<int:employee_id> -->
         <form method="POST" action="{{ url_for('add_transaction', employee_id=employee.id) }}">
             
             <!-- Type Selection (Visual Cards) -->
             <label class="form-label fw-bold mb-3">Transaction Type</label>
             <div class="row g-3 mb-4">
                 <div class="col-6">
-                    <!-- Added 'checked' to ensure a value is always sent -->
                     <input type="radio" class="trans-card-radio" name="type" id="credit" value="credit" required 
                            {% if selected_type == 'credit' %}checked{% endif %}>
                     <label class="trans-card-label credit" for="credit">
                         <i class="fa-solid fa-circle-arrow-down fa-2x text-success mb-2"></i>
                         <span class="fw-bold text-dark">Credit</span>
-                        <small class="text-muted">Money In (Receive)</small>
+                        <small class="text-muted"> (Receive)</small>
                     </label>
                 </div>
                 <div class="col-6">
@@ -43,7 +41,7 @@
                     <label class="trans-card-label debit" for="debit">
                         <i class="fa-solid fa-circle-arrow-up fa-2x text-danger mb-2"></i>
                         <span class="fw-bold text-dark">Debit</span>
-                        <small class="text-muted">Money Out (Give)</small>
+                        <small class="text-muted"> (Give)</small>
                     </label>
                 </div>
             </div>
@@ -55,8 +53,6 @@
                 </div>
                 <div class="col-md-6">
                     <label class="form-label fw-bold text-muted small text-uppercase">Date</label>
-                    <!-- KEY FIX: name="transaction_date" matches app.py -->
-                    <!-- Changed input type to text for Flatpickr compatibility -->
                     <input type="text" name="transaction_date" id="datePicker" class="form-control input-glass" required>
                 </div>
                 <div class="col-12">
@@ -80,13 +76,12 @@
 <script>
     document.addEventListener("DOMContentLoaded", function() {
         flatpickr("#datePicker", {
-            dateFormat: "d-m-Y", // Format sent to backend
-            altInput: true,      // Show user-friendly format
-            altFormat: "F j, Y", // e.g. October 15, 2023
-            defaultDate: "today", // Set default to today
+            dateFormat: "d-m-Y", 
+            altInput: true,      
+            altFormat: "F j, Y", 
+            defaultDate: "today",
             allowInput: true
         });
     });
 </script>
 {% endblock %}
-
