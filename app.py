@@ -4635,7 +4635,9 @@ def morning():
     } for p in cursor.fetchall()]
     
     return render_template('morning.html', employees=emps, products=prods, today_date=date.today().strftime('%d-%m-%Y'))
-
+# ==========================================
+# ROUTE: EVENING SUBMIT (Time Fix)
+# ==========================================
 @app.route('/evening', methods=['GET', 'POST'])
 def evening():
     if "loggedin" not in session: return redirect(url_for("login"))
@@ -4651,13 +4653,22 @@ def evening():
             emp_id = request.form.get('h_employee')
             date_val = request.form.get('h_date')
             
-            ist_now = datetime.utcnow() + timedelta(hours=5, minutes=30)
+            # --- TIME FIX: Capture exact IST Time ---
+            ist_now = get_ist_now()
             time_str = ist_now.strftime('%Y-%m-%d %H:%M:%S') 
             
+            # Check existing
             cursor.execute("SELECT id FROM evening_settle WHERE employee_id=%s AND date=%s", (emp_id, date_val))
             existing_record = cursor.fetchone()
 
-            final_alloc_id = alloc_id if alloc_id and alloc_id.strip() not in ['', '0'] else None
+            final_alloc_id = None
+            if alloc_id and alloc_id.strip() not in ['', '0']:
+                cursor.execute("SELECT id, date FROM evening_settle WHERE allocation_id = %s", (alloc_id,))
+                link = cursor.fetchone()
+                if link and str(link['date']) != str(date_val):
+                    final_alloc_id = None 
+                else:
+                    final_alloc_id = alloc_id
 
             total_amt = float(request.form.get('totalAmount') or 0)
             discount = float(request.form.get('discount') or 0)
@@ -4706,9 +4717,21 @@ def evening():
                 if status == 'final' and ret > 0:
                     cursor.execute("UPDATE products SET stock = stock + %s WHERE id = %s", (ret, pid))
 
+            # --- TIME FIX: Ledger Entry with Exact Time ---
             if status == 'final':
-                if emp_c > 0: cursor.execute("INSERT INTO employee_transactions (employee_id, transaction_date, type, amount, description, created_at) VALUES (%s, %s, 'credit', %s, %s, %s)", (emp_id, date_val, emp_c, f"Credit #{settle_id}", time_str))
-                if emp_d > 0: cursor.execute("INSERT INTO employee_transactions (employee_id, transaction_date, type, amount, description, created_at) VALUES (%s, %s, 'debit', %s, %s, %s)", (emp_id, date_val, emp_d, f"Debit #{settle_id}", time_str))
+                # Credit (Received)
+                if emp_c > 0: 
+                    cursor.execute("""
+                        INSERT INTO employee_transactions (employee_id, transaction_date, type, amount, description, created_at) 
+                        VALUES (%s, %s, 'credit', %s, %s, %s)
+                    """, (emp_id, date_val, emp_c, f"Credit #{settle_id}: {emp_c_n or 'Evening Settle'}", time_str))
+                
+                # Debit (Given)
+                if emp_d > 0: 
+                    cursor.execute("""
+                        INSERT INTO employee_transactions (employee_id, transaction_date, type, amount, description, created_at) 
+                        VALUES (%s, %s, 'debit', %s, %s, %s)
+                    """, (emp_id, date_val, emp_d, f"Debit #{settle_id}: {emp_d_n or 'Evening Settle'}", time_str))
 
             conn.commit()
             flash("Saved successfully!", "success")
@@ -6258,7 +6281,9 @@ def add_opening_balance(employee_id):
 # Paste this into your app.py, replacing the existing add_transaction route
 
 
-# --- 1. Add Transaction Route ---
+# ==========================================
+# ROUTE: ADD TRANSACTION (Time Fix)
+# ==========================================
 @app.route('/add-transaction/<int:employee_id>', methods=['GET', 'POST'])
 def add_transaction(employee_id):
     if 'loggedin' not in session: return redirect(url_for('login'))
@@ -6266,21 +6291,15 @@ def add_transaction(employee_id):
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
     if request.method == 'POST':
-        # Get raw date from Flatpickr (dd-mm-yyyy)
         raw_date = request.form['transaction_date']
-        
-        # Convert to MySQL format (yyyy-mm-dd)
-        trans_date = parse_date_input(raw_date)
-        
+        trans_date = parse_date_input(raw_date) # YYYY-MM-DD
         trans_type = request.form['type'] 
         amount = request.form['amount']
         description = request.form['description']
         
-        # Get EXACT current time in IST
-        ist_now = get_ist_now()
+        # --- TIME FIX: Use Current IST Time ---
+        ist_now = get_ist_now().strftime('%Y-%m-%d %H:%M:%S')
         
-        # We store 'transaction_date' as the date selected by user
-        # We store 'created_at' as the precise timestamp of entry in IST
         cur.execute("""
             INSERT INTO employee_transactions (employee_id, transaction_date, type, amount, description, created_at)
             VALUES (%s, %s, %s, %s, %s, %s)
@@ -6575,6 +6594,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
