@@ -4500,7 +4500,7 @@ def fetch_evening_data():
 
 
 # ==========================================
-# 3. ROUTE: MORNING SUBMIT (Clean Up Logic Added)
+# 3. ROUTE: MORNING SUBMIT (Inventory Sync Fix)
 # ==========================================
 @app.route('/morning', methods=['GET', 'POST'])
 def morning():
@@ -4533,66 +4533,88 @@ def morning():
             if existing_alloc:
                 alloc_id = existing_alloc['id']
                 
-                # --- NEW LOGIC: DETECT AND HANDLE DELETIONS ---
-                # 1. Get all currently saved items from DB
+                # --- SYNC LOGIC: DETECT DELETE VS UPDATE ---
                 cursor.execute("SELECT id, product_id, given_qty FROM morning_allocation_items WHERE allocation_id=%s", (alloc_id,))
-                db_items = cursor.fetchall()
+                db_items = cursor.fetchall() # What is currently saved
                 
-                # 2. Determine what was submitted in this form
-                submitted_pids = set(p_ids) 
+                submitted_pids = set([str(p) for p in p_ids if p]) # What user sent now
                 
-                # 3. Find items in DB that are NOT in submitted form (Deleted Rows)
+                # 1. HANDLE DELETIONS (Restoring Stock)
                 for item in db_items:
-                    if str(item['product_id']) not in submitted_pids:
-                        # RESTORE STOCK: Add given_qty back to main inventory
+                    db_pid = str(item['product_id'])
+                    if db_pid not in submitted_pids:
+                        # Row removed from form -> Restore Inventory
                         qty_to_restore = int(item['given_qty'])
                         if qty_to_restore > 0:
-                            cursor.execute("UPDATE products SET stock = stock + %s WHERE id=%s", (qty_to_restore, item['product_id']))
-                        
-                        # DELETE RECORD from morning_allocation_items
+                            cursor.execute("UPDATE products SET stock = stock + %s WHERE id=%s", (qty_to_restore, db_pid))
+                        # Delete row from DB
                         cursor.execute("DELETE FROM morning_allocation_items WHERE id=%s", (item['id'],))
-                # ----------------------------------------------
+
+                # 2. HANDLE UPSERTS (Insert or Update)
+                cnt = 0
+                for i, pid in enumerate(p_ids):
+                    if not pid: continue
+                    
+                    gv = int(givens[i] or 0)
+                    ui_opening = int(opens[i] or 0)
+                    pr = float(prices[i] or 0)
+
+                    # Find this item in DB items list (avoiding extra queries)
+                    match = next((x for x in db_items if str(x['product_id']) == str(pid)), None)
+
+                    if match:
+                        # UPDATE: Calculate difference to adjust inventory
+                        old_given = int(match['given_qty'])
+                        diff = gv - old_given
+                        
+                        # Update DB row
+                        cursor.execute("UPDATE morning_allocation_items SET given_qty=%s, unit_price=%s WHERE id=%s", 
+                                       (gv, pr, match['id']))
+                        
+                        # Adjust Inventory
+                        if diff != 0:
+                            # If diff is +ve (gave more), subtract from stock. 
+                            # If diff is -ve (gave less), add to stock (minus minus becomes plus).
+                            cursor.execute("UPDATE products SET stock = stock - %s WHERE id=%s", (diff, pid))
+                    else:
+                        # INSERT: New Item
+                        cursor.execute("INSERT INTO morning_allocation_items (allocation_id, product_id, opening_qty, given_qty, unit_price) VALUES (%s, %s, %s, %s, %s)", 
+                                       (alloc_id, pid, ui_opening, gv, pr))
+                        
+                        # Deduct from Inventory
+                        if gv > 0:
+                            cursor.execute("UPDATE products SET stock = stock - %s WHERE id = %s", (gv, pid))
+                    
+                    cnt += 1
+                
+                if cnt > 0 or len(db_items) > 0:
+                     conn.commit()
+                     flash("Stock updated successfully (Inventory Synced).", "success")
+                else:
+                     conn.commit() # Commit deletions if any
+                     flash("Allocations cleared.", "info")
 
             else:
+                # FRESH ALLOCATION (Insert Only)
                 cursor.execute("INSERT INTO morning_allocations (employee_id, date, created_at) VALUES (%s, %s, %s)", 
                                (emp_id, formatted_date, time_str))
                 alloc_id = cursor.lastrowid
-
-            cnt = 0
-            for i, pid in enumerate(p_ids):
-                if not pid: continue
                 
-                gv = int(givens[i] or 0)
-                ui_opening = int(opens[i] or 0)
-                pr = float(prices[i] or 0)
-
-                # Check if item exists in this allocation
-                cursor.execute("SELECT id, given_qty FROM morning_allocation_items WHERE allocation_id=%s AND product_id=%s", (alloc_id, pid))
-                existing_item = cursor.fetchone()
-
-                if existing_item:
-                    # UPDATE: Add new given to old given
-                    new_total_given = int(existing_item['given_qty']) + gv
-                    cursor.execute("UPDATE morning_allocation_items SET given_qty=%s, unit_price=%s WHERE id=%s", 
-                                   (new_total_given, pr, existing_item['id']))
-                else:
-                    # INSERT: New Item
-                    cursor.execute("INSERT INTO morning_allocation_items (allocation_id, product_id, opening_qty, given_qty, unit_price) VALUES (%s, %s, %s, %s, %s)", 
-                                   (alloc_id, pid, ui_opening, gv, pr))
-
-                if gv > 0:
-                    cursor.execute("UPDATE products SET stock = stock - %s WHERE id = %s", (gv, pid))
-                cnt += 1
-
-            if cnt > 0:
+                cnt = 0
+                for i, pid in enumerate(p_ids):
+                    if not pid: continue
+                    gv = int(givens[i] or 0)
+                    ui_opening = int(opens[i] or 0)
+                    pr = float(prices[i] or 0)
+                    
+                    if ui_opening > 0 or gv > 0:
+                        cursor.execute("INSERT INTO morning_allocation_items (allocation_id, product_id, opening_qty, given_qty, unit_price) VALUES (%s, %s, %s, %s, %s)", 
+                                       (alloc_id, pid, ui_opening, gv, pr))
+                        if gv > 0:
+                            cursor.execute("UPDATE products SET stock = stock - %s WHERE id = %s", (gv, pid))
+                        cnt += 1
                 conn.commit()
-                flash("Stock Allocation Updated/Saved.", "success")
-            else:
-                # If deleted everything, flash message should reflect that
-                if existing_alloc:
-                     flash("Updated. Removed items restored to inventory.", "info")
-                else:
-                     flash("No items saved.", "warning")
+                flash("Allocation saved.", "success")
             
             return redirect(url_for('morning'))
 
@@ -4613,7 +4635,6 @@ def morning():
     } for p in cursor.fetchall()]
     
     return render_template('morning.html', employees=emps, products=prods, today_date=date.today().strftime('%d-%m-%Y'))
-
 
 @app.route('/evening', methods=['GET', 'POST'])
 def evening():
@@ -6554,6 +6575,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
