@@ -43,7 +43,7 @@
                 
                 <div class="mb-3 position-relative d-inline-block">
                     {% if employee.image %}
-                        <img src="{{ cloudinary_url(employee.image)[0] }}" class="profile-img-lg rounded-circle shadow-sm border border-3 border-white" style="width: 100px; height: 100px; object-fit: cover;">
+                        <img src="{{ employee.image|fix_image }}" class="profile-img-lg rounded-circle shadow-sm border border-3 border-white" style="width: 100px; height: 100px; object-fit: cover;">
                     {% else %}
                         <div class="rounded-circle bg-light d-flex align-items-center justify-content-center border shadow-sm text-secondary" style="width: 100px; height: 100px;">
                             <i class="fa-solid fa-user fa-3x"></i>
@@ -66,11 +66,10 @@
             </div>
         </div>
 
-        <!-- 2. KPI Cards (Ordered: Credit First, then Debit) -->
+        <!-- 2. KPI Cards -->
         <div class="col-lg-8">
             <div class="row g-4 h-100">
-                
-                <!-- Card 1: Total Credit (Received) -->
+                <!-- Card 1: Total Credit -->
                 <div class="col-md-6">
                     <div class="glass-container h-100 p-4 border-start border-4 border-success position-relative overflow-hidden">
                         <div class="d-flex justify-content-between align-items-center h-100">
@@ -85,7 +84,7 @@
                     </div>
                 </div>
 
-                <!-- Card 2: Total Debit (Given) -->
+                <!-- Card 2: Total Debit -->
                 <div class="col-md-6">
                     <div class="glass-container h-100 p-4 border-start border-4 border-danger position-relative overflow-hidden">
                         <div class="d-flex justify-content-between align-items-center h-100">
@@ -99,7 +98,6 @@
                         </div>
                     </div>
                 </div>
-
             </div>
         </div>
     </div>
@@ -107,7 +105,7 @@
     <!-- LOWER SECTION: Transactions List -->
     <div class="glass-container p-0 overflow-hidden">
         
-        <!-- Table Header & Controls -->
+        <!-- Table Header -->
         <div class="p-4 border-bottom bg-light bg-opacity-50 d-flex justify-content-between align-items-center flex-wrap gap-3">
             <h5 class="mb-0 fw-bold text-dark">Transaction History</h5>
             
@@ -144,7 +142,7 @@
                 <tbody>
                     {% for t in transactions %}
                     <tr>
-                        <!-- Date Column (FIXED: Safe Date Handling) -->
+                        <!-- Date Column -->
                         <td class="ps-4">
                             {% if t.transaction_date %}
                                 <div class="fw-bold text-dark">{{ t.transaction_date.strftime('%d-%m-%Y') }}</div>
@@ -174,7 +172,7 @@
                             {{ t.amount|inr }}
                         </td>
 
-                        <!-- Running Balance -->
+                        <!-- Balance -->
                         <td class="text-end pe-4 fw-bold text-dark">
                             {{ t.balance|inr }}
                         </td>
