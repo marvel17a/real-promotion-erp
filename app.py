@@ -4636,6 +4636,7 @@ def morning():
     
     return render_template('morning.html', employees=emps, products=prods, today_date=date.today().strftime('%d-%m-%Y'))
 
+
 # ==========================================
 # ROUTE: EVENING SUBMIT (Time Fix Applied + NULL Fix)
 # ==========================================
@@ -4654,45 +4655,31 @@ def evening():
             emp_id = request.form.get('h_employee')
             date_val = request.form.get('h_date')
             
-            # --- TIME FIX: Strictly use Frontend Client Time ---
-            client_timestamp = request.form.get('timestamp')
-            
-            if client_timestamp and client_timestamp.strip():
-                # Use client provided time (from live clock)
-                time_str = client_timestamp 
-            else:
-                # Fallback to Server IST only if missing
-                ist_now = get_ist_now()
-                time_str = ist_now.strftime('%Y-%m-%d %H:%M:%S') 
+            # --- TIME FIX: Force Server-Side IST ---
+            # We ignore frontend timestamp to ensure consistency
+            ist_now = get_ist_now()
+            time_str = ist_now.strftime('%Y-%m-%d %H:%M:%S') 
             
             # Check existing
             cursor.execute("SELECT id FROM evening_settle WHERE employee_id=%s AND date=%s", (emp_id, date_val))
             existing_record = cursor.fetchone()
 
             # --- NULL ALLOCATION ID FIX ---
-            # Step 1: Try to use the ID passed from form
             final_alloc_id = None
             if alloc_id and alloc_id.strip() not in ['', '0', 'None']:
-                try:
-                    final_alloc_id = int(alloc_id)
-                except:
-                    final_alloc_id = None
+                try: final_alloc_id = int(alloc_id)
+                except: final_alloc_id = None
             
-            # Step 2: If still None, look for an existing allocation for this day
             if not final_alloc_id:
                 cursor.execute("SELECT id FROM morning_allocations WHERE employee_id=%s AND date=%s", (emp_id, date_val))
                 ma = cursor.fetchone()
                 if ma:
                     final_alloc_id = ma['id']
                 else:
-                    # Step 3: CRITICAL - If NO allocation exists, create a dummy one.
-                    # This satisfies the foreign key constraint.
-                    cursor.execute("""
-                        INSERT INTO morning_allocations (employee_id, date, created_at)
-                        VALUES (%s, %s, %s)
-                    """, (emp_id, date_val, time_str))
+                    # Create Dummy Allocation if missing (Foreign Key req)
+                    cursor.execute("INSERT INTO morning_allocations (employee_id, date, created_at) VALUES (%s, %s, %s)", (emp_id, date_val, time_str))
                     final_alloc_id = cursor.lastrowid
-                    # We assume no items need to be added to this dummy allocation for now.
+                    conn.commit()
 
             total_amt = float(request.form.get('totalAmount') or 0)
             discount = float(request.form.get('discount') or 0)
@@ -4742,17 +4729,14 @@ def evening():
                     cursor.execute("UPDATE products SET stock = stock + %s WHERE id = %s", (ret, pid))
 
             if status == 'final':
+                # LEDGER ENTRIES with IST Time
                 if emp_c > 0: 
-                    cursor.execute("""
-                        INSERT INTO employee_transactions (employee_id, transaction_date, type, amount, description, created_at) 
-                        VALUES (%s, %s, 'credit', %s, %s, %s)
-                    """, (emp_id, date_val, emp_c, f"Credit #{settle_id}: {emp_c_n or 'Evening Settle'}", time_str))
+                    cursor.execute("INSERT INTO employee_transactions (employee_id, transaction_date, type, amount, description, created_at) VALUES (%s, %s, 'credit', %s, %s, %s)", 
+                                   (emp_id, date_val, emp_c, f"Credit #{settle_id}: {emp_c_n or 'Evening Settle'}", time_str))
                 
                 if emp_d > 0: 
-                    cursor.execute("""
-                        INSERT INTO employee_transactions (employee_id, transaction_date, type, amount, description, created_at) 
-                        VALUES (%s, %s, 'debit', %s, %s, %s)
-                    """, (emp_id, date_val, emp_d, f"Debit #{settle_id}: {emp_d_n or 'Evening Settle'}", time_str))
+                    cursor.execute("INSERT INTO employee_transactions (employee_id, transaction_date, type, amount, description, created_at) VALUES (%s, %s, 'debit', %s, %s, %s)", 
+                                   (emp_id, date_val, emp_d, f"Debit #{settle_id}: {emp_d_n or 'Evening Settle'}", time_str))
 
             conn.commit()
             flash("Saved successfully!", "success")
@@ -6178,7 +6162,6 @@ def emp_ledger(employee_id):
     
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
-    # 1. Fetch Employee
     cur.execute("SELECT id, name, position, email, phone, image FROM employees WHERE id = %s", [employee_id])
     employee = cur.fetchone()
     
@@ -6186,7 +6169,6 @@ def emp_ledger(employee_id):
         flash('Employee not found!', 'danger')
         return redirect(url_for('emp_list'))
         
-    # 2. Fetch Transactions
     cur.execute("""
         SELECT id, transaction_date, type, amount, description, created_at 
         FROM employee_transactions 
@@ -6194,16 +6176,10 @@ def emp_ledger(employee_id):
         ORDER BY transaction_date DESC, created_at DESC
     """, [employee_id])
     transactions_from_db = cur.fetchall()
-    
     cur.close()
     
-    # --- ROBUST TIME HANDLING ---
-    # We use specific imports to avoid conflicts
-    from datetime import datetime as dt_class, date as date_class, timedelta
-    import pytz # Optional if installed, else manual logic below
+    from datetime import datetime as dt_class, date as date_class
     
-    # Sort Logic: Handle None values safely
-    # If transaction_date is None, use min date. Same for created_at.
     transactions_calc = sorted(
         transactions_from_db, 
         key=lambda x: (
@@ -6221,8 +6197,6 @@ def emp_ledger(employee_id):
     
     for t in transactions_calc:
         amt = float(t['amount'])
-        
-        # Calculate Balance (Oldest first logic for math)
         if t['type'] == 'debit':
             running_balance += amt
             total_debit += amt
@@ -6230,24 +6204,20 @@ def emp_ledger(employee_id):
             running_balance -= amt
             total_credit += amt
             
-        if t['description'] == 'Opening Balance':
-            has_opening_balance = True
+        if t['description'] == 'Opening Balance': has_opening_balance = True
             
         t_dict = dict(t)
         t_dict['balance'] = running_balance
         
-        # --- TIME FORMATTING (IST) ---
-        # Converts UTC server time to IST (+5:30)
+        # --- TIME FORMATTING ---
+        # Value in DB is ALREADY IST (Wall Clock). DO NOT ADD timedelta.
         if t.get('created_at'):
-            # Manual conversion (Robust without external libs)
-            local_time = t['created_at'] + timedelta(hours=5, minutes=30)
-            t_dict['time_str'] = local_time.strftime('%I:%M %p')
+            t_dict['time_str'] = t['created_at'].strftime('%I:%M %p')
         else:
             t_dict['time_str'] = "-"
             
         processed_transactions.append(t_dict)
         
-    # Reverse to show Newest First in UI
     transactions_display = processed_transactions[::-1]
 
     return render_template('emp_ledger.html', 
@@ -6301,7 +6271,6 @@ def add_opening_balance(employee_id):
     return render_template('add_opening_balance.html', employee=emp, existing=existing)
 
 
-
 # ==========================================
 # ROUTE: ADD TRANSACTION (Time Fix Applied)
 # ==========================================
@@ -6313,18 +6282,14 @@ def add_transaction(employee_id):
     
     if request.method == 'POST':
         raw_date = request.form['transaction_date']
-        trans_date = parse_date_input(raw_date) # YYYY-MM-DD
+        trans_date = parse_date_input(raw_date) 
         trans_type = request.form['type'] 
         amount = request.form['amount']
         description = request.form['description']
         
-        # --- TIME FIX: Strictly use Frontend Client Time ---
-        client_time = request.form.get('client_time')
-        
-        if client_time and client_time.strip():
-            final_time = client_time 
-        else:
-            final_time = get_ist_now().strftime('%Y-%m-%d %H:%M:%S') # Fallback
+        # --- TIME FIX: Force Server-Side IST ---
+        # Ignore client time to prevent mismatch
+        final_time = get_ist_now().strftime('%Y-%m-%d %H:%M:%S')
         
         cur.execute("""
             INSERT INTO employee_transactions (employee_id, transaction_date, type, amount, description, created_at)
@@ -6343,6 +6308,7 @@ def add_transaction(employee_id):
     selected_type = request.args.get('type', 'credit') 
     
     return render_template('add_transaction.html', employee=employee, selected_type=selected_type)
+
 
 
 @app.route('/edit-transaction/<int:transaction_id>', methods=['GET', 'POST'])
