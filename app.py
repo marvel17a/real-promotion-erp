@@ -4637,7 +4637,7 @@ def morning():
     return render_template('morning.html', employees=emps, products=prods, today_date=date.today().strftime('%d-%m-%Y'))
 
 # ==========================================
-# ROUTE: EVENING SUBMIT (FK Fix + Time Fix)
+# ROUTE: EVENING SUBMIT (Time Fix Applied + NULL Fix)
 # ==========================================
 @app.route('/evening', methods=['GET', 'POST'])
 def evening():
@@ -4654,40 +4654,45 @@ def evening():
             emp_id = request.form.get('h_employee')
             date_val = request.form.get('h_date')
             
-            # --- TIME FIX ---
+            # --- TIME FIX: Strictly use Frontend Client Time ---
             client_timestamp = request.form.get('timestamp')
+            
             if client_timestamp and client_timestamp.strip():
+                # Use client provided time (from live clock)
                 time_str = client_timestamp 
             else:
+                # Fallback to Server IST only if missing
                 ist_now = get_ist_now()
                 time_str = ist_now.strftime('%Y-%m-%d %H:%M:%S') 
             
-            # Check existing evening record
+            # Check existing
             cursor.execute("SELECT id FROM evening_settle WHERE employee_id=%s AND date=%s", (emp_id, date_val))
             existing_record = cursor.fetchone()
 
-            # --- FOREIGN KEY FIX: Ensure Valid Allocation ID ---
+            # --- NULL ALLOCATION ID FIX ---
+            # Step 1: Try to use the ID passed from form
             final_alloc_id = None
-            
-            # 1. Try to use provided alloc_id if valid
             if alloc_id and alloc_id.strip() not in ['', '0', 'None']:
-                final_alloc_id = int(alloc_id)
+                try:
+                    final_alloc_id = int(alloc_id)
+                except:
+                    final_alloc_id = None
             
-            # 2. Verify or Fetch from DB if missing
+            # Step 2: If still None, look for an existing allocation for this day
             if not final_alloc_id:
                 cursor.execute("SELECT id FROM morning_allocations WHERE employee_id=%s AND date=%s", (emp_id, date_val))
-                ma_row = cursor.fetchone()
-                if ma_row:
-                    final_alloc_id = ma_row['id']
+                ma = cursor.fetchone()
+                if ma:
+                    final_alloc_id = ma['id']
                 else:
-                    # 3. CRITICAL FIX: Create Dummy Allocation if strictly required by FK
-                    # This handles "Direct Sales" or "Leftover Settle" where no morning form exists.
+                    # Step 3: CRITICAL - If NO allocation exists, create a dummy one.
+                    # This satisfies the foreign key constraint.
                     cursor.execute("""
-                        INSERT INTO morning_allocations (employee_id, date, created_at) 
+                        INSERT INTO morning_allocations (employee_id, date, created_at)
                         VALUES (%s, %s, %s)
                     """, (emp_id, date_val, time_str))
                     final_alloc_id = cursor.lastrowid
-                    conn.commit() # Commit immediately so it's visible for FK check
+                    # We assume no items need to be added to this dummy allocation for now.
 
             total_amt = float(request.form.get('totalAmount') or 0)
             discount = float(request.form.get('discount') or 0)
@@ -6338,6 +6343,8 @@ def add_transaction(employee_id):
     selected_type = request.args.get('type', 'credit') 
     
     return render_template('add_transaction.html', employee=employee, selected_type=selected_type)
+
+
 @app.route('/edit-transaction/<int:transaction_id>', methods=['GET', 'POST'])
 def edit_transaction(transaction_id):
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
@@ -6613,6 +6620,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
