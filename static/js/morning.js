@@ -93,33 +93,26 @@ document.addEventListener("DOMContentLoaded", () => {
 
             // --- RESTOCK MODE DISPLAY ---
             if (isRestockMode) {
-                ui.fetchMsg.innerHTML = '<span class="badge bg-warning text-dark mb-2">Restock Mode (Aggregated)</span>';
-                
-                // Show History (Allocations done so far today)
-                if(data.existing_items && data.existing_items.length > 0) {
-                    let html = `<div class="card border-warning mb-3 shadow-sm"><div class="card-header bg-warning bg-opacity-10 text-dark fw-bold small">ALREADY GIVEN TODAY</div><div class="card-body p-2 d-flex flex-wrap gap-2">`;
-                    data.existing_items.forEach(item => {
-                        html += `<div class="d-flex align-items-center border rounded p-1 pe-3 bg-white" style="min-width:160px;"><img src="${item.image}" class="rounded me-2" width="40" height="40" style="object-fit:cover;"><div><div class="small fw-bold text-dark lh-1">${item.name}</div><div class="badge bg-secondary ms-auto">Given: ${item.qty}</div></div></div>`;
-                    });
-                    html += `</div></div>`;
-                    ui.historyList.innerHTML = html;
-                }
+                ui.fetchMsg.innerHTML = '<span class="badge bg-warning text-dark mb-2">Restock Mode (Inventory Loaded)</span>';
+                if(ui.historyList) ui.historyList.innerHTML = ''; 
             } else {
                 ui.fetchMsg.innerHTML = '<span class="text-success small fw-bold">Fresh Allocation</span>';
             }
 
             // --- POPULATE TABLE (With Aggregated Opening) ---
-            // 'data.opening_stock' now contains [Yesterday Left + Today's Given So Far]
-            // This satisfies the requirement: "opening me bhi dikhna chahiye"
+            let rowsAdded = 0;
             if (data.opening_stock && data.opening_stock.length > 0) {
-                data.opening_stock.forEach(item => createRow(item));
-            } else {
-                createRow();
+                data.opening_stock.forEach(item => {
+                    if (parseInt(item.remaining) > 0) {
+                        createRow(item);
+                        rowsAdded++;
+                    }
+                });
             }
             
-            // Add extra empty row in restock mode for convenience
-            if (isRestockMode && (!data.opening_stock || data.opening_stock.length === 0)) {
-               createRow();
+            // If no rows were added (e.g. all stock sold or fresh day), add one empty row
+            if (rowsAdded === 0) {
+                createRow();
             }
 
             recalculateTotals();
@@ -139,7 +132,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if(prefillData) {
             pid = prefillData.product_id;
-            open = prefillData.remaining; // This comes from backend as (LastLeft + TodayGiven)
+            open = prefillData.remaining; 
             price = prefillData.price;
             if(prefillData.image) img = prefillData.image;
         }
@@ -147,7 +140,6 @@ document.addEventListener("DOMContentLoaded", () => {
         // Dropdown selection logic
         let options = productOptionsHtml;
         if(pid) {
-            // Select the item
             options = options.replace(`value="${pid}"`, `value="${pid}" selected`);
         }
 
@@ -199,7 +191,6 @@ document.addEventListener("DOMContentLoaded", () => {
             const p = productsMap.get(pid);
             const max = p ? p.stock : 9999;
             if(giv > max) {
-                // Warning only
                 warn.innerHTML = `<i class="fa-solid fa-triangle-exclamation me-1"></i>Only ${max} in warehouse`;
                 warn.style.display = 'block';
                 givInput.style.borderColor = 'red';
@@ -209,11 +200,8 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         }
 
-        const tot = op + giv; // Visual Total = Aggregated Opening + New Given
+        const tot = op + giv;
         row.querySelector(".total").value = tot;
-        // Amount calculation: usually charged on Given Qty only? 
-        // Or Total? In allocation context, 'Amount' is usually value of goods handed over.
-        // Assuming we track value of *Given* items for this specific transaction.
         row.querySelector(".amount").value = (giv * pr).toFixed(2);
         
         recalculateTotals();
@@ -246,7 +234,20 @@ document.addEventListener("DOMContentLoaded", () => {
     
     ui.tableBody.addEventListener("click", e => {
         if(e.target.closest(".btn-remove-row")) {
-            if(confirm("Remove row?")) { e.target.closest("tr").remove(); updateRowIndexes(); recalculateTotals(); }
+            // FIX: Warn user that deleting from view doesn't delete physical stock from DB if opening > 0
+            const tr = e.target.closest("tr");
+            const op = parseInt(tr.querySelector(".opening").value) || 0;
+            let confirmMsg = "Remove row?";
+            
+            if (op > 0) {
+                confirmMsg = "Removing this row will reverse the stock deduction for this item upon saving. Continue?";
+            }
+            
+            if(confirm(confirmMsg)) { 
+                tr.remove(); 
+                updateRowIndexes(); 
+                recalculateTotals(); 
+            }
         }
     });
 
