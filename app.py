@@ -4637,7 +4637,7 @@ def morning():
     return render_template('morning.html', employees=emps, products=prods, today_date=date.today().strftime('%d-%m-%Y'))
 
 # ==========================================
-# ROUTE: EVENING SUBMIT (Time Fix Applied + NULL Fix)
+# ROUTE: EVENING SUBMIT (FK Fix + Time Fix)
 # ==========================================
 @app.route('/evening', methods=['GET', 'POST'])
 def evening():
@@ -4654,7 +4654,7 @@ def evening():
             emp_id = request.form.get('h_employee')
             date_val = request.form.get('h_date')
             
-            # Time Fix
+            # --- TIME FIX ---
             client_timestamp = request.form.get('timestamp')
             if client_timestamp and client_timestamp.strip():
                 time_str = client_timestamp 
@@ -4662,21 +4662,32 @@ def evening():
                 ist_now = get_ist_now()
                 time_str = ist_now.strftime('%Y-%m-%d %H:%M:%S') 
             
-            # Check existing
+            # Check existing evening record
             cursor.execute("SELECT id FROM evening_settle WHERE employee_id=%s AND date=%s", (emp_id, date_val))
             existing_record = cursor.fetchone()
 
-            # --- NULL ALLOCATION ID FIX ---
-            # Default to 0 if empty or None
-            final_alloc_id = 0
-            if alloc_id and alloc_id.strip() not in ['', '0', 'None']:
-                try:
-                    final_alloc_id = int(alloc_id)
-                except:
-                    final_alloc_id = 0
+            # --- FOREIGN KEY FIX: Ensure Valid Allocation ID ---
+            final_alloc_id = None
             
-            # Optional: Verify if this alloc_id is valid for this employee/date context, 
-            # but usually just trusting the int or 0 is safer to avoid the NULL error.
+            # 1. Try to use provided alloc_id if valid
+            if alloc_id and alloc_id.strip() not in ['', '0', 'None']:
+                final_alloc_id = int(alloc_id)
+            
+            # 2. Verify or Fetch from DB if missing
+            if not final_alloc_id:
+                cursor.execute("SELECT id FROM morning_allocations WHERE employee_id=%s AND date=%s", (emp_id, date_val))
+                ma_row = cursor.fetchone()
+                if ma_row:
+                    final_alloc_id = ma_row['id']
+                else:
+                    # 3. CRITICAL FIX: Create Dummy Allocation if strictly required by FK
+                    # This handles "Direct Sales" or "Leftover Settle" where no morning form exists.
+                    cursor.execute("""
+                        INSERT INTO morning_allocations (employee_id, date, created_at) 
+                        VALUES (%s, %s, %s)
+                    """, (emp_id, date_val, time_str))
+                    final_alloc_id = cursor.lastrowid
+                    conn.commit() # Commit immediately so it's visible for FK check
 
             total_amt = float(request.form.get('totalAmount') or 0)
             discount = float(request.form.get('discount') or 0)
@@ -6285,6 +6296,7 @@ def add_opening_balance(employee_id):
     return render_template('add_opening_balance.html', employee=emp, existing=existing)
 
 
+
 # ==========================================
 # ROUTE: ADD TRANSACTION (Time Fix Applied)
 # ==========================================
@@ -6326,7 +6338,6 @@ def add_transaction(employee_id):
     selected_type = request.args.get('type', 'credit') 
     
     return render_template('add_transaction.html', employee=employee, selected_type=selected_type)
-
 @app.route('/edit-transaction/<int:transaction_id>', methods=['GET', 'POST'])
 def edit_transaction(transaction_id):
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
@@ -6602,6 +6613,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
