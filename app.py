@@ -4635,6 +4635,7 @@ def morning():
     } for p in cursor.fetchall()]
     
     return render_template('morning.html', employees=emps, products=prods, today_date=date.today().strftime('%d-%m-%Y'))
+
 # ==========================================
 # ROUTE: EVENING SUBMIT (Time Fix Applied)
 # ==========================================
@@ -4653,13 +4654,14 @@ def evening():
             emp_id = request.form.get('h_employee')
             date_val = request.form.get('h_date')
             
-            # --- TIME FIX: Use Frontend Client Time if available ---
+            # --- TIME FIX: Strictly use Frontend Client Time ---
             client_timestamp = request.form.get('timestamp')
             
             if client_timestamp and client_timestamp.strip():
-                time_str = client_timestamp # Use what the clock showed
+                # Use client provided time (from live clock)
+                time_str = client_timestamp 
             else:
-                # Fallback to Server IST
+                # Fallback to Server IST only if missing
                 ist_now = get_ist_now()
                 time_str = ist_now.strftime('%Y-%m-%d %H:%M:%S') 
             
@@ -4723,7 +4725,7 @@ def evening():
                 if status == 'final' and ret > 0:
                     cursor.execute("UPDATE products SET stock = stock + %s WHERE id = %s", (ret, pid))
 
-            # --- LEDGER: Use Same Time String ---
+            # --- LEDGER: Use Same Time String (from Frontend) ---
             if status == 'final':
                 if emp_c > 0: 
                     cursor.execute("""
@@ -6300,11 +6302,11 @@ def add_transaction(employee_id):
         amount = request.form['amount']
         description = request.form['description']
         
-        # --- TIME FIX: Use Frontend Client Time if available ---
+        # --- TIME FIX: Strictly use Frontend Client Time ---
         client_time = request.form.get('client_time')
         
         if client_time and client_time.strip():
-            final_time = client_time # Use device time from form
+            final_time = client_time 
         else:
             final_time = get_ist_now().strftime('%Y-%m-%d %H:%M:%S') # Fallback
         
@@ -6601,6 +6603,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
