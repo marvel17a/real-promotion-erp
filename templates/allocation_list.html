@@ -26,122 +26,111 @@
                 
                 <!-- Date Filter -->
                 <div class="col-md-3">
-                    <label class="form-label small text-uppercase fw-bold text-secondary">Date</label>
+                    <label class="form-label small text-uppercase fw-bold text-muted">Date</label>
                     <div class="input-group input-group-glass">
-                        <span class="input-group-text bg-white border-end-0"><i class="fa-regular fa-calendar text-primary"></i></span>
-                        <input type="text" id="filterDate" name="date" class="form-control border-start-0 ps-2" placeholder="Select Date" value="{{ filters.date if filters.date else '' }}">
+                        <span class="input-group-text bg-white border-end-0"><i class="fa-regular fa-calendar"></i></span>
+                        <input type="text" id="filterDate" name="date" class="form-control border-start-0 ps-0" placeholder="Select Date" value="{{ filters.date }}">
                     </div>
                 </div>
 
                 <!-- Employee Filter -->
                 <div class="col-md-4">
-                    <label class="form-label small text-uppercase fw-bold text-secondary">Employee</label>
+                    <label class="form-label small text-uppercase fw-bold text-muted">Employee</label>
                     <div class="input-group input-group-glass">
-                        <span class="input-group-text bg-white border-end-0"><i class="fa-solid fa-user text-primary"></i></span>
-                        <select name="employee_id" class="form-select border-start-0 ps-2">
+                        <span class="input-group-text bg-white border-end-0"><i class="fa-solid fa-user"></i></span>
+                        <select name="employee_id" class="form-select border-start-0 ps-0">
                             <option value="all">All Employees</option>
                             {% for emp in employees %}
-                            <option value="{{ emp.id }}" {% if filters.employee_id|string == emp.id|string %}selected{% endif %}>{{ emp.name }}</option>
+                            <option value="{{ emp.id }}" {% if filters.employee_id == emp.id|string %}selected{% endif %}>{{ emp.name }}</option>
                             {% endfor %}
                         </select>
                     </div>
                 </div>
 
-                <!-- Action Buttons -->
-                <div class="col-md-3 d-flex gap-2">
-                    <button type="submit" class="btn btn-dark w-100 fw-bold rounded-3">
-                        <i class="fa-solid fa-filter me-1"></i> Filter
+                <!-- Filter Button -->
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-dark w-100 rounded-pill fw-bold">
+                        <i class="fa-solid fa-filter me-2"></i> Filter
                     </button>
-                    <a href="{{ url_for('allocation_list') }}" class="btn btn-light border w-auto rounded-3 px-3" title="Reset Filters">
-                        <i class="fa-solid fa-rotate-right text-secondary"></i>
+                </div>
+                
+                <!-- Clear Button -->
+                <div class="col-md-2">
+                    <a href="{{ url_for('allocation_list') }}" class="btn btn-outline-secondary w-100 rounded-pill fw-bold border-0">
+                        <i class="fa-solid fa-rotate-left me-2"></i> Reset
                     </a>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Allocation Table -->
+    <!-- Allocation List -->
     <div class="card glass-card border-0 shadow-sm overflow-hidden">
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
-                <thead class="bg-light text-secondary small text-uppercase">
+                <thead class="bg-light text-uppercase small text-muted">
                     <tr>
-                        <th class="ps-4 py-3" style="width: 80px;"># ID</th>
-                        <th style="width: 200px;">Date & Time</th>
-                        <th>Sales Representative</th>
-                        <th class="text-center">Total Items</th>
+                        <th class="ps-4" style="width: 60px;">#</th>
+                        <th>Date & Time</th>
+                        <th>Employee</th>
+                        <th class="text-center">Items</th>
                         <th class="text-center">Status</th>
                         <th class="text-end pe-4">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for alloc in allocations %}
+                    {% for a in allocations %}
                     <tr>
-                        <td class="ps-4 fw-bold text-muted">#{{ alloc.id }}</td>
+                        <td class="ps-4 fw-bold text-muted">{{ loop.index }}</td>
                         <td>
-                            <div class="d-flex flex-column">
-                                <span class="fw-bold text-dark">{{ alloc.formatted_date }}</span>
-                                <span class="small text-muted fw-bold"><i class="fa-regular fa-clock me-1 text-primary"></i>{{ alloc.formatted_time }}</span>
-                            </div>
+                            <div class="fw-bold text-dark">{{ a.formatted_date }}</div>
+                            <div class="small text-muted">{{ a.formatted_time }}</div>
                         </td>
                         <td>
                             <div class="d-flex align-items-center">
-                                <img src="{{ alloc.emp_image }}" class="rounded-circle border me-3 shadow-sm" width="40" height="40" style="object-fit: cover;">
-                                <div>
-                                    <span class="fw-bold text-dark d-block">{{ alloc.emp_name }}</span>
-                                </div>
+                                <img src="{{ a.emp_image }}" class="rounded-circle me-2 border" width="35" height="35" style="object-fit: cover;">
+                                <span class="fw-bold text-dark">{{ a.emp_name }}</span>
                             </div>
                         </td>
                         <td class="text-center">
-                            <span class="badge bg-light text-dark border px-3 py-2 rounded-pill">{{ alloc.item_count }} Products</span>
+                            <span class="badge bg-secondary bg-opacity-10 text-secondary border px-3 rounded-pill">{{ a.item_count }} Items</span>
                         </td>
-                        
-                        <!-- Status Badge -->
                         <td class="text-center">
-                            <span class="badge {{ alloc.status_class }} fw-normal px-3 py-2 rounded-pill shadow-sm">
-                                <i class="fa-solid fa-circle me-1 small"></i>{{ alloc.status_badge }}
+                            <span class="badge {{ a.status_class }} px-3 py-2 rounded-pill shadow-sm border border-white">
+                                {{ a.status_badge }}
                             </span>
                         </td>
-
                         <td class="text-end pe-4">
-                            <div class="btn-group shadow-sm rounded-3 overflow-hidden">
-                                <!-- PDF -->
-                                <a href="{{ url_for('generate_morning_pdf', alloc_id=alloc.id) }}" class="btn btn-sm btn-light border-end" title="Download PDF">
+                            <div class="btn-group shadow-sm rounded-pill" role="group">
+                                {% if not a.is_locked %}
+                                <a href="{{ url_for('edit_morning_allocation', allocation_id=a.id) }}" class="btn btn-sm btn-white border-end" title="Edit">
+                                    <i class="fa-solid fa-pen text-primary"></i>
+                                </a>
+                                {% endif %}
+                                <a href="{{ url_for('download_morning_pdf', allocation_id=a.id) }}" class="btn btn-sm btn-white border-end" title="Download PDF">
                                     <i class="fa-solid fa-file-pdf text-danger"></i>
                                 </a>
-                                
-                                <!-- WhatsApp -->
-                                <a href="https://wa.me/?text=Stock Allocation Details: {{ request.host_url }}morning/pdf/{{ alloc.id }}" target="_blank" class="btn btn-sm btn-light border-end" title="Share PDF">
-                                    <i class="fa-brands fa-whatsapp text-success"></i>
-                                </a>
-
-                                <!-- Edit (Conditional Lock) -->
-                                {% if alloc.is_locked %}
-                                    <button class="btn btn-sm btn-light border-end text-muted" title="Locked: Evening Settlement Submitted" disabled style="opacity: 0.6; cursor: not-allowed;">
-                                        <i class="fa-solid fa-lock"></i>
-                                    </button>
-                                {% else %}
-                                    <a href="{{ url_for('edit_morning_allocation', allocation_id=alloc.id) }}" class="btn btn-sm btn-light border-end text-primary" title="Edit Allocation">
-                                        <i class="fa-solid fa-pen"></i>
-                                    </a>
-                                {% endif %}
-
-                                <!-- Delete -->
-                                <form action="{{ url_for('delete_allocation', id=alloc.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this allocation? Stock will be reversed.');">
-                                    <button type="submit" class="btn btn-sm btn-light text-dark" title="Delete">
+                                {% if not a.is_locked %}
+                                <form action="{{ url_for('delete_allocation', id=a.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete allocation? Stock will be restored.');">
+                                    <button type="submit" class="btn btn-sm btn-white text-danger border-0 rounded-end-pill ps-2" title="Delete">
                                         <i class="fa-solid fa-trash"></i>
                                     </button>
                                 </form>
+                                {% else %}
+                                <span class="btn btn-sm btn-light text-muted border-0 rounded-end-pill ps-2 cursor-not-allowed" title="Locked (Evening Submitted)">
+                                    <i class="fa-solid fa-lock"></i>
+                                </span>
+                                {% endif %}
                             </div>
                         </td>
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="6" class="text-center py-5 text-muted">
-                            <div class="d-flex flex-column align-items-center opacity-50">
+                        <td colspan="6" class="text-center py-5">
+                            <div class="text-muted opacity-50">
                                 <i class="fa-regular fa-folder-open fa-3x mb-3"></i>
-                                <span class="fs-5">No records found</span>
-                                <small>Try selecting a different date or employee.</small>
+                                <p class="mb-0 fw-bold">No allocations found.</p>
+                                <small>Try adjusting filters or create a new one.</small>
                             </div>
                         </td>
                     </tr>
@@ -173,9 +162,9 @@
         background-color: #fff; box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.1); border-color: #86b7fe;
     }
     .bg-primary { background-color: #0d6efd !important; }
-    .btn-group .btn { padding: 0.4rem 0.8rem; font-size: 0.9rem; }
-    .btn-group .btn:hover { background-color: #e9ecef; }
-    .fade-in-up { animation: fadeInUp 0.5s ease-out forwards; }
-    @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    .btn-group .btn { padding: 0.4rem 0.8rem; }
+    .btn-white { background: white; border: 1px solid #dee2e6; }
+    .btn-white:hover { background: #f8f9fa; }
+    .cursor-not-allowed { cursor: not-allowed; }
 </style>
 {% endblock %}
