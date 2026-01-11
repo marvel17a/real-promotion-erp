@@ -3868,7 +3868,9 @@ class PDFGenerator(FPDF):
             "Nadiad-387001, Gujarat, India"
         ]
         self.contact = "+91 96623 22476 | help@realpromotion.in"
-        self.gst_no = "GSTIN: " # Add GST if available
+        # Updated GST Text with specific formatting
+        self.gst_text = "GSTIN:24AJVPT0460H1ZW"
+        self.gst_subtext = "Composition Dealer- Not Eligibal To Collect Taxes On Sppliers"
 
     def header(self):
         # Company Header
@@ -3886,8 +3888,12 @@ class PDFGenerator(FPDF):
         for line in self.address_lines:
             self.cell(0, 4, line, 0, 1, 'C')
         self.cell(0, 4, self.contact, 0, 1, 'C')
+        
+        # GST Section
         self.set_font('Arial', 'B', 9)
-        self.cell(0, 4, self.gst_no, 0, 1, 'C')
+        self.cell(0, 4, self.gst_text, 0, 1, 'C')
+        self.set_font('Arial', 'I', 8)
+        self.cell(0, 4, self.gst_subtext, 0, 1, 'C')
         self.ln(5)
         
         # Divider
@@ -3927,6 +3933,7 @@ class PDFGenerator(FPDF):
         self.set_font('Arial', '', 10)
         self.cell(35, 6, "Mobile No:", 0, 0)
         self.set_font('Arial', 'B', 10)
+        # Fix: Ensure mobile is displayed even if None in DB (pass empty string fallback logic in route)
         self.cell(70, 6, str(emp_mobile) if emp_mobile else "N/A", 0, 1)
 
         # Right: Date/Time
@@ -3962,7 +3969,8 @@ class PDFGenerator(FPDF):
         sig_path = os.path.join(app.root_path, 'static', 'img', 'signature.png')
         if os.path.exists(sig_path):
             # Embed Image
-            self.image(sig_path, x=20, y=y_pos-10, w=40) 
+            # x=20 aligns with "Authorized Signature" text roughly
+            self.image(sig_path, x=20, y=y_pos-15, w=40) 
         
         self.set_font('Arial', 'B', 10)
         self.set_text_color(0, 0, 0)
@@ -6688,6 +6696,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
