@@ -108,14 +108,14 @@
                                 </a>
                                 {% endif %}
                                 
+                                <!-- Direct Internal Download -->
                                 <a href="{{ url_for('download_morning_pdf', allocation_id=a.id) }}" class="btn btn-sm btn-white border-end" title="Download PDF">
                                     <i class="fa-solid fa-file-pdf text-danger"></i>
                                 </a>
 
-                                <!-- WhatsApp Share Button (UPDATED) -->
-                                <!-- Generates full URL for PDF -->
-                                {% set pdf_link = url_for('download_morning_pdf', allocation_id=a.id, _external=True) %}
-                                {% set wa_text = "Hello " ~ a.emp_name ~ ", please find your Morning Allocation Challan (" ~ a.formatted_date ~ ") here: " ~ pdf_link %}
+                                <!-- WhatsApp Share Button (UPDATED to use Public Route) -->
+                                {% set public_pdf_link = url_for('download_morning_pdf_public', allocation_id=a.id, _external=True) %}
+                                {% set wa_text = "Hello " ~ a.emp_name ~ ", please find your Morning Allocation Challan (" ~ a.formatted_date ~ ") here: " ~ public_pdf_link %}
                                 <a href="https://wa.me/91{{ a.emp_phone }}?text={{ wa_text | urlencode }}" target="_blank" class="btn btn-sm btn-white border-end text-success" title="Share via WhatsApp">
                                     <i class="fa-brands fa-whatsapp"></i>
                                 </a>
