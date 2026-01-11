@@ -33,7 +33,11 @@
                         <div>
                             <h5 class="fw-bold text-dark mb-0">{{ settlement.emp_name }}</h5>
                             <div class="text-muted small">
-                                <i class="fa-solid fa-calendar-day me-1"></i> Date: <span class="fw-bold text-dark">{{ settlement.formatted_date }}</span>
+                                <!-- Date & Time Display -->
+                                <i class="fa-solid fa-calendar-day me-1"></i> 
+                                <span class="fw-bold text-dark me-2">{{ settlement.formatted_date }}</span>
+                                <i class="fa-regular fa-clock me-1"></i>
+                                <span>{{ settlement.formatted_time }}</span>
                             </div>
                         </div>
                         <div class="ms-auto text-end">
@@ -98,28 +102,36 @@
                 </div>
                 <div class="card-body p-4">
                     
+                    <!-- Sales & Discount -->
                     <div class="d-flex justify-content-between mb-2">
-                        <span class="text-muted">Total Sales</span>
+                        <span class="text-muted">Total Sales Value</span>
                         <span class="fw-bold">₹ {{ "%.2f"|format(settlement.total_amount) }}</span>
                     </div>
-                    <div class="d-flex justify-content-between mb-2 text-warning">
+                    <div class="d-flex justify-content-between mb-3 text-warning border-bottom pb-2">
                         <span><i class="fa-solid fa-percent me-1"></i> Discount</span>
                         <span class="fw-bold">- {{ "%.2f"|format(settlement.discount) }}</span>
                     </div>
-                    <div class="d-flex justify-content-between mb-3 text-info">
-                        <span><i class="fa-solid fa-qrcode me-1"></i> Online</span>
-                        <span class="fw-bold">- {{ "%.2f"|format(settlement.online_money) }}</span>
+
+                    <!-- Net Sales -->
+                    <div class="d-flex justify-content-between mb-3">
+                        <span class="text-dark fw-bold small text-uppercase">Net Payable Amount</span>
+                        <span class="fw-bold fs-5 text-dark">₹ {{ "%.2f"|format(settlement.total_amount - settlement.discount) }}</span>
                     </div>
                     
-                    <hr class="border-secondary border-opacity-10 my-3">
-                    
-                    <div class="d-flex justify-content-between align-items-center mb-4">
-                        <span class="text-success fw-bold text-uppercase small">Cash Collected</span>
-                        <span class="fs-4 fw-800 text-success">₹ {{ "%.2f"|format(settlement.cash_money) }}</span>
+                    <!-- Payments -->
+                    <div class="p-3 bg-light rounded-3 border mb-3">
+                        <div class="d-flex justify-content-between mb-2 text-info">
+                            <span><i class="fa-solid fa-qrcode me-1"></i> Online Paid</span>
+                            <span class="fw-bold">₹ {{ "%.2f"|format(settlement.online_money) }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="text-success"><i class="fa-solid fa-money-bill-wave me-1"></i> Cash Paid</span>
+                            <span class="fw-bold text-success">₹ {{ "%.2f"|format(settlement.cash_money) }}</span>
+                        </div>
                     </div>
 
                     <!-- Due Section -->
-                    <div class="p-3 bg-light rounded-3 text-center border">
+                    <div class="text-center">
                         <small class="text-uppercase text-muted fw-bold ls-1 d-block mb-1">Balance Due</small>
                         <h4 class="fw-800 mb-0 {% if settlement.due_amount > 0 %}text-danger{% else %}text-secondary{% endif %}">
                             ₹ {{ "%.2f"|format(settlement.due_amount) }}
