@@ -4957,7 +4957,9 @@ def fetch_morning_allocation():
 
 
 
-
+# ==========================================
+# 1. EDIT MORNING ALLOCATION (With Inventory Sync)
+# ==========================================
 @app.route('/morning/edit/<int:allocation_id>', methods=['GET', 'POST'])
 def edit_morning_allocation(allocation_id):
     if "loggedin" not in session: return redirect(url_for("login"))
@@ -4980,47 +4982,67 @@ def edit_morning_allocation(allocation_id):
             given_qtys = request.form.getlist('given[]')
             prices = request.form.getlist('price[]')
 
-            # Fetch existing IDs to detect deletions
-            db_cursor.execute("SELECT id FROM morning_allocation_items WHERE allocation_id = %s", (allocation_id,))
-            current_db_ids = [str(r['id']) for r in db_cursor.fetchall()]
-            processed_ids = []
+            # 1. Fetch ALL existing items for this allocation to handle deletions
+            db_cursor.execute("SELECT id, product_id, given_qty FROM morning_allocation_items WHERE allocation_id = %s", (allocation_id,))
+            existing_items_map = {str(row['id']): row for row in db_cursor.fetchall()}
+            
+            # IDs present in the submitted form
+            submitted_item_ids = set([iid for iid in item_ids if iid != 'new_item'])
 
+            # 2. HANDLE DELETIONS (Items in DB but not in Form)
+            for db_id, db_item in existing_items_map.items():
+                if db_id not in submitted_item_ids:
+                    # Restore Stock
+                    qty_to_restore = int(db_item['given_qty'])
+                    if qty_to_restore > 0:
+                        db_cursor.execute("UPDATE products SET stock = stock + %s WHERE id = %s", (qty_to_restore, db_item['product_id']))
+                    # Delete Record
+                    db_cursor.execute("DELETE FROM morning_allocation_items WHERE id = %s", (db_id,))
+
+            # 3. HANDLE UPDATES & INSERTIONS
             for i, pid in enumerate(product_ids):
                 if not pid: continue
                 
                 item_id = item_ids[i]
-                # Safe conversions
-                op_qty = int(opening_qtys[i]) if opening_qtys[i] else 0
-                gv_qty = int(given_qtys[i]) if given_qtys[i] else 0
-                price = float(prices[i]) if prices[i] else 0.0
+                op_qty = int(opening_qtys[i] or 0)
+                gv_qty = int(given_qtys[i] or 0)
+                price = float(prices[i] or 0)
 
                 if item_id == 'new_item':
-                    # Insert New Item
+                    # INSERT NEW
                     db_cursor.execute("""
                         INSERT INTO morning_allocation_items 
                         (allocation_id, product_id, opening_qty, given_qty, unit_price)
                         VALUES (%s, %s, %s, %s, %s)
                     """, (allocation_id, pid, op_qty, gv_qty, price))
-                else:
-                    # Update Existing
-                    processed_ids.append(item_id)
+                    
+                    # Deduct from Stock
+                    if gv_qty > 0:
+                        db_cursor.execute("UPDATE products SET stock = stock - %s WHERE id = %s", (gv_qty, pid))
+                
+                elif item_id in existing_items_map:
+                    # UPDATE EXISTING
+                    old_data = existing_items_map[item_id]
+                    old_given = int(old_data['given_qty'])
+                    
+                    # Calculate Difference
+                    diff = gv_qty - old_given
+                    
                     db_cursor.execute("""
                         UPDATE morning_allocation_items 
                         SET product_id=%s, opening_qty=%s, given_qty=%s, unit_price=%s
-                        WHERE id=%s AND allocation_id=%s
-                    """, (pid, op_qty, gv_qty, price, item_id, allocation_id))
-
-            # Delete Removed Items
-            for db_id in current_db_ids:
-                if db_id not in processed_ids:
-                    db_cursor.execute("DELETE FROM morning_allocation_items WHERE id=%s", (db_id,))
+                        WHERE id=%s
+                    """, (pid, op_qty, gv_qty, price, item_id))
+                    
+                    # Adjust Stock (If given more, diff is positive -> subtract from stock)
+                    if diff != 0:
+                        db_cursor.execute("UPDATE products SET stock = stock - %s WHERE id = %s", (diff, pid))
 
             mysql.connection.commit()
             flash("Allocation updated successfully!", "success")
             return redirect(url_for('allocation_list'))
 
-        # GET Request
-        # 1. Allocation Header
+        # GET Request Logic
         db_cursor.execute("""
             SELECT ma.*, e.name as employee_name, e.image as emp_image 
             FROM morning_allocations ma
@@ -5035,7 +5057,6 @@ def edit_morning_allocation(allocation_id):
             
         allocation['emp_image'] = resolve_img(allocation['emp_image'])
 
-        # 2. Items
         db_cursor.execute("""
             SELECT mai.*, p.image 
             FROM morning_allocation_items mai
@@ -5045,28 +5066,20 @@ def edit_morning_allocation(allocation_id):
         items = db_cursor.fetchall()
         for item in items: item['image'] = resolve_img(item['image'])
 
-        # 3. Product List for Dropdown
-        # FIX: Removed "WHERE status='Active'" because your products table has no status column
         db_cursor.execute("SELECT id, name, price, image FROM products ORDER BY name")
         all_products = db_cursor.fetchall()
-        
-        # Prepare JSON for JS
         products_js = []
-        product_options = ""
         for p in all_products:
             p_img = resolve_img(p['image'])
             products_js.append({'id': p['id'], 'name': p['name'], 'price': float(p['price']), 'image': p_img})
-            product_options += f'<option value="{p["id"]}">{p["name"]}</option>'
 
         return render_template('morning_edit.html',
                                allocation=allocation,
                                items=items,
-                               products=products_js,
-                               productOptions=product_options)
+                               products=products_js)
 
     except Exception as e:
         if db_cursor: mysql.connection.rollback()
-        # app.logger.error(f"Edit Error: {e}")
         print(f"Edit Error: {e}")
         flash(f"Error: {e}", "danger")
         return redirect(url_for('allocation_list'))
@@ -5246,40 +5259,73 @@ def admin_evening_master():
 
 
 
-# --- 2. EDIT SETTLEMENT (Logic Critical) ---
-
+# ==========================================
+# 2. EDIT EVENING SETTLEMENT (With Inventory Sync)
+# ==========================================
 @app.route('/admin/evening/edit/<int:settle_id>', methods=['GET', 'POST'])
 def admin_edit_evening(settle_id):
     if "loggedin" not in session: return redirect(url_for("login"))
+    
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    
     if request.method == 'POST':
         try:
-            # Revert stock logic for old items
+            # 1. Fetch Old Data to compare stock changes
             cur.execute("SELECT * FROM evening_item WHERE settle_id = %s", (settle_id,))
-            old_items = {item['product_id']: item for item in cur.fetchall()}
+            old_items_map = {item['product_id']: item for item in cur.fetchall()}
             
-            total_amt = request.form.get('totalAmount')
-            cash = request.form.get('cash')
-            online = request.form.get('online')
-            discount = request.form.get('discount')
+            # Form Data
+            total_amt = float(request.form.get('totalAmount') or 0)
+            cash = float(request.form.get('cash') or 0)
+            online = float(request.form.get('online') or 0)
+            discount = float(request.form.get('discount') or 0)
             
+            # Ledger Data
+            emp_c = float(request.form.get('emp_credit_amount') or 0)
+            emp_c_n = request.form.get('emp_credit_note')
+            emp_d = float(request.form.get('emp_debit_amount') or 0)
+            emp_d_n = request.form.get('emp_debit_note')
+            due_n = request.form.get('due_note')
+
             p_ids = request.form.getlist('product_id[]')
             sold_qtys = request.form.getlist('sold[]')
             return_qtys = request.form.getlist('return[]')
-            # Prices might not change, but good to have
             
+            # 2. Process Items
             for i, pid in enumerate(p_ids):
                 pid = int(pid)
                 new_sold = int(sold_qtys[i] or 0)
                 new_ret = int(return_qtys[i] or 0)
                 
-                old_item = old_items.get(pid)
-                if old_item:
-                    diff_sold = new_sold - old_item['sold_qty']
-                    if diff_sold != 0:
-                        cur.execute("UPDATE products SET stock = stock - %s WHERE id = %s", (diff_sold, pid))
+                if pid in old_items_map:
+                    old_item = old_items_map[pid]
+                    old_sold = int(old_item['sold_qty'])
+                    old_ret = int(old_item['return_qty'])
+                    total_qty = int(old_item['total_qty']) # Usually static in edit mode
                     
-                    new_remain = old_item['total_qty'] - new_sold - new_ret
+                    # Logic:
+                    # 1. Sold Change: (Old - New) -> Add/Subtract from Stock? 
+                    # Actually, Sold doesn't affect Main Inventory (it's gone). 
+                    # BUT Return affects Main Inventory.
+                    # Wait, if I sold LESS, it means I have MORE 'Left'.
+                    # 'Left' implies it stays with Employee? OR does it return to stock?
+                    # STANDARD LOGIC: 
+                    # - Sold items leave inventory permanently (handled during allocation or confirmation).
+                    # - Returned items go BACK to inventory.
+                    
+                    # CHANGE: In 'evening' submit logic, we do: 
+                    # "if ret > 0: UPDATE products SET stock = stock + ret"
+                    # So here, we must adjust based on difference in RETURNS.
+                    
+                    diff_return = new_ret - old_ret
+                    
+                    if diff_return != 0:
+                        # If I return MORE now (diff > 0), Stock should INCREASE.
+                        # If I return LESS now (diff < 0), Stock should DECREASE (I took it back/sold it).
+                        cur.execute("UPDATE products SET stock = stock + %s WHERE id = %s", (diff_return, pid))
+                    
+                    # Recalculate Remaining
+                    new_remain = total_qty - new_sold - new_ret
                     if new_remain < 0: new_remain = 0
                     
                     cur.execute("""
@@ -5287,23 +5333,50 @@ def admin_edit_evening(settle_id):
                         SET sold_qty=%s, return_qty=%s, remaining_qty=%s 
                         WHERE id=%s
                     """, (new_sold, new_ret, new_remain, old_item['id']))
+
+            # 3. Update Settlement Header
+            cur.execute("""
+                UPDATE evening_settle 
+                SET total_amount=%s, cash_money=%s, online_money=%s, discount=%s,
+                    emp_credit_amount=%s, emp_credit_note=%s, 
+                    emp_debit_amount=%s, emp_debit_note=%s,
+                    due_note=%s
+                WHERE id=%s
+            """, (total_amt, cash, online, discount, emp_c, emp_c_n, emp_d, emp_d_n, due_n, settle_id))
             
-            cur.execute("UPDATE evening_settle SET total_amount=%s, cash_money=%s, online_money=%s, discount=%s WHERE id=%s", (total_amt, cash, online, discount, settle_id))
             mysql.connection.commit()
-            flash("Updated", "success")
+            flash("Settlement Updated Successfully.", "success")
             return redirect(url_for('admin_evening_master'))
+            
         except Exception as e:
             mysql.connection.rollback()
+            flash(f"Update Error: {e}", "danger")
             return redirect(url_for('admin_evening_master'))
             
-    cur.execute("SELECT es.*, e.name as emp_name FROM evening_settle es JOIN employees e ON es.employee_id = e.id WHERE es.id = %s", (settle_id,))
+    # GET Request
+    cur.execute("""
+        SELECT es.*, e.name as emp_name, e.image as emp_image 
+        FROM evening_settle es 
+        JOIN employees e ON es.employee_id = e.id 
+        WHERE es.id = %s
+    """, (settle_id,))
     settlement = cur.fetchone()
     
-    cur.execute("SELECT ei.*, p.name as product_name, p.image FROM evening_item ei JOIN products p ON ei.product_id = p.id WHERE ei.settle_id = %s", (settle_id,))
+    # Format Date for Display (dd-mm-yyyy)
+    if settlement and settlement.get('date'):
+        settlement['formatted_date'] = settlement['date'].strftime('%d-%m-%Y')
+    
+    cur.execute("""
+        SELECT ei.*, p.name as product_name, p.image 
+        FROM evening_item ei 
+        JOIN products p ON ei.product_id = p.id 
+        WHERE ei.settle_id = %s
+    """, (settle_id,))
     items = []
     for r in cur.fetchall():
         r['image'] = resolve_img(r['image'])
         items.append(r)
+        
     cur.close()
     
     return render_template('admin/edit_evening_settle.html', settlement=settlement, items=items)
@@ -6586,6 +6659,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
