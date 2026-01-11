@@ -4839,10 +4839,11 @@ def allocation_list():
     date_filter = request.args.get('date')
     emp_filter = request.args.get('employee_id')
     
+    # ADDED e.phone as emp_phone
     query = """
         SELECT 
             ma.id, ma.date, ma.created_at, 
-            e.name as emp_name, e.image as emp_image,
+            e.name as emp_name, e.image as emp_image, e.phone as emp_phone,
             (SELECT COUNT(*) FROM morning_allocation_items WHERE allocation_id = ma.id) as item_count,
             (SELECT status FROM evening_settle WHERE allocation_id = ma.id LIMIT 1) as evening_status
         FROM morning_allocations ma
@@ -4876,8 +4877,8 @@ def allocation_list():
             except: a['formatted_date'] = str(a['date'])
 
         if a.get('created_at'):
-            if isinstance(a['created_at'], datetime): a['formatted_time'] = a['created_at'].strftime('%I:%M:%S %p')
-            elif isinstance(a['created_at'], timedelta): a['formatted_time'] = (datetime.min + a['created_at']).strftime('%I:%M:%S %p')
+            if isinstance(a['created_at'], datetime): a['formatted_time'] = a['created_at'].strftime('%I:%M %p')
+            elif isinstance(a['created_at'], timedelta): a['formatted_time'] = (datetime.min + a['created_at']).strftime('%I:%M %p')
             else: a['formatted_time'] = str(a['created_at'])
         else: a['formatted_time'] = "-"
 
@@ -6734,6 +6735,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
