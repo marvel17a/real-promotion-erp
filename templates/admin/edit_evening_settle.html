@@ -8,7 +8,7 @@
             <i class="fa-solid fa-arrow-left"></i>
         </a>
         <div>
-            <h3 class="fw-bold mb-0">Edit Settlement</h3>
+            <h3 class="fw-bold mb-0">Edit Settlement #{{ settlement.id }}</h3>
             <p class="text-muted small mb-0">{{ settlement.emp_name }} | {{ settlement.date }}</p>
         </div>
     </div>
@@ -16,86 +16,119 @@
     <form method="POST">
         <div class="row g-4">
             
+            <!-- LEFT: Product Table -->
             <div class="col-lg-8">
                 <div class="card glass-card border-0 p-0 overflow-hidden shadow-sm">
-                    <table class="table table-hover align-middle mb-0" id="editTable">
-                        <thead class="bg-light text-secondary small text-uppercase">
-                            <tr>
-                                <th class="ps-4" style="width: 70px;">Img</th>
-                                <th>Product</th>
-                                <th class="text-center" style="width: 80px;">Total</th>
-                                <th style="width: 100px;">Sold</th>
-                                <th style="width: 100px;">Return</th>
-                                <th class="text-center" style="width: 80px;">Left</th>
-                                <th class="text-end pe-4" style="width: 120px;">Amount</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for item in items %}
-                            <tr>
-                                <td class="ps-4">
-                                    <img src="{{ item.image }}" class="rounded-3 border" width="40" height="40">
-                                </td>
-                                <td class="fw-bold">{{ item.product_name }}</td>
-                                <td class="text-center fw-bold">{{ item.total_qty }}</td>
-                                <td>
-                                    <input type="hidden" name="item_ids[]" value="{{ item.id }}">
-                                    <input type="hidden" name="product_ids[]" value="{{ item.product_id }}">
-                                    <input type="hidden" name="original_solds[]" value="{{ item.sold_qty }}">
-                                    <input type="hidden" class="total-qty" value="{{ item.total_qty }}">
-                                    <input type="number" name="sold_qtys[]" class="form-control sold-input text-center fw-bold" value="{{ item.sold_qty }}" min="0">
-                                </td>
-                                <td>
-                                    <input type="number" name="return_qtys[]" class="form-control return-input text-center text-danger" value="{{ item.return_qty }}" min="0">
-                                </td>
-                                <td class="text-center text-muted remaining-qty">{{ item.remaining_qty }}</td>
-                                <td class="text-end pe-4 fw-bold text-primary row-amount">
-                                    <input type="hidden" class="unit-price" value="{{ item.unit_price }}">
-                                    {{ "%.2f"|format(item.sold_qty * item.unit_price) }}
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0" id="editTable">
+                            <thead class="bg-light text-secondary small text-uppercase">
+                                <tr>
+                                    <th class="ps-4" style="width: 60px;">Img</th>
+                                    <th>Product</th>
+                                    <th class="text-center" style="width: 80px;">Total</th>
+                                    <th style="width: 100px;">Sold</th>
+                                    <th style="width: 100px;">Return</th>
+                                    <th class="text-center" style="width: 80px;">Left</th>
+                                    <th class="text-end pe-4" style="width: 120px;">Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in items %}
+                                <tr class="item-row">
+                                    <td class="ps-4">
+                                        <img src="{{ item.image }}" class="rounded border" width="40" height="40">
+                                    </td>
+                                    <td>
+                                        <span class="fw-bold text-dark d-block">{{ item.product_name }}</span>
+                                        <input type="hidden" name="product_id[]" value="{{ item.product_id }}">
+                                        <input type="hidden" name="unit_price" class="unit-price" value="{{ item.unit_price }}">
+                                    </td>
+                                    <td class="text-center text-muted fw-bold total-qty">{{ item.total_qty }}</td>
+                                    <td>
+                                        <input type="number" name="sold[]" class="form-control form-control-sm text-center fw-bold text-success border-success input-sold" 
+                                               value="{{ item.sold_qty }}" min="0">
+                                    </td>
+                                    <td>
+                                        <input type="number" name="return[]" class="form-control form-control-sm text-center fw-bold text-danger border-danger input-return" 
+                                               value="{{ item.return_qty }}" min="0">
+                                    </td>
+                                    <td class="text-center fw-bold text-secondary remaining-qty">{{ item.remaining_qty }}</td>
+                                    <td class="text-end pe-4 fw-bold text-primary row-amount">
+                                        {{ "%.2f"|format(item.sold_qty * item.unit_price) }}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 
+            <!-- RIGHT: Financials -->
             <div class="col-lg-4">
-                <div class="card glass-card border-0 p-4 shadow-sm mb-4">
-                    <h5 class="fw-bold mb-3 border-bottom pb-2">Payment Details</h5>
+                <div class="card glass-card border-0 shadow-sm p-4 h-100">
+                    <h5 class="fw-bold mb-4">Financial Details</h5>
                     
+                    <!-- Total -->
                     <div class="mb-3">
-                        <label class="small fw-bold text-muted">Total Amount</label>
-                        <div class="input-group">
-                            <span class="input-group-text bg-light border-0">₹</span>
-                            <input type="number" name="total_amount" id="totalAmount" class="form-control border-0 bg-light fw-bold fs-5" readonly value="{{ settlement.total_amount }}">
-                        </div>
+                        <label class="form-label small text-muted fw-bold">Total Sales Value</label>
+                        <input type="number" step="0.01" name="totalAmount" id="totalAmount" class="form-control fw-bold fs-5 text-dark" readonly value="{{ settlement.total_amount }}">
                     </div>
 
+                    <!-- Deductions -->
                     <div class="row g-2 mb-3">
                         <div class="col-6">
-                            <label class="small fw-bold text-muted">Discount</label>
-                            <input type="number" step="0.01" name="discount" id="discount" class="form-control" value="{{ settlement.discount }}">
+                            <label class="form-label small text-muted">Discount</label>
+                            <input type="number" step="0.01" name="discount" id="discount" class="form-control text-warning fw-bold" value="{{ settlement.discount }}">
                         </div>
                         <div class="col-6">
-                            <label class="small fw-bold text-muted">Online</label>
-                            <input type="number" step="0.01" name="online_money" id="online" class="form-control" value="{{ settlement.online_money }}">
+                            <label class="form-label small text-muted">Online</label>
+                            <input type="number" step="0.01" name="online" id="online" class="form-control text-info fw-bold" value="{{ settlement.online_money }}">
                         </div>
                     </div>
 
+                    <!-- Cash -->
                     <div class="mb-3">
-                        <label class="small fw-bold text-muted">Cash</label>
-                        <input type="number" step="0.01" name="cash_money" id="cash" class="form-control fw-bold text-success" value="{{ settlement.cash_money }}">
+                        <label class="form-label small text-muted fw-bold text-success">Cash Collected</label>
+                        <input type="number" step="0.01" name="cash" id="cash" class="form-control fw-bold fs-4 text-success border-success" value="{{ settlement.cash_money }}">
                     </div>
 
-                    <div class="d-flex justify-content-between align-items-center pt-3 border-top">
-                         <span class="text-muted small fw-bold">DUE BALANCE:</span>
-                         <span id="dueAmount" class="fw-bold fs-5 text-danger">0.00</span>
+                    <!-- Due -->
+                    <div class="p-3 bg-light rounded-3 text-center border mb-4">
+                        <small class="text-uppercase text-muted fw-bold ls-1">Balance Due</small>
+                        <h3 class="fw-800 mb-0 mt-1" id="dueAmount">0.00</h3>
+                        <input type="text" name="due_note" class="form-control form-control-sm mt-2 text-center bg-white" placeholder="Reason for due..." value="{{ settlement.due_note }}">
                     </div>
 
-                    <button type="submit" class="btn btn-dark w-100 rounded-pill mt-4 shadow fw-bold">Update Settlement</button>
+                    <hr class="text-muted">
+
+                    <!-- Employee Ledger -->
+                    <h6 class="fw-bold mb-3 small text-uppercase text-secondary">Ledger Adjustments</h6>
+                    
+                    <div class="mb-3 p-2 border rounded bg-success bg-opacity-10">
+                        <label class="small fw-bold text-success">Credit (Received)</label>
+                        <div class="input-group input-group-sm mb-1">
+                            <span class="input-group-text">₹</span>
+                            <input type="number" step="0.01" name="emp_credit_amount" class="form-control fw-bold" value="{{ settlement.emp_credit_amount }}">
+                        </div>
+                        <input type="text" name="emp_credit_note" class="form-control form-control-sm" placeholder="Note..." value="{{ settlement.emp_credit_note }}">
+                    </div>
+
+                    <div class="mb-4 p-2 border rounded bg-danger bg-opacity-10">
+                        <label class="small fw-bold text-danger">Debit (Given)</label>
+                        <div class="input-group input-group-sm mb-1">
+                            <span class="input-group-text">₹</span>
+                            <input type="number" step="0.01" name="emp_debit_amount" class="form-control fw-bold" value="{{ settlement.emp_debit_amount }}">
+                        </div>
+                        <input type="text" name="emp_debit_note" class="form-control form-control-sm" placeholder="Note..." value="{{ settlement.emp_debit_note }}">
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100 rounded-pill py-2 fw-bold shadow-sm">
+                        <i class="fa-solid fa-save me-2"></i>Update Settlement
+                    </button>
                 </div>
             </div>
+
         </div>
     </form>
 </div>
@@ -103,27 +136,31 @@
 <script>
     document.addEventListener("DOMContentLoaded", function() {
         const table = document.getElementById('editTable');
-        const inputs = table.querySelectorAll('input');
         const totalAmountEl = document.getElementById('totalAmount');
         const dueEl = document.getElementById('dueAmount');
-
+        
         function calculate() {
             let grandTotal = 0;
-            table.querySelectorAll('tbody tr').forEach(row => {
-                const total = parseInt(row.querySelector('.total-qty').value) || 0;
-                const soldInput = row.querySelector('.sold-input');
-                const returnInput = row.querySelector('.return-input');
+            const rows = table.querySelectorAll('.item-row');
+            
+            rows.forEach(row => {
                 const price = parseFloat(row.querySelector('.unit-price').value) || 0;
-
+                const total = parseInt(row.querySelector('.total-qty').innerText) || 0;
+                
+                const soldInput = row.querySelector('.input-sold');
+                const returnInput = row.querySelector('.input-return');
+                
                 let sold = parseInt(soldInput.value) || 0;
                 let ret = parseInt(returnInput.value) || 0;
 
-                // Basic validation: Sold + Return shouldn't exceed Total
-                // We'll trust user input here but could auto-correct
-                
+                // Update Remaining Logic
                 const remaining = total - sold - ret;
-                row.querySelector('.remaining-qty').innerText = remaining >= 0 ? remaining : 0;
+                const remainEl = row.querySelector('.remaining-qty');
+                remainEl.innerText = remaining >= 0 ? remaining : 0;
+                if(remaining < 0) remainEl.classList.add('text-danger');
+                else remainEl.classList.remove('text-danger');
                 
+                // Update Amount
                 const amount = sold * price;
                 row.querySelector('.row-amount').innerText = amount.toFixed(2);
                 grandTotal += amount;
@@ -133,16 +170,25 @@
             const cash = parseFloat(document.getElementById('cash').value) || 0;
             const online = parseFloat(document.getElementById('online').value) || 0;
             const discount = parseFloat(document.getElementById('discount').value) || 0;
+            
             const due = grandTotal - (cash + online + discount);
-            dueEl.innerText = due.toFixed(2);
+            dueEl.innerText = "₹ " + due.toFixed(2);
+            
+            if(due > 0.01) dueEl.className = "fw-800 mb-0 mt-1 text-danger";
+            else if(due < -0.01) dueEl.className = "fw-800 mb-0 mt-1 text-success";
+            else dueEl.className = "fw-800 mb-0 mt-1 text-secondary";
         }
 
-        table.addEventListener('input', calculate);
-        document.getElementById('cash').addEventListener('input', calculate);
-        document.getElementById('online').addEventListener('input', calculate);
-        document.getElementById('discount').addEventListener('input', calculate);
+        // Listeners
+        table.addEventListener('input', (e) => {
+            if(e.target.matches('.input-sold, .input-return')) calculate();
+        });
         
-        calculate(); // Init
+        ['cash', 'online', 'discount'].forEach(id => {
+            document.getElementById(id).addEventListener('input', calculate);
+        });
+        
+        calculate(); // Init on load
     });
 </script>
 <style> .glass-card { background: #fff; border-radius: 12px; } .form-control { border-radius: 8px; } </style>
