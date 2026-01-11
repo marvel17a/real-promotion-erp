@@ -4,284 +4,306 @@
 <!-- External Libs -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-<!-- FontAwesome -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-<!-- Custom CSS (Reusing Morning/Evening styles for consistency) -->
-<link rel="stylesheet" href="{{ url_for('static', filename='css/morning.css') }}">
 
-<div class="glass-container fade-in-up mb-5">
-    
-    <!-- Header Section -->
-    <div class="page-header text-center mb-5">
-        <h1 class="company-title fw-800 text-gradient display-4">REAL PROMOTION</h1>
-        <p class="company-subtitle text-uppercase text-muted letter-spacing-2">Bill of Supply & Direct Billing</p>
-    </div>
+<style>
+    /* Glassmorphism & Layout Styles */
+    .glass-container {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-radius: 15px;
+        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        padding: 2rem;
+        margin-top: 2rem;
+    }
+    .page-header h1 {
+        background: -webkit-linear-gradient(45deg, #0d6efd, #0a58ca);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+    .form-label { font-weight: 600; font-size: 0.85rem; text-transform: uppercase; color: #6c757d; }
+    .form-control, .form-select {
+        border-radius: 8px;
+        border: 1px solid #dee2e6;
+        padding: 0.6rem 1rem;
+    }
+    .form-control:focus, .form-select:focus {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.15);
+    }
+    .table thead th {
+        background-color: #f8f9fa;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #6c757d;
+        border-bottom: 2px solid #dee2e6;
+    }
+    .product-img {
+        width: 45px; height: 45px;
+        object-fit: cover;
+        border-radius: 8px;
+        border: 1px solid #dee2e6;
+    }
+    .total-box {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 1.5rem;
+        border: 1px solid #e9ecef;
+    }
+    .btn-gradient {
+        background: linear-gradient(135deg, #0d6efd 0%, #0043a8 100%);
+        color: white; border: none;
+    }
+</style>
 
-    <form method="POST" id="billForm">
+<div class="container-fluid fade-in-up mb-5">
+    <div class="glass-container">
         
-        <div class="row g-4">
-            <!-- LEFT COLUMN: Customer & Items -->
-            <div class="col-lg-8">
-                
-                <!-- Customer Details Panel -->
-                <div class="glass-panel p-4 mb-4 position-relative overflow-hidden">
-                    <div class="position-absolute top-0 start-0 w-100 h-100 bg-gradient-primary opacity-10" style="z-index: 0;"></div>
-                    <div class="position-relative" style="z-index: 1;">
-                        <h5 class="fw-bold text-dark mb-4 border-bottom pb-2"><i class="fa-solid fa-user-tag text-primary me-2"></i>Customer Details</h5>
-                        <div class="row g-3">
-                            <div class="col-md-4">
-                                <label class="small text-muted fw-bold text-uppercase">Date</label>
-                                <input type="text" name="bill_date" class="form-control rounded-pill date-picker fw-bold text-center" value="{{ today }}">
-                            </div>
-                            <div class="col-md-4">
-                                <label class="small text-muted fw-bold text-uppercase">Sales Person</label>
-                                <select name="sales_person" class="form-select rounded-pill fw-bold">
-                                    <option value="Office Staff">Office Staff</option>
-                                    <option value="Manager">Manager</option>
-                                    <option value="Owner">Owner</option>
-                                </select>
-                            </div>
-                            <div class="col-md-4">
-                                <label class="small text-muted fw-bold text-uppercase">Mobile</label>
-                                <input type="tel" name="customer_mobile" class="form-control rounded-pill fw-bold" placeholder="10-digit Mobile">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="small text-muted fw-bold text-uppercase">Customer Name</label>
-                                <input type="text" name="customer_name" class="form-control rounded-pill fw-bold" required placeholder="Enter Full Name">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="small text-muted fw-bold text-uppercase">Address</label>
-                                <input type="text" name="customer_address" class="form-control rounded-pill fw-bold" placeholder="City / Area">
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Product Table Panel -->
-                <div class="glass-panel p-0 overflow-hidden shadow-sm">
-                    <div class="p-3 bg-light border-bottom d-flex justify-content-between align-items-center">
-                        <h5 class="fw-bold text-dark mb-0"><i class="fa-solid fa-cart-shopping text-success me-2"></i>Items Cart</h5>
-                        <button type="button" class="btn btn-sm btn-primary rounded-pill px-4 shadow-sm fw-bold" onclick="addBillRow()">
-                            <i class="fa-solid fa-plus me-1"></i> Add Product
-                        </button>
-                    </div>
-                    <div class="table-responsive">
-                        <table class="table align-middle table-hover mb-0" id="billTable">
-                            <thead class="bg-white text-uppercase small text-muted fw-bold">
-                                <tr>
-                                    <th class="ps-4" width="5%">#</th>
-                                    <th class="text-center" width="10%">Img</th>
-                                    <th width="35%">Product Details</th>
-                                    <th class="text-center" width="15%">Qty</th>
-                                    <th class="text-end" width="15%">Price</th>
-                                    <th class="text-end pe-4" width="15%">Total</th>
-                                    <th width="5%"></th>
-                                </tr>
-                            </thead>
-                            <tbody id="billBody" class="bg-white">
-                                <!-- JS Injects Rows Here -->
-                            </tbody>
-                        </table>
-                    </div>
-                    
-                    <!-- Empty State -->
-                    <div id="emptyState" class="text-center py-5">
-                        <div class="mb-3 text-muted opacity-25">
-                            <i class="fa-solid fa-basket-shopping fa-4x"></i>
-                        </div>
-                        <h6 class="text-muted fw-bold">Cart is empty</h6>
-                        <p class="small text-muted">Click "Add Product" to start billing.</p>
-                    </div>
-                </div>
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
+            <div class="page-header">
+                <h1 class="fw-800 mb-0">OFFICE SALES</h1>
+                <p class="text-muted small mb-0">Direct Billing & Counter Sales</p>
             </div>
-
-            <!-- RIGHT COLUMN: Settlement -->
-            <div class="col-lg-4">
-                <div class="finance-card h-100 border-0 shadow-sm rounded-4 overflow-hidden">
-                    <div class="finance-header bg-gradient-primary text-white border-0 py-3 px-4">
-                        <h5 class="fw-bold mb-0"><i class="fa-solid fa-cash-register me-2"></i>Payment & Settle</h5>
-                    </div>
-                    <div class="finance-body p-4 bg-white">
-                        
-                        <!-- Sub Total -->
-                        <div class="settle-row mb-3 d-flex justify-content-between align-items-center border-bottom pb-3">
-                            <span class="settle-label text-muted fw-bold text-uppercase small">Sub Total</span>
-                            <span class="fs-5 fw-bold text-dark">₹ <span id="subTotal">0.00</span></span>
-                        </div>
-
-                        <!-- Discount -->
-                        <div class="settle-row mb-3 d-flex justify-content-between align-items-center">
-                            <span class="settle-label text-warning fw-bold"><i class="fa-solid fa-percent me-2"></i> Discount</span>
-                            <div class="input-group input-group-sm w-50 shadow-sm">
-                                <span class="input-group-text bg-white border-warning text-warning fw-bold">₹</span>
-                                <input type="number" name="discount" class="form-control border-warning text-end fw-bold text-warning" value="0" min="0" oninput="calcTotal()">
-                            </div>
-                        </div>
-
-                        <!-- Online -->
-                        <div class="settle-row mb-3 d-flex justify-content-between align-items-center">
-                            <span class="settle-label text-info fw-bold"><i class="fa-solid fa-qrcode me-2"></i> Online</span>
-                            <div class="input-group input-group-sm w-50 shadow-sm">
-                                <span class="input-group-text bg-white border-info text-info fw-bold">₹</span>
-                                <input type="number" name="online" class="form-control border-info text-end fw-bold text-info" value="0" min="0" oninput="calcTotal()">
-                            </div>
-                        </div>
-
-                        <!-- Cash -->
-                        <div class="settle-row mb-4 d-flex justify-content-between align-items-center">
-                            <span class="settle-label text-success fw-bold"><i class="fa-solid fa-money-bill-wave me-2"></i> Cash</span>
-                            <div class="input-group input-group-sm w-50 shadow-sm">
-                                <span class="input-group-text bg-white border-success text-success fw-bold">₹</span>
-                                <input type="number" name="cash" class="form-control border-success text-end fw-bold text-success fs-6" value="0" min="0" oninput="calcTotal()">
-                            </div>
-                        </div>
-
-                        <!-- Balance Due Box -->
-                        <div class="balance-box p-4 rounded-3 text-white d-flex justify-content-between align-items-center shadow mb-4 position-relative overflow-hidden" style="background-color: #dc3545;">
-                            <div class="position-absolute top-0 start-0 w-100 h-100 bg-white opacity-10"></div>
-                            <span class="fw-bold small text-uppercase position-relative" style="letter-spacing: 1px; z-index: 1;">Balance Due</span>
-                            <span class="fs-3 fw-900 position-relative" style="z-index: 1;">₹ <span id="dueAmount">0.00</span></span>
-                        </div>
-
-                        <!-- Due Note -->
-                        <div class="mb-4">
-                            <label class="small text-muted fw-bold mb-1 text-uppercase">Reason / Note</label>
-                            <div class="input-group shadow-sm">
-                                <span class="input-group-text bg-light border-0"><i class="fa-solid fa-note-sticky text-secondary"></i></span>
-                                <input type="text" name="due_note" class="form-control bg-light border-0 fw-bold text-dark" placeholder="Optional remark...">
-                            </div>
-                        </div>
-
-                        <!-- Action Button -->
-                        <button type="submit" class="btn btn-dark w-100 py-3 rounded-pill shadow-lg fw-bold text-uppercase letter-spacing-1 hover-scale">
-                            <i class="fa-solid fa-print me-2"></i> Save & Print Bill
-                        </button>
-
-                    </div>
-                </div>
-            </div>
+            <a href="{{ url_for('office_sales') }}" class="btn btn-outline-secondary rounded-pill btn-sm">
+                <i class="fa-solid fa-rotate me-1"></i> Reset Form
+            </a>
         </div>
-    </form>
+
+        <form method="POST" action="{{ url_for('office_sales') }}" id="billForm">
+            
+            <!-- Customer Details -->
+            <div class="row g-3 mb-4">
+                <div class="col-md-3">
+                    <label class="form-label">Bill Date</label>
+                    <input type="text" name="bill_date" id="billDate" class="form-control" value="{{ today }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Customer Name</label>
+                    <input type="text" name="customer_name" class="form-control" placeholder="Enter Name" required>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Mobile No</label>
+                    <input type="tel" name="customer_mobile" class="form-control" placeholder="10 Digit Mobile" pattern="[0-9]{10}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Sales Person</label>
+                    <input type="text" name="sales_person" class="form-control" value="Office Counter" readonly>
+                </div>
+                <div class="col-12">
+                    <label class="form-label">Address</label>
+                    <input type="text" name="customer_address" class="form-control" placeholder="Customer Address (Optional)">
+                </div>
+            </div>
+
+            <!-- Product Table -->
+            <div class="table-responsive mb-4">
+                <table class="table align-middle" id="productTable">
+                    <thead>
+                        <tr>
+                            <th width="5%">#</th>
+                            <th width="8%">Img</th>
+                            <th width="35%">Product</th>
+                            <th width="12%">Price</th>
+                            <th width="12%">Stock</th>
+                            <th width="12%">Qty</th>
+                            <th width="15%" class="text-end">Total</th>
+                            <th width="5%"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="billItems">
+                        <!-- Rows added by JS -->
+                    </tbody>
+                </table>
+                <button type="button" class="btn btn-light border text-primary fw-bold w-100 py-2" onclick="addBillRow()">
+                    <i class="fa-solid fa-plus me-2"></i> Add Product
+                </button>
+            </div>
+
+            <!-- Calculations Footer -->
+            <div class="row justify-content-end">
+                <div class="col-lg-4 col-md-6">
+                    <div class="total-box">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">Sub Total</span>
+                            <span class="fw-bold">₹ <span id="subTotal">0.00</span></span>
+                        </div>
+                        
+                        <div class="input-group input-group-sm mb-2">
+                            <span class="input-group-text bg-white border-end-0 text-danger">Discount</span>
+                            <input type="number" step="0.01" name="discount" class="form-control border-start-0 text-end" placeholder="0.00">
+                        </div>
+
+                        <div class="d-flex justify-content-between mb-3 pt-2 border-top">
+                            <span class="h5 fw-bold text-dark">Net Payable</span>
+                            <span class="h5 fw-bold text-primary">₹ <span id="finalAmount">0.00</span></span>
+                        </div>
+
+                        <div class="mb-2">
+                            <label class="small text-muted fw-bold">Online Paid</label>
+                            <input type="number" step="0.01" name="online" class="form-control form-control-sm text-end payment-input" placeholder="0.00">
+                        </div>
+                        <div class="mb-3">
+                            <label class="small text-muted fw-bold">Cash Paid</label>
+                            <input type="number" step="0.01" name="cash" class="form-control form-control-sm text-end payment-input" placeholder="0.00">
+                        </div>
+
+                        <div class="alert alert-secondary d-flex justify-content-between py-2 mb-0">
+                            <strong>Balance Due:</strong>
+                            <strong id="dueAmount">0.00</strong>
+                        </div>
+                        <input type="text" name="due_note" class="form-control form-control-sm mt-2" placeholder="Reason for Due...">
+                    </div>
+
+                    <button type="submit" class="btn btn-gradient w-100 py-3 mt-3 rounded-pill fw-bold shadow">
+                        <i class="fa-solid fa-print me-2"></i> Generate Bill & Save
+                    </button>
+                </div>
+            </div>
+
+        </form>
+    </div>
 </div>
 
 <script>
-    const products = {{ products | tojson | safe }};
-    let rowCount = 0;
-
-    function addBillRow() {
-        document.getElementById('emptyState').style.display = 'none';
-        rowCount++;
-        const tbody = document.getElementById('billBody');
-        const tr = document.createElement('tr');
-        
-        let options = '<option value="">Select Product...</option>';
-        products.forEach(p => {
-            options += `<option value="${p.id}" data-price="${p.price}" data-img="${p.image}">${p.name} (Stock: ${p.stock})</option>`;
+    // Pass Product Data from Backend
+    const productsList = {{ products | tojson | safe }};
+    
+    // --- Helper: Get Product Options ---
+    function getProductOptions() {
+        let opts = '<option value="">Select Product...</option>';
+        productsList.forEach(p => {
+            // Store image, price, stock in data attributes
+            opts += `<option value="${p.id}" 
+                             data-price="${p.price}" 
+                             data-stock="${p.stock}" 
+                             data-img="${p.image}">${p.name}</option>`;
         });
+        return opts;
+    }
 
+    // --- Add Row ---
+    function addBillRow() {
+        const tbody = document.getElementById('billItems');
+        const tr = document.createElement('tr');
+        tr.className = "item-row fade-in";
         tr.innerHTML = `
-            <td class="ps-4 text-muted fw-bold align-middle">${rowCount}</td>
-            <td class="text-center align-middle">
-                <img src="" class="row-img rounded-3 border shadow-sm" width="45" height="45" style="display:none; object-fit:cover;">
-                <div class="img-placeholder rounded-3 border bg-light d-flex align-items-center justify-content-center mx-auto" style="width:45px; height:45px;">
-                    <i class="fa-solid fa-image text-muted opacity-25 small"></i>
-                </div>
+            <td class="text-center text-muted row-index"></td>
+            <td class="text-center">
+                <img src="{{ url_for('static', filename='img/default-product.png') }}" class="product-img row-img">
             </td>
-            <td class="align-middle">
-                <select name="product_id[]" class="form-select form-select-sm fw-bold border-0 bg-light shadow-sm" required onchange="updateRow(this)">
-                    ${options}
+            <td>
+                <select name="product_id[]" class="form-select product-select" required>
+                    ${getProductOptions()}
                 </select>
             </td>
-            <td class="align-middle">
-                <input type="number" name="qty[]" class="form-control form-control-sm text-center fw-bold border-0 bg-light shadow-sm row-qty" value="1" min="1" oninput="updateRow(this)">
+            <td>
+                <input type="number" name="price[]" class="form-control text-end row-price" readonly>
             </td>
-            <td class="text-end align-middle">
-                <input type="number" name="price[]" class="form-control form-control-sm text-end border-0 bg-transparent fw-bold text-muted row-price" readonly value="0.00">
+            <td>
+                <input type="text" class="form-control text-center bg-white row-stock" readonly tabindex="-1">
             </td>
-            <td class="text-end pe-4 align-middle">
-                <span class="fw-bold text-dark fs-6">₹ <span class="row-total">0.00</span></span>
+            <td>
+                <input type="number" name="qty[]" class="form-control text-center row-qty" min="1" value="1" required>
             </td>
-            <td class="align-middle text-center">
-                <button type="button" class="btn btn-link text-danger p-0 hover-scale" onclick="removeRow(this)">
-                    <i class="fa-solid fa-times-circle fs-5"></i>
-                </button>
+            <td class="text-end fw-bold text-primary row-total">0.00</td>
+            <td class="text-center">
+                <button type="button" class="btn btn-link text-danger p-0 remove-row"><i class="fa-solid fa-trash"></i></button>
             </td>
         `;
         tbody.appendChild(tr);
+        updateIndexes();
     }
 
-    function updateRow(el) {
-        const tr = el.closest('tr');
-        const select = tr.querySelector('select');
-        const priceIn = tr.querySelector('.row-price');
-        const qtyIn = tr.querySelector('.row-qty');
-        const totalSpan = tr.querySelector('.row-total');
-        const img = tr.querySelector('.row-img');
-        const placeholder = tr.querySelector('.img-placeholder');
+    // --- Events Delegation ---
+    document.getElementById('billItems').addEventListener('change', function(e) {
+        if(e.target.classList.contains('product-select')) {
+            const select = e.target;
+            const row = select.closest('tr');
+            const option = select.options[select.selectedIndex];
+            
+            // Update Image
+            const imgUrl = option.getAttribute('data-img');
+            row.querySelector('.row-img').src = imgUrl && imgUrl !== 'None' ? imgUrl : "{{ url_for('static', filename='img/default-product.png') }}";
+            
+            // Update Price & Stock
+            row.querySelector('.row-price').value = option.getAttribute('data-price') || 0;
+            row.querySelector('.row-stock').value = option.getAttribute('data-stock') || 0;
+            
+            calculateRow(row);
+        }
+    });
 
-        const option = select.options[select.selectedIndex];
-        
-        if (select.value) {
-            priceIn.value = option.dataset.price;
-            if(option.dataset.img && option.dataset.img !== 'None') {
-                img.src = option.dataset.img;
-                img.style.display = 'block';
-                placeholder.style.display = 'none';
-            } else {
-                img.style.display = 'none';
-                placeholder.style.display = 'flex';
+    document.getElementById('billItems').addEventListener('input', function(e) {
+        if(e.target.classList.contains('row-qty')) {
+            // Stock Validation
+            const row = e.target.closest('tr');
+            const stock = parseInt(row.querySelector('.row-stock').value) || 0;
+            const qty = parseInt(e.target.value) || 0;
+            
+            if(qty > stock) {
+                alert(`Only ${stock} items available in stock!`);
+                e.target.value = stock;
             }
+            calculateRow(row);
         }
+    });
 
-        const qty = parseFloat(qtyIn.value) || 0;
-        const price = parseFloat(priceIn.value) || 0;
-        const total = qty * price;
-        
-        totalSpan.textContent = total.toFixed(2);
-        calcTotal();
+    document.getElementById('billItems').addEventListener('click', function(e) {
+        if(e.target.closest('.remove-row')) {
+            e.target.closest('tr').remove();
+            updateIndexes();
+            calculateTotals();
+        }
+    });
+
+    // --- Calculations ---
+    function calculateRow(row) {
+        const price = parseFloat(row.querySelector('.row-price').value) || 0;
+        const qty = parseInt(row.querySelector('.row-qty').value) || 0;
+        const total = price * qty;
+        row.querySelector('.row-total').textContent = total.toFixed(2);
+        calculateTotals();
     }
 
-    function removeRow(el) {
-        el.closest('tr').remove();
-        if(document.getElementById('billBody').children.length === 0) {
-            document.getElementById('emptyState').style.display = 'block';
-            rowCount = 0;
-        }
-        calcTotal();
-    }
-
-    function calcTotal() {
-        let sub = 0;
-        document.querySelectorAll('.row-total').forEach(span => sub += parseFloat(span.textContent));
+    function calculateTotals() {
+        let subTotal = 0;
+        document.querySelectorAll('.row-total').forEach(el => subTotal += parseFloat(el.textContent));
         
-        document.getElementById('subTotal').textContent = sub.toFixed(2);
+        document.getElementById('subTotal').textContent = subTotal.toFixed(2);
         
-        const disc = parseFloat(document.querySelector('input[name="discount"]').value) || 0;
+        const discount = parseFloat(document.querySelector('input[name="discount"]').value) || 0;
+        const net = subTotal - discount;
+        
+        document.getElementById('finalAmount').textContent = net.toFixed(2);
+        
         const online = parseFloat(document.querySelector('input[name="online"]').value) || 0;
         const cash = parseFloat(document.querySelector('input[name="cash"]').value) || 0;
+        const due = net - (online + cash);
         
-        // Balance Due = SubTotal - (Discount + Online + Cash)
-        const paid = disc + online + cash;
-        const due = sub - paid;
-        
-        document.getElementById('dueAmount').textContent = due.toFixed(2);
+        const dueEl = document.getElementById('dueAmount');
+        dueEl.textContent = due.toFixed(2);
+        dueEl.className = due > 0 ? "text-danger fw-bold" : "text-success fw-bold";
     }
 
+    // Global Listeners for Footer Inputs
+    const form = document.getElementById('billForm');
+    form.addEventListener('input', function(e) {
+        if(['discount', 'online', 'cash'].includes(e.target.name)) {
+            calculateTotals();
+        }
+    });
+
+    function updateIndexes() {
+        document.querySelectorAll('.row-index').forEach((el, index) => el.textContent = index + 1);
+    }
+
+    // Init
     document.addEventListener("DOMContentLoaded", function() {
-        flatpickr(".date-picker", { dateFormat: "d-m-Y", allowInput: true });
-        addBillRow(); 
+        flatpickr("#billDate", { dateFormat: "d-m-Y", defaultDate: "today", allowInput: true });
+        addBillRow(); // Add first empty row
     });
 </script>
-
-<style>
-    .glass-card { background: #fff; border-radius: 12px; }
-    .bg-gradient-primary { background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%); }
-    .table-hover tbody tr:hover { background-color: rgba(13, 110, 253, 0.03); transition: background 0.2s; }
-    .form-control:focus, .form-select:focus { box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.1); border-color: #0d6efd; }
-    .fw-900 { font-weight: 900; }
-    .letter-spacing-2 { letter-spacing: 2px; }
-    .hover-scale { transition: transform 0.2s; }
-    .hover-scale:hover { transform: scale(1.05); }
-    .opacity-10 { opacity: 0.1; }
-</style>
 {% endblock %}
