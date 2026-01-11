@@ -3872,6 +3872,7 @@ class PDFGenerator(FPDF):
         self.gst_subtext = "Composition Dealer- Not Eligibal To Collect Taxes On Sppliers"
 
     def header(self):
+        # Company Header
         self.set_font('Arial', 'B', 24)
         self.set_text_color(26, 35, 126) # Dark Blue
         self.cell(0, 10, self.company_name, 0, 1, 'C')
@@ -3887,16 +3888,19 @@ class PDFGenerator(FPDF):
             self.cell(0, 4, line, 0, 1, 'C')
         self.cell(0, 4, self.contact, 0, 1, 'C')
         
+        # GST Section
         self.set_font('Arial', 'B', 9)
         self.cell(0, 4, self.gst_text, 0, 1, 'C')
         self.set_font('Arial', 'I', 8)
         self.cell(0, 4, self.gst_subtext, 0, 1, 'C')
         self.ln(5)
         
+        # Divider
         self.set_draw_color(200, 200, 200)
         self.line(10, self.get_y(), 200, self.get_y())
         self.ln(5)
 
+        # Title
         self.set_font('Arial', 'B', 16)
         self.set_text_color(0, 0, 0)
         if self.title_type == "Morning":
@@ -3919,6 +3923,7 @@ class PDFGenerator(FPDF):
         self.set_text_color(0, 0, 0)
         start_y = self.get_y()
         
+        # Left: Employee
         self.set_xy(10, start_y)
         self.cell(35, 6, "Employee Name:", 0, 0)
         self.set_font('Arial', 'B', 10)
@@ -3929,6 +3934,7 @@ class PDFGenerator(FPDF):
         self.set_font('Arial', 'B', 10)
         self.cell(70, 6, str(emp_mobile) if emp_mobile else "N/A", 0, 1)
 
+        # Right: Date/Time
         self.set_xy(140, start_y)
         self.set_font('Arial', '', 10)
         self.cell(20, 6, "Date:", 0, 0)
@@ -3957,6 +3963,7 @@ class PDFGenerator(FPDF):
         self.ln(15) 
         y_pos = self.get_y()
         
+        # Owner Signature Logic
         sig_path = os.path.join(app.root_path, 'static', 'img', 'signature.png')
         if os.path.exists(sig_path):
             self.image(sig_path, x=20, y=y_pos-15, w=40) 
@@ -3968,6 +3975,7 @@ class PDFGenerator(FPDF):
         self.set_xy(15, y_pos + 17)
         self.cell(60, 5, "Authorized Signature", 0, 0, 'C')
         
+        # Employee Signature
         self.line(135, y_pos + 15, 195, y_pos + 15)
         self.set_xy(135, y_pos + 17)
         self.cell(60, 5, "Employee Signature", 0, 1, 'C')
@@ -4019,6 +4027,7 @@ def download_morning_pdf(allocation_id):
     t_val = "N/A"
     if header.get('created_at'):
         if isinstance(header['created_at'], timedelta):
+            # Handle timedelta if stored as duration
             dummy = datetime.min + header['created_at']
             t_val = dummy.strftime('%I:%M %p')
         elif isinstance(header['created_at'], datetime):
@@ -4028,8 +4037,9 @@ def download_morning_pdf(allocation_id):
 
     pdf.add_info_section(header['emp_name'], header['emp_mobile'], d_val, t_val)
     
-    cols = ["#", "Product Name", "Opening", "Given Qty", "Price", "Amount"]
-    widths = [10, 80, 20, 25, 25, 30]
+    # FIX: Updated columns to match Morning Edit Page structure
+    cols = ["#", "Product Name", "Opening", "Given", "Total", "Price", "Amount"]
+    widths = [10, 70, 20, 20, 20, 20, 30]
     pdf.add_table_header(cols, widths)
     
     pdf.set_font('Arial', '', 9)
@@ -4046,22 +4056,24 @@ def download_morning_pdf(allocation_id):
         pdf.cell(widths[2], 7, str(item['opening_qty']), 1, 0, 'C', fill)
         pdf.cell(widths[3], 7, str(item['given_qty']), 1, 0, 'C', fill)
         
-        pdf.cell(widths[4], 7, f"{float(item['unit_price']):.2f}", 1, 0, 'R', fill)
+        t_qty = int(item['opening_qty']) + int(item['given_qty'])
+        pdf.cell(widths[4], 7, str(t_qty), 1, 0, 'C', fill)
         
-        total_held = int(item['opening_qty']) + int(item['given_qty'])
-        amt = total_held * float(item['unit_price'])
+        pdf.cell(widths[5], 7, f"{float(item['unit_price']):.2f}", 1, 0, 'R', fill)
         
-        pdf.cell(widths[5], 7, f"{amt:.2f}", 1, 1, 'R', fill)
+        # Amount = Total * Price (Standard interpretation for stock value)
+        amt = t_qty * float(item['unit_price'])
+        pdf.cell(widths[6], 7, f"{amt:.2f}", 1, 1, 'R', fill)
         
-        total_qty_sum += int(item['given_qty']) 
+        total_qty_sum += t_qty 
         total_amount_sum += amt
         fill = not fill 
         
     pdf.set_font('Arial', 'B', 10)
-    pdf.cell(sum(widths[:3]), 8, "TOTAL GIVEN", 1, 0, 'R', True)
-    pdf.cell(widths[3], 8, str(total_qty_sum), 1, 0, 'C', True)
-    pdf.cell(widths[4], 8, "", 1, 0, 'C', True)
-    pdf.cell(widths[5], 8, f"{total_amount_sum:.2f}", 1, 1, 'R', True)
+    pdf.cell(sum(widths[:4]), 8, "GRAND TOTAL", 1, 0, 'R', True)
+    pdf.cell(widths[4], 8, str(total_qty_sum), 1, 0, 'C', True)
+    pdf.cell(widths[5], 8, "", 1, 0, 'C', True)
+    pdf.cell(widths[6], 8, f"{total_amount_sum:.2f}", 1, 1, 'R', True)
     
     pdf.add_signature_section()
     
@@ -4073,7 +4085,7 @@ def download_morning_pdf(allocation_id):
 
 
 # ==========================================
-# UPDATED: EVENING PDF ROUTE (With Employee Finance)
+# UPDATED: EVENING PDF ROUTE (Layout Updated)
 # ==========================================
 @app.route('/download_evening_pdf/<int:settle_id>')
 def download_evening_pdf(settle_id):
@@ -4082,7 +4094,7 @@ def download_evening_pdf(settle_id):
     conn = mysql.connection
     cursor = conn.cursor(MySQLdb.cursors.DictCursor)
     
-    # 1. Header (Added e.phone alias as emp_mobile)
+    # 1. Header
     cursor.execute("""
         SELECT es.*, e.name as emp_name, e.phone as emp_mobile
         FROM evening_settle es
@@ -4162,67 +4174,79 @@ def download_evening_pdf(settle_id):
     pdf.cell(widths[6], 8, str(tot_ret), 1, 1, 'C', True)
     pdf.ln(5)
     
-    # Finance Summary
+    # --- FINANCE SUMMARY BLOCK ---
     pdf.set_font('Arial', 'B', 11)
     pdf.set_fill_color(50, 50, 50)
     pdf.set_text_color(255, 255, 255)
     pdf.cell(0, 8, " FINANCE & SETTLEMENT SUMMARY ", 1, 1, 'C', True)
-    
-    pdf.set_text_color(0,0,0)
-    pdf.set_font('Arial', '', 10)
     pdf.ln(2)
+    
+    # Prepare Variables
+    emp_credit = float(data.get('emp_credit_amount', 0) or 0)
+    emp_debit = float(data.get('emp_debit_amount', 0) or 0)
+    
+    # --- SPLIT LAYOUT (Left: Settlement, Right: Employee Finance) ---
     y_start = pdf.get_y()
     
-    def print_kv(label, val, x, w_label, w_val):
-        pdf.set_x(x)
-        pdf.set_font('Arial', '', 10)
-        pdf.cell(w_label, 6, label, 0, 0)
-        pdf.set_font('Arial', 'B', 10)
-        pdf.cell(w_val, 6, val, 0, 1, 'R')
-
-    print_kv("Total Sales Value:", f"{tot_amt:.2f}", 15, 40, 30)
-    print_kv("Discount (-):", f"{float(data.get('discount', 0) or 0):.2f}", 15, 40, 30)
-    print_kv("Online Rec. (-):", f"{float(data.get('online_money', 0) or 0):.2f}", 15, 40, 30)
-    pdf.line(15, pdf.get_y(), 85, pdf.get_y())
-    pdf.ln(1)
-    print_kv("CASH COLLECTED:", f"{float(data.get('cash_money', 0) or 0):.2f}", 15, 40, 30)
+    # LEFT COL (Cash Settlement)
+    pdf.set_text_color(0, 0, 0)
+    pdf.set_xy(10, y_start)
     
-    pdf.ln(5)
+    # Helper for key-value pair
+    def print_row(label, val, x, y):
+        pdf.set_xy(x, y)
+        pdf.set_font('Arial', '', 10)
+        pdf.cell(35, 6, label, 0, 0)
+        pdf.set_font('Arial', 'B', 10)
+        pdf.cell(25, 6, val, 0, 1, 'R')
+
+    print_row("Total Sales:", f"{tot_amt:.2f}", 10, y_start)
+    print_row("Discount (-):", f"{float(data.get('discount', 0) or 0):.2f}", 10, y_start + 6)
+    print_row("Online (-):", f"{float(data.get('online_money', 0) or 0):.2f}", 10, y_start + 12)
+    
+    pdf.set_draw_color(200, 200, 200)
+    pdf.line(10, y_start + 19, 70, y_start + 19)
+    
+    print_row("CASH PAID:", f"{float(data.get('cash_money', 0) or 0):.2f}", 10, y_start + 21)
+
+    # RIGHT COL (Employee Finance)
+    # Only if amounts exist
+    if emp_credit > 0 or emp_debit > 0:
+        x_right = 110
+        pdf.set_xy(x_right, y_start)
+        pdf.set_font('Arial', 'B', 10)
+        pdf.cell(80, 6, "Employee Ledger Adjustments", 0, 1, 'L')
+        
+        curr_y = y_start + 7
+        if emp_credit > 0:
+            pdf.set_xy(x_right, curr_y)
+            pdf.set_text_color(25, 135, 84) # Green
+            pdf.cell(80, 6, f"Credit (Received): {emp_credit:.2f}", 0, 1)
+            pdf.set_font('Arial', 'I', 9)
+            pdf.set_text_color(100, 100, 100)
+            pdf.set_xy(x_right + 5, curr_y + 5)
+            note = data.get('emp_credit_note') or "- No Note -"
+            pdf.cell(75, 6, f"Note: {note}", 0, 1)
+            curr_y += 12
+            
+        if emp_debit > 0:
+            pdf.set_font('Arial', 'B', 10)
+            pdf.set_xy(x_right, curr_y)
+            pdf.set_text_color(220, 53, 69) # Red
+            pdf.cell(80, 6, f"Debit (Given): {emp_debit:.2f}", 0, 1)
+            pdf.set_font('Arial', 'I', 9)
+            pdf.set_text_color(100, 100, 100)
+            pdf.set_xy(x_right + 5, curr_y + 5)
+            note = data.get('emp_debit_note') or "- No Note -"
+            pdf.cell(75, 6, f"Note: {note}", 0, 1)
+
+    # Reset Y for Balance
+    pdf.set_y(y_start + 35)
+    
     net_sales = tot_amt - float(data.get('discount', 0) or 0) - float(data.get('online_money', 0) or 0)
     balance_due = net_sales - float(data.get('cash_money', 0) or 0)
     if abs(balance_due) < 0.01: balance_due = 0.0
     
-    # --- Employee Finance Section (New) ---
-    emp_credit = float(data.get('emp_credit_amount', 0) or 0)
-    emp_debit = float(data.get('emp_debit_amount', 0) or 0)
-    
-    if emp_credit > 0 or emp_debit > 0:
-        pdf.set_font('Arial', 'B', 11)
-        pdf.set_fill_color(230, 230, 230)
-        pdf.set_text_color(0, 0, 0)
-        pdf.cell(0, 8, " EMPLOYEE LEDGER ADJUSTMENTS ", 1, 1, 'C', True)
-        pdf.ln(2)
-        
-        if emp_credit > 0:
-            pdf.set_font('Arial', 'B', 10)
-            pdf.set_text_color(25, 135, 84) # Green
-            pdf.cell(90, 6, f"Credit (Received): {emp_credit:.2f}", 0, 0)
-            pdf.set_font('Arial', 'I', 9)
-            pdf.set_text_color(100, 100, 100)
-            note = data.get('emp_credit_note') or "- No Note -"
-            pdf.cell(0, 6, f"Note: {note}", 0, 1)
-            
-        if emp_debit > 0:
-            pdf.set_font('Arial', 'B', 10)
-            pdf.set_text_color(220, 53, 69) # Red
-            pdf.cell(90, 6, f"Debit (Given): {emp_debit:.2f}", 0, 0)
-            pdf.set_font('Arial', 'I', 9)
-            pdf.set_text_color(100, 100, 100)
-            note = data.get('emp_debit_note') or "- No Note -"
-            pdf.cell(0, 6, f"Note: {note}", 0, 1)
-        pdf.ln(5)
-
-    # Balance Due
     pdf.set_fill_color(220, 53, 69) if balance_due > 0 else pdf.set_fill_color(25, 135, 84)
     pdf.set_text_color(255, 255, 255)
     pdf.set_font('Arial', 'B', 12)
@@ -4236,7 +4260,7 @@ def download_evening_pdf(settle_id):
     buffer.seek(0)
     
     return send_file(buffer, as_attachment=True, download_name=f"Evening_Settle_{settle_id}.pdf", mimetype='application/pdf')
-    
+
 # --- Helper: Robust Date Parsing ---
 
 def parse_date(date_str):
@@ -6704,6 +6728,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
