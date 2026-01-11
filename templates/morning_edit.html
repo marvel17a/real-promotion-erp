@@ -1,103 +1,172 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container">
-    <div class="d-flex align-items-center mb-4">
-        <img src="{{ allocation.emp_image }}" class="rounded-circle me-3" width="50" height="50" alt="Emp">
-        <div>
-            <h3>Edit Morning Allocation #{{ allocation.id }}</h3>
-            <p class="text-muted mb-0">Employee: {{ allocation.employee_name }}</p>
+<div class="container-fluid fade-in-up py-4">
+    
+    <!-- Header Section -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div class="d-flex align-items-center">
+            <a href="{{ url_for('allocation_list') }}" class="btn btn-light border rounded-circle me-3 shadow-sm">
+                <i class="fa-solid fa-arrow-left"></i>
+            </a>
+            <img src="{{ allocation.emp_image }}" class="rounded-circle me-3 shadow-sm border" width="50" height="50" style="object-fit: cover;" alt="Emp">
+            <div>
+                <h3 class="fw-bold mb-0 text-dark">Edit Allocation #{{ allocation.id }}</h3>
+                <div class="text-muted small">
+                    <span class="fw-bold text-primary">{{ allocation.employee_name }}</span>
+                    <span class="mx-2">|</span>
+                    <i class="fa-regular fa-calendar me-1"></i> {{ allocation.date.strftime('%d-%m-%Y') }}
+                    <span class="mx-2">|</span>
+                    <i class="fa-regular fa-clock me-1"></i> {{ allocation.created_at.strftime('%I:%M %p') }}
+                </div>
+            </div>
         </div>
+        <!-- No extra button needed here as Back is integrated on left -->
     </div>
 
     <form method="POST">
-        <div class="table-responsive">
-            <table class="table table-bordered" id="allocationTable">
-                <thead class="table-dark">
-                    <tr>
-                        <th>Product</th>
-                        <th width="100">Price</th>
-                        <th width="100">Opening</th>
-                        <th width="100">Given</th>
-                        <th width="50">Action</th>
-                    </tr>
-                </thead>
-                <tbody id="itemsBody">
-                    {% for item in items %}
-                    <tr>
-                        <input type="hidden" name="item_id[]" value="{{ item.id }}">
-                        <td>
-                            <select name="product_id[]" class="form-select product-select" required>
-                                <option value="">Select Product</option>
-                                {% for p in products %}
-                                    <option value="{{ p.id }}" {% if p.id == item.product_id %}selected{% endif %}>
-                                        {{ p.name }}
-                                    </option>
-                                {% endfor %}
-                            </select>
-                        </td>
-                        <td><input type="number" step="0.01" name="price[]" class="form-control price-input" value="{{ item.unit_price }}" readonly></td>
-                        <td><input type="number" name="opening[]" class="form-control" value="{{ item.opening_qty }}"></td>
-                        <td><input type="number" name="given[]" class="form-control" value="{{ item.given_qty }}"></td>
-                        <td><button type="button" class="btn btn-danger btn-sm remove-row">X</button></td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        <div class="card glass-card border-0 shadow-sm overflow-hidden">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0" id="allocationTable">
+                    <thead class="bg-light small text-uppercase text-secondary">
+                        <tr>
+                            <th class="ps-4" style="width: 70px;">Img</th>
+                            <th>Product</th>
+                            <th class="text-end" style="width: 120px;">Price</th>
+                            <th class="text-center" style="width: 100px;">Opening</th>
+                            <th class="text-center" style="width: 100px;">Given</th>
+                            <th class="text-center" style="width: 60px;">Del</th>
+                        </tr>
+                    </thead>
+                    <tbody id="itemsBody">
+                        {% for item in items %}
+                        <tr class="fade-in">
+                            <input type="hidden" name="item_id[]" value="{{ item.id }}">
+                            <td class="ps-4 text-center">
+                                <img src="{{ item.image }}" class="rounded border product-img-preview" width="40" height="40" style="object-fit: cover;">
+                            </td>
+                            <td>
+                                <select name="product_id[]" class="form-select border-0 bg-transparent fw-bold text-dark product-select" required>
+                                    <option value="">Select Product</option>
+                                    {% for p in products %}
+                                        <option value="{{ p.id }}" data-img="{{ p.image }}" {% if p.id == item.product_id %}selected{% endif %}>
+                                            {{ p.name }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td>
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text border-0 bg-transparent text-muted">₹</span>
+                                    <input type="number" step="0.01" name="price[]" class="form-control border-0 bg-transparent text-end fw-bold price-input" value="{{ item.unit_price }}" readonly>
+                                </div>
+                            </td>
+                            <td>
+                                <input type="number" name="opening[]" class="form-control form-control-sm text-center fw-bold bg-light border-0" value="{{ item.opening_qty }}">
+                            </td>
+                            <td>
+                                <input type="number" name="given[]" class="form-control form-control-sm text-center fw-bold border-success text-success" value="{{ item.given_qty }}">
+                            </td>
+                            <td class="text-center">
+                                <button type="button" class="btn btn-link text-danger p-0 remove-row">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="card-footer bg-white border-0 py-3 d-flex justify-content-between align-items-center">
+                <button type="button" id="addItemBtn" class="btn btn-outline-primary rounded-pill btn-sm fw-bold px-3">
+                    <i class="fa-solid fa-plus me-1"></i> Add Row
+                </button>
+                <button type="submit" class="btn btn-success rounded-pill px-5 fw-bold shadow-sm">
+                    <i class="fa-solid fa-save me-2"></i> Update Allocation
+                </button>
+            </div>
         </div>
-
-        <button type="button" class="btn btn-secondary mb-3" id="addRow">Add Item</button>
-        <hr>
-        <button type="submit" class="btn btn-success">Update Allocation</button>
-        <a href="{{ url_for('index') }}" class="btn btn-secondary">Cancel</a>
     </form>
 </div>
 
 <script>
-    // Safe way to pass Python variables to JS
-    const productsData = {{ products | tojson }};
-    const productOptionsHTML = `{{ productOptions | safe }}`;
+    // Pass products data safely to JS
+    const productsData = {{ products | tojson | safe }};
+    
+    // Helper to generate options
+    let productOptionsHTML = '';
+    productsData.forEach(p => {
+        productOptionsHTML += `<option value="${p.id}" data-img="${p.image}">${p.name}</option>`;
+    });
 
-    document.getElementById('addRow').addEventListener('click', function() {
-        const tbody = document.getElementById('itemsBody');
+    const tbody = document.getElementById('itemsBody');
+
+    document.getElementById('addItemBtn').addEventListener('click', function() {
         const tr = document.createElement('tr');
-        
+        tr.className = 'fade-in';
         tr.innerHTML = `
             <input type="hidden" name="item_id[]" value="new_item">
+            <td class="ps-4 text-center">
+                <img src="/static/img/default-product.png" class="rounded border product-img-preview" width="40" height="40" style="object-fit: cover;">
+            </td>
             <td>
-                <select name="product_id[]" class="form-select product-select" required>
+                <select name="product_id[]" class="form-select border-0 bg-transparent fw-bold text-dark product-select" required>
                     <option value="">Select Product</option>
                     ${productOptionsHTML}
                 </select>
             </td>
-            <td><input type="number" step="0.01" name="price[]" class="form-control price-input" readonly></td>
-            <td><input type="number" name="opening[]" class="form-control" value="0"></td>
-            <td><input type="number" name="given[]" class="form-control" value="0"></td>
-            <td><button type="button" class="btn btn-danger btn-sm remove-row">X</button></td>
+            <td>
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text border-0 bg-transparent text-muted">₹</span>
+                    <input type="number" step="0.01" name="price[]" class="form-control border-0 bg-transparent text-end fw-bold price-input" readonly>
+                </div>
+            </td>
+            <td><input type="number" name="opening[]" class="form-control form-control-sm text-center fw-bold bg-light border-0" value="0"></td>
+            <td><input type="number" name="given[]" class="form-control form-control-sm text-center fw-bold border-success text-success" value="0"></td>
+            <td class="text-center">
+                <button type="button" class="btn btn-link text-danger p-0 remove-row"><i class="fa-solid fa-trash-can"></i></button>
+            </td>
         `;
         tbody.appendChild(tr);
     });
 
-    // Event delegation for Remove button and Product Change
-    document.getElementById('itemsBody').addEventListener('click', function(e) {
-        if (e.target.classList.contains('remove-row')) {
-            e.target.closest('tr').remove();
+    // Event Delegation
+    tbody.addEventListener('click', function(e) {
+        if (e.target.closest('.remove-row')) {
+            if(confirm('Remove this item?')) {
+                e.target.closest('tr').remove();
+            }
         }
     });
 
-    document.getElementById('itemsBody').addEventListener('change', function(e) {
+    tbody.addEventListener('change', function(e) {
         if (e.target.classList.contains('product-select')) {
-            const productId = parseInt(e.target.value);
-            const row = e.target.closest('tr');
+            const select = e.target;
+            const row = select.closest('tr');
+            const productId = parseInt(select.value);
             const priceInput = row.querySelector('.price-input');
+            const imgPreview = row.querySelector('.product-img-preview');
             
+            // Find product data
             const product = productsData.find(p => p.id === productId);
+            
             if (product) {
-                priceInput.value = product.price;
+                priceInput.value = product.price.toFixed(2);
+                // Update Image
+                if(product.image) imgPreview.src = product.image;
+                else imgPreview.src = "/static/img/default-product.png";
             } else {
                 priceInput.value = '';
+                imgPreview.src = "/static/img/default-product.png";
             }
         }
     });
 </script>
+
+<style>
+    .glass-card { background: #fff; border-radius: 12px; }
+    .form-control:focus, .form-select:focus { box-shadow: none; border-color: #0d6efd; }
+    .table-hover tbody tr:hover { background-color: rgba(0,0,0,0.02); }
+</style>
 {% endblock %}
