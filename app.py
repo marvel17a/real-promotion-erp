@@ -3851,9 +3851,11 @@ def exp_report():
         report_data=report_data # <--- Passing the variable with 'summary'
     )
 
+# ... existing imports ...
 
-
-# --- PDF GENERATOR CLASS (INTERNAL) ---
+# ==========================================
+# PDF GENERATOR CLASS (UPDATED & STANDARDIZED)
+# ==========================================
 class PDFGenerator(FPDF):
     def __init__(self, title_type="Morning"):
         super().__init__()
@@ -3898,8 +3900,10 @@ class PDFGenerator(FPDF):
         self.set_text_color(0, 0, 0)
         if self.title_type == "Morning":
             title = "DAILY STOCK ALLOCATION CHALLAN"
-        else:
+        elif self.title_type == "Evening":
             title = "EVENING SETTLEMENT RECEIPT"
+        else:
+            title = "DOCUMENT"
         self.cell(0, 10, title, 0, 1, 'C')
         self.ln(5)
 
@@ -3954,34 +3958,31 @@ class PDFGenerator(FPDF):
         self.ln(15) 
         y_pos = self.get_y()
         
-        # Owner Signature
+        # Owner Signature Logic
+        sig_path = os.path.join(app.root_path, 'static', 'img', 'signature.png')
+        if os.path.exists(sig_path):
+            # Embed Image
+            self.image(sig_path, x=20, y=y_pos-10, w=40) 
+        
         self.set_font('Arial', 'B', 10)
         self.set_text_color(0, 0, 0)
         
-        sig_path = os.path.join(app.root_path, 'static', 'img', 'signature.png')
-        
-        if os.path.exists(sig_path):
-            self.image(sig_path, x=20, y=y_pos, w=40) 
-        else:
-            self.set_xy(20, y_pos)
-            self.set_font('Arial', 'I', 8)
-            self.cell(40, 10, "", 0, 0)
-
-        self.line(15, y_pos + 25, 75, y_pos + 25)
-        self.set_xy(15, y_pos + 27)
+        self.line(15, y_pos + 15, 75, y_pos + 15)
+        self.set_xy(15, y_pos + 17)
         self.cell(60, 5, "Authorized Signature", 0, 0, 'C')
         
         # Employee Signature
-        self.line(135, y_pos + 25, 195, y_pos + 25)
-        self.set_xy(135, y_pos + 27)
+        self.line(135, y_pos + 15, 195, y_pos + 15)
+        self.set_xy(135, y_pos + 17)
         self.cell(60, 5, "Employee Signature", 0, 1, 'C')
         
         self.ln(10)
         self.set_font('Arial', 'I', 8)
         self.cell(0, 5, "This is a computer generated document.", 0, 1, 'C')
 
-
-# --- MORNING PDF ROUTE ---
+# ==========================================
+# UPDATED: MORNING PDF ROUTE (Professional)
+# ==========================================
 @app.route('/download_morning_pdf/<int:allocation_id>')
 def download_morning_pdf(allocation_id):
     if "loggedin" not in session: return redirect(url_for("login"))
@@ -3989,9 +3990,9 @@ def download_morning_pdf(allocation_id):
     conn = mysql.connection
     cursor = conn.cursor(MySQLdb.cursors.DictCursor)
     
-    # 1. Header (Removed e.mobile)
+    # 1. Header (Added e.phone for Mobile No)
     cursor.execute("""
-        SELECT ma.date, ma.created_at, e.name as emp_name
+        SELECT ma.date, ma.created_at, e.name as emp_name, e.phone as emp_mobile
         FROM morning_allocations ma
         JOIN employees e ON ma.employee_id = e.id
         WHERE ma.id = %s
@@ -4016,10 +4017,21 @@ def download_morning_pdf(allocation_id):
     pdf.alias_nb_pages()
     pdf.add_page()
     
+    # Date/Time Format
     d_val = header['date'].strftime('%d-%m-%Y') if header['date'] else ""
-    t_val = str(header['created_at']) if header['created_at'] else "N/A"
     
-    pdf.add_info_section(header['emp_name'], "", d_val, t_val)
+    t_val = "N/A"
+    if header.get('created_at'):
+        if isinstance(header['created_at'], timedelta):
+            # Handle timedelta if stored as duration
+            dummy = datetime.min + header['created_at']
+            t_val = dummy.strftime('%I:%M %p')
+        elif isinstance(header['created_at'], datetime):
+            t_val = header['created_at'].strftime('%I:%M %p')
+        else:
+            t_val = str(header['created_at'])
+
+    pdf.add_info_section(header['emp_name'], header['emp_mobile'], d_val, t_val)
     
     cols = ["#", "Product Name", "Opening", "Given", "Total", "Price", "Amount"]
     widths = [10, 70, 20, 20, 20, 20, 30]
@@ -4044,6 +4056,9 @@ def download_morning_pdf(allocation_id):
         
         pdf.cell(widths[5], 7, f"{float(item['unit_price']):.2f}", 1, 0, 'R', fill)
         
+        # Usually Morning Challan Amount is purely indicative (Qty * Price)
+        # We calculate based on Given or Total? Usually 'Total Stock Value held'.
+        # Let's use Total Qty * Price to show value carried by employee.
         amt = t_qty * float(item['unit_price'])
         pdf.cell(widths[6], 7, f"{amt:.2f}", 1, 1, 'R', fill)
         
@@ -4059,7 +4074,6 @@ def download_morning_pdf(allocation_id):
     
     pdf.add_signature_section()
     
-    # Return PDF string as byte stream
     pdf_string = pdf.output(dest='S').encode('latin-1')
     buffer = io.BytesIO(pdf_string)
     buffer.seek(0)
@@ -4067,7 +4081,9 @@ def download_morning_pdf(allocation_id):
     return send_file(buffer, as_attachment=True, download_name=f"Morning_Alloc_{allocation_id}.pdf", mimetype='application/pdf')
 
 
-# --- EVENING PDF ROUTE ---
+# ==========================================
+# UPDATED: EVENING PDF ROUTE (Professional)
+# ==========================================
 @app.route('/download_evening_pdf/<int:settle_id>')
 def download_evening_pdf(settle_id):
     if "loggedin" not in session: return redirect(url_for("login"))
@@ -4075,9 +4091,9 @@ def download_evening_pdf(settle_id):
     conn = mysql.connection
     cursor = conn.cursor(MySQLdb.cursors.DictCursor)
     
-    # 1. Header (Removed e.mobile)
+    # 1. Header (Added e.phone alias as emp_mobile)
     cursor.execute("""
-        SELECT es.*, e.name as emp_name
+        SELECT es.*, e.name as emp_name, e.phone as emp_mobile
         FROM evening_settle es
         JOIN employees e ON es.employee_id = e.id
         WHERE es.id = %s
@@ -4086,7 +4102,7 @@ def download_evening_pdf(settle_id):
     
     if not data:
         flash("Settlement not found", "danger")
-        return redirect(url_for('evening_master'))
+        return redirect(url_for('admin_evening_master'))
         
     # 2. Items
     cursor.execute("""
@@ -4102,10 +4118,20 @@ def download_evening_pdf(settle_id):
     pdf.alias_nb_pages()
     pdf.add_page()
     
+    # Date/Time Format
     d_val = data['date'].strftime('%d-%m-%Y') if data['date'] else ""
-    t_val = str(data['created_at']) if data.get('created_at') else "N/A"
     
-    pdf.add_info_section(data['emp_name'], "", d_val, t_val)
+    t_val = "N/A"
+    if data.get('created_at'):
+        if isinstance(data['created_at'], timedelta):
+            dummy = datetime.min + data['created_at']
+            t_val = dummy.strftime('%I:%M %p')
+        elif isinstance(data['created_at'], datetime):
+            t_val = data['created_at'].strftime('%I:%M %p')
+        else:
+            t_val = str(data['created_at'])
+    
+    pdf.add_info_section(data['emp_name'], data['emp_mobile'], d_val, t_val)
     
     cols = ["#", "Product", "Total", "Sold", "Price", "Amount", "Return"]
     widths = [10, 60, 20, 20, 25, 30, 25]
@@ -4175,10 +4201,17 @@ def download_evening_pdf(settle_id):
     balance_due = net_sales - float(data.get('cash_money', 0) or 0)
     if abs(balance_due) < 0.01: balance_due = 0.0
     
-    pdf.set_fill_color(220, 53, 69)
+    # Color logic for balance
+    if balance_due > 0:
+        pdf.set_fill_color(220, 53, 69) # Red for Due
+        text_status = "BALANCE DUE"
+    else:
+        pdf.set_fill_color(25, 135, 84) # Green for Clear/Advance
+        text_status = "BALANCE CLEARED"
+        
     pdf.set_text_color(255, 255, 255)
     pdf.set_font('Arial', 'B', 12)
-    pdf.cell(0, 12, f" BALANCE DUE:  {balance_due:.2f} ", 1, 1, 'C', True)
+    pdf.cell(0, 12, f" {text_status}:  {balance_due:.2f} ", 1, 1, 'C', True)
     
     pdf.add_signature_section()
     
@@ -4187,10 +4220,6 @@ def download_evening_pdf(settle_id):
     buffer.seek(0)
     
     return send_file(buffer, as_attachment=True, download_name=f"Evening_Settle_{settle_id}.pdf", mimetype='application/pdf')
-
-# --- ROUTE: ALLOCATION LIST (Correct Time & Status) ---
-# --- ROUTE: ALLOCATION LIST (Fixed Time & Design) ---
-# --- ROUTE: MORNING (Capture Live Clock Time) ---
 
 # --- Helper: Robust Date Parsing ---
 
@@ -6659,6 +6688,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
