@@ -11,9 +11,9 @@
                 <i class="fa-regular fa-clock me-1"></i> Submitted: {{ settlement.created_at }}
             </p>
         </div>
-        <div>
-            <a href="{{ url_for('download_evening_pdf', settle_id=settlement.id) }}" class="btn btn-danger rounded-pill shadow-sm px-4 me-2">
-                <i class="fa-solid fa-file-pdf me-2"></i>Download PDF
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('download_evening_pdf', settle_id=settlement.id) }}" class="btn btn-danger rounded-pill shadow-sm px-4">
+                <i class="fa-solid fa-file-pdf me-2"></i>PDF
             </a>
             <a href="{{ url_for('admin_evening_master') }}" class="btn btn-outline-secondary rounded-pill shadow-sm px-4">
                 <i class="fa-solid fa-arrow-left me-2"></i>Back
@@ -29,155 +29,138 @@
             <div class="card border-0 shadow-sm rounded-4 mb-4">
                 <div class="card-body p-4">
                     <div class="d-flex align-items-center">
-                        <img src="{{ settlement.emp_image }}" class="rounded-circle border border-3 border-light shadow-sm me-4" width="80" height="80" style="object-fit: cover;">
+                        <img src="{{ settlement.emp_image }}" class="rounded-circle shadow-sm me-3 object-fit-cover border" width="60" height="60">
                         <div>
-                            <h4 class="fw-bold text-dark mb-1">{{ settlement.emp_name }}</h4>
-                            <div class="d-flex gap-3 text-muted small">
-                                <span><i class="fa-solid fa-calendar-day me-1"></i> Date: <strong>{{ settlement.formatted_date }}</strong></span>
-                                {% if settlement.emp_mobile %}
-                                <span><i class="fa-solid fa-phone me-1"></i> {{ settlement.emp_mobile }}</span>
-                                {% endif %}
+                            <h5 class="fw-bold text-dark mb-0">{{ settlement.emp_name }}</h5>
+                            <div class="text-muted small">
+                                <i class="fa-solid fa-calendar-day me-1"></i> Date: <span class="fw-bold text-dark">{{ settlement.formatted_date }}</span>
                             </div>
+                        </div>
+                        <div class="ms-auto text-end">
+                            <span class="badge bg-success bg-opacity-10 text-success border border-success px-3 py-2 rounded-pill">Final Submitted</span>
                         </div>
                     </div>
                 </div>
             </div>
 
             <!-- Product Table -->
-            <div class="card border-0 shadow-sm rounded-4">
-                <div class="card-header bg-white border-0 py-3">
-                    <h5 class="fw-bold text-dark mb-0"><i class="fa-solid fa-box-open text-primary me-2"></i>Product Details</h5>
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+                <div class="card-header bg-white border-0 py-3 px-4">
+                    <h6 class="fw-bold text-secondary mb-0 text-uppercase ls-1">Product Summary</h6>
                 </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table align-middle mb-0 table-hover">
-                            <thead class="bg-light">
-                                <tr class="text-uppercase small fw-bold text-muted">
-                                    <th class="ps-4">Product</th>
-                                    <th class="text-center">Total</th>
-                                    <th class="text-center">Sold</th>
-                                    <th class="text-end">Price</th>
-                                    <th class="text-end">Amount</th>
-                                    <th class="text-center pe-4">Return</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for item in items %}
-                                <tr>
-                                    <td class="ps-4">
-                                        <div class="d-flex align-items-center">
-                                            <img src="{{ item.image }}" class="rounded me-3 border" width="40" height="40" style="object-fit: cover;">
-                                            <span class="fw-bold text-dark">{{ item.product_name }}</span>
-                                        </div>
-                                    </td>
-                                    <td class="text-center text-muted fw-bold">{{ item.total_qty }}</td>
-                                    <td class="text-center text-success fw-bold">{{ item.sold_qty }}</td>
-                                    <td class="text-end text-muted">{{ "%.2f"|format(item.unit_price) }}</td>
-                                    <td class="text-end fw-bold text-dark">{{ "%.2f"|format(item.sold_qty * item.unit_price) }}</td>
-                                    <td class="text-center pe-4">
-                                        {% if item.return_qty > 0 %}
-                                            <span class="badge bg-warning text-dark">{{ item.return_qty }}</span>
-                                        {% else %}
-                                            <span class="text-muted">-</span>
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                            <tfoot class="bg-light border-top">
-                                <tr>
-                                    <td colspan="4" class="text-end fw-bold text-muted text-uppercase small pt-3">Total Sales Value</td>
-                                    <td class="text-end fw-bold text-dark fs-5 pt-3">₹ {{ "%.2f"|format(settlement.total_amount) }}</td>
-                                    <td></td>
-                                </tr>
-                            </tfoot>
-                        </table>
-                    </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light small text-uppercase text-muted">
+                            <tr>
+                                <th class="ps-4">Product</th>
+                                <th class="text-center">Total</th>
+                                <th class="text-center text-success">Sold</th>
+                                <th class="text-center text-danger">Return</th>
+                                <th class="text-end">Price</th>
+                                <th class="text-end pe-4">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in items %}
+                            <tr>
+                                <td class="ps-4">
+                                    <div class="d-flex align-items-center">
+                                        <img src="{{ item.image }}" class="rounded border me-2" width="35" height="35">
+                                        <span class="fw-bold text-dark small">{{ item.product_name }}</span>
+                                    </div>
+                                </td>
+                                <td class="text-center text-secondary fw-bold">{{ item.total_qty }}</td>
+                                <td class="text-center text-success fw-bold">{{ item.sold_qty }}</td>
+                                <td class="text-center text-danger fw-bold">{{ item.return_qty }}</td>
+                                <td class="text-end text-muted small">{{ "%.2f"|format(item.unit_price) }}</td>
+                                <td class="text-end pe-4 fw-bold text-primary">{{ "%.2f"|format(item.sold_qty * item.unit_price) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot class="bg-light">
+                            <tr>
+                                <td colspan="5" class="text-end fw-bold text-secondary text-uppercase small">Total Sales Value</td>
+                                <td class="text-end pe-4 fw-800 text-dark fs-6">{{ "%.2f"|format(settlement.total_amount) }}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
                 </div>
             </div>
         </div>
 
-        <!-- RIGHT COLUMN: Finance -->
+        <!-- RIGHT COLUMN: Financials -->
         <div class="col-lg-4">
             
-            <!-- Cash Settlement Summary -->
+            <!-- Cash Settlement Card -->
             <div class="card border-0 shadow-sm rounded-4 mb-4">
-                <div class="card-header bg-gradient-primary text-white border-0 py-3 rounded-top-4">
-                    <h5 class="fw-bold mb-0"><i class="fa-solid fa-cash-register me-2"></i>Cash Settlement</h5>
+                <div class="card-header bg-gradient-primary text-white py-3 px-4 rounded-top-4">
+                    <h6 class="fw-bold mb-0"><i class="fa-solid fa-cash-register me-2"></i>Cash Settlement</h6>
                 </div>
                 <div class="card-body p-4">
-                    <!-- Breakdown -->
+                    
                     <div class="d-flex justify-content-between mb-2">
                         <span class="text-muted">Total Sales</span>
                         <span class="fw-bold">₹ {{ "%.2f"|format(settlement.total_amount) }}</span>
                     </div>
-                    <div class="d-flex justify-content-between mb-2 text-danger">
+                    <div class="d-flex justify-content-between mb-2 text-warning">
                         <span><i class="fa-solid fa-percent me-1"></i> Discount</span>
-                        <span>- ₹ {{ "%.2f"|format(settlement.discount) }}</span>
+                        <span class="fw-bold">- {{ "%.2f"|format(settlement.discount) }}</span>
                     </div>
                     <div class="d-flex justify-content-between mb-3 text-info">
                         <span><i class="fa-solid fa-qrcode me-1"></i> Online</span>
-                        <span>- ₹ {{ "%.2f"|format(settlement.online_money) }}</span>
+                        <span class="fw-bold">- {{ "%.2f"|format(settlement.online_money) }}</span>
                     </div>
                     
-                    <div class="border-top border-bottom py-3 mb-3 bg-light rounded px-3">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <span class="fw-bold text-uppercase small text-muted">Cash Collected</span>
-                            <span class="fw-bold text-success fs-4">₹ {{ "%.2f"|format(settlement.cash_money) }}</span>
-                        </div>
+                    <hr class="border-secondary border-opacity-10 my-3">
+                    
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <span class="text-success fw-bold text-uppercase small">Cash Collected</span>
+                        <span class="fs-4 fw-800 text-success">₹ {{ "%.2f"|format(settlement.cash_money) }}</span>
                     </div>
 
-                    <!-- Balance Due Box -->
-                    <div class="balance-box p-3 rounded-3 text-white d-flex justify-content-between align-items-center shadow-sm" style="background-color: #dc3545;">
-                        <span class="fw-bold">BALANCE DUE</span>
-                        <span class="fs-4 fw-bold">₹ {{ "%.2f"|format(settlement.due_amount) }}</span>
+                    <!-- Due Section -->
+                    <div class="p-3 bg-light rounded-3 text-center border">
+                        <small class="text-uppercase text-muted fw-bold ls-1 d-block mb-1">Balance Due</small>
+                        <h4 class="fw-800 mb-0 {% if settlement.due_amount > 0 %}text-danger{% else %}text-secondary{% endif %}">
+                            ₹ {{ "%.2f"|format(settlement.due_amount) }}
+                        </h4>
+                        {% if settlement.due_note %}
+                        <div class="mt-2 small text-muted border-top pt-2">
+                            <i class="fa-solid fa-note-sticky me-1"></i> {{ settlement.due_note }}
+                        </div>
+                        {% endif %}
                     </div>
-                    
-                    <!-- NEW: Due Note Display -->
-                    {% if settlement.due_note %}
-                    <div class="mt-3 p-3 bg-light rounded border border-danger border-opacity-25">
-                        <label class="small fw-bold text-danger mb-1"><i class="fa-solid fa-circle-exclamation me-1"></i>Due Reason:</label>
-                        <p class="mb-0 text-dark small">{{ settlement.due_note }}</p>
-                    </div>
-                    {% endif %}
+
                 </div>
             </div>
 
-            <!-- Employee Finance -->
+            <!-- Employee Ledger Card -->
             <div class="card border-0 shadow-sm rounded-4">
-                <div class="card-header bg-white border-0 py-3">
-                    <h5 class="fw-bold text-dark mb-0"><i class="fa-solid fa-wallet text-warning me-2"></i>Finance Log</h5>
+                <div class="card-header bg-white border-0 py-3 px-4">
+                    <h6 class="fw-bold text-secondary mb-0"><i class="fa-solid fa-wallet me-2"></i>Ledger Entries</h6>
                 </div>
-                <div class="card-body p-4 pt-0">
+                <div class="card-body p-4 pt-0 d-flex flex-column gap-3">
                     
                     <!-- Credit -->
-                    <div class="mb-3">
+                    <div class="p-3 rounded-3 bg-success bg-opacity-10 border border-success border-opacity-25">
                         <div class="d-flex justify-content-between align-items-center mb-1">
-                            <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-3 py-2 rounded-pill">CREDIT (Given)</span>
+                            <span class="fw-bold text-success small text-uppercase">CREDIT (Received)</span>
                             <span class="fw-bold text-success">₹ {{ "%.2f"|format(settlement.emp_credit_amount) }}</span>
                         </div>
-                        {% if settlement.emp_credit_note %}
-                        <div class="small text-muted ps-2 border-start border-success border-3 ms-2">
-                            Note: {{ settlement.emp_credit_note }}
+                        <div class="small text-muted ps-2 border-start border-success border-3 ms-1 mt-1">
+                            {{ settlement.emp_credit_note if settlement.emp_credit_note else '- No Note -' }}
                         </div>
-                        {% else %}
-                        <div class="small text-muted ps-2 ms-2 fst-italic">- No Note -</div>
-                        {% endif %}
                     </div>
 
                     <!-- Debit -->
-                    <div>
+                    <div class="p-3 rounded-3 bg-danger bg-opacity-10 border border-danger border-opacity-25">
                         <div class="d-flex justify-content-between align-items-center mb-1">
-                            <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 px-3 py-2 rounded-pill">DEBIT (Taken)</span>
+                            <span class="fw-bold text-danger small text-uppercase">DEBIT (Given/Advance)</span>
                             <span class="fw-bold text-danger">₹ {{ "%.2f"|format(settlement.emp_debit_amount) }}</span>
                         </div>
-                        {% if settlement.emp_debit_note %}
-                        <div class="small text-muted ps-2 border-start border-danger border-3 ms-2">
-                            Note: {{ settlement.emp_debit_note }}
+                        <div class="small text-muted ps-2 border-start border-danger border-3 ms-1 mt-1">
+                            {{ settlement.emp_debit_note if settlement.emp_debit_note else '- No Note -' }}
                         </div>
-                        {% else %}
-                        <div class="small text-muted ps-2 ms-2 fst-italic">- No Note -</div>
-                        {% endif %}
                     </div>
 
                 </div>
