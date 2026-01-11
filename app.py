@@ -193,74 +193,6 @@ def parse_date_input(date_str):
         # If it fails, maybe it's already yyyy-mm-dd or invalid
         return date_str 
 
-# ... (Previous imports and setup) ...
-
-# ==========================================
-# 1. UPDATED PDF GENERATOR (Added Office Bill Logic)
-# ==========================================
-class PDFGenerator(FPDF):
-    def __init__(self, title_type="Morning"):
-        super().__init__()
-        self.title_type = title_type
-        self.company_name = "REAL PROMOTION"
-        self.slogan = "SINCE 2005"
-        self.address_lines = [
-            "Real Promotion, G/12, Tulsimangalam Complex,",
-            "B/h. Trimurti Complex, Ghodiya Bazar,",
-            "Nadiad-387001, Gujarat, India"
-        ]
-        self.contact = "+91 96623 22476 | help@realpromotion.in"
-        self.gst_text = "GSTIN:24AJVPT0460H1ZW"
-        self.gst_subtext = "Composition Dealer- Not Eligibal To Collect Taxes On Sppliers"
-
-    def header(self):
-        # ... (Same standard header as Evening PDF) ...
-        self.set_font('Arial', 'B', 24)
-        self.set_text_color(26, 35, 126) 
-        self.cell(0, 10, self.company_name, 0, 1, 'C')
-        
-        self.set_font('Arial', 'B', 10)
-        self.set_text_color(100, 100, 100)
-        self.cell(0, 5, self.slogan, 0, 1, 'C')
-        self.ln(2)
-        
-        self.set_font('Arial', '', 9)
-        self.set_text_color(50, 50, 50)
-        for line in self.address_lines:
-            self.cell(0, 4, line, 0, 1, 'C')
-        self.cell(0, 4, self.contact, 0, 1, 'C')
-        
-        self.set_font('Arial', 'B', 9)
-        self.cell(0, 4, self.gst_text, 0, 1, 'C')
-        self.set_font('Arial', 'I', 8)
-        self.cell(0, 4, self.gst_subtext, 0, 1, 'C')
-        self.ln(5)
-        
-        self.set_draw_color(200, 200, 200)
-        self.line(10, self.get_y(), 200, self.get_y())
-        self.ln(5)
-
-        # Dynamic Title
-        self.set_font('Arial', 'B', 16)
-        self.set_text_color(0, 0, 0)
-        if self.title_type == "Morning":
-            title = "DAILY STOCK ALLOCATION CHALLAN"
-        elif self.title_type == "Evening":
-            title = "EVENING SETTLEMENT RECEIPT"
-        elif self.title_type == "Office":
-            title = "BILL OF SUPPLY" # Office Sale Title
-        else:
-            title = "DOCUMENT"
-        self.cell(0, 10, title, 0, 1, 'C')
-        self.ln(5)
-
-    def footer(self):
-        self.set_y(-15)
-        self.set_font('Arial', 'I', 8)
-        self.set_text_color(128, 128, 128)
-        self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
-
-    # ... (Other helper methods: add_info_section, add_table_header, etc.) ...
 
     # --- NEW METHOD: OFFICE BILL BODY ---
     def generate_office_bill_body(self, sale_data, items):
@@ -3748,10 +3680,9 @@ def exp_report():
         report_data=report_data # <--- Passing the variable with 'summary'
     )
 
-# ... existing imports ...
 
 # ==========================================
-# PDF GENERATOR CLASS (UPDATED & STANDARDIZED)
+# 1. UPDATED PDF GENERATOR (Added Office Bill Logic)
 # ==========================================
 class PDFGenerator(FPDF):
     def __init__(self, title_type="Morning"):
@@ -3769,13 +3700,13 @@ class PDFGenerator(FPDF):
         self.gst_subtext = "Composition Dealer- Not Eligibal To Collect Taxes On Sppliers"
 
     def header(self):
-        # Company Header
+        # ... (Same standard header as Evening PDF) ...
         self.set_font('Arial', 'B', 24)
-        self.set_text_color(26, 35, 126) # Dark Blue
+        self.set_text_color(26, 35, 126) 
         self.cell(0, 10, self.company_name, 0, 1, 'C')
         
         self.set_font('Arial', 'B', 10)
-        self.set_text_color(100, 100, 100) # Grey
+        self.set_text_color(100, 100, 100)
         self.cell(0, 5, self.slogan, 0, 1, 'C')
         self.ln(2)
         
@@ -3785,25 +3716,25 @@ class PDFGenerator(FPDF):
             self.cell(0, 4, line, 0, 1, 'C')
         self.cell(0, 4, self.contact, 0, 1, 'C')
         
-        # GST Section
         self.set_font('Arial', 'B', 9)
         self.cell(0, 4, self.gst_text, 0, 1, 'C')
         self.set_font('Arial', 'I', 8)
         self.cell(0, 4, self.gst_subtext, 0, 1, 'C')
         self.ln(5)
         
-        # Divider
         self.set_draw_color(200, 200, 200)
         self.line(10, self.get_y(), 200, self.get_y())
         self.ln(5)
 
-        # Title
+        # Dynamic Title
         self.set_font('Arial', 'B', 16)
         self.set_text_color(0, 0, 0)
         if self.title_type == "Morning":
             title = "DAILY STOCK ALLOCATION CHALLAN"
         elif self.title_type == "Evening":
             title = "EVENING SETTLEMENT RECEIPT"
+        elif self.title_type == "Office":
+            title = "BILL OF SUPPLY" # Office Sale Title
         else:
             title = "DOCUMENT"
         self.cell(0, 10, title, 0, 1, 'C')
@@ -3814,6 +3745,7 @@ class PDFGenerator(FPDF):
         self.set_font('Arial', 'I', 8)
         self.set_text_color(128, 128, 128)
         self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
+    
 
     def add_info_section(self, emp_name, emp_mobile, date_str, time_str):
         self.set_font('Arial', '', 10)
@@ -6729,6 +6661,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
