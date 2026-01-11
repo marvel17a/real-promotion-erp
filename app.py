@@ -3984,8 +3984,10 @@ class PDFGenerator(FPDF):
         self.set_font('Arial', 'I', 8)
         self.cell(0, 5, "This is a computer generated document.", 0, 1, 'C')
 
+# ... existing imports and PDFGenerator class ...
+
 # ==========================================
-# UPDATED: MORNING PDF ROUTE (Professional)
+# UPDATED: MORNING PDF ROUTE (Matches Allocation List Link)
 # ==========================================
 @app.route('/download_morning_pdf/<int:allocation_id>')
 def download_morning_pdf(allocation_id):
@@ -4038,8 +4040,12 @@ def download_morning_pdf(allocation_id):
     pdf.add_info_section(header['emp_name'], header['emp_mobile'], d_val, t_val)
     
     # FIX: Updated columns to match Morning Edit Page structure
-    cols = ["#", "Product Name", "Opening", "Given", "Total", "Price", "Amount"]
-    widths = [10, 70, 20, 20, 20, 20, 30]
+    cols = ["#", "Product Name", "Opening", "Given Qty", "Price", "Amount"]
+    widths = [10, 70, 20, 20, 20, 30] # Adjusted width for 6 cols
+    # Wait, 10+70+20+20+20+30 = 170. Max is approx 190.
+    # Let's widen Product Name slightly
+    widths = [10, 80, 20, 25, 25, 30]
+    
     pdf.add_table_header(cols, widths)
     
     pdf.set_font('Arial', '', 9)
@@ -4056,24 +4062,25 @@ def download_morning_pdf(allocation_id):
         pdf.cell(widths[2], 7, str(item['opening_qty']), 1, 0, 'C', fill)
         pdf.cell(widths[3], 7, str(item['given_qty']), 1, 0, 'C', fill)
         
-        t_qty = int(item['opening_qty']) + int(item['given_qty'])
-        pdf.cell(widths[4], 7, str(t_qty), 1, 0, 'C', fill)
+        pdf.cell(widths[4], 7, f"{float(item['unit_price']):.2f}", 1, 0, 'R', fill)
         
-        pdf.cell(widths[5], 7, f"{float(item['unit_price']):.2f}", 1, 0, 'R', fill)
+        # Amount Calculation: Usually Morning Challan Value is based on Total Held stock
+        total_held = int(item['opening_qty']) + int(item['given_qty'])
+        amt = total_held * float(item['unit_price'])
         
-        # Amount = Total * Price (Standard interpretation for stock value)
-        amt = t_qty * float(item['unit_price'])
-        pdf.cell(widths[6], 7, f"{amt:.2f}", 1, 1, 'R', fill)
+        pdf.cell(widths[5], 7, f"{amt:.2f}", 1, 1, 'R', fill)
         
-        total_qty_sum += t_qty 
+        total_qty_sum += int(item['given_qty']) 
         total_amount_sum += amt
         fill = not fill 
         
     pdf.set_font('Arial', 'B', 10)
-    pdf.cell(sum(widths[:4]), 8, "GRAND TOTAL", 1, 0, 'R', True)
-    pdf.cell(widths[4], 8, str(total_qty_sum), 1, 0, 'C', True)
-    pdf.cell(widths[5], 8, "", 1, 0, 'C', True)
-    pdf.cell(widths[6], 8, f"{total_amount_sum:.2f}", 1, 1, 'R', True)
+    # Sum of widths for first 3 cols to align "Total Given" under 'Given' column if possible or just grand total row
+    # Let's align "TOTAL GIVEN" to right of product name column
+    pdf.cell(widths[0]+widths[1]+widths[2], 8, "TOTAL GIVEN", 1, 0, 'R', True)
+    pdf.cell(widths[3], 8, str(total_qty_sum), 1, 0, 'C', True)
+    pdf.cell(widths[4], 8, "", 1, 0, 'C', True)
+    pdf.cell(widths[5], 8, f"{total_amount_sum:.2f}", 1, 1, 'R', True)
     
     pdf.add_signature_section()
     
@@ -4082,7 +4089,6 @@ def download_morning_pdf(allocation_id):
     buffer.seek(0)
     
     return send_file(buffer, as_attachment=True, download_name=f"Morning_Alloc_{allocation_id}.pdf", mimetype='application/pdf')
-
 
 # ==========================================
 # UPDATED: EVENING PDF ROUTE (Layout Updated)
@@ -6728,6 +6734,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
