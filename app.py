@@ -4267,6 +4267,103 @@ def download_evening_pdf(settle_id):
     
     return send_file(buffer, as_attachment=True, download_name=f"Evening_Settle_{settle_id}.pdf", mimetype='application/pdf')
 
+
+# ==========================================
+# PUBLIC ROUTE: DOWNLOAD MORNING PDF (No Login Required)
+# ==========================================
+@app.route('/public/download_morning_pdf/<int:allocation_id>')
+def download_morning_pdf_public(allocation_id):
+    # REMOVED LOGIN CHECK for direct WhatsApp access
+    # if "loggedin" not in session: return redirect(url_for("login"))
+    
+    conn = mysql.connection
+    cursor = conn.cursor(MySQLdb.cursors.DictCursor)
+    
+    # 1. Header (Added e.phone for Mobile No)
+    cursor.execute("""
+        SELECT ma.date, ma.created_at, e.name as emp_name, e.phone as emp_mobile
+        FROM morning_allocations ma
+        JOIN employees e ON ma.employee_id = e.id
+        WHERE ma.id = %s
+    """, (allocation_id,))
+    header = cursor.fetchone()
+    
+    if not header:
+        return "Allocation not found", 404
+        
+    # 2. Items
+    cursor.execute("""
+        SELECT p.name, mai.opening_qty, mai.given_qty, mai.unit_price
+        FROM morning_allocation_items mai
+        JOIN products p ON mai.product_id = p.id
+        WHERE mai.allocation_id = %s
+    """, (allocation_id,))
+    items = cursor.fetchall()
+    
+    # 3. Generate
+    pdf = PDFGenerator("Morning")
+    pdf.alias_nb_pages()
+    pdf.add_page()
+    
+    # Date/Time Format
+    d_val = header['date'].strftime('%d-%m-%Y') if header['date'] else ""
+    
+    t_val = "N/A"
+    if header.get('created_at'):
+        if isinstance(header['created_at'], timedelta):
+            dummy = datetime.min + header['created_at']
+            t_val = dummy.strftime('%I:%M %p')
+        elif isinstance(header['created_at'], datetime):
+            t_val = header['created_at'].strftime('%I:%M %p')
+        else:
+            t_val = str(header['created_at'])
+
+    pdf.add_info_section(header['emp_name'], header['emp_mobile'], d_val, t_val)
+    
+    cols = ["#", "Product Name", "Opening", "Given Qty", "Price", "Amount"]
+    widths = [10, 80, 20, 25, 25, 30]
+    pdf.add_table_header(cols, widths)
+    
+    pdf.set_font('Arial', '', 9)
+    pdf.set_text_color(0, 0, 0)
+    pdf.set_fill_color(245, 245, 245)
+    
+    total_qty_sum = 0
+    total_amount_sum = 0
+    fill = False
+    
+    for i, item in enumerate(items):
+        pdf.cell(widths[0], 7, str(i+1), 1, 0, 'C', fill)
+        pdf.cell(widths[1], 7, str(item['name']), 1, 0, 'L', fill)
+        pdf.cell(widths[2], 7, str(item['opening_qty']), 1, 0, 'C', fill)
+        pdf.cell(widths[3], 7, str(item['given_qty']), 1, 0, 'C', fill)
+        
+        pdf.cell(widths[4], 7, f"{float(item['unit_price']):.2f}", 1, 0, 'R', fill)
+        
+        total_held = int(item['opening_qty']) + int(item['given_qty'])
+        amt = total_held * float(item['unit_price'])
+        
+        pdf.cell(widths[5], 7, f"{amt:.2f}", 1, 1, 'R', fill)
+        
+        total_qty_sum += int(item['given_qty']) 
+        total_amount_sum += amt
+        fill = not fill 
+        
+    pdf.set_font('Arial', 'B', 10)
+    pdf.cell(sum(widths[:3]), 8, "TOTAL GIVEN", 1, 0, 'R', True)
+    pdf.cell(widths[3], 8, str(total_qty_sum), 1, 0, 'C', True)
+    pdf.cell(widths[4], 8, "", 1, 0, 'C', True)
+    pdf.cell(widths[5], 8, f"{total_amount_sum:.2f}", 1, 1, 'R', True)
+    
+    pdf.add_signature_section()
+    
+    pdf_string = pdf.output(dest='S').encode('latin-1')
+    buffer = io.BytesIO(pdf_string)
+    buffer.seek(0)
+    
+    return send_file(buffer, as_attachment=True, download_name=f"Morning_Alloc_{allocation_id}.pdf", mimetype='application/pdf')
+
+
 # --- Helper: Robust Date Parsing ---
 
 def parse_date(date_str):
@@ -6735,6 +6832,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
