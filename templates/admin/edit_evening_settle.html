@@ -9,7 +9,8 @@
         </a>
         <div>
             <h3 class="fw-bold mb-0">Edit Settlement #{{ settlement.id }}</h3>
-            <p class="text-muted small mb-0">{{ settlement.emp_name }} | {{ settlement.date }}</p>
+            <!-- Formatted Date Display -->
+            <p class="text-muted small mb-0">{{ settlement.emp_name }} | {{ settlement.formatted_date }}</p>
         </div>
     </div>
 
@@ -75,22 +76,24 @@
                         <input type="number" step="0.01" name="totalAmount" id="totalAmount" class="form-control fw-bold fs-5 text-dark" readonly value="{{ settlement.total_amount }}">
                     </div>
 
-                    <!-- Deductions -->
-                    <div class="row g-2 mb-3">
-                        <div class="col-6">
-                            <label class="form-label small text-muted">Discount</label>
-                            <input type="number" step="0.01" name="discount" id="discount" class="form-control text-warning fw-bold" value="{{ settlement.discount }}">
-                        </div>
-                        <div class="col-6">
-                            <label class="form-label small text-muted">Online</label>
-                            <input type="number" step="0.01" name="online" id="online" class="form-control text-info fw-bold" value="{{ settlement.online_money }}">
-                        </div>
+                    <!-- Discount -->
+                    <div class="mb-3">
+                        <label class="form-label small text-muted text-warning fw-bold">Discount (-)</label>
+                        <input type="number" step="0.01" name="discount" id="discount" class="form-control text-warning fw-bold" value="{{ settlement.discount }}">
                     </div>
 
-                    <!-- Cash -->
-                    <div class="mb-3">
-                        <label class="form-label small text-muted fw-bold text-success">Cash Collected</label>
-                        <input type="number" step="0.01" name="cash" id="cash" class="form-control fw-bold fs-4 text-success border-success" value="{{ settlement.cash_money }}">
+                    <hr class="text-muted opacity-25">
+
+                    <!-- Payments -->
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label small text-muted text-info fw-bold">Online Paid</label>
+                            <input type="number" step="0.01" name="online" id="online" class="form-control text-info fw-bold" value="{{ settlement.online_money }}">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small text-muted text-success fw-bold">Cash Paid</label>
+                            <input type="number" step="0.01" name="cash" id="cash" class="form-control text-success fw-bold" value="{{ settlement.cash_money }}">
+                        </div>
                     </div>
 
                     <!-- Due -->
@@ -153,14 +156,12 @@
                 let sold = parseInt(soldInput.value) || 0;
                 let ret = parseInt(returnInput.value) || 0;
 
-                // Update Remaining Logic
                 const remaining = total - sold - ret;
                 const remainEl = row.querySelector('.remaining-qty');
                 remainEl.innerText = remaining >= 0 ? remaining : 0;
                 if(remaining < 0) remainEl.classList.add('text-danger');
                 else remainEl.classList.remove('text-danger');
                 
-                // Update Amount
                 const amount = sold * price;
                 row.querySelector('.row-amount').innerText = amount.toFixed(2);
                 grandTotal += amount;
@@ -171,7 +172,11 @@
             const online = parseFloat(document.getElementById('online').value) || 0;
             const discount = parseFloat(document.getElementById('discount').value) || 0;
             
-            const due = grandTotal - (cash + online + discount);
+            // Formula: Total - Discount - (Cash + Online)
+            const netPayable = grandTotal - discount;
+            const totalPaid = cash + online;
+            const due = netPayable - totalPaid;
+            
             dueEl.innerText = "₹ " + due.toFixed(2);
             
             if(due > 0.01) dueEl.className = "fw-800 mb-0 mt-1 text-danger";
@@ -179,7 +184,6 @@
             else dueEl.className = "fw-800 mb-0 mt-1 text-secondary";
         }
 
-        // Listeners
         table.addEventListener('input', (e) => {
             if(e.target.matches('.input-sold, .input-return')) calculate();
         });
