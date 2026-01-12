@@ -171,6 +171,285 @@ def view_evening_settlement(settle_id):
 
 
 
+# ==========================================
+# NEW ROUTE: VIEW OFFICE SALE
+# ==========================================
+@app.route('/office_sales/view/<int:sale_id>')
+def view_office_sale(sale_id):
+    if "loggedin" not in session: return redirect(url_for("login"))
+    
+    conn = mysql.connection
+    cursor = conn.cursor(MySQLdb.cursors.DictCursor)
+    
+    # Fetch Sale
+    cursor.execute("SELECT * FROM office_sales WHERE id=%s", (sale_id,))
+    sale = cursor.fetchone()
+    
+    if not sale:
+        flash("Sale not found.", "danger")
+        return redirect(url_for('office_sales_master'))
+        
+    # Formatting
+    if sale['sale_date']:
+        sale['formatted_date'] = sale['sale_date'].strftime('%d-%m-%Y')
+    
+    if sale.get('created_at'):
+        # Assuming UTC stored, convert to IST +5:30
+        try:
+            dt = sale['created_at'] + timedelta(hours=5, minutes=30)
+            sale['created_at_formatted'] = dt.strftime('%d-%m-%Y %I:%M %p')
+        except:
+            sale['created_at_formatted'] = str(sale['created_at'])
+    else:
+        sale['created_at_formatted'] = "N/A"
+
+    # Fetch Items
+    cursor.execute("""
+        SELECT i.*, p.name as product_name, p.image 
+        FROM office_sale_items i
+        JOIN products p ON i.product_id = p.id
+        WHERE i.sale_id=%s
+    """, (sale_id,))
+    items = cursor.fetchall()
+    
+    for i in items: i['image'] = resolve_img(i['image'])
+    
+    cursor.close()
+    return render_template('view_office_sale.html', sale=sale, items=items)
+
+
+# ==========================================
+# 4. OFFICE SALES MASTER (UPDATED WITH TIME)
+# ==========================================
+@app.route('/office_sales/master')
+def office_sales_master():
+    if "loggedin" not in session: return redirect(url_for("login"))
+    
+    conn = mysql.connection
+    cursor = conn.cursor(MySQLdb.cursors.DictCursor)
+    
+    # 1. Get Filters
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    
+    # 2. Build Query
+    query = "SELECT * FROM office_sales WHERE 1=1"
+    params = []
+    
+    if start_date:
+        try:
+            d = datetime.strptime(start_date, '%d-%m-%Y').strftime('%Y-%m-%d')
+            query += " AND sale_date >= %s"
+            params.append(d)
+        except: pass
+        
+    if end_date:
+        try:
+            d = datetime.strptime(end_date, '%d-%m-%Y').strftime('%Y-%m-%d')
+            query += " AND sale_date <= %s"
+            params.append(d)
+        except: pass
+        
+    query += " ORDER BY sale_date DESC, created_at DESC"
+    
+    cursor.execute(query, tuple(params))
+    sales = cursor.fetchall()
+    
+    # 3. Calculate Stats & Format Time
+    stats = {
+        'total_sales': 0.0,
+        'cash': 0.0,
+        'online': 0.0,
+        'discount': 0.0
+    }
+    
+    for s in sales:
+        # Date
+        if isinstance(s['sale_date'], date):
+            s['formatted_date'] = s['sale_date'].strftime('%d-%m-%Y')
+        else:
+            s['formatted_date'] = str(s['sale_date'])
+            
+        # Time (IST)
+        if s.get('created_at'):
+            try:
+                # Add 5:30 if stored as UTC, or just format if stored as IST
+                # Let's assume we store as IST now (see POST route below)
+                # If stored as string, parse first. If datetime, use directly.
+                dt = s['created_at']
+                if isinstance(dt, datetime):
+                     # Add +5:30 only if your DB is UTC. 
+                     # If we save IST string, we might need logic.
+                     # Let's assume we save standard UTC timestamp in DB or server local.
+                     # Safest visual:
+                     t_obj = dt + timedelta(hours=5, minutes=30)
+                     s['formatted_time'] = t_obj.strftime('%I:%M %p')
+                else:
+                     s['formatted_time'] = str(dt)
+            except:
+                s['formatted_time'] = ""
+        else:
+            s['formatted_time'] = ""
+
+        stats['total_sales'] += float(s['final_amount'] or 0)
+        stats['cash'] += float(s['cash_amount'] or 0)
+        stats['online'] += float(s['online_amount'] or 0)
+        stats['discount'] += float(s['discount'] or 0)
+        
+    cursor.close()
+    
+    return render_template('office_sales_master.html', 
+                           sales=sales, 
+                           stats=stats, 
+                           filters={'start': start_date, 'end': end_date})
+
+
+# ==========================================
+# 5. DELETE OFFICE SALE (Restore Stock)
+# ==========================================
+@app.route('/office_sales/delete/<int:sale_id>', methods=['POST'])
+def delete_office_sale(sale_id):
+    if "loggedin" not in session: return redirect(url_for("login"))
+    
+    conn = mysql.connection
+    cursor = conn.cursor(MySQLdb.cursors.DictCursor)
+    
+    try:
+        # 1. Fetch Items to Restore Stock
+        cursor.execute("SELECT product_id, qty FROM office_sale_items WHERE sale_id = %s", (sale_id,))
+        items = cursor.fetchall()
+        
+        # 2. Restore Stock
+        for item in items:
+            cursor.execute("UPDATE products SET stock = stock + %s WHERE id = %s", (item['qty'], item['product_id']))
+            
+        # 3. Delete Record (Cascading delete handles items if set, else manual)
+        cursor.execute("DELETE FROM office_sale_items WHERE sale_id = %s", (sale_id,))
+        cursor.execute("DELETE FROM office_sales WHERE id = %s", (sale_id,))
+        
+        conn.commit()
+        flash("Sale Record Deleted & Stock Restored.", "success")
+        
+    except Exception as e:
+        conn.rollback()
+        flash(f"Error deleting sale: {e}", "danger")
+        
+    finally:
+        cursor.close()
+        
+    return redirect(url_for('office_sales_master'))
+
+
+# ==========================================
+# 6. EDIT OFFICE SALE (Route & View)
+# ==========================================
+@app.route('/office_sales/edit/<int:sale_id>', methods=['GET', 'POST'])
+def edit_office_sale(sale_id):
+    if "loggedin" not in session: return redirect(url_for("login"))
+    
+    conn = mysql.connection
+    cursor = conn.cursor(MySQLdb.cursors.DictCursor)
+    
+    if request.method == 'POST':
+        try:
+            # 1. Fetch Old Items to reverse stock
+            cursor.execute("SELECT product_id, qty FROM office_sale_items WHERE sale_id = %s", (sale_id,))
+            old_items = cursor.fetchall()
+            
+            # Reverse old stock logic (Add back)
+            for item in old_items:
+                cursor.execute("UPDATE products SET stock = stock + %s WHERE id = %s", (item['qty'], item['product_id']))
+            
+            # Delete old items
+            cursor.execute("DELETE FROM office_sale_items WHERE sale_id = %s", (sale_id,))
+            
+            # 2. Process New Data
+            c_name = request.form.get('customer_name')
+            c_mobile = request.form.get('customer_mobile')
+            c_addr = request.form.get('customer_address')
+            
+            b_date_str = request.form.get('bill_date')
+            try: bill_date = datetime.strptime(b_date_str, '%d-%m-%Y').strftime('%Y-%m-%d')
+            except: bill_date = date.today().strftime('%Y-%m-%d')
+            
+            discount = float(request.form.get('discount') or 0)
+            online_amt = float(request.form.get('online') or 0)
+            cash_amt = float(request.form.get('cash') or 0)
+            
+            p_ids = request.form.getlist('product_id[]')
+            qtys = request.form.getlist('qty[]')
+            prices = request.form.getlist('price[]')
+            
+            total_amt = 0
+            
+            # 3. Insert New Items & Deduct Stock
+            for i, pid in enumerate(p_ids):
+                if not pid: continue
+                qty = int(qtys[i])
+                price = float(prices[i])
+                
+                # Check Stock (Current stock + what we just added back)
+                cursor.execute("SELECT stock, name FROM products WHERE id=%s", (pid,))
+                prod = cursor.fetchone()
+                if prod and prod['stock'] < qty:
+                    raise Exception(f"Insufficient stock for {prod['name']}")
+                
+                cursor.execute("UPDATE products SET stock = stock - %s WHERE id=%s", (qty, pid))
+                
+                item_total = qty * price
+                cursor.execute("""
+                    INSERT INTO office_sale_items (sale_id, product_id, qty, unit_price, total_price)
+                    VALUES (%s, %s, %s, %s, %s)
+                """, (sale_id, pid, qty, price, item_total))
+                
+                total_amt += item_total
+            
+            final_amt = total_amt - discount
+            
+            # 4. Update Header
+            cursor.execute("""
+                UPDATE office_sales 
+                SET customer_name=%s, customer_mobile=%s, customer_address=%s, sale_date=%s,
+                    sub_total=%s, discount=%s, online_amount=%s, cash_amount=%s, final_amount=%s
+                WHERE id=%s
+            """, (c_name, c_mobile, c_addr, bill_date, total_amt, discount, online_amt, cash_amt, final_amt, sale_id))
+            
+            conn.commit()
+            flash("Sale Updated Successfully!", "success")
+            return redirect(url_for('office_sales_master'))
+            
+        except Exception as e:
+            conn.rollback()
+            flash(f"Update Error: {e}", "danger")
+            return redirect(url_for('office_sales_master'))
+            
+    # GET Request
+    cursor.execute("SELECT * FROM office_sales WHERE id=%s", (sale_id,))
+    sale = cursor.fetchone()
+    
+    if sale['sale_date']:
+        sale['formatted_date'] = sale['sale_date'].strftime('%d-%m-%Y')
+        
+    cursor.execute("""
+        SELECT i.*, p.name, p.image, p.price, p.stock 
+        FROM office_sale_items i
+        JOIN products p ON i.product_id = p.id
+        WHERE i.sale_id=%s
+    """, (sale_id,))
+    items = cursor.fetchall()
+    
+    # Fetch All Products for Dropdown
+    cursor.execute("SELECT id, name, price, stock, image FROM products ORDER BY name")
+    all_products = cursor.fetchall()
+    
+    # Image resolving
+    for p in all_products: p['image'] = resolve_img(p['image'])
+    for i in items: i['image'] = resolve_img(i['image'])
+    
+    cursor.close()
+    return render_template('edit_office_sale.html', sale=sale, items=items, products=all_products)
+        
+
 
 import pytz # Recommended: pip install pytz
 
@@ -3679,7 +3958,7 @@ class PDFGenerator(FPDF):
 
 
 # ==========================================
-# 2. ROUTE: OFFICE SALES (GET/POST)
+# 2. ROUTE: OFFICE SALES (UPDATED POST with TIME)
 # ==========================================
 @app.route('/office_sales', methods=['GET', 'POST'])
 def office_sales():
@@ -3690,56 +3969,55 @@ def office_sales():
     
     if request.method == 'POST':
         try:
-            # 1. Customer & Header Info
+            # ... (Inputs: c_name, mobile etc same as before) ...
             c_name = request.form.get('customer_name')
             c_mobile = request.form.get('customer_mobile')
             c_addr = request.form.get('customer_address')
             sales_person = request.form.get('sales_person')
             
-            # Date Handling
             b_date_str = request.form.get('bill_date')
             try:
                 bill_date = datetime.strptime(b_date_str, '%d-%m-%Y').strftime('%Y-%m-%d')
             except:
                 bill_date = date.today().strftime('%Y-%m-%d')
 
-            # 2. Financials
             discount = float(request.form.get('discount') or 0)
             online_amt = float(request.form.get('online') or 0)
             cash_amt = float(request.form.get('cash') or 0)
-            due_note = None # Removed from UI as requested, passing None
+            due_note = None
             
-            # 3. Products
             p_ids = request.form.getlist('product_id[]')
             qtys = request.form.getlist('qty[]')
             prices = request.form.getlist('price[]')
             
             total_amt = 0
             
-            # Insert Header (Initial)
+            # --- TIME FIX ---
+            # Explicitly capture current IST time for created_at
+            ist_now = get_ist_now()
+            created_at_str = ist_now.strftime('%Y-%m-%d %H:%M:%S')
+
+            # Insert Header with created_at
             cursor.execute("""
                 INSERT INTO office_sales 
-                (customer_name, customer_mobile, customer_address, sales_person, sale_date, discount, online_amount, cash_amount, due_note)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-            """, (c_name, c_mobile, c_addr, sales_person, bill_date, discount, online_amt, cash_amt, due_note))
+                (customer_name, customer_mobile, customer_address, sales_person, sale_date, discount, online_amount, cash_amount, due_note, created_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (c_name, c_mobile, c_addr, sales_person, bill_date, discount, online_amt, cash_amt, due_note, created_at_str))
             sale_id = cursor.lastrowid
             
-            # Process Items & Inventory
+            # ... (Item processing loop same as before) ...
             for i, pid in enumerate(p_ids):
                 if not pid: continue
                 qty = int(qtys[i])
                 price = float(prices[i])
                 
-                # Check Stock
                 cursor.execute("SELECT stock, name FROM products WHERE id=%s", (pid,))
                 prod = cursor.fetchone()
                 if prod and prod['stock'] < qty:
                     raise Exception(f"Insufficient stock for {prod['name']}")
 
-                # Deduct Stock
                 cursor.execute("UPDATE products SET stock = stock - %s WHERE id=%s", (qty, pid))
                 
-                # Item Total
                 item_total = qty * price
                 cursor.execute("""
                     INSERT INTO office_sale_items (sale_id, product_id, qty, unit_price, total_price)
@@ -3748,7 +4026,6 @@ def office_sales():
                 
                 total_amt += item_total
             
-            # Final Update
             final_amt = total_amt - discount
             cursor.execute("""
                 UPDATE office_sales 
@@ -3758,7 +4035,6 @@ def office_sales():
             
             conn.commit()
             
-            # Redirect to Print Bill
             return redirect(url_for('download_office_bill', sale_id=sale_id))
             
         except Exception as e:
@@ -3766,12 +4042,10 @@ def office_sales():
             flash(f"Error: {str(e)}", "danger")
             return redirect(url_for('office_sales'))
 
-    # GET: Fetch Products
+    # GET
     cursor.execute("SELECT id, name, price, stock, image FROM products ORDER BY name")
     products = cursor.fetchall()
-    
-    for p in products:
-        p['image'] = resolve_img(p['image'])
+    for p in products: p['image'] = resolve_img(p['image'])
 
     return render_template('office_sales.html', products=products, today=date.today().strftime('%d-%m-%Y'))
 
@@ -6669,6 +6943,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
