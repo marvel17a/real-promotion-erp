@@ -3957,8 +3957,9 @@ class PDFGenerator(FPDF):
         self.cell(50, 5, "(Authorized Signatory)", 0, 1, 'C')
 
 
+
 # ==========================================
-# 2. ROUTE: OFFICE SALES (UPDATED POST with TIME)
+# 2. ROUTE: OFFICE SALES (GET/POST) - Time Fixed
 # ==========================================
 @app.route('/office_sales', methods=['GET', 'POST'])
 def office_sales():
@@ -3969,55 +3970,60 @@ def office_sales():
     
     if request.method == 'POST':
         try:
-            # ... (Inputs: c_name, mobile etc same as before) ...
+            # 1. Customer & Header Info
             c_name = request.form.get('customer_name')
             c_mobile = request.form.get('customer_mobile')
             c_addr = request.form.get('customer_address')
             sales_person = request.form.get('sales_person')
             
+            # Date Handling
             b_date_str = request.form.get('bill_date')
             try:
                 bill_date = datetime.strptime(b_date_str, '%d-%m-%Y').strftime('%Y-%m-%d')
             except:
                 bill_date = date.today().strftime('%Y-%m-%d')
 
+            # 2. Financials
             discount = float(request.form.get('discount') or 0)
             online_amt = float(request.form.get('online') or 0)
             cash_amt = float(request.form.get('cash') or 0)
-            due_note = None
+            due_note = None 
             
+            # 3. Products
             p_ids = request.form.getlist('product_id[]')
             qtys = request.form.getlist('qty[]')
             prices = request.form.getlist('price[]')
             
             total_amt = 0
             
-            # --- TIME FIX ---
-            # Explicitly capture current IST time for created_at
+            # --- TIME FIX: Force Server-Side IST ---
             ist_now = get_ist_now()
-            created_at_str = ist_now.strftime('%Y-%m-%d %H:%M:%S')
+            time_str = ist_now.strftime('%Y-%m-%d %H:%M:%S')
 
-            # Insert Header with created_at
+            # Insert Header (Initial)
             cursor.execute("""
                 INSERT INTO office_sales 
                 (customer_name, customer_mobile, customer_address, sales_person, sale_date, discount, online_amount, cash_amount, due_note, created_at)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            """, (c_name, c_mobile, c_addr, sales_person, bill_date, discount, online_amt, cash_amt, due_note, created_at_str))
+            """, (c_name, c_mobile, c_addr, sales_person, bill_date, discount, online_amt, cash_amt, due_note, time_str))
             sale_id = cursor.lastrowid
             
-            # ... (Item processing loop same as before) ...
+            # Process Items & Inventory
             for i, pid in enumerate(p_ids):
                 if not pid: continue
                 qty = int(qtys[i])
                 price = float(prices[i])
                 
+                # Check Stock
                 cursor.execute("SELECT stock, name FROM products WHERE id=%s", (pid,))
                 prod = cursor.fetchone()
                 if prod and prod['stock'] < qty:
                     raise Exception(f"Insufficient stock for {prod['name']}")
 
+                # Deduct Stock
                 cursor.execute("UPDATE products SET stock = stock - %s WHERE id=%s", (qty, pid))
                 
+                # Item Total
                 item_total = qty * price
                 cursor.execute("""
                     INSERT INTO office_sale_items (sale_id, product_id, qty, unit_price, total_price)
@@ -4026,6 +4032,7 @@ def office_sales():
                 
                 total_amt += item_total
             
+            # Final Update
             final_amt = total_amt - discount
             cursor.execute("""
                 UPDATE office_sales 
@@ -4042,12 +4049,60 @@ def office_sales():
             flash(f"Error: {str(e)}", "danger")
             return redirect(url_for('office_sales'))
 
-    # GET
+    # GET: Fetch Products
     cursor.execute("SELECT id, name, price, stock, image FROM products ORDER BY name")
     products = cursor.fetchall()
-    for p in products: p['image'] = resolve_img(p['image'])
+    
+    for p in products:
+        p['image'] = resolve_img(p['image'])
 
     return render_template('office_sales.html', products=products, today=date.today().strftime('%d-%m-%Y'))
+
+
+
+# ==========================================
+# 4. NEW PUBLIC ROUTE: DOWNLOAD OFFICE BILL
+# ==========================================
+@app.route('/public/office_sales/print/<int:sale_id>')
+def download_office_bill_public(sale_id):
+    # NO LOGIN CHECK HERE
+    
+    conn = mysql.connection
+    cursor = conn.cursor(MySQLdb.cursors.DictCursor)
+    
+    # Fetch Sale
+    cursor.execute("SELECT * FROM office_sales WHERE id=%s", (sale_id,))
+    sale = cursor.fetchone()
+    
+    if not sale:
+        return "Bill not found", 404
+    
+    # Format Date
+    if sale['sale_date']:
+        sale['sale_date'] = sale['sale_date'].strftime('%d-%m-%Y')
+
+    # Fetch Items
+    cursor.execute("""
+        SELECT i.*, p.name as product_name 
+        FROM office_sale_items i 
+        JOIN products p ON i.product_id = p.id 
+        WHERE i.sale_id=%s
+    """, (sale_id,))
+    items = cursor.fetchall()
+    
+    # Generate PDF
+    pdf = PDFGenerator("Office") # Use "Office" type for Bill Title
+    pdf.alias_nb_pages()
+    pdf.add_page()
+    
+    # Use the specific body method
+    pdf.generate_office_bill_body(sale, items)
+    
+    pdf_string = pdf.output(dest='S').encode('latin-1')
+    buffer = io.BytesIO(pdf_string)
+    buffer.seek(0)
+    
+    return send_file(buffer, as_attachment=True, download_name=f"Bill_{sale_id}.pdf", mimetype='application/pdf')
 
 # ==========================================
 # 3. ROUTE: DOWNLOAD OFFICE BILL PDF
@@ -6943,6 +6998,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
