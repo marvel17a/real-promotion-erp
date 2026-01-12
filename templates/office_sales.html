@@ -32,6 +32,8 @@
         border-color: #0d6efd;
         box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.15);
     }
+    
+    /* Table Styling */
     .table thead th {
         background-color: #f8f9fa;
         font-size: 0.8rem;
@@ -138,11 +140,11 @@
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">Mobile No</label>
-                    <input type="tel" name="customer_mobile" class="form-control" placeholder="10 Digit Mobile" pattern="[0-9]{10}">
+                    <input type="number" name="customer_mobile" class="form-control" placeholder="10 Digit Mobile" oninput="if(this.value.length > 10) this.value = this.value.slice(0, 10);">
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">Sales Person</label>
-                    <input type="text" name="sales_person" class="form-control" value="Office Counter" readonly>
+                    <input type="text" name="sales_person" class="form-control" placeholder="Enter Name">
                 </div>
                 <div class="col-12">
                     <label class="form-label">Address</label>
@@ -174,7 +176,7 @@
                 </button>
             </div>
 
-            <!-- Calculations Footer (Redesigned to match Evening Page) -->
+            <!-- Calculations Footer (Redesigned) -->
             <div class="row justify-content-end">
                 <div class="col-lg-5 col-md-7">
                     <div class="finance-card">
@@ -215,7 +217,7 @@
                                 <input type="number" step="0.01" name="cash" class="settle-input fs-5" placeholder="0.00">
                             </div>
 
-                            <!-- Balance Due Box -->
+                            <!-- Balance Due Box (Without Note) -->
                             <div class="balance-box">
                                 <span class="fw-800 fs-5 text-secondary d-block">BALANCE DUE</span>
                                 <span class="fs-3 fw-800" id="dueAmount" style="color: #0d6efd;">0.00</span>
@@ -311,8 +313,10 @@
             const qty = parseInt(e.target.value) || 0;
             
             if(qty > stock) {
-                alert(`Only ${stock} items available in stock!`);
-                e.target.value = stock;
+                // Optional: alert(`Only ${stock} items available!`);
+                e.target.style.borderColor = 'red';
+            } else {
+                e.target.style.borderColor = '';
             }
             calculateRow(row);
         }
@@ -353,13 +357,9 @@
         const dueEl = document.getElementById('dueAmount');
         dueEl.textContent = "₹ " + due.toFixed(2);
         
-        if (due > 0.01) {
-            dueEl.style.color = "#dc3545"; // Red for Pending
-        } else if (due < -0.01) {
-            dueEl.style.color = "#198754"; // Green for Extra/Change
-        } else {
-            dueEl.style.color = "#0d6efd"; // Blue for Settled
-        }
+        if (due > 0.01) dueEl.style.color = "#dc3545"; 
+        else if (due < -0.01) dueEl.style.color = "#198754";
+        else dueEl.style.color = "#0d6efd";
     }
 
     // Global Listeners for Footer Inputs
