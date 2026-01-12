@@ -1,0 +1,163 @@
+{% extends "admin_master.html" %}
+
+{% block page_content %}
+<div class="container-fluid fade-in-up py-4">
+
+    <!-- Header & Actions -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h3 class="fw-bold text-dark mb-0">Sale Details #{{ sale.id }}</h3>
+            <p class="text-muted small mb-0">
+                <i class="fa-regular fa-clock me-1"></i> Recorded: {{ sale.created_at_formatted }}
+            </p>
+        </div>
+        <div class="d-flex gap-2">
+            <!-- WhatsApp Share -->
+            {% set pdf_link = url_for('download_office_bill', sale_id=sale.id, _external=True) %}
+            {% set wa_msg = "Hello " ~ sale.customer_name ~ ", here is your Bill of Supply (Inv #" ~ sale.id ~ "). Amount Paid: ₹" ~ (sale.cash_amount + sale.online_amount) ~ ". Download Bill: " ~ pdf_link %}
+            
+            <a href="https://wa.me/91{{ sale.customer_mobile }}?text={{ wa_msg | urlencode }}" target="_blank" class="btn btn-success rounded-pill shadow-sm px-4">
+                <i class="fa-brands fa-whatsapp me-2"></i>Share
+            </a>
+
+            <a href="{{ url_for('download_office_bill', sale_id=sale.id) }}" class="btn btn-danger rounded-pill shadow-sm px-4">
+                <i class="fa-solid fa-file-pdf me-2"></i>PDF
+            </a>
+            <a href="{{ url_for('office_sales_master') }}" class="btn btn-outline-secondary rounded-pill shadow-sm px-4">
+                <i class="fa-solid fa-arrow-left me-2"></i>Back
+            </a>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- LEFT COLUMN: Customer & Products -->
+        <div class="col-lg-8">
+            
+            <!-- Customer Info Card -->
+            <div class="card border-0 shadow-sm rounded-4 mb-4">
+                <div class="card-body p-4">
+                    <div class="d-flex align-items-center">
+                        <div class="bg-primary bg-opacity-10 text-primary rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 60px; height: 60px;">
+                            <i class="fa-solid fa-user fa-xl"></i>
+                        </div>
+                        <div>
+                            <h5 class="fw-bold text-dark mb-0">{{ sale.customer_name }}</h5>
+                            <div class="text-muted small">
+                                <i class="fa-solid fa-phone me-1"></i> {{ sale.customer_mobile or 'N/A' }}
+                                <span class="mx-2">|</span>
+                                <i class="fa-solid fa-calendar-day me-1"></i> Bill Date: <span class="fw-bold text-dark">{{ sale.formatted_date }}</span>
+                            </div>
+                            {% if sale.customer_address %}
+                            <div class="text-muted small mt-1"><i class="fa-solid fa-map-pin me-1"></i> {{ sale.customer_address }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Product Table -->
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+                <div class="card-header bg-white border-0 py-3 px-4">
+                    <h6 class="fw-bold text-secondary mb-0 text-uppercase ls-1">Items Purchased</h6>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light small text-uppercase text-muted">
+                            <tr>
+                                <th class="ps-4">Product</th>
+                                <th class="text-center">Qty</th>
+                                <th class="text-end">Price</th>
+                                <th class="text-end pe-4">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in items %}
+                            <tr>
+                                <td class="ps-4">
+                                    <div class="d-flex align-items-center">
+                                        <img src="{{ item.image }}" class="rounded border me-2" width="40" height="40" style="object-fit: cover;">
+                                        <span class="fw-bold text-dark small">{{ item.product_name }}</span>
+                                    </div>
+                                </td>
+                                <td class="text-center fw-bold text-dark">{{ item.qty }}</td>
+                                <td class="text-end text-muted small">{{ "%.2f"|format(item.unit_price) }}</td>
+                                <td class="text-end pe-4 fw-bold text-primary">{{ "%.2f"|format(item.total_price) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot class="bg-light">
+                            <tr>
+                                <td colspan="3" class="text-end fw-bold text-secondary text-uppercase small">Sub Total</td>
+                                <td class="text-end pe-4 fw-bold text-dark">{{ "%.2f"|format(sale.sub_total) }}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT COLUMN: Financials -->
+        <div class="col-lg-4">
+            
+            <!-- Payment Summary Card -->
+            <div class="card border-0 shadow-sm rounded-4 mb-4">
+                <div class="card-header bg-dark text-white py-3 px-4 rounded-top-4">
+                    <h6 class="fw-bold mb-0"><i class="fa-solid fa-receipt me-2"></i>Bill Summary</h6>
+                </div>
+                <div class="card-body p-4">
+                    
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted">Sub Total</span>
+                        <span class="fw-bold">₹ {{ "%.2f"|format(sale.sub_total) }}</span>
+                    </div>
+                    {% if sale.discount > 0 %}
+                    <div class="d-flex justify-content-between mb-3 text-warning border-bottom pb-2">
+                        <span><i class="fa-solid fa-percent me-1"></i> Discount</span>
+                        <span class="fw-bold">- {{ "%.2f"|format(sale.discount) }}</span>
+                    </div>
+                    {% endif %}
+
+                    <!-- Net Payable -->
+                    <div class="d-flex justify-content-between mb-3">
+                        <span class="text-dark fw-bold small text-uppercase">Net Payable</span>
+                        <span class="fw-bold fs-5 text-dark">₹ {{ "%.2f"|format(sale.final_amount) }}</span>
+                    </div>
+                    
+                    <!-- Payments -->
+                    <div class="p-3 bg-light rounded-3 border mb-3">
+                        {% if sale.online_amount > 0 %}
+                        <div class="d-flex justify-content-between mb-2 text-info">
+                            <span><i class="fa-solid fa-qrcode me-1"></i> Online Paid</span>
+                            <span class="fw-bold">₹ {{ "%.2f"|format(sale.online_amount) }}</span>
+                        </div>
+                        {% endif %}
+                        
+                        {% if sale.cash_amount > 0 %}
+                        <div class="d-flex justify-content-between align-items-center text-success">
+                            <span><i class="fa-solid fa-money-bill-wave me-1"></i> Cash Paid</span>
+                            <span class="fw-bold">₹ {{ "%.2f"|format(sale.cash_amount) }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Due Section -->
+                    {% set due = sale.final_amount - (sale.cash_amount + sale.online_amount) %}
+                    <div class="text-center p-3 rounded-3 {% if due > 0.01 %}bg-danger bg-opacity-10 text-danger{% else %}bg-success bg-opacity-10 text-success{% endif %}">
+                        <small class="text-uppercase fw-bold ls-1 d-block mb-1">Balance Due</small>
+                        <h3 class="fw-800 mb-0">₹ {{ "%.2f"|format(due) }}</h3>
+                    </div>
+
+                </div>
+            </div>
+            
+            <!-- Quick Actions -->
+             <div class="d-grid gap-2">
+                <a href="{{ url_for('edit_office_sale', sale_id=sale.id) }}" class="btn btn-white border shadow-sm fw-bold text-primary">
+                    <i class="fa-solid fa-pen me-2"></i> Edit Bill Details
+                </a>
+             </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}
