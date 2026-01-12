@@ -3438,6 +3438,7 @@ def exp_report():
     )
 
 
+
 # ==========================================
 # PDF GENERATOR CLASS (UPDATED & STANDARDIZED)
 # ==========================================
@@ -3575,31 +3576,33 @@ class PDFGenerator(FPDF):
         self.set_font('Arial', 'I', 8)
         self.cell(0, 5, "This is a computer generated document.", 0, 1, 'C')
 
-    # --- NEW METHOD: OFFICE BILL BODY ---
+    # --- UPDATED METHOD: OFFICE BILL BODY (SWAPPED SECTIONS) ---
     def generate_office_bill_body(self, sale_data, items):
         # 1. Customer Info
         self.set_font('Arial', '', 10)
         self.set_text_color(0, 0, 0)
         y = self.get_y()
         
-        # Left: Bill Details
+        # LEFT SIDE: Customer Details (Swapped)
         self.set_xy(10, y)
-        self.cell(25, 6, "Bill No:", 0, 0); self.set_font('Arial','B',10); self.cell(40, 6, str(sale_data['id']), 0, 1)
-        self.set_font('Arial','',10)
-        self.cell(25, 6, "Date:", 0, 0); self.set_font('Arial','B',10); self.cell(40, 6, str(sale_data['sale_date']), 0, 1)
-        
-        # Right: Customer Details
-        self.set_xy(110, y)
         self.set_font('Arial','',10); self.cell(25, 6, "Customer:", 0, 0); self.set_font('Arial','B',10); self.cell(50, 6, str(sale_data['customer_name']), 0, 1)
-        
-        self.set_xy(110, y+6)
         self.set_font('Arial','',10); self.cell(25, 6, "Mobile:", 0, 0); self.set_font('Arial','B',10); self.cell(50, 6, str(sale_data['customer_mobile'] or 'N/A'), 0, 1)
         
         if sale_data['customer_address']:
-            self.set_xy(110, y+12)
-            self.set_font('Arial','',10); self.cell(25, 6, "Address:", 0, 0); self.set_font('Arial','',9); self.multi_cell(60, 6, str(sale_data['customer_address']), 0, 'L')
+             self.set_font('Arial','',10); self.cell(25, 6, "Address:", 0, 0); self.set_font('Arial','',9); self.multi_cell(60, 6, str(sale_data['customer_address']), 0, 'L')
+        else:
+             self.ln(6)
+
+        # RIGHT SIDE: Bill Details (Swapped)
+        self.set_xy(120, y)
+        self.set_font('Arial', '', 10)
+        self.cell(20, 6, "Bill No:", 0, 0); self.set_font('Arial','B',10); self.cell(40, 6, str(sale_data['id']), 0, 1)
         
-        self.ln(10)
+        self.set_xy(120, y+6)
+        self.set_font('Arial', '', 10)
+        self.cell(20, 6, "Date:", 0, 0); self.set_font('Arial','B',10); self.cell(40, 6, str(sale_data['sale_date']), 0, 1)
+
+        self.ln(20) # Space before table
         
         # 2. Product Table
         cols = ["#", "Product Name", "Qty", "Price", "Total"]
@@ -3623,6 +3626,7 @@ class PDFGenerator(FPDF):
             self.cell(widths[2], 7, str(item['qty']), 1, 0, 'C', fill)
             self.cell(widths[3], 7, f"{float(item['unit_price']):.2f}", 1, 0, 'R', fill)
             self.cell(widths[4], 7, f"{float(item['total_price']):.2f}", 1, 1, 'R', fill)
+            self.ln()
             fill = not fill
             
         self.ln(2)
@@ -3665,12 +3669,12 @@ class PDFGenerator(FPDF):
         # Signature Image
         sig_path = os.path.join(app.root_path, 'static', 'img', 'signature.png')
         if os.path.exists(sig_path):
-            self.image(sig_path, x=20, y=y_pos-10, w=35)
+            self.image(sig_path, x=150, y=y_pos-10, w=35)
             
-        self.set_xy(15, y_pos + 10)
+        self.set_xy(130, y_pos + 10)
         self.set_font('Arial', 'B', 9)
         self.cell(50, 5, "For, REAL PROMOTION", 0, 1, 'C')
-        self.set_xy(15, y_pos + 15)
+        self.set_xy(130, y_pos + 15)
         self.cell(50, 5, "(Authorized Signatory)", 0, 1, 'C')
 
 
@@ -3703,7 +3707,7 @@ def office_sales():
             discount = float(request.form.get('discount') or 0)
             online_amt = float(request.form.get('online') or 0)
             cash_amt = float(request.form.get('cash') or 0)
-            due_note = request.form.get('due_note')
+            due_note = None # Removed from UI as requested, passing None
             
             # 3. Products
             p_ids = request.form.getlist('product_id[]')
@@ -3770,7 +3774,6 @@ def office_sales():
         p['image'] = resolve_img(p['image'])
 
     return render_template('office_sales.html', products=products, today=date.today().strftime('%d-%m-%Y'))
-
 
 # ==========================================
 # 3. ROUTE: DOWNLOAD OFFICE BILL PDF
@@ -6666,6 +6669,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
