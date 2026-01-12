@@ -194,249 +194,6 @@ def parse_date_input(date_str):
         return date_str 
 
 
-    # --- NEW METHOD: OFFICE BILL BODY ---
-    def generate_office_bill_body(self, sale_data, items):
-        # 1. Customer Info
-        self.set_font('Arial', '', 10)
-        self.set_text_color(0, 0, 0)
-        y = self.get_y()
-        
-        # Left: Bill Details
-        self.set_xy(10, y)
-        self.cell(25, 6, "Bill No:", 0, 0); self.set_font('Arial','B',10); self.cell(40, 6, str(sale_data['id']), 0, 1)
-        self.set_font('Arial','',10)
-        self.cell(25, 6, "Date:", 0, 0); self.set_font('Arial','B',10); self.cell(40, 6, str(sale_data['sale_date']), 0, 1)
-        
-        # Right: Customer Details
-        self.set_xy(110, y)
-        self.set_font('Arial','',10); self.cell(25, 6, "Customer:", 0, 0); self.set_font('Arial','B',10); self.cell(50, 6, str(sale_data['customer_name']), 0, 1)
-        
-        self.set_xy(110, y+6)
-        self.set_font('Arial','',10); self.cell(25, 6, "Mobile:", 0, 0); self.set_font('Arial','B',10); self.cell(50, 6, str(sale_data['customer_mobile'] or 'N/A'), 0, 1)
-        
-        if sale_data['customer_address']:
-            self.set_xy(110, y+12)
-            self.set_font('Arial','',10); self.cell(25, 6, "Address:", 0, 0); self.set_font('Arial','',9); self.multi_cell(60, 6, str(sale_data['customer_address']), 0, 'L')
-        
-        self.ln(10)
-        
-        # 2. Product Table
-        cols = ["#", "Product Name", "Qty", "Price", "Total"]
-        widths = [10, 90, 20, 30, 40]
-        
-        self.set_font('Arial', 'B', 10)
-        self.set_fill_color(26, 35, 126)
-        self.set_text_color(255, 255, 255)
-        for i, col in enumerate(cols):
-            self.cell(widths[i], 8, col, 1, 0, 'C', True)
-        self.ln()
-        
-        self.set_font('Arial', '', 10)
-        self.set_text_color(0, 0, 0)
-        fill = False
-        self.set_fill_color(245, 245, 245)
-        
-        for i, item in enumerate(items):
-            self.cell(widths[0], 7, str(i+1), 1, 0, 'C', fill)
-            self.cell(widths[1], 7, str(item['product_name']), 1, 0, 'L', fill)
-            self.cell(widths[2], 7, str(item['qty']), 1, 0, 'C', fill)
-            self.cell(widths[3], 7, f"{float(item['unit_price']):.2f}", 1, 0, 'R', fill)
-            self.cell(widths[4], 7, f"{float(item['total_price']):.2f}", 1, 1, 'R', fill)
-            fill = not fill
-            
-        self.ln(2)
-        
-        # 3. Totals
-        x_start = 120
-        self.set_x(x_start)
-        self.set_font('Arial', '', 10)
-        self.cell(40, 6, "Sub Total:", 0, 0, 'R')
-        self.set_font('Arial', 'B', 10)
-        self.cell(30, 6, f"{float(sale_data['sub_total']):.2f}", 0, 1, 'R')
-        
-        if float(sale_data['discount']) > 0:
-            self.set_x(x_start)
-            self.set_font('Arial', '', 10)
-            self.cell(40, 6, "Discount (-):", 0, 0, 'R')
-            self.set_font('Arial', 'B', 10)
-            self.cell(30, 6, f"{float(sale_data['discount']):.2f}", 0, 1, 'R')
-            
-        self.set_x(x_start)
-        self.set_font('Arial', 'B', 12)
-        self.set_fill_color(230, 230, 230)
-        self.cell(40, 8, "GRAND TOTAL:", 1, 0, 'R', True)
-        self.cell(30, 8, f"{float(sale_data['final_amount']):.2f}", 1, 1, 'R', True)
-        self.ln(10)
-        
-        # 4. Terms & Conditions (Company Policy)
-        self.set_font('Arial', 'B', 10)
-        self.cell(0, 6, "Terms & Conditions:", 0, 1)
-        self.set_font('Arial', '', 9)
-        self.cell(0, 5, "1. Goods once sold will not be taken back.", 0, 1)
-        self.cell(0, 5, "2. 7 Days Return Policy (Damage product not accepted).", 0, 1)
-        self.cell(0, 5, "3. 6 Month Warranty on Electronics.", 0, 1)
-        self.cell(0, 5, "4. Subject to Nadiad Jurisdiction.", 0, 1)
-        
-        # 5. Signatures
-        self.ln(15)
-        y_pos = self.get_y()
-        
-        # Signature Image
-        sig_path = os.path.join(app.root_path, 'static', 'img', 'signature.png')
-        if os.path.exists(sig_path):
-            self.image(sig_path, x=150, y=y_pos-10, w=35)
-            
-        self.set_xy(130, y_pos + 10)
-        self.set_font('Arial', 'B', 9)
-        self.cell(50, 5, "For, REAL PROMOTION", 0, 1, 'C')
-        self.set_xy(130, y_pos + 15)
-        self.cell(50, 5, "(Authorized Signatory)", 0, 1, 'C')
-
-
-# ==========================================
-# 2. ROUTE: OFFICE SALES (GET/POST)
-# ==========================================
-@app.route('/office_sales', methods=['GET', 'POST'])
-def office_sales():
-    if "loggedin" not in session: return redirect(url_for("login"))
-    
-    conn = mysql.connection
-    cursor = conn.cursor(MySQLdb.cursors.DictCursor)
-    
-    if request.method == 'POST':
-        try:
-            # 1. Customer & Header Info
-            c_name = request.form.get('customer_name')
-            c_mobile = request.form.get('customer_mobile')
-            c_addr = request.form.get('customer_address')
-            sales_person = request.form.get('sales_person')
-            
-            # Date Handling
-            b_date_str = request.form.get('bill_date')
-            try:
-                bill_date = datetime.strptime(b_date_str, '%d-%m-%Y').strftime('%Y-%m-%d')
-            except:
-                bill_date = date.today().strftime('%Y-%m-%d')
-
-            # 2. Financials
-            discount = float(request.form.get('discount') or 0)
-            online_amt = float(request.form.get('online') or 0)
-            cash_amt = float(request.form.get('cash') or 0)
-            due_note = request.form.get('due_note')
-            
-            # 3. Products
-            p_ids = request.form.getlist('product_id[]')
-            qtys = request.form.getlist('qty[]')
-            prices = request.form.getlist('price[]')
-            
-            total_amt = 0
-            
-            # Insert Header (Initial)
-            cursor.execute("""
-                INSERT INTO office_sales 
-                (customer_name, customer_mobile, customer_address, sales_person, sale_date, discount, online_amount, cash_amount, due_note)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-            """, (c_name, c_mobile, c_addr, sales_person, bill_date, discount, online_amt, cash_amt, due_note))
-            sale_id = cursor.lastrowid
-            
-            # Process Items & Inventory
-            for i, pid in enumerate(p_ids):
-                if not pid: continue
-                qty = int(qtys[i])
-                price = float(prices[i])
-                
-                # Check Stock
-                cursor.execute("SELECT stock, name FROM products WHERE id=%s", (pid,))
-                prod = cursor.fetchone()
-                if prod and prod['stock'] < qty:
-                    raise Exception(f"Insufficient stock for {prod['name']}")
-
-                # Deduct Stock
-                cursor.execute("UPDATE products SET stock = stock - %s WHERE id=%s", (qty, pid))
-                
-                # Item Total
-                item_total = qty * price
-                cursor.execute("""
-                    INSERT INTO office_sale_items (sale_id, product_id, qty, unit_price, total_price)
-                    VALUES (%s, %s, %s, %s, %s)
-                """, (sale_id, pid, qty, price, item_total))
-                
-                total_amt += item_total
-            
-            # Final Update
-            final_amt = total_amt - discount
-            cursor.execute("""
-                UPDATE office_sales 
-                SET sub_total=%s, final_amount=%s 
-                WHERE id=%s
-            """, (total_amt, final_amt, sale_id))
-            
-            conn.commit()
-            
-            # Redirect to Print Bill
-            return redirect(url_for('download_office_bill', sale_id=sale_id))
-            
-        except Exception as e:
-            conn.rollback()
-            flash(f"Error: {str(e)}", "danger")
-            return redirect(url_for('office_sales'))
-
-    # GET: Fetch Products
-    cursor.execute("SELECT id, name, price, stock, image FROM products ORDER BY name")
-    products = cursor.fetchall()
-    
-    for p in products:
-        p['image'] = resolve_img(p['image'])
-
-    return render_template('office_sales.html', products=products, today=date.today().strftime('%d-%m-%Y'))
-
-
-# ==========================================
-# 3. ROUTE: DOWNLOAD OFFICE BILL PDF
-# ==========================================
-@app.route('/office_sales/print/<int:sale_id>')
-def download_office_bill(sale_id):
-    if "loggedin" not in session: return redirect(url_for("login"))
-    
-    conn = mysql.connection
-    cursor = conn.cursor(MySQLdb.cursors.DictCursor)
-    
-    # Fetch Sale
-    cursor.execute("SELECT * FROM office_sales WHERE id=%s", (sale_id,))
-    sale = cursor.fetchone()
-    
-    if not sale:
-        flash("Bill not found", "danger")
-        return redirect(url_for('office_sales'))
-    
-    # Format Date
-    if sale['sale_date']:
-        sale['sale_date'] = sale['sale_date'].strftime('%d-%m-%Y')
-
-    # Fetch Items
-    cursor.execute("""
-        SELECT i.*, p.name as product_name 
-        FROM office_sale_items i 
-        JOIN products p ON i.product_id = p.id 
-        WHERE i.sale_id=%s
-    """, (sale_id,))
-    items = cursor.fetchall()
-    
-    # Generate PDF
-    pdf = PDFGenerator("Office") # Use "Office" type for Bill Title
-    pdf.alias_nb_pages()
-    pdf.add_page()
-    
-    # Use the specific body method
-    pdf.generate_office_bill_body(sale, items)
-    
-    pdf_string = pdf.output(dest='S').encode('latin-1')
-    buffer = io.BytesIO(pdf_string)
-    buffer.seek(0)
-    
-    return send_file(buffer, as_attachment=True, download_name=f"Bill_{sale_id}.pdf", mimetype='application/pdf')
-
-
 @app.route('/supplier/payment/delete/<int:payment_id>', methods=['POST'])
 def delete_supplier_payment(payment_id):
     if 'loggedin' not in session: return redirect(url_for('login'))
@@ -3682,7 +3439,7 @@ def exp_report():
 
 
 # ==========================================
-# 1. UPDATED PDF GENERATOR (Added Office Bill Logic)
+# PDF GENERATOR CLASS (UPDATED & STANDARDIZED)
 # ==========================================
 class PDFGenerator(FPDF):
     def __init__(self, title_type="Morning"):
@@ -3696,17 +3453,18 @@ class PDFGenerator(FPDF):
             "Nadiad-387001, Gujarat, India"
         ]
         self.contact = "+91 96623 22476 | help@realpromotion.in"
+        # Updated GST Text with specific formatting
         self.gst_text = "GSTIN:24AJVPT0460H1ZW"
         self.gst_subtext = "Composition Dealer- Not Eligibal To Collect Taxes On Sppliers"
 
     def header(self):
-        # ... (Same standard header as Evening PDF) ...
+        # Company Header
         self.set_font('Arial', 'B', 24)
-        self.set_text_color(26, 35, 126) 
+        self.set_text_color(26, 35, 126) # Dark Blue
         self.cell(0, 10, self.company_name, 0, 1, 'C')
         
         self.set_font('Arial', 'B', 10)
-        self.set_text_color(100, 100, 100)
+        self.set_text_color(100, 100, 100) # Grey
         self.cell(0, 5, self.slogan, 0, 1, 'C')
         self.ln(2)
         
@@ -3716,17 +3474,19 @@ class PDFGenerator(FPDF):
             self.cell(0, 4, line, 0, 1, 'C')
         self.cell(0, 4, self.contact, 0, 1, 'C')
         
+        # GST Section
         self.set_font('Arial', 'B', 9)
         self.cell(0, 4, self.gst_text, 0, 1, 'C')
         self.set_font('Arial', 'I', 8)
         self.cell(0, 4, self.gst_subtext, 0, 1, 'C')
         self.ln(5)
         
+        # Divider
         self.set_draw_color(200, 200, 200)
         self.line(10, self.get_y(), 200, self.get_y())
         self.ln(5)
 
-        # Dynamic Title
+        # Title
         self.set_font('Arial', 'B', 16)
         self.set_text_color(0, 0, 0)
         if self.title_type == "Morning":
@@ -3745,7 +3505,6 @@ class PDFGenerator(FPDF):
         self.set_font('Arial', 'I', 8)
         self.set_text_color(128, 128, 128)
         self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
-    
 
     def add_info_section(self, emp_name, emp_mobile, date_str, time_str):
         self.set_font('Arial', '', 10)
@@ -3761,6 +3520,7 @@ class PDFGenerator(FPDF):
         self.set_font('Arial', '', 10)
         self.cell(35, 6, "Mobile No:", 0, 0)
         self.set_font('Arial', 'B', 10)
+        # Fix: Ensure mobile is displayed even if None in DB (pass empty string fallback logic in route)
         self.cell(70, 6, str(emp_mobile) if emp_mobile else "N/A", 0, 1)
 
         # Right: Date/Time
@@ -3795,6 +3555,8 @@ class PDFGenerator(FPDF):
         # Owner Signature Logic
         sig_path = os.path.join(app.root_path, 'static', 'img', 'signature.png')
         if os.path.exists(sig_path):
+            # Embed Image
+            # x=20 aligns with "Authorized Signature" text roughly
             self.image(sig_path, x=20, y=y_pos-15, w=40) 
         
         self.set_font('Arial', 'B', 10)
@@ -3812,6 +3574,249 @@ class PDFGenerator(FPDF):
         self.ln(10)
         self.set_font('Arial', 'I', 8)
         self.cell(0, 5, "This is a computer generated document.", 0, 1, 'C')
+
+    # --- NEW METHOD: OFFICE BILL BODY ---
+    def generate_office_bill_body(self, sale_data, items):
+        # 1. Customer Info
+        self.set_font('Arial', '', 10)
+        self.set_text_color(0, 0, 0)
+        y = self.get_y()
+        
+        # Left: Bill Details
+        self.set_xy(10, y)
+        self.cell(25, 6, "Bill No:", 0, 0); self.set_font('Arial','B',10); self.cell(40, 6, str(sale_data['id']), 0, 1)
+        self.set_font('Arial','',10)
+        self.cell(25, 6, "Date:", 0, 0); self.set_font('Arial','B',10); self.cell(40, 6, str(sale_data['sale_date']), 0, 1)
+        
+        # Right: Customer Details
+        self.set_xy(110, y)
+        self.set_font('Arial','',10); self.cell(25, 6, "Customer:", 0, 0); self.set_font('Arial','B',10); self.cell(50, 6, str(sale_data['customer_name']), 0, 1)
+        
+        self.set_xy(110, y+6)
+        self.set_font('Arial','',10); self.cell(25, 6, "Mobile:", 0, 0); self.set_font('Arial','B',10); self.cell(50, 6, str(sale_data['customer_mobile'] or 'N/A'), 0, 1)
+        
+        if sale_data['customer_address']:
+            self.set_xy(110, y+12)
+            self.set_font('Arial','',10); self.cell(25, 6, "Address:", 0, 0); self.set_font('Arial','',9); self.multi_cell(60, 6, str(sale_data['customer_address']), 0, 'L')
+        
+        self.ln(10)
+        
+        # 2. Product Table
+        cols = ["#", "Product Name", "Qty", "Price", "Total"]
+        widths = [10, 90, 20, 30, 40]
+        
+        self.set_font('Arial', 'B', 10)
+        self.set_fill_color(26, 35, 126)
+        self.set_text_color(255, 255, 255)
+        for i, col in enumerate(cols):
+            self.cell(widths[i], 8, col, 1, 0, 'C', True)
+        self.ln()
+        
+        self.set_font('Arial', '', 10)
+        self.set_text_color(0, 0, 0)
+        fill = False
+        self.set_fill_color(245, 245, 245)
+        
+        for i, item in enumerate(items):
+            self.cell(widths[0], 7, str(i+1), 1, 0, 'C', fill)
+            self.cell(widths[1], 7, str(item['product_name']), 1, 0, 'L', fill)
+            self.cell(widths[2], 7, str(item['qty']), 1, 0, 'C', fill)
+            self.cell(widths[3], 7, f"{float(item['unit_price']):.2f}", 1, 0, 'R', fill)
+            self.cell(widths[4], 7, f"{float(item['total_price']):.2f}", 1, 1, 'R', fill)
+            fill = not fill
+            
+        self.ln(2)
+        
+        # 3. Totals
+        x_start = 120
+        self.set_x(x_start)
+        self.set_font('Arial', '', 10)
+        self.cell(40, 6, "Sub Total:", 0, 0, 'R')
+        self.set_font('Arial', 'B', 10)
+        self.cell(30, 6, f"{float(sale_data['sub_total']):.2f}", 0, 1, 'R')
+        
+        if float(sale_data['discount']) > 0:
+            self.set_x(x_start)
+            self.set_font('Arial', '', 10)
+            self.cell(40, 6, "Discount (-):", 0, 0, 'R')
+            self.set_font('Arial', 'B', 10)
+            self.cell(30, 6, f"{float(sale_data['discount']):.2f}", 0, 1, 'R')
+            
+        self.set_x(x_start)
+        self.set_font('Arial', 'B', 12)
+        self.set_fill_color(230, 230, 230)
+        self.cell(40, 8, "GRAND TOTAL:", 1, 0, 'R', True)
+        self.cell(30, 8, f"{float(sale_data['final_amount']):.2f}", 1, 1, 'R', True)
+        self.ln(10)
+        
+        # 4. Terms & Conditions (Company Policy)
+        self.set_font('Arial', 'B', 10)
+        self.cell(0, 6, "Terms & Conditions:", 0, 1)
+        self.set_font('Arial', '', 9)
+        self.cell(0, 5, "1. Goods once sold will not be taken back.", 0, 1)
+        self.cell(0, 5, "2. 7 Days Return Policy (Damage product not accepted).", 0, 1)
+        self.cell(0, 5, "3. 6 Month Warranty on Electronics.", 0, 1)
+        self.cell(0, 5, "4. Subject to Nadiad Jurisdiction.", 0, 1)
+        
+        # 5. Signatures
+        self.ln(15)
+        y_pos = self.get_y()
+        
+        # Signature Image
+        sig_path = os.path.join(app.root_path, 'static', 'img', 'signature.png')
+        if os.path.exists(sig_path):
+            self.image(sig_path, x=20, y=y_pos-10, w=35)
+            
+        self.set_xy(15, y_pos + 10)
+        self.set_font('Arial', 'B', 9)
+        self.cell(50, 5, "For, REAL PROMOTION", 0, 1, 'C')
+        self.set_xy(15, y_pos + 15)
+        self.cell(50, 5, "(Authorized Signatory)", 0, 1, 'C')
+
+
+# ==========================================
+# 2. ROUTE: OFFICE SALES (GET/POST)
+# ==========================================
+@app.route('/office_sales', methods=['GET', 'POST'])
+def office_sales():
+    if "loggedin" not in session: return redirect(url_for("login"))
+    
+    conn = mysql.connection
+    cursor = conn.cursor(MySQLdb.cursors.DictCursor)
+    
+    if request.method == 'POST':
+        try:
+            # 1. Customer & Header Info
+            c_name = request.form.get('customer_name')
+            c_mobile = request.form.get('customer_mobile')
+            c_addr = request.form.get('customer_address')
+            sales_person = request.form.get('sales_person')
+            
+            # Date Handling
+            b_date_str = request.form.get('bill_date')
+            try:
+                bill_date = datetime.strptime(b_date_str, '%d-%m-%Y').strftime('%Y-%m-%d')
+            except:
+                bill_date = date.today().strftime('%Y-%m-%d')
+
+            # 2. Financials
+            discount = float(request.form.get('discount') or 0)
+            online_amt = float(request.form.get('online') or 0)
+            cash_amt = float(request.form.get('cash') or 0)
+            due_note = request.form.get('due_note')
+            
+            # 3. Products
+            p_ids = request.form.getlist('product_id[]')
+            qtys = request.form.getlist('qty[]')
+            prices = request.form.getlist('price[]')
+            
+            total_amt = 0
+            
+            # Insert Header (Initial)
+            cursor.execute("""
+                INSERT INTO office_sales 
+                (customer_name, customer_mobile, customer_address, sales_person, sale_date, discount, online_amount, cash_amount, due_note)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (c_name, c_mobile, c_addr, sales_person, bill_date, discount, online_amt, cash_amt, due_note))
+            sale_id = cursor.lastrowid
+            
+            # Process Items & Inventory
+            for i, pid in enumerate(p_ids):
+                if not pid: continue
+                qty = int(qtys[i])
+                price = float(prices[i])
+                
+                # Check Stock
+                cursor.execute("SELECT stock, name FROM products WHERE id=%s", (pid,))
+                prod = cursor.fetchone()
+                if prod and prod['stock'] < qty:
+                    raise Exception(f"Insufficient stock for {prod['name']}")
+
+                # Deduct Stock
+                cursor.execute("UPDATE products SET stock = stock - %s WHERE id=%s", (qty, pid))
+                
+                # Item Total
+                item_total = qty * price
+                cursor.execute("""
+                    INSERT INTO office_sale_items (sale_id, product_id, qty, unit_price, total_price)
+                    VALUES (%s, %s, %s, %s, %s)
+                """, (sale_id, pid, qty, price, item_total))
+                
+                total_amt += item_total
+            
+            # Final Update
+            final_amt = total_amt - discount
+            cursor.execute("""
+                UPDATE office_sales 
+                SET sub_total=%s, final_amount=%s 
+                WHERE id=%s
+            """, (total_amt, final_amt, sale_id))
+            
+            conn.commit()
+            
+            # Redirect to Print Bill
+            return redirect(url_for('download_office_bill', sale_id=sale_id))
+            
+        except Exception as e:
+            conn.rollback()
+            flash(f"Error: {str(e)}", "danger")
+            return redirect(url_for('office_sales'))
+
+    # GET: Fetch Products
+    cursor.execute("SELECT id, name, price, stock, image FROM products ORDER BY name")
+    products = cursor.fetchall()
+    
+    for p in products:
+        p['image'] = resolve_img(p['image'])
+
+    return render_template('office_sales.html', products=products, today=date.today().strftime('%d-%m-%Y'))
+
+
+# ==========================================
+# 3. ROUTE: DOWNLOAD OFFICE BILL PDF
+# ==========================================
+@app.route('/office_sales/print/<int:sale_id>')
+def download_office_bill(sale_id):
+    if "loggedin" not in session: return redirect(url_for("login"))
+    
+    conn = mysql.connection
+    cursor = conn.cursor(MySQLdb.cursors.DictCursor)
+    
+    # Fetch Sale
+    cursor.execute("SELECT * FROM office_sales WHERE id=%s", (sale_id,))
+    sale = cursor.fetchone()
+    
+    if not sale:
+        flash("Bill not found", "danger")
+        return redirect(url_for('office_sales'))
+    
+    # Format Date
+    if sale['sale_date']:
+        sale['sale_date'] = sale['sale_date'].strftime('%d-%m-%Y')
+
+    # Fetch Items
+    cursor.execute("""
+        SELECT i.*, p.name as product_name 
+        FROM office_sale_items i 
+        JOIN products p ON i.product_id = p.id 
+        WHERE i.sale_id=%s
+    """, (sale_id,))
+    items = cursor.fetchall()
+    
+    # Generate PDF
+    pdf = PDFGenerator("Office") # Use "Office" type for Bill Title
+    pdf.alias_nb_pages()
+    pdf.add_page()
+    
+    # Use the specific body method
+    pdf.generate_office_bill_body(sale, items)
+    
+    pdf_string = pdf.output(dest='S').encode('latin-1')
+    buffer = io.BytesIO(pdf_string)
+    buffer.seek(0)
+    
+    return send_file(buffer, as_attachment=True, download_name=f"Bill_{sale_id}.pdf", mimetype='application/pdf')
+
 
 # ... existing imports and PDFGenerator class ...
 
@@ -6661,6 +6666,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
