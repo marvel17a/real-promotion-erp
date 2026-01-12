@@ -3971,6 +3971,7 @@ class PDFGenerator(FPDF):
         self.cell(50, 5, "(Authorized Signatory)", 0, 1, 'C')
 
 
+
 # ==========================================
 # 2. ROUTE: OFFICE SALES (GET/POST) - Time Fixed
 # ==========================================
@@ -4070,7 +4071,6 @@ def office_sales():
         p['image'] = resolve_img(p['image'])
 
     return render_template('office_sales.html', products=products, today=date.today().strftime('%d-%m-%Y'))
-
 # ==========================================
 # 3. ROUTE: DOWNLOAD OFFICE BILL PDF
 # ==========================================
@@ -7013,6 +7013,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
