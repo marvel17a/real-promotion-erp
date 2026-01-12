@@ -3718,6 +3718,7 @@ def exp_report():
 
 
 
+
 # ==========================================
 # PDF GENERATOR CLASS (UPDATED & STANDARDIZED)
 # ==========================================
@@ -3855,14 +3856,14 @@ class PDFGenerator(FPDF):
         self.set_font('Arial', 'I', 8)
         self.cell(0, 5, "This is a computer generated document.", 0, 1, 'C')
 
-    # --- UPDATED METHOD: OFFICE BILL BODY (SWAPPED SECTIONS) ---
+    # --- UPDATED METHOD: OFFICE BILL BODY (FIXED SPACING & TOTALS) ---
     def generate_office_bill_body(self, sale_data, items):
         # 1. Customer Info
         self.set_font('Arial', '', 10)
         self.set_text_color(0, 0, 0)
         y = self.get_y()
         
-        # LEFT SIDE: Customer Details (Swapped)
+        # LEFT SIDE: Customer Details
         self.set_xy(10, y)
         self.set_font('Arial','',10); self.cell(25, 6, "Customer:", 0, 0); self.set_font('Arial','B',10); self.cell(50, 6, str(sale_data['customer_name']), 0, 1)
         self.set_font('Arial','',10); self.cell(25, 6, "Mobile:", 0, 0); self.set_font('Arial','B',10); self.cell(50, 6, str(sale_data['customer_mobile'] or 'N/A'), 0, 1)
@@ -3872,7 +3873,7 @@ class PDFGenerator(FPDF):
         else:
              self.ln(6)
 
-        # RIGHT SIDE: Bill Details (Swapped)
+        # RIGHT SIDE: Bill Details
         self.set_xy(120, y)
         self.set_font('Arial', '', 10)
         self.cell(20, 6, "Bill No:", 0, 0); self.set_font('Arial','B',10); self.cell(40, 6, str(sale_data['id']), 0, 1)
@@ -3887,30 +3888,43 @@ class PDFGenerator(FPDF):
         cols = ["#", "Product Name", "Qty", "Price", "Total"]
         widths = [10, 90, 20, 30, 40]
         
-        self.set_font('Arial', 'B', 10)
-        self.set_fill_color(26, 35, 126)
-        self.set_text_color(255, 255, 255)
-        for i, col in enumerate(cols):
-            self.cell(widths[i], 8, col, 1, 0, 'C', True)
-        self.ln()
+        self.add_table_header(cols, widths)
         
         self.set_font('Arial', '', 10)
         self.set_text_color(0, 0, 0)
         fill = False
         self.set_fill_color(245, 245, 245)
         
+        sum_qty = 0
+        sum_total = 0
+        
         for i, item in enumerate(items):
+            # Safe conversion
+            qty = int(item['qty'])
+            price = float(item['unit_price'])
+            total = float(item['total_price'])
+            
+            sum_qty += qty
+            sum_total += total
+            
             self.cell(widths[0], 7, str(i+1), 1, 0, 'C', fill)
             self.cell(widths[1], 7, str(item['product_name']), 1, 0, 'L', fill)
-            self.cell(widths[2], 7, str(item['qty']), 1, 0, 'C', fill)
-            self.cell(widths[3], 7, f"{float(item['unit_price']):.2f}", 1, 0, 'R', fill)
-            self.cell(widths[4], 7, f"{float(item['total_price']):.2f}", 1, 1, 'R', fill)
-            self.ln()
+            self.cell(widths[2], 7, str(qty), 1, 0, 'C', fill)
+            self.cell(widths[3], 7, f"{price:.2f}", 1, 0, 'R', fill)
+            # Use '1' in last cell to force line break
+            self.cell(widths[4], 7, f"{total:.2f}", 1, 1, 'R', fill) 
             fill = not fill
             
-        self.ln(2)
+        # --- TOTAL ROW ---
+        self.set_font('Arial', 'B', 10)
+        self.cell(widths[0]+widths[1], 8, "TOTAL ITEMS", 1, 0, 'R', True)
+        self.cell(widths[2], 8, str(sum_qty), 1, 0, 'C', True)
+        self.cell(widths[3], 8, "", 1, 0, 'C', True)
+        self.cell(widths[4], 8, f"{sum_total:.2f}", 1, 1, 'R', True)
         
-        # 3. Totals
+        self.ln(5) # Small gap before payment summary
+        
+        # 3. Payment Totals
         x_start = 120
         self.set_x(x_start)
         self.set_font('Arial', '', 10)
@@ -3955,7 +3969,6 @@ class PDFGenerator(FPDF):
         self.cell(50, 5, "For, REAL PROMOTION", 0, 1, 'C')
         self.set_xy(130, y_pos + 15)
         self.cell(50, 5, "(Authorized Signatory)", 0, 1, 'C')
-
 
 
 # ==========================================
@@ -4058,6 +4071,54 @@ def office_sales():
 
     return render_template('office_sales.html', products=products, today=date.today().strftime('%d-%m-%Y'))
 
+# ==========================================
+# 3. ROUTE: DOWNLOAD OFFICE BILL PDF
+# ==========================================
+@app.route('/office_sales/print/<int:sale_id>')
+def download_office_bill(sale_id):
+    # LOGIN CHECK IS REMOVED FOR PUBLIC ACCESS IF DESIRED?
+    # BUT FOR CONSISTENCY, USE PUBLIC ROUTE FOR WHATSAPP, PRIVATE HERE.
+    # User asked for "like morning pdf share", meaning ONE public route.
+    # I'll create a dedicated public route below and keep this one secured.
+    if "loggedin" not in session: return redirect(url_for("login"))
+    
+    conn = mysql.connection
+    cursor = conn.cursor(MySQLdb.cursors.DictCursor)
+    
+    # Fetch Sale
+    cursor.execute("SELECT * FROM office_sales WHERE id=%s", (sale_id,))
+    sale = cursor.fetchone()
+    
+    if not sale:
+        flash("Bill not found", "danger")
+        return redirect(url_for('office_sales'))
+    
+    # Format Date
+    if sale['sale_date']:
+        sale['sale_date'] = sale['sale_date'].strftime('%d-%m-%Y')
+
+    # Fetch Items
+    cursor.execute("""
+        SELECT i.*, p.name as product_name 
+        FROM office_sale_items i 
+        JOIN products p ON i.product_id = p.id 
+        WHERE i.sale_id=%s
+    """, (sale_id,))
+    items = cursor.fetchall()
+    
+    # Generate PDF
+    pdf = PDFGenerator("Office") # Use "Office" type for Bill Title
+    pdf.alias_nb_pages()
+    pdf.add_page()
+    
+    # Use the specific body method
+    pdf.generate_office_bill_body(sale, items)
+    
+    pdf_string = pdf.output(dest='S').encode('latin-1')
+    buffer = io.BytesIO(pdf_string)
+    buffer.seek(0)
+    
+    return send_file(buffer, as_attachment=True, download_name=f"Bill_{sale_id}.pdf", mimetype='application/pdf')
 
 
 # ==========================================
@@ -4103,52 +4164,6 @@ def download_office_bill_public(sale_id):
     buffer.seek(0)
     
     return send_file(buffer, as_attachment=True, download_name=f"Bill_{sale_id}.pdf", mimetype='application/pdf')
-
-# ==========================================
-# 3. ROUTE: DOWNLOAD OFFICE BILL PDF
-# ==========================================
-@app.route('/office_sales/print/<int:sale_id>')
-def download_office_bill(sale_id):
-    if "loggedin" not in session: return redirect(url_for("login"))
-    
-    conn = mysql.connection
-    cursor = conn.cursor(MySQLdb.cursors.DictCursor)
-    
-    # Fetch Sale
-    cursor.execute("SELECT * FROM office_sales WHERE id=%s", (sale_id,))
-    sale = cursor.fetchone()
-    
-    if not sale:
-        flash("Bill not found", "danger")
-        return redirect(url_for('office_sales'))
-    
-    # Format Date
-    if sale['sale_date']:
-        sale['sale_date'] = sale['sale_date'].strftime('%d-%m-%Y')
-
-    # Fetch Items
-    cursor.execute("""
-        SELECT i.*, p.name as product_name 
-        FROM office_sale_items i 
-        JOIN products p ON i.product_id = p.id 
-        WHERE i.sale_id=%s
-    """, (sale_id,))
-    items = cursor.fetchall()
-    
-    # Generate PDF
-    pdf = PDFGenerator("Office") # Use "Office" type for Bill Title
-    pdf.alias_nb_pages()
-    pdf.add_page()
-    
-    # Use the specific body method
-    pdf.generate_office_bill_body(sale, items)
-    
-    pdf_string = pdf.output(dest='S').encode('latin-1')
-    buffer = io.BytesIO(pdf_string)
-    buffer.seek(0)
-    
-    return send_file(buffer, as_attachment=True, download_name=f"Bill_{sale_id}.pdf", mimetype='application/pdf')
-
 
 # ... existing imports and PDFGenerator class ...
 
@@ -6998,6 +7013,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
