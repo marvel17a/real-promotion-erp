@@ -12,9 +12,7 @@
     /* Modern Styling Variables */
     :root {
         --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        --success-gradient: linear-gradient(135deg, #42e695 0%, #3bb2b8 100%);
-        --danger-gradient: linear-gradient(135deg, #ff9a9e 0%, #fecfef 99%, #fecfef 100%);
-        --glass-bg: rgba(255, 255, 255, 0.9);
+        --glass-bg: rgba(255, 255, 255, 0.95);
         --glass-border: 1px solid rgba(255, 255, 255, 0.5);
         --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
     }
@@ -33,7 +31,7 @@
         background: var(--glass-bg);
         backdrop-filter: blur(12px);
         -webkit-backdrop-filter: blur(12px);
-        border-radius: 20px;
+        border-radius: 24px;
         border: var(--glass-border);
         box-shadow: var(--glass-shadow);
     }
@@ -52,8 +50,8 @@
     .type-card {
         flex: 1;
         cursor: pointer;
-        border-radius: 16px;
-        padding: 1.5rem;
+        border-radius: 20px;
+        padding: 2rem;
         background: white;
         border: 2px solid transparent;
         box-shadow: 0 4px 15px rgba(0,0,0,0.05);
@@ -73,67 +71,51 @@
 
     .type-card i {
         font-size: 2.5rem;
-        margin-bottom: 0.8rem;
+        margin-bottom: 1rem;
         transition: transform 0.3s ease;
     }
 
     .type-card h5 {
-        font-weight: 700;
-        margin-bottom: 0.3rem;
-        font-size: 1.1rem;
+        font-weight: 800;
+        margin-bottom: 0.5rem;
+        font-size: 1.2rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
     }
 
     .type-card small {
-        font-size: 0.85rem;
-        opacity: 0.7;
+        font-size: 0.9rem;
+        font-weight: 500;
+        opacity: 0.8;
     }
 
-    /* Selection States */
+    /* Selection States - As Requested: Credit Red, Debit Green */
+    /* Credit Card (Red Theme) */
     .type-radio:checked + .type-card.credit-card {
-        border-color: #2ecc71;
-        background: rgba(46, 204, 113, 0.05);
+        border-color: #ef4444;
+        background: #fef2f2; /* Light Red Background */
+        color: #b91c1c;
     }
     .type-radio:checked + .type-card.credit-card i {
-        color: #2ecc71;
-        transform: scale(1.2);
+        color: #ef4444;
+        transform: scale(1.1);
     }
-    .type-radio:checked + .type-card.credit-card h5 {
-        color: #2ecc71;
-    }
-
+    
+    /* Debit Card (Green Theme) */
     .type-radio:checked + .type-card.debit-card {
-        border-color: #e74c3c;
-        background: rgba(231, 76, 60, 0.05);
+        border-color: #10b981;
+        background: #ecfdf5; /* Light Green Background */
+        color: #047857;
     }
     .type-radio:checked + .type-card.debit-card i {
-        color: #e74c3c;
-        transform: scale(1.2);
-    }
-    .type-radio:checked + .type-card.debit-card h5 {
-        color: #e74c3c;
+        color: #10b981;
+        transform: scale(1.1);
     }
 
-    /* Checkmark Badge */
-    .check-badge {
-        position: absolute;
-        top: 10px;
-        right: 10px;
-        width: 24px;
-        height: 24px;
-        border-radius: 50%;
-        background: transparent;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: all 0.2s ease;
-    }
-    .type-radio:checked + .type-card .check-badge {
-        background: currentColor; /* Inherits from active card text color */
-        color: white;
-        transform: scale(1);
-    }
-    .type-radio:checked + .type-card.credit-card .check-badge { background: #2ecc71; }
-    .type-radio:checked + .type-card.debit-card .check-badge { background: #e74c3c; }
+    /* Unselected State Icons */
+    .type-card.credit-card i { color: #fca5a5; }
+    .type-card.debit-card i { color: #6ee7b7; }
+
 
     /* Input Styling */
     .form-group-modern {
@@ -142,12 +124,14 @@
     }
     .form-control-modern {
         width: 100%;
-        padding: 0.8rem 1rem 0.8rem 3rem;
-        border: 1px solid #e0e0e0;
-        border-radius: 12px;
+        padding: 1rem 1rem 1rem 3.5rem;
+        border: 2px solid #f3f4f6;
+        border-radius: 16px;
         font-size: 1rem;
+        font-weight: 500;
         transition: all 0.3s ease;
-        background: #f8f9fa;
+        background: #f9fafb;
+        color: #1f2937;
     }
     .form-control-modern:focus {
         background: white;
@@ -157,11 +141,11 @@
     }
     .input-icon {
         position: absolute;
-        left: 1rem;
+        left: 1.2rem;
         top: 50%;
         transform: translateY(-50%);
-        color: #a0aec0;
-        font-size: 1.1rem;
+        color: #9ca3af;
+        font-size: 1.2rem;
         transition: color 0.3s ease;
     }
     .form-control-modern:focus + .input-icon {
@@ -172,13 +156,16 @@
         background: var(--primary-gradient);
         border: none;
         color: white;
-        font-weight: 600;
+        font-weight: 700;
         letter-spacing: 0.5px;
         transition: transform 0.2s, box-shadow 0.2s;
+        text-transform: uppercase;
+        font-size: 0.9rem;
     }
     .btn-gradient-primary:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        transform: translateY(-3px);
+        box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+        color: white;
     }
 
     /* Responsive */
@@ -188,19 +175,19 @@
     }
 </style>
 
-<div class="container py-5 fade-in-up" style="max-width: 700px;">
+<div class="container py-5 fade-in-up" style="max-width: 750px;">
     
     <!-- Modern Glass Panel -->
     <div class="glass-panel p-5">
         
         <!-- Header -->
-        <div class="d-flex align-items-center justify-content-between mb-5">
+        <div class="d-flex align-items-center justify-content-between mb-5 border-bottom pb-4">
             <div>
                 <h3 class="fw-bold text-dark mb-1">New Transaction</h3>
                 <p class="text-muted mb-0 small">Recording for <span class="fw-bold text-primary">{{ employee.name }}</span></p>
             </div>
-            <a href="{{ url_for('emp_ledger', employee_id=employee.id) }}" class="btn btn-light rounded-circle shadow-sm border" style="width: 45px; height: 45px; display: flex; align-items: center; justify-content: center;">
-                <i class="fa-solid fa-xmark text-secondary"></i>
+            <a href="{{ url_for('emp_ledger', employee_id=employee.id) }}" class="btn btn-light rounded-circle shadow-sm border" style="width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; transition: 0.2s;">
+                <i class="fa-solid fa-xmark fa-lg text-secondary"></i>
             </a>
         </div>
 
@@ -209,33 +196,31 @@
             <input type="hidden" name="client_time" id="clientTime">
 
             <!-- 1. Transaction Type Selection (Cards) -->
-            <label class="fw-bold text-uppercase text-secondary small mb-3 d-block letter-spacing-1">Transaction Type</label>
+            <label class="fw-bold text-uppercase text-secondary small mb-3 d-block letter-spacing-1">Select Transaction Type</label>
             <div class="type-selector-wrapper">
-                <!-- Credit Option -->
+                <!-- Credit Option (RED BG as requested) -->
                 <input type="radio" name="type" id="credit" value="credit" class="type-radio" {% if selected_type == 'credit' %}checked{% endif %}>
                 <label for="credit" class="type-card credit-card">
-                    <div class="check-badge"><i class="fa-solid fa-check fa-xs"></i></div>
-                    <i class="fa-solid fa-circle-arrow-down text-secondary"></i>
+                    <i class="fa-solid fa-circle-arrow-down"></i>
                     <h5>Credit</h5>
-                    <small class="text-muted">Money In (Receive)</small>
+                    <small>Money In (Receive)</small>
                 </label>
 
-                <!-- Debit Option -->
+                <!-- Debit Option (GREEN BG as requested) -->
                 <input type="radio" name="type" id="debit" value="debit" class="type-radio" {% if selected_type == 'debit' %}checked{% endif %}>
                 <label for="debit" class="type-card debit-card">
-                    <div class="check-badge"><i class="fa-solid fa-check fa-xs"></i></div>
-                    <i class="fa-solid fa-circle-arrow-up text-secondary"></i>
+                    <i class="fa-solid fa-circle-arrow-up"></i>
                     <h5>Debit</h5>
-                    <small class="text-muted">Money Out (Give)</small>
+                    <small>Money Out (Give)</small>
                 </label>
             </div>
 
             <!-- 2. Inputs Grid -->
-            <div class="row g-3">
+            <div class="row g-4">
                 
                 <!-- Amount -->
                 <div class="col-md-6">
-                    <label class="fw-bold text-muted small mb-2">Amount</label>
+                    <label class="fw-bold text-muted small mb-2 text-uppercase">Amount</label>
                     <div class="form-group-modern">
                         <input type="number" step="0.01" name="amount" class="form-control-modern fw-bold fs-5 text-dark" placeholder="0.00" required>
                         <i class="fa-solid fa-indian-rupee-sign input-icon"></i>
@@ -244,7 +229,7 @@
 
                 <!-- Date -->
                 <div class="col-md-6">
-                    <label class="fw-bold text-muted small mb-2">Date</label>
+                    <label class="fw-bold text-muted small mb-2 text-uppercase">Date</label>
                     <div class="form-group-modern">
                         <input type="text" name="transaction_date" id="datePicker" class="form-control-modern" required>
                         <i class="fa-regular fa-calendar input-icon"></i>
@@ -253,24 +238,24 @@
 
                 <!-- Payment Mode (New) -->
                 <div class="col-12">
-                    <label class="fw-bold text-muted small mb-2">Payment Mode</label>
+                    <label class="fw-bold text-muted small mb-2 text-uppercase">Payment Mode</label>
                     <div class="form-group-modern">
-                        <select name="payment_mode" class="form-select form-control-modern" style="appearance: none;">
+                        <select name="payment_mode" class="form-select form-control-modern" style="appearance: none; cursor: pointer;">
                             <option value="Cash" selected>Cash</option>
                             <option value="Online">Online / UPI</option>
                             <option value="Cheque">Cheque</option>
                             <option value="Bank Transfer">Bank Transfer</option>
                         </select>
                         <i class="fa-solid fa-wallet input-icon"></i>
-                        <i class="fa-solid fa-chevron-down position-absolute text-muted" style="right: 15px; top: 50%; transform: translateY(-50%); pointer-events: none;"></i>
+                        <i class="fa-solid fa-chevron-down position-absolute text-muted" style="right: 20px; top: 50%; transform: translateY(-50%); pointer-events: none;"></i>
                     </div>
                 </div>
 
                 <!-- Description -->
                 <div class="col-12">
-                    <label class="fw-bold text-muted small mb-2">Description / Note</label>
+                    <label class="fw-bold text-muted small mb-2 text-uppercase">Description / Note</label>
                     <div class="form-group-modern">
-                        <textarea name="description" class="form-control-modern" rows="3" placeholder="Add a note (e.g. Salary Advance, Petrol Allowance)..." style="border-radius: 16px; padding-top: 1rem;"></textarea>
+                        <textarea name="description" class="form-control-modern" rows="3" placeholder="Add a note (e.g. Salary Advance, Petrol Allowance)..." style="border-radius: 16px; padding-top: 1rem; height: 100px;"></textarea>
                         <i class="fa-regular fa-comment-dots input-icon" style="top: 1.5rem;"></i>
                     </div>
                 </div>
@@ -280,7 +265,7 @@
             <!-- 3. Actions -->
             <div class="mt-5 d-grid">
                 <button type="submit" class="btn btn-gradient-primary btn-lg rounded-pill py-3 shadow-lg">
-                    <i class="fa-solid fa-paper-plane me-2"></i> Save Transaction
+                    <i class="fa-solid fa-check-circle me-2"></i> Save Record
                 </button>
             </div>
 
