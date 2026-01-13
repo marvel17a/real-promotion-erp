@@ -6589,6 +6589,10 @@ def get_public_id_from_url(url):
 
 
 
+
+# ==========================================
+# ROUTE: EMPLOYEE LEDGER (View) - Updated Query
+# ==========================================
 @app.route('/employee-ledger/<int:employee_id>')
 def emp_ledger(employee_id):
     if 'loggedin' not in session: return redirect(url_for('login'))
@@ -6602,8 +6606,9 @@ def emp_ledger(employee_id):
         flash('Employee not found!', 'danger')
         return redirect(url_for('emp_list'))
         
+    # FIX: Added 'payment_mode' to the SELECT query
     cur.execute("""
-        SELECT id, transaction_date, type, amount, description, created_at 
+        SELECT id, transaction_date, type, amount, description, payment_mode, created_at 
         FROM employee_transactions 
         WHERE employee_id = %s 
         ORDER BY transaction_date DESC, created_at DESC
@@ -6613,6 +6618,7 @@ def emp_ledger(employee_id):
     
     from datetime import datetime as dt_class, date as date_class
     
+    # Sort Logic
     transactions_calc = sorted(
         transactions_from_db, 
         key=lambda x: (
@@ -6642,8 +6648,7 @@ def emp_ledger(employee_id):
         t_dict = dict(t)
         t_dict['balance'] = running_balance
         
-        # --- TIME FORMATTING ---
-        # Value in DB is ALREADY IST (Wall Clock). DO NOT ADD timedelta.
+        # Time Formatting (Already IST in DB)
         if t.get('created_at'):
             t_dict['time_str'] = t['created_at'].strftime('%I:%M %p')
         else:
@@ -6651,6 +6656,7 @@ def emp_ledger(employee_id):
             
         processed_transactions.append(t_dict)
         
+    # Reverse to show newest first
     transactions_display = processed_transactions[::-1]
 
     return render_template('emp_ledger.html', 
@@ -6660,6 +6666,8 @@ def emp_ledger(employee_id):
                            total_debit=total_debit,
                            total_credit=total_credit,
                            has_opening_balance=has_opening_balance)
+
+
 
 
 
@@ -7034,6 +7042,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
