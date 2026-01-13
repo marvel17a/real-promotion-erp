@@ -6703,9 +6703,8 @@ def add_opening_balance(employee_id):
     
     return render_template('add_opening_balance.html', employee=emp, existing=existing)
 
-
 # ==========================================
-# ROUTE: ADD TRANSACTION (Time Fix Applied)
+# ROUTE: ADD TRANSACTION (Updated with Payment Mode)
 # ==========================================
 @app.route('/add-transaction/<int:employee_id>', methods=['GET', 'POST'])
 def add_transaction(employee_id):
@@ -6713,21 +6712,36 @@ def add_transaction(employee_id):
     
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
+    # --- Ensure payment_mode column exists ---
+    try:
+        cur.execute("SELECT payment_mode FROM employee_transactions LIMIT 1")
+    except:
+        try:
+            cur.execute("ALTER TABLE employee_transactions ADD COLUMN payment_mode VARCHAR(50) DEFAULT 'Cash'")
+            mysql.connection.commit()
+        except Exception as e:
+            print(f"Error altering table: {e}")
+    # -----------------------------------------
+
     if request.method == 'POST':
         raw_date = request.form['transaction_date']
         trans_date = parse_date_input(raw_date) 
         trans_type = request.form['type'] 
         amount = request.form['amount']
         description = request.form['description']
-        
-        # --- TIME FIX: Force Server-Side IST ---
-        # Ignore client time to prevent mismatch
-        final_time = get_ist_now().strftime('%Y-%m-%d %H:%M:%S')
+        payment_mode = request.form.get('payment_mode', 'Cash') # New Field
+
+        # Time Fix
+        client_time = request.form.get('client_time')
+        if client_time and client_time.strip():
+            final_time = client_time 
+        else:
+            final_time = get_ist_now().strftime('%Y-%m-%d %H:%M:%S')
         
         cur.execute("""
-            INSERT INTO employee_transactions (employee_id, transaction_date, type, amount, description, created_at)
-            VALUES (%s, %s, %s, %s, %s, %s)
-        """, (employee_id, trans_date, trans_type, amount, description, final_time))
+            INSERT INTO employee_transactions (employee_id, transaction_date, type, amount, description, payment_mode, created_at)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """, (employee_id, trans_date, trans_type, amount, description, payment_mode, final_time))
         
         mysql.connection.commit()
         cur.close()
@@ -6741,6 +6755,7 @@ def add_transaction(employee_id):
     selected_type = request.args.get('type', 'credit') 
     
     return render_template('add_transaction.html', employee=employee, selected_type=selected_type)
+
 
 
 
@@ -7019,6 +7034,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
