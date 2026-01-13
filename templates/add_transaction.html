@@ -59,6 +59,21 @@
                     <label class="form-label fw-bold text-muted small text-uppercase">Date</label>
                     <input type="text" name="transaction_date" id="datePicker" class="form-control input-glass" required>
                 </div>
+                
+                <!-- New Payment Mode Field -->
+                <div class="col-md-12">
+                    <label class="form-label fw-bold text-muted small text-uppercase">Payment Mode</label>
+                    <div class="input-group input-group-glass">
+                        <span class="input-group-text bg-transparent border-end-0"><i class="fa-solid fa-wallet text-secondary"></i></span>
+                        <select name="payment_mode" class="form-select input-glass border-start-0 ps-0">
+                            <option value="Cash" selected>Cash</option>
+                            <option value="Online">Online / UPI</option>
+                            <option value="Cheque">Cheque</option>
+                            <option value="Bank Transfer">Bank Transfer</option>
+                        </select>
+                    </div>
+                </div>
+
                 <div class="col-12">
                     <label class="form-label fw-bold text-muted small text-uppercase">Description</label>
                     <textarea name="description" class="form-control input-glass" rows="3" placeholder="e.g. Monthly Salary Advance..."></textarea>
