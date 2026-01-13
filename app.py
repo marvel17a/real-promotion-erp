@@ -217,7 +217,6 @@ def view_office_sale(sale_id):
     cursor.close()
     return render_template('view_office_sale.html', sale=sale, items=items)
 
-
 # ==========================================
 # 4. OFFICE SALES MASTER (UPDATED WITH TIME)
 # ==========================================
@@ -273,17 +272,10 @@ def office_sales_master():
         # Time (IST)
         if s.get('created_at'):
             try:
-                # Add 5:30 if stored as UTC, or just format if stored as IST
-                # Let's assume we store as IST now (see POST route below)
-                # If stored as string, parse first. If datetime, use directly.
                 dt = s['created_at']
                 if isinstance(dt, datetime):
-                     # Add +5:30 only if your DB is UTC. 
-                     # If we save IST string, we might need logic.
-                     # Let's assume we save standard UTC timestamp in DB or server local.
-                     # Safest visual:
-                     t_obj = dt + timedelta(hours=5, minutes=30)
-                     s['formatted_time'] = t_obj.strftime('%I:%M %p')
+                     # Format using 12-hour AM/PM format
+                     s['formatted_time'] = dt.strftime('%I:%M %p')
                 else:
                      s['formatted_time'] = str(dt)
             except:
@@ -3856,7 +3848,6 @@ class PDFGenerator(FPDF):
         self.set_font('Arial', 'I', 8)
         self.cell(0, 5, "This is a computer generated document.", 0, 1, 'C')
 
-    # --- UPDATED METHOD: OFFICE BILL BODY (FIXED SPACING & TOTALS) ---
     def generate_office_bill_body(self, sale_data, items):
         # 1. Customer Info
         self.set_font('Arial', '', 10)
@@ -3886,6 +3877,7 @@ class PDFGenerator(FPDF):
         
         # 2. Product Table
         cols = ["#", "Product Name", "Qty", "Price", "Total"]
+        # Removed empty/extra column definition logic, just 5 cols now
         widths = [10, 90, 20, 30, 40]
         
         self.add_table_header(cols, widths)
@@ -3917,6 +3909,7 @@ class PDFGenerator(FPDF):
             
         # --- TOTAL ROW ---
         self.set_font('Arial', 'B', 10)
+        # Combine first two columns width for label
         self.cell(widths[0]+widths[1], 8, "TOTAL ITEMS", 1, 0, 'R', True)
         self.cell(widths[2], 8, str(sum_qty), 1, 0, 'C', True)
         self.cell(widths[3], 8, "", 1, 0, 'C', True)
@@ -3969,7 +3962,6 @@ class PDFGenerator(FPDF):
         self.cell(50, 5, "For, REAL PROMOTION", 0, 1, 'C')
         self.set_xy(130, y_pos + 15)
         self.cell(50, 5, "(Authorized Signatory)", 0, 1, 'C')
-
 
 
 # ==========================================
@@ -4071,6 +4063,7 @@ def office_sales():
         p['image'] = resolve_img(p['image'])
 
     return render_template('office_sales.html', products=products, today=date.today().strftime('%d-%m-%Y'))
+
 # ==========================================
 # 3. ROUTE: DOWNLOAD OFFICE BILL PDF
 # ==========================================
@@ -7013,6 +7006,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
