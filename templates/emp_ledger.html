@@ -8,224 +8,225 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
 <style>
-    /* Modern Variables */
     :root {
-        --glass-bg: rgba(255, 255, 255, 0.85);
-        --glass-border: 1px solid rgba(255, 255, 255, 0.6);
-        --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
-        --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        --bg-color: #f8f9fa;
+        --card-bg: #ffffff;
+        --text-dark: #1e293b;
+        --text-muted: #64748b;
+        --accent-blue: #3b82f6;
+        --accent-green: #10b981;
+        --accent-red: #ef4444;
     }
 
-    .fade-in-up { animation: fadeInUp 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+    body { background-color: var(--bg-color); }
+
+    .fade-in-up { animation: fadeInUp 0.6s ease-out forwards; }
     @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 
-    /* KPI Cards */
-    .kpi-card {
-        background: var(--glass-bg);
-        backdrop-filter: blur(12px);
+    /* Profile Card */
+    .profile-card {
+        background: var(--card-bg);
         border-radius: 20px;
-        border: var(--glass-border);
-        box-shadow: var(--glass-shadow);
+        padding: 2rem;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+        display: flex;
+        align-items: center;
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    .profile-img {
+        width: 80px; height: 80px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 4px solid #f1f5f9;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+    
+    /* Balance & Stats */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    .stat-card {
+        background: var(--card-bg);
+        border-radius: 16px;
         padding: 1.5rem;
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
-        position: relative;
-        overflow: hidden;
+        border: 1px solid #e2e8f0;
+        transition: transform 0.2s;
     }
-    .kpi-card:hover { transform: translateY(-5px); box-shadow: 0 12px 40px rgba(0,0,0,0.1); }
+    .stat-card:hover { transform: translateY(-3px); }
+    .stat-label { font-size: 0.85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 0.5rem; }
+    .stat-value { font-size: 1.5rem; font-weight: 800; color: var(--text-dark); }
     
-    .kpi-icon-bg {
-        position: absolute;
-        top: -20px;
-        right: -20px;
-        font-size: 5rem;
-        opacity: 0.05;
-        transform: rotate(15deg);
+    .net-balance-card {
+        background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+        color: white;
+        border: none;
     }
+    .net-balance-card .stat-label { color: #94a3b8; }
+    .net-balance-card .stat-value { color: white; font-size: 2rem; }
 
-    /* Ledger Table */
-    .ledger-container {
-        background: white;
-        border-radius: 24px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.02);
-        padding: 0; /* Removing padding for flush table */
+    /* Timeline Table */
+    .ledger-table-wrapper {
+        background: var(--card-bg);
+        border-radius: 20px;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
         overflow: hidden;
-        border: 1px solid rgba(0,0,0,0.04);
-        margin-top: 2rem;
     }
-    
-    .table-modern thead th {
-        background: #f8f9fa;
-        color: #6c757d;
-        text-transform: uppercase;
+    .table thead th {
+        background: #f1f5f9;
+        color: var(--text-muted);
         font-size: 0.75rem;
+        text-transform: uppercase;
         letter-spacing: 1px;
-        padding: 1.2rem 1.5rem;
-        border-bottom: 2px solid #edf2f7;
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid #e2e8f0;
     }
-    
-    .table-modern tbody td {
-        padding: 1.2rem 1.5rem;
+    .table tbody td {
+        padding: 1.25rem 1.5rem;
         vertical-align: middle;
-        border-bottom: 1px solid #edf2f7;
+        border-bottom: 1px solid #f1f5f9;
         font-size: 0.95rem;
+        color: var(--text-dark);
     }
+    .table tbody tr:last-child td { border-bottom: none; }
+    .table tbody tr:hover { background-color: #f8fafc; }
 
-    .table-modern tbody tr:last-child td { border-bottom: none; }
-    .table-modern tbody tr:hover { background-color: #fafbfc; }
-
-    /* Badges */
-    .mode-badge {
-        padding: 0.35em 0.8em;
-        border-radius: 6px;
+    /* Custom Badges */
+    .payment-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 10px;
+        border-radius: 50px;
         font-size: 0.75rem;
         font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
+        background: #f1f5f9;
+        color: var(--text-muted);
     }
-    .mode-cash { background: #e6fffa; color: #2c7a7b; border: 1px solid #b2f5ea; }
-    .mode-online { background: #ebf8ff; color: #2b6cb0; border: 1px solid #bee3f8; }
-    .mode-cheque { background: #fffaf0; color: #c05621; border: 1px solid #feebc8; }
-
-    /* Type Indicator */
-    .type-dot {
-        height: 10px; width: 10px;
-        border-radius: 50%;
-        display: inline-block;
-        margin-right: 8px;
-    }
-    .type-credit { background-color: #10b981; box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2); }
-    .type-debit { background-color: #ef4444; box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2); }
-
-    /* Balance Highlight */
-    .balance-positive { color: #059669; font-weight: 700; } /* Green for Advance/Clear */
-    .balance-negative { color: #dc2626; font-weight: 700; } /* Red for Due */
+    .payment-badge i { margin-right: 5px; }
 
     /* Action Buttons */
-    .action-btn-group .btn {
+    .btn-icon {
         width: 32px; height: 32px;
-        padding: 0;
         display: inline-flex;
         align-items: center;
         justify-content: center;
         border-radius: 8px;
+        color: var(--text-muted);
         transition: all 0.2s;
     }
-    .btn-edit-light { background: #f0f9ff; color: #0ea5e9; }
-    .btn-edit-light:hover { background: #0ea5e9; color: white; }
-    .btn-del-light { background: #fef2f2; color: #ef4444; }
-    .btn-del-light:hover { background: #ef4444; color: white; }
+    .btn-icon:hover { background: #f1f5f9; color: var(--accent-blue); }
+    .btn-icon.delete:hover { color: var(--accent-red); background: #fef2f2; }
 
+    /* Floating Action Button (Mobile) */
+    .fab-container {
+        display: none;
+    }
+    @media (max-width: 768px) {
+        .fab-container {
+            display: flex; gap: 10px; position: fixed; bottom: 20px; right: 20px; z-index: 100;
+        }
+        .fab-btn {
+            width: 50px; height: 50px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            color: white; font-size: 1.2rem;
+        }
+    }
 </style>
 
-<div class="container-fluid py-5 fade-in-up">
+<div class="container py-5 fade-in-up">
 
-    <!-- 1. Header & Quick Actions -->
-    <div class="d-flex flex-column flex-md-row justify-content-between align-items-center mb-5 gap-4">
+    <!-- 1. Navigation & Actions -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <a href="{{ url_for('emp_list') }}" class="btn btn-light rounded-pill border fw-bold text-muted px-4">
+            <i class="fa-solid fa-arrow-left me-2"></i>Back
+        </a>
+        <div class="d-flex gap-2 d-none d-md-flex">
+             <a href="{{ url_for('add_transaction', employee_id=employee.id, type='credit') }}" class="btn btn-success rounded-pill px-4 fw-bold shadow-sm">
+                <i class="fa-solid fa-plus me-2"></i>Credit (In)
+            </a>
+            <a href="{{ url_for('add_transaction', employee_id=employee.id, type='debit') }}" class="btn btn-danger rounded-pill px-4 fw-bold shadow-sm">
+                <i class="fa-solid fa-minus me-2"></i>Debit (Out)
+            </a>
+            <div class="vr mx-2"></div>
+            <a href="{{ url_for('employee_ledger_pdf', employee_id=employee.id) }}" class="btn btn-outline-dark rounded-pill px-4">
+                <i class="fa-solid fa-file-pdf"></i>
+            </a>
+        </div>
+    </div>
+
+    <!-- 2. Profile Summary -->
+    <div class="profile-card">
+        {% if employee.image %}
+            <img src="{{ employee.image|fix_image }}" class="profile-img">
+        {% else %}
+            <div class="profile-img bg-light d-flex align-items-center justify-content-center text-secondary fs-3">
+                <i class="fa-solid fa-user"></i>
+            </div>
+        {% endif %}
+        <div class="flex-grow-1">
+            <h2 class="fw-800 mb-1">{{ employee.name }}</h2>
+            <p class="text-muted mb-0"><i class="fa-solid fa-briefcase me-1"></i> {{ employee.position or 'Staff' }} &nbsp;•&nbsp; <i class="fa-solid fa-phone me-1"></i> {{ employee.phone }}</p>
+        </div>
         
-        <!-- Profile -->
-        <div class="d-flex align-items-center">
-            <div class="position-relative">
-                {% if employee.image %}
-                    <img src="{{ employee.image|fix_image }}" class="rounded-circle border border-4 border-white shadow-sm" width="70" height="70" style="object-fit: cover;">
-                {% else %}
-                    <div class="rounded-circle bg-light d-flex align-items-center justify-content-center border shadow-sm" style="width: 70px; height: 70px;">
-                        <i class="fa-solid fa-user fa-2x text-secondary"></i>
-                    </div>
-                {% endif %}
-                <span class="position-absolute bottom-0 end-0 p-1 bg-success border border-white rounded-circle"></span>
-            </div>
-            <div class="ms-3">
-                <h3 class="fw-bold text-dark mb-0">{{ employee.name }}</h3>
-                <p class="text-muted mb-0 small">{{ employee.position or 'Employee' }} | {{ employee.phone }}</p>
-            </div>
-        </div>
-
-        <!-- Action Buttons -->
-        <div class="d-flex gap-2">
-            <a href="{{ url_for('emp_list') }}" class="btn btn-light rounded-pill border px-4 fw-bold text-secondary">
-                <i class="fa-solid fa-arrow-left me-2"></i>Back
-            </a>
-            <a href="{{ url_for('employee_ledger_pdf', employee_id=employee.id) }}" class="btn btn-outline-danger rounded-pill px-4 fw-bold border-2">
-                <i class="fa-solid fa-file-pdf me-2"></i>Statement
-            </a>
-            
-            <!-- WhatsApp Smart Logic -->
-            {% if final_balance > 0 %}
-                {% set msg = "Hello " ~ employee.name ~ ", your current Pending Due is Rs. " ~ (final_balance|abs|inr) %}
-            {% else %}
-                {% set msg = "Hello " ~ employee.name ~ ", your current Advance Balance is Rs. " ~ (final_balance|abs|inr) %}
-            {% endif %}
-            <a href="https://wa.me/91{{ employee.phone }}?text={{ msg }}" target="_blank" class="btn btn-success rounded-pill px-4 fw-bold text-white shadow-sm" style="background: #25D366; border: none;">
-                <i class="fa-brands fa-whatsapp me-2"></i>Share
-            </a>
-        </div>
+        <!-- WhatsApp Share -->
+        {% if final_balance > 0 %}
+            {% set msg = "Hello " ~ employee.name ~ ", your current Pending Due is Rs. " ~ (final_balance|abs|inr) %}
+        {% else %}
+            {% set msg = "Hello " ~ employee.name ~ ", your current Advance Balance is Rs. " ~ (final_balance|abs|inr) %}
+        {% endif %}
+        <a href="https://wa.me/91{{ employee.phone }}?text={{ msg }}" target="_blank" class="btn btn-success rounded-pill px-3 py-2 fw-bold text-white d-flex align-items-center gap-2" style="background: #25D366; border:none;">
+            <i class="fa-brands fa-whatsapp fa-lg"></i> <span class="d-none d-sm-inline">Share</span>
+        </a>
     </div>
 
-    <!-- 2. KPI Cards Row -->
-    <div class="row g-4 mb-5">
-        <!-- Total Credit (Received) -->
-        <div class="col-md-4">
-            <div class="kpi-card h-100">
-                <i class="fa-solid fa-arrow-down kpi-icon-bg text-success"></i>
-                <p class="text-uppercase text-muted fw-bold small mb-1 ls-1">Total Credit (Received)</p>
-                <h2 class="fw-800 text-success mb-0">{{ total_credit|inr }}</h2>
-            </div>
-        </div>
-
-        <!-- Total Debit (Given) -->
-        <div class="col-md-4">
-            <div class="kpi-card h-100">
-                <i class="fa-solid fa-arrow-up kpi-icon-bg text-danger"></i>
-                <p class="text-uppercase text-muted fw-bold small mb-1 ls-1">Total Debit (Given)</p>
-                <h2 class="fw-800 text-danger mb-0">{{ total_debit|inr }}</h2>
-            </div>
-        </div>
-
+    <!-- 3. Financial Stats -->
+    <div class="stats-grid">
         <!-- Net Balance -->
-        <div class="col-md-4">
-            <div class="kpi-card h-100 {% if final_balance > 0 %}border-danger{% else %}border-success{% endif %}" style="border-width: 0 0 0 4px;">
-                <i class="fa-solid fa-scale-balanced kpi-icon-bg text-primary"></i>
-                <p class="text-uppercase text-muted fw-bold small mb-1 ls-1">Net Balance</p>
-                <h2 class="fw-800 mb-0 {% if final_balance > 0 %}text-danger{% else %}text-success{% endif %}">
-                    {{ final_balance|abs|inr }} 
-                    <span class="fs-6 fw-normal text-muted ms-1">
-                        {% if final_balance > 0 %}(Due from Emp){% else %}(Advance with Emp){% endif %}
-                    </span>
-                </h2>
+        <div class="stat-card net-balance-card">
+            <div class="stat-label">Net Balance</div>
+            <div class="stat-value">
+                {{ final_balance|abs|inr }}
+                <span class="fs-6 fw-normal opacity-75 ms-2">
+                    {% if final_balance > 0 %}Dr (Due){% else %}Cr (Adv){% endif %}
+                </span>
             </div>
         </div>
-    </div>
+        
+        <!-- Total Credit -->
+        <div class="stat-card">
+            <div class="stat-label text-success">Total Credit (Received)</div>
+            <div class="stat-value text-success">{{ total_credit|inr }}</div>
+        </div>
 
-    <!-- 3. Transaction Actions Bar -->
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h5 class="fw-bold text-dark mb-0"><i class="fa-solid fa-clock-rotate-left me-2 text-primary"></i>Transaction History</h5>
-        <div class="d-flex gap-2">
-            {% if not has_opening_balance %}
-            <a href="{{ url_for('add_opening_balance', employee_id=employee.id) }}" class="btn btn-sm btn-white border shadow-sm rounded-pill px-3 fw-bold text-muted">
-                <i class="fa-solid fa-plus me-1"></i> Opening
-            </a>
-            {% endif %}
-            
-            <a href="{{ url_for('add_transaction', employee_id=employee.id, type='credit') }}" class="btn btn-sm rounded-pill px-4 fw-bold text-white shadow-sm" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); border:none;">
-                <i class="fa-solid fa-circle-arrow-down me-2"></i>Credit (In)
-            </a>
-            
-            <a href="{{ url_for('add_transaction', employee_id=employee.id, type='debit') }}" class="btn btn-sm rounded-pill px-4 fw-bold text-white shadow-sm" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); border:none;">
-                <i class="fa-solid fa-circle-arrow-up me-2"></i>Debit (Out)
-            </a>
+        <!-- Total Debit -->
+        <div class="stat-card">
+            <div class="stat-label text-danger">Total Debit (Given)</div>
+            <div class="stat-value text-danger">{{ total_debit|inr }}</div>
         </div>
     </div>
 
-    <!-- 4. Ledger Table -->
-    <div class="ledger-container">
+    <!-- 4. Transactions List -->
+    <div class="ledger-table-wrapper">
+        <div class="d-flex justify-content-between align-items-center p-4 border-bottom bg-white">
+            <h5 class="fw-bold mb-0 text-dark">Transaction History</h5>
+            {% if not has_opening_balance %}
+            <a href="{{ url_for('add_opening_balance', employee_id=employee.id) }}" class="btn btn-sm btn-light border rounded-pill px-3 fw-bold text-muted">
+                + Add Opening
+            </a>
+            {% endif %}
+        </div>
+        
         <div class="table-responsive">
-            <table class="table table-modern mb-0">
+            <table class="table mb-0">
                 <thead>
                     <tr>
-                        <th class="ps-4">Date & Time</th>
+                        <th class="ps-4">Date</th>
+                        <th>Description</th>
                         <th>Type</th>
-                        <th>Description / Note</th>
-                        <th>Mode</th>
                         <th class="text-end">Amount</th>
                         <th class="text-end pe-4">Balance</th>
                         <th class="text-center">Action</th>
@@ -235,71 +236,65 @@
                     {% for t in transactions %}
                     <tr>
                         <td class="ps-4">
-                            <div class="fw-bold text-dark">{{ t.transaction_date.strftime('%d-%m-%Y') if t.transaction_date else 'N/A' }}</div>
-                            <div class="small text-muted" style="font-size: 0.75rem;">
-                                <i class="fa-regular fa-clock me-1"></i>{{ t.time_str }}
-                            </div>
+                            <div class="fw-bold text-dark">{{ t.transaction_date.strftime('%d %b, %Y') if t.transaction_date else 'N/A' }}</div>
+                            <div class="small text-muted font-monospace">{{ t.time_str }}</div>
                         </td>
                         
-                        <!-- Type Column with Dot -->
+                        <!-- Description & Payment Mode -->
                         <td>
-                            <div class="d-flex align-items-center">
-                                <span class="type-dot {% if t.type == 'credit' %}type-credit{% else %}type-debit{% endif %}"></span>
-                                <span class="fw-bold text-dark text-capitalize">{{ t.type }}</span>
-                            </div>
-                        </td>
-
-                        <!-- Description -->
-                        <td class="text-muted">
-                            <div class="text-truncate" style="max-width: 250px;" title="{{ t.description }}">{{ t.description }}</div>
-                        </td>
-
-                        <!-- Payment Mode -->
-                        <td>
-                            {% set mode = t.payment_mode|lower %}
-                            <span class="mode-badge 
-                                {% if 'cash' in mode %}mode-cash
-                                {% elif 'online' in mode or 'upi' in mode %}mode-online
-                                {% else %}mode-cheque{% endif %}">
-                                {{ t.payment_mode or 'Cash' }}
+                            <div class="text-dark fw-500 mb-1">{{ t.description }}</div>
+                            <span class="payment-badge">
+                                {% if t.payment_mode == 'Cash' %}
+                                    <i class="fa-solid fa-money-bill-1 text-success"></i> Cash
+                                {% elif t.payment_mode == 'Online' %}
+                                    <i class="fa-solid fa-globe text-primary"></i> Online
+                                {% elif t.payment_mode == 'Cheque' %}
+                                    <i class="fa-solid fa-money-check text-warning"></i> Cheque
+                                {% else %}
+                                    <i class="fa-solid fa-wallet text-secondary"></i> {{ t.payment_mode }}
+                                {% endif %}
                             </span>
+                        </td>
+
+                        <!-- Type -->
+                        <td>
+                            {% if t.type == 'credit' %}
+                                <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 rounded-pill px-3">Credit</span>
+                            {% else %}
+                                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 rounded-pill px-3">Debit</span>
+                            {% endif %}
                         </td>
 
                         <!-- Amount -->
-                        <td class="text-end fw-bold {% if t.type == 'debit' %}text-danger{% else %}text-success{% endif %}">
-                            {{ t.amount|inr }}
+                        <td class="text-end">
+                            <span class="fw-bold {% if t.type == 'debit' %}text-danger{% else %}text-success{% endif %}">
+                                {% if t.type == 'debit' %}-{% else %}+{% endif %} {{ t.amount|inr }}
+                            </span>
                         </td>
 
-                        <!-- Balance -->
+                        <!-- Running Balance -->
                         <td class="text-end pe-4">
-                            <span class="{% if t.balance > 0 %}balance-negative{% else %}balance-positive{% endif %}">
-                                {{ t.balance|abs|inr }} 
-                                <small class="text-muted fw-normal ms-1">
-                                    {% if t.balance > 0 %}Dr{% else %}Cr{% endif %}
-                                </small>
-                            </span>
+                            <span class="fw-bold text-dark">{{ t.balance|abs|inr }}</span>
+                            <small class="text-muted fw-bold ms-1">{% if t.balance > 0 %}Dr{% else %}Cr{% endif %}</small>
                         </td>
 
                         <!-- Actions -->
                         <td class="text-center">
-                            <div class="action-btn-group">
-                                <a href="{{ url_for('edit_transaction', transaction_id=t.id) }}" class="btn btn-edit-light me-1" title="Edit">
-                                    <i class="fa-solid fa-pencil"></i>
-                                </a>
-                                <button type="button" class="btn btn-del-light" onclick="confirmDelete({{ t.id }}, '{{ t.amount|inr }}')" title="Delete">
-                                    <i class="fa-regular fa-trash-can"></i>
-                                </button>
-                                <form id="delete-form-{{ t.id }}" action="{{ url_for('delete_transaction', transaction_id=t.id) }}" method="POST" style="display: none;"></form>
-                            </div>
+                            <a href="{{ url_for('edit_transaction', transaction_id=t.id) }}" class="btn-icon" title="Edit">
+                                <i class="fa-solid fa-pen"></i>
+                            </a>
+                            <button class="btn-icon delete" onclick="confirmDelete({{ t.id }}, '{{ t.amount|inr }}')" title="Delete">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                            <form id="delete-form-{{ t.id }}" action="{{ url_for('delete_transaction', transaction_id=t.id) }}" method="POST" style="display: none;"></form>
                         </td>
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="7" class="text-center py-5">
+                        <td colspan="6" class="text-center py-5">
                             <div class="opacity-50">
                                 <i class="fa-solid fa-receipt fa-3x mb-3 text-secondary"></i>
                                 <p class="mb-0 fw-bold text-secondary">No transactions found.</p>
-                                <small class="text-muted">Start by adding an Opening Balance or Credit/Debit entry.</small>
                             </div>
                         </td>
                     </tr>
@@ -309,6 +304,12 @@
         </div>
     </div>
 
+    <!-- Mobile FABs -->
+    <div class="fab-container d-md-none">
+        <a href="{{ url_for('add_transaction', employee_id=employee.id, type='credit') }}" class="fab-btn bg-success"><i class="fa-solid fa-plus"></i></a>
+        <a href="{{ url_for('add_transaction', employee_id=employee.id, type='debit') }}" class="fab-btn bg-danger"><i class="fa-solid fa-minus"></i></a>
+    </div>
+
 </div>
 
 <!-- Scripts -->
@@ -316,23 +317,15 @@
 <script>
     function confirmDelete(id, amount) {
         Swal.fire({
-            title: 'Delete Transaction?',
-            text: "You are about to delete an entry of " + amount + ". This will recalculate the ledger.",
+            title: 'Delete?',
+            text: "Remove transaction of " + amount + "?",
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#ef4444',
-            cancelButtonColor: '#94a3b8',
             confirmButtonText: 'Yes, Delete',
-            cancelButtonText: 'Cancel',
-            customClass: {
-                popup: 'rounded-4 border-0 shadow-lg',
-                confirmButton: 'rounded-pill px-4',
-                cancelButton: 'rounded-pill px-4'
-            }
+            customClass: { popup: 'rounded-4' }
         }).then((result) => {
-            if (result.isConfirmed) {
-                document.getElementById('delete-form-' + id).submit();
-            }
+            if (result.isConfirmed) document.getElementById('delete-form-' + id).submit();
         })
     }
 </script>
