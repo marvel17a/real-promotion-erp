@@ -6,227 +6,347 @@
 <!-- External Libs -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
 <style>
     :root {
-        --bg-color: #f8f9fa;
-        --card-bg: #ffffff;
-        --text-dark: #1e293b;
-        --text-muted: #64748b;
-        --accent-blue: #3b82f6;
-        --accent-green: #10b981;
-        --accent-red: #ef4444;
+        --bg-body: #f3f4f6;
+        --surface-card: #ffffff;
+        --text-main: #111827;
+        --text-secondary: #6b7280;
+        --brand-color: #6366f1;
+        --success-color: #10b981;
+        --danger-color: #ef4444;
+        --warning-color: #f59e0b;
+        --border-color: #e5e7eb;
     }
 
-    body { background-color: var(--bg-color); }
+    body {
+        font-family: 'Outfit', sans-serif;
+        background-color: var(--bg-body);
+        color: var(--text-main);
+    }
 
-    .fade-in-up { animation: fadeInUp 0.6s ease-out forwards; }
-    @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    .fade-in-up { animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    @keyframes fadeInUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
 
-    /* Profile Card */
-    .profile-card {
-        background: var(--card-bg);
-        border-radius: 20px;
+    /* Header Profile Section */
+    .profile-header {
+        background: var(--surface-card);
+        border-radius: 24px;
         padding: 2rem;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
         display: flex;
         align-items: center;
         gap: 1.5rem;
         margin-bottom: 2rem;
+        border: 1px solid var(--border-color);
     }
-    .profile-img {
+    
+    .avatar-wrapper {
+        position: relative;
+    }
+    
+    .profile-avatar {
         width: 80px; height: 80px;
-        border-radius: 50%;
-        object-fit: cover;
-        border: 4px solid #f1f5f9;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-    }
-    
-    /* Balance & Stats */
-    .stats-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-        gap: 1.5rem;
-        margin-bottom: 2rem;
-    }
-    .stat-card {
-        background: var(--card-bg);
-        border-radius: 16px;
-        padding: 1.5rem;
-        border: 1px solid #e2e8f0;
-        transition: transform 0.2s;
-    }
-    .stat-card:hover { transform: translateY(-3px); }
-    .stat-label { font-size: 0.85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 0.5rem; }
-    .stat-value { font-size: 1.5rem; font-weight: 800; color: var(--text-dark); }
-    
-    .net-balance-card {
-        background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-        color: white;
-        border: none;
-    }
-    .net-balance-card .stat-label { color: #94a3b8; }
-    .net-balance-card .stat-value { color: white; font-size: 2rem; }
-
-    /* Timeline Table */
-    .ledger-table-wrapper {
-        background: var(--card-bg);
         border-radius: 20px;
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+        object-fit: cover;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    }
+
+    .status-dot {
+        position: absolute; bottom: -4px; right: -4px;
+        width: 16px; height: 16px;
+        background: var(--success-color);
+        border: 3px solid var(--surface-card);
+        border-radius: 50%;
+    }
+
+    /* KPI Cards - Modern Grid */
+    .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2.5rem;
+    }
+
+    .kpi-card {
+        background: var(--surface-card);
+        border-radius: 20px;
+        padding: 1.75rem;
+        border: 1px solid var(--border-color);
+        transition: transform 0.2s, box-shadow 0.2s;
+        position: relative;
         overflow: hidden;
     }
-    .table thead th {
-        background: #f1f5f9;
-        color: var(--text-muted);
-        font-size: 0.75rem;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        padding: 1rem 1.5rem;
-        border-bottom: 1px solid #e2e8f0;
-    }
-    .table tbody td {
-        padding: 1.25rem 1.5rem;
-        vertical-align: middle;
-        border-bottom: 1px solid #f1f5f9;
-        font-size: 0.95rem;
-        color: var(--text-dark);
-    }
-    .table tbody tr:last-child td { border-bottom: none; }
-    .table tbody tr:hover { background-color: #f8fafc; }
 
-    /* Custom Badges */
-    .payment-badge {
-        display: inline-flex;
+    .kpi-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
+    }
+
+    .kpi-label {
+        font-size: 0.85rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--text-secondary);
+        margin-bottom: 0.5rem;
+        display: flex;
         align-items: center;
-        padding: 4px 10px;
-        border-radius: 50px;
+        gap: 0.5rem;
+    }
+
+    .kpi-value {
+        font-size: 2rem;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        line-height: 1.2;
+    }
+
+    /* Specific Card Styles */
+    .card-credit .kpi-value { color: var(--success-color); }
+    .card-debit .kpi-value { color: var(--danger-color); }
+    
+    /* Dynamic Balance Card */
+    .card-balance.is-advance {
+        background: linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%);
+        border-color: #FCD34D;
+    }
+    .card-balance.is-advance .kpi-value { color: #B45309; }
+    .card-balance.is-advance .kpi-label { color: #92400E; }
+
+    .card-balance.is-due {
+        background: linear-gradient(135deg, #FEF2F2 0%, #FEE2E2 100%);
+        border-color: #FECACA;
+    }
+    .card-balance.is-due .kpi-value { color: #B91C1C; }
+    .card-balance.is-due .kpi-label { color: #991B1B; }
+
+    .card-balance.is-neutral {
+        background: var(--surface-card);
+    }
+
+    /* Transactions Table */
+    .ledger-section {
+        background: var(--surface-card);
+        border-radius: 24px;
+        border: 1px solid var(--border-color);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
+        overflow: hidden;
+    }
+
+    .table-modern {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+    .table-modern th {
+        background: #f9fafb;
+        padding: 1.25rem 1.5rem;
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        color: var(--text-secondary);
+        letter-spacing: 0.05em;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .table-modern td {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid #f3f4f6;
+        vertical-align: middle;
+        font-size: 0.95rem;
+        color: var(--text-main);
+    }
+
+    .table-modern tr:last-child td { border-bottom: none; }
+    .table-modern tr:hover td { background-color: #fafafa; }
+
+    /* Enhanced Badges */
+    .badge-pill {
+        padding: 0.35em 0.8em;
+        border-radius: 99px;
         font-size: 0.75rem;
         font-weight: 600;
-        background: #f1f5f9;
-        color: var(--text-muted);
+        letter-spacing: 0.02em;
     }
-    .payment-badge i { margin-right: 5px; }
+    .badge-credit { background: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
+    .badge-debit { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+
+    .mode-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 10px;
+        border-radius: 8px;
+        background: #f3f4f6;
+        color: var(--text-secondary);
+        font-size: 0.8rem;
+        font-weight: 500;
+    }
 
     /* Action Buttons */
-    .btn-icon {
-        width: 32px; height: 32px;
+    .icon-btn {
+        width: 36px; height: 36px;
+        border-radius: 10px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        border-radius: 8px;
-        color: var(--text-muted);
+        transition: all 0.2s;
+        border: 1px solid transparent;
+        color: var(--text-secondary);
+    }
+    .icon-btn:hover { background: #f3f4f6; color: var(--brand-color); border-color: var(--border-color); }
+    .icon-btn.delete:hover { background: #fef2f2; color: var(--danger-color); border-color: #fecaca; }
+
+    /* Nav Buttons */
+    .btn-nav {
+        padding: 0.6rem 1.2rem;
+        border-radius: 12px;
+        font-weight: 600;
+        font-size: 0.9rem;
         transition: all 0.2s;
     }
-    .btn-icon:hover { background: #f1f5f9; color: var(--accent-blue); }
-    .btn-icon.delete:hover { color: var(--accent-red); background: #fef2f2; }
-
-    /* Floating Action Button (Mobile) */
-    .fab-container {
-        display: none;
+    .btn-nav-primary {
+        background: var(--text-main);
+        color: white;
+        border: none;
     }
-    @media (max-width: 768px) {
-        .fab-container {
-            display: flex; gap: 10px; position: fixed; bottom: 20px; right: 20px; z-index: 100;
-        }
-        .fab-btn {
-            width: 50px; height: 50px; border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-            color: white; font-size: 1.2rem;
-        }
+    .btn-nav-primary:hover {
+        background: #000;
+        transform: translateY(-1px);
+    }
+    
+    .btn-nav-outline {
+        background: white;
+        border: 1px solid var(--border-color);
+        color: var(--text-main);
+    }
+    .btn-nav-outline:hover {
+        background: #f9fafb;
     }
 </style>
 
 <div class="container py-5 fade-in-up">
 
-    <!-- 1. Navigation & Actions -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <a href="{{ url_for('emp_list') }}" class="btn btn-light rounded-pill border fw-bold text-muted px-4">
-            <i class="fa-solid fa-arrow-left me-2"></i>Back
+    <!-- 1. Top Navigation -->
+    <div class="d-flex justify-content-between align-items-center mb-5">
+        <a href="{{ url_for('emp_list') }}" class="btn-nav btn-nav-outline">
+            <i class="fa-solid fa-arrow-left me-2"></i>Back to List
         </a>
-        <div class="d-flex gap-2 d-none d-md-flex">
-             <a href="{{ url_for('add_transaction', employee_id=employee.id, type='credit') }}" class="btn btn-success rounded-pill px-4 fw-bold shadow-sm">
-                <i class="fa-solid fa-plus me-2"></i>Credit (In)
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('employee_ledger_pdf', employee_id=employee.id) }}" class="btn-nav btn-nav-outline text-danger border-danger-subtle">
+                <i class="fa-solid fa-file-pdf me-2"></i>PDF Report
             </a>
-            <a href="{{ url_for('add_transaction', employee_id=employee.id, type='debit') }}" class="btn btn-danger rounded-pill px-4 fw-bold shadow-sm">
-                <i class="fa-solid fa-minus me-2"></i>Debit (Out)
-            </a>
-            <div class="vr mx-2"></div>
-            <a href="{{ url_for('employee_ledger_pdf', employee_id=employee.id) }}" class="btn btn-outline-dark rounded-pill px-4">
-                <i class="fa-solid fa-file-pdf"></i>
+            <!-- Smart WhatsApp -->
+            {% if final_balance > 0 %}
+                {% set msg = "Hello " ~ employee.name ~ ", your current Pending Due is Rs. " ~ (final_balance|abs|inr) %}
+            {% else %}
+                {% set msg = "Hello " ~ employee.name ~ ", your current Advance Balance is Rs. " ~ (final_balance|abs|inr) %}
+            {% endif %}
+            <a href="https://wa.me/91{{ employee.phone }}?text={{ msg }}" target="_blank" class="btn-nav btn-nav-primary" style="background: #25D366; color: white;">
+                <i class="fa-brands fa-whatsapp me-2"></i>Share Balance
             </a>
         </div>
     </div>
 
-    <!-- 2. Profile Summary -->
-    <div class="profile-card">
-        {% if employee.image %}
-            <img src="{{ employee.image|fix_image }}" class="profile-img">
-        {% else %}
-            <div class="profile-img bg-light d-flex align-items-center justify-content-center text-secondary fs-3">
-                <i class="fa-solid fa-user"></i>
-            </div>
-        {% endif %}
-        <div class="flex-grow-1">
-            <h2 class="fw-800 mb-1">{{ employee.name }}</h2>
-            <p class="text-muted mb-0"><i class="fa-solid fa-briefcase me-1"></i> {{ employee.position or 'Staff' }} &nbsp;•&nbsp; <i class="fa-solid fa-phone me-1"></i> {{ employee.phone }}</p>
+    <!-- 2. Profile Header -->
+    <div class="profile-header">
+        <div class="avatar-wrapper">
+            {% if employee.image %}
+                <img src="{{ employee.image|fix_image }}" class="profile-avatar">
+            {% else %}
+                <div class="profile-avatar bg-light d-flex align-items-center justify-content-center text-secondary fs-3 border">
+                    <i class="fa-solid fa-user"></i>
+                </div>
+            {% endif %}
+            <span class="status-dot"></span>
         </div>
-        
-        <!-- WhatsApp Share -->
-        {% if final_balance > 0 %}
-            {% set msg = "Hello " ~ employee.name ~ ", your current Pending Due is Rs. " ~ (final_balance|abs|inr) %}
-        {% else %}
-            {% set msg = "Hello " ~ employee.name ~ ", your current Advance Balance is Rs. " ~ (final_balance|abs|inr) %}
-        {% endif %}
-        <a href="https://wa.me/91{{ employee.phone }}?text={{ msg }}" target="_blank" class="btn btn-success rounded-pill px-3 py-2 fw-bold text-white d-flex align-items-center gap-2" style="background: #25D366; border:none;">
-            <i class="fa-brands fa-whatsapp fa-lg"></i> <span class="d-none d-sm-inline">Share</span>
-        </a>
+        <div>
+            <h2 class="fw-bold mb-1" style="font-size: 1.75rem;">{{ employee.name }}</h2>
+            <p class="text-secondary mb-0 fw-medium">
+                {{ employee.position or 'Staff Member' }} 
+                <span class="mx-2 text-gray-300">•</span> 
+                {{ employee.phone }}
+            </p>
+        </div>
     </div>
 
-    <!-- 3. Financial Stats -->
-    <div class="stats-grid">
-        <!-- Net Balance -->
-        <div class="stat-card net-balance-card">
-            <div class="stat-label">Net Balance</div>
-            <div class="stat-value">
-                {{ final_balance|abs|inr }}
-                <span class="fs-6 fw-normal opacity-75 ms-2">
-                    {% if final_balance > 0 %}Dr (Due){% else %}Cr (Adv){% endif %}
-                </span>
-            </div>
-        </div>
-        
+    <!-- 3. KPI Stats Grid -->
+    <div class="kpi-grid">
         <!-- Total Credit -->
-        <div class="stat-card">
-            <div class="stat-label text-success">Total Credit (Received)</div>
-            <div class="stat-value text-success">{{ total_credit|inr }}</div>
+        <div class="kpi-card card-credit">
+            <div class="kpi-label">
+                <i class="fa-solid fa-arrow-down"></i> Total Received (Credit)
+            </div>
+            <div class="kpi-value">{{ total_credit|inr }}</div>
         </div>
 
         <!-- Total Debit -->
-        <div class="stat-card">
-            <div class="stat-label text-danger">Total Debit (Given)</div>
-            <div class="stat-value text-danger">{{ total_debit|inr }}</div>
+        <div class="kpi-card card-debit">
+            <div class="kpi-label">
+                <i class="fa-solid fa-arrow-up"></i> Total Given (Debit)
+            </div>
+            <div class="kpi-value">{{ total_debit|inr }}</div>
         </div>
+
+        <!-- Net Balance (Dynamic Color) -->
+        {% if final_balance > 0 %}
+            <!-- Due -> Red Style -->
+            <div class="kpi-card card-balance is-due">
+                <div class="kpi-label">
+                    <i class="fa-solid fa-circle-exclamation"></i> Net Pending (Due)
+                </div>
+                <div class="kpi-value">{{ final_balance|abs|inr }}</div>
+            </div>
+        {% elif final_balance < 0 %}
+            <!-- Advance -> Yellow/Amber Style -->
+            <div class="kpi-card card-balance is-advance">
+                <div class="kpi-label">
+                    <i class="fa-solid fa-wallet"></i> Advance Balance
+                </div>
+                <div class="kpi-value">{{ final_balance|abs|inr }}</div>
+            </div>
+        {% else %}
+             <!-- Zero -> Neutral -->
+             <div class="kpi-card card-balance is-neutral">
+                <div class="kpi-label">
+                    <i class="fa-solid fa-check-circle"></i> Settled
+                </div>
+                <div class="kpi-value">₹ 0.00</div>
+            </div>
+        {% endif %}
     </div>
 
     <!-- 4. Transactions List -->
-    <div class="ledger-table-wrapper">
-        <div class="d-flex justify-content-between align-items-center p-4 border-bottom bg-white">
-            <h5 class="fw-bold mb-0 text-dark">Transaction History</h5>
-            {% if not has_opening_balance %}
-            <a href="{{ url_for('add_opening_balance', employee_id=employee.id) }}" class="btn btn-sm btn-light border rounded-pill px-3 fw-bold text-muted">
-                + Add Opening
-            </a>
-            {% endif %}
+    <div class="ledger-section">
+        <div class="p-4 border-bottom bg-white d-flex justify-content-between align-items-center">
+            <h5 class="fw-bold mb-0">Transaction History</h5>
+            <div class="d-flex gap-2">
+                {% if not has_opening_balance %}
+                <a href="{{ url_for('add_opening_balance', employee_id=employee.id) }}" class="btn btn-sm btn-light border rounded-pill px-3 fw-bold text-secondary">
+                    + Add Opening
+                </a>
+                {% endif %}
+                <a href="{{ url_for('add_transaction', employee_id=employee.id, type='credit') }}" class="btn btn-sm btn-dark rounded-pill px-4">
+                    + Credit
+                </a>
+                <a href="{{ url_for('add_transaction', employee_id=employee.id, type='debit') }}" class="btn btn-sm btn-danger rounded-pill px-4">
+                    - Debit
+                </a>
+            </div>
         </div>
         
         <div class="table-responsive">
-            <table class="table mb-0">
+            <table class="table table-modern mb-0">
                 <thead>
                     <tr>
                         <th class="ps-4">Date</th>
-                        <th>Description</th>
                         <th>Type</th>
+                        <th>Details</th>
+                        <th>Mode</th>
                         <th class="text-end">Amount</th>
                         <th class="text-end pe-4">Balance</th>
                         <th class="text-center">Action</th>
@@ -237,64 +357,72 @@
                     <tr>
                         <td class="ps-4">
                             <div class="fw-bold text-dark">{{ t.transaction_date.strftime('%d %b, %Y') if t.transaction_date else 'N/A' }}</div>
-                            <div class="small text-muted font-monospace">{{ t.time_str }}</div>
+                            <div class="small text-secondary" style="font-family: monospace;">{{ t.time_str }}</div>
                         </td>
                         
-                        <!-- Description & Payment Mode -->
+                        <!-- Type Badge -->
                         <td>
-                            <div class="text-dark fw-500 mb-1">{{ t.description }}</div>
-                            <span class="payment-badge">
+                            {% if t.type == 'credit' %}
+                                <span class="badge-pill badge-credit">Credit</span>
+                            {% else %}
+                                <span class="badge-pill badge-debit">Debit</span>
+                            {% endif %}
+                        </td>
+
+                        <!-- Description -->
+                        <td class="text-secondary fw-medium">
+                            {{ t.description }}
+                        </td>
+
+                        <!-- Payment Mode -->
+                        <td>
+                            <span class="mode-tag">
                                 {% if t.payment_mode == 'Cash' %}
-                                    <i class="fa-solid fa-money-bill-1 text-success"></i> Cash
+                                    <i class="fa-solid fa-money-bill text-success"></i> Cash
                                 {% elif t.payment_mode == 'Online' %}
                                     <i class="fa-solid fa-globe text-primary"></i> Online
                                 {% elif t.payment_mode == 'Cheque' %}
                                     <i class="fa-solid fa-money-check text-warning"></i> Cheque
                                 {% else %}
-                                    <i class="fa-solid fa-wallet text-secondary"></i> {{ t.payment_mode }}
+                                    <i class="fa-solid fa-wallet"></i> {{ t.payment_mode or 'N/A' }}
                                 {% endif %}
                             </span>
                         </td>
 
-                        <!-- Type -->
-                        <td>
-                            {% if t.type == 'credit' %}
-                                <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 rounded-pill px-3">Credit</span>
+                        <!-- Amount -->
+                        <td class="text-end font-monospace fw-bold fs-6">
+                            {% if t.type == 'debit' %}
+                                <span class="text-danger">- {{ t.amount|inr }}</span>
                             {% else %}
-                                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 rounded-pill px-3">Debit</span>
+                                <span class="text-success">+ {{ t.amount|inr }}</span>
                             {% endif %}
                         </td>
 
-                        <!-- Amount -->
-                        <td class="text-end">
-                            <span class="fw-bold {% if t.type == 'debit' %}text-danger{% else %}text-success{% endif %}">
-                                {% if t.type == 'debit' %}-{% else %}+{% endif %} {{ t.amount|inr }}
-                            </span>
-                        </td>
-
-                        <!-- Running Balance -->
+                        <!-- Balance -->
                         <td class="text-end pe-4">
-                            <span class="fw-bold text-dark">{{ t.balance|abs|inr }}</span>
-                            <small class="text-muted fw-bold ms-1">{% if t.balance > 0 %}Dr{% else %}Cr{% endif %}</small>
+                            <span class="fw-bold {% if t.balance > 0 %}text-danger{% elif t.balance < 0 %}text-warning{% else %}text-dark{% endif %}">
+                                {{ t.balance|abs|inr }} 
+                                <span class="small text-muted fw-normal ms-1">{% if t.balance > 0 %}Dr{% else %}Cr{% endif %}</span>
+                            </span>
                         </td>
 
                         <!-- Actions -->
                         <td class="text-center">
-                            <a href="{{ url_for('edit_transaction', transaction_id=t.id) }}" class="btn-icon" title="Edit">
-                                <i class="fa-solid fa-pen"></i>
+                            <a href="{{ url_for('edit_transaction', transaction_id=t.id) }}" class="icon-btn" title="Edit">
+                                <i class="fa-solid fa-pen-to-square"></i>
                             </a>
-                            <button class="btn-icon delete" onclick="confirmDelete({{ t.id }}, '{{ t.amount|inr }}')" title="Delete">
-                                <i class="fa-solid fa-trash"></i>
+                            <button class="icon-btn delete" onclick="confirmDelete({{ t.id }}, '{{ t.amount|inr }}')" title="Delete">
+                                <i class="fa-regular fa-trash-can"></i>
                             </button>
                             <form id="delete-form-{{ t.id }}" action="{{ url_for('delete_transaction', transaction_id=t.id) }}" method="POST" style="display: none;"></form>
                         </td>
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="6" class="text-center py-5">
-                            <div class="opacity-50">
-                                <i class="fa-solid fa-receipt fa-3x mb-3 text-secondary"></i>
-                                <p class="mb-0 fw-bold text-secondary">No transactions found.</p>
+                        <td colspan="7" class="text-center py-5">
+                            <div class="text-muted opacity-50">
+                                <i class="fa-solid fa-clipboard-list fa-3x mb-3"></i>
+                                <p class="fw-bold mb-0">No transactions recorded yet.</p>
                             </div>
                         </td>
                     </tr>
@@ -304,12 +432,6 @@
         </div>
     </div>
 
-    <!-- Mobile FABs -->
-    <div class="fab-container d-md-none">
-        <a href="{{ url_for('add_transaction', employee_id=employee.id, type='credit') }}" class="fab-btn bg-success"><i class="fa-solid fa-plus"></i></a>
-        <a href="{{ url_for('add_transaction', employee_id=employee.id, type='debit') }}" class="fab-btn bg-danger"><i class="fa-solid fa-minus"></i></a>
-    </div>
-
 </div>
 
 <!-- Scripts -->
@@ -317,13 +439,14 @@
 <script>
     function confirmDelete(id, amount) {
         Swal.fire({
-            title: 'Delete?',
-            text: "Remove transaction of " + amount + "?",
+            title: 'Delete Entry?',
+            text: `Permanently remove transaction of ${amount}?`,
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#ef4444',
             confirmButtonText: 'Yes, Delete',
-            customClass: { popup: 'rounded-4' }
+            cancelButtonText: 'Cancel',
+            customClass: { popup: 'rounded-4 border-0 shadow-lg' }
         }).then((result) => {
             if (result.isConfirmed) document.getElementById('delete-form-' + id).submit();
         })
