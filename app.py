@@ -172,7 +172,7 @@ def view_evening_settlement(settle_id):
 
 
 # ==========================================
-# NEW ROUTE: VIEW OFFICE SALE
+# NEW ROUTE: VIEW OFFICE SALE (FIXED TIME)
 # ==========================================
 @app.route('/office_sales/view/<int:sale_id>')
 def view_office_sale(sale_id):
@@ -194,10 +194,9 @@ def view_office_sale(sale_id):
         sale['formatted_date'] = sale['sale_date'].strftime('%d-%m-%Y')
     
     if sale.get('created_at'):
-        # Assuming UTC stored, convert to IST +5:30
+        # FIX: Database stores IST. Do NOT add timedelta. Just format.
         try:
-            dt = sale['created_at'] + timedelta(hours=5, minutes=30)
-            sale['created_at_formatted'] = dt.strftime('%d-%m-%Y %I:%M %p')
+            sale['created_at_formatted'] = sale['created_at'].strftime('%d-%m-%Y %I:%M %p')
         except:
             sale['created_at_formatted'] = str(sale['created_at'])
     else:
@@ -3728,7 +3727,7 @@ class PDFGenerator(FPDF):
         self.contact = "+91 96623 22476 | help@realpromotion.in"
         # Updated GST Text with specific formatting
         self.gst_text = "GSTIN:24AJVPT0460H1ZW"
-        self.gst_subtext = "Composition Dealer- Not Eligibal To Collect Taxes On Sppliers"
+        self.gst_subtext = "Composition Dealer- Not Eligibal To Collect Taxes On Supplies"
 
     def header(self):
         # Company Header
@@ -3864,7 +3863,7 @@ class PDFGenerator(FPDF):
         else:
              self.ln(6)
 
-        # RIGHT SIDE: Bill Details
+        # RIGHT SIDE: Bill Details (Including TIME)
         self.set_xy(120, y)
         self.set_font('Arial', '', 10)
         self.cell(20, 6, "Bill No:", 0, 0); self.set_font('Arial','B',10); self.cell(40, 6, str(sale_data['id']), 0, 1)
@@ -3873,11 +3872,15 @@ class PDFGenerator(FPDF):
         self.set_font('Arial', '', 10)
         self.cell(20, 6, "Date:", 0, 0); self.set_font('Arial','B',10); self.cell(40, 6, str(sale_data['sale_date']), 0, 1)
 
+        # Time Field Added Here
+        self.set_xy(120, y+12)
+        self.set_font('Arial', '', 10)
+        self.cell(20, 6, "Time:", 0, 0); self.set_font('Arial','B',10); self.cell(40, 6, str(sale_data.get('sale_time', '')), 0, 1)
+
         self.ln(20) # Space before table
         
         # 2. Product Table
         cols = ["#", "Product Name", "Qty", "Price", "Total"]
-        # Removed empty/extra column definition logic, just 5 cols now
         widths = [10, 90, 20, 30, 40]
         
         self.add_table_header(cols, widths)
@@ -3903,19 +3906,17 @@ class PDFGenerator(FPDF):
             self.cell(widths[1], 7, str(item['product_name']), 1, 0, 'L', fill)
             self.cell(widths[2], 7, str(qty), 1, 0, 'C', fill)
             self.cell(widths[3], 7, f"{price:.2f}", 1, 0, 'R', fill)
-            # Use '1' in last cell to force line break
             self.cell(widths[4], 7, f"{total:.2f}", 1, 1, 'R', fill) 
             fill = not fill
             
         # --- TOTAL ROW ---
         self.set_font('Arial', 'B', 10)
-        # Combine first two columns width for label
         self.cell(widths[0]+widths[1], 8, "TOTAL ITEMS", 1, 0, 'R', True)
         self.cell(widths[2], 8, str(sum_qty), 1, 0, 'C', True)
         self.cell(widths[3], 8, "", 1, 0, 'C', True)
         self.cell(widths[4], 8, f"{sum_total:.2f}", 1, 1, 'R', True)
         
-        self.ln(5) # Small gap before payment summary
+        self.ln(5) 
         
         # 3. Payment Totals
         x_start = 120
@@ -4069,10 +4070,6 @@ def office_sales():
 # ==========================================
 @app.route('/office_sales/print/<int:sale_id>')
 def download_office_bill(sale_id):
-    # LOGIN CHECK IS REMOVED FOR PUBLIC ACCESS IF DESIRED?
-    # BUT FOR CONSISTENCY, USE PUBLIC ROUTE FOR WHATSAPP, PRIVATE HERE.
-    # User asked for "like morning pdf share", meaning ONE public route.
-    # I'll create a dedicated public route below and keep this one secured.
     if "loggedin" not in session: return redirect(url_for("login"))
     
     conn = mysql.connection
@@ -4089,6 +4086,15 @@ def download_office_bill(sale_id):
     # Format Date
     if sale['sale_date']:
         sale['sale_date'] = sale['sale_date'].strftime('%d-%m-%Y')
+        
+    # Format Time (IST)
+    if sale.get('created_at'):
+         try:
+             sale['sale_time'] = sale['created_at'].strftime('%I:%M %p')
+         except:
+             sale['sale_time'] = ""
+    else:
+         sale['sale_time'] = ""
 
     # Fetch Items
     cursor.execute("""
@@ -4135,6 +4141,15 @@ def download_office_bill_public(sale_id):
     if sale['sale_date']:
         sale['sale_date'] = sale['sale_date'].strftime('%d-%m-%Y')
 
+    # Format Time (IST)
+    if sale.get('created_at'):
+         try:
+             sale['sale_time'] = sale['created_at'].strftime('%I:%M %p')
+         except:
+             sale['sale_time'] = ""
+    else:
+         sale['sale_time'] = ""
+
     # Fetch Items
     cursor.execute("""
         SELECT i.*, p.name as product_name 
@@ -4157,8 +4172,6 @@ def download_office_bill_public(sale_id):
     buffer.seek(0)
     
     return send_file(buffer, as_attachment=True, download_name=f"Bill_{sale_id}.pdf", mimetype='application/pdf')
-
-# ... existing imports and PDFGenerator class ...
 
 # ==========================================
 # UPDATED: MORNING PDF ROUTE (Matches Allocation List Link)
@@ -7006,6 +7019,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
