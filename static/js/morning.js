@@ -202,7 +202,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const tot = op + giv;
         row.querySelector(".total").value = tot;
-        row.querySelector(".amount").value = (giv * pr).toFixed(2);
+        row.querySelector(".amount").value = (tot * pr).toFixed(2);
         
         recalculateTotals();
     }
@@ -272,3 +272,4 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 });
+
