@@ -151,7 +151,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 <div class="small text-danger fw-bold mt-1 stock-warning" style="display:none;"></div>
             </td>
             <td><input type="number" name="opening[]" class="table-input opening" value="${open}" readonly tabindex="-1"></td>
-            <td><input type="number" name="given[]" class="table-input given input-qty" min="0" placeholder="0" required value="0"></td>
+            <td><input type="number" name="given[]" class="table-input given input-qty" min="0"   value="0"></td>
             <td><input type="number" name="total[]" class="table-input total" value="${open}" readonly tabindex="-1"></td>
             <td><input type="number" name="price[]" class="table-input price text-end" value="${price.toFixed(2)}" readonly tabindex="-1"></td>
             <td><input type="number" name="amount[]" class="table-input amount text-end fw-bold text-primary" value="0.00" readonly tabindex="-1"></td>
@@ -272,4 +272,5 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 });
+
 
