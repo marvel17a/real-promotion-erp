@@ -2175,7 +2175,7 @@ def stock_adjust():
 # 1. Main Inventory Master View (Admin Side)
 
 # =========================================================
-#  UPDATED INVENTORY MASTER (With Stats)
+#  UPDATED INVENTORY MASTER (With Allocated Stock Logic)
 # =========================================================
 @app.route('/inventory_master')
 def inventory_master():
@@ -2184,7 +2184,7 @@ def inventory_master():
 
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
-    # 1. Fetch Products with Category Names
+    # 1. Fetch Products
     cur.execute("""
         SELECT p.*, pc.category_name 
         FROM products p
@@ -2193,14 +2193,79 @@ def inventory_master():
     """)
     products = cur.fetchall()
 
-    # 2. Fetch Categories for filter/add
+    # 2. Calculate Allocated Stock (Live Logic)
+    allocated_map = {} 
+    
+    cur.execute("SELECT id FROM employees WHERE status='active'")
+    employees = cur.fetchall()
+    
+    today_str = date.today().strftime('%Y-%m-%d')
+    
+    for emp in employees:
+        eid = emp['id']
+        emp_stock = {} 
+
+        # A. Get Last Settlement Closing Stock
+        cur.execute("""
+            SELECT id FROM evening_settle 
+            WHERE employee_id=%s AND status='final' 
+            ORDER BY date DESC, id DESC LIMIT 1
+        """, (eid,))
+        last_settle = cur.fetchone()
+        
+        if last_settle:
+            cur.execute("SELECT product_id, remaining_qty FROM evening_item WHERE settle_id=%s", (last_settle['id'],))
+            for row in cur.fetchall():
+                pid = row['product_id']
+                qty = int(row['remaining_qty'])
+                if qty > 0:
+                    emp_stock[pid] = qty
+
+        # B. Add Today's Allocation (If any, and not yet settled)
+        cur.execute("SELECT id FROM evening_settle WHERE employee_id=%s AND date=%s AND status='final'", (eid, today_str))
+        today_settled = cur.fetchone()
+        
+        if not today_settled:
+            cur.execute("""
+                SELECT mai.product_id, mai.given_qty 
+                FROM morning_allocation_items mai
+                JOIN morning_allocations ma ON mai.allocation_id = ma.id
+                WHERE ma.employee_id = %s AND ma.date = %s
+            """, (eid, today_str))
+            
+            for row in cur.fetchall():
+                pid = row['product_id']
+                qty = int(row['given_qty'])
+                if pid in emp_stock:
+                    emp_stock[pid] += qty
+                else:
+                    emp_stock[pid] = qty
+        
+        for pid, qty in emp_stock.items():
+            if pid in allocated_map: allocated_map[pid] += qty
+            else: allocated_map[pid] = qty
+
+    # 3. Merge Data into Products List
+    total_value = 0
+    low_stock_count = 0
+    total_items = 0
+
+    for p in products:
+        warehouse_stock = int(p['stock'] or 0)
+        allocated_stock = allocated_map.get(p['id'], 0)
+        total_holding = warehouse_stock + allocated_stock
+        
+        p['warehouse_stock'] = warehouse_stock
+        p['allocated_stock'] = allocated_stock
+        p['total_stock'] = total_holding
+        
+        total_value += (p['price'] * total_holding)
+        if total_holding <= (p['low_stock_threshold'] or 10):
+            low_stock_count += 1
+        total_items += 1
+
     cur.execute("SELECT * FROM product_categories ORDER BY category_name")
     categories = cur.fetchall()
-
-    # 3. Calculate Stats for the Dashboard
-    total_value = sum(p['price'] * p['stock'] for p in products)
-    low_stock_count = sum(1 for p in products if p['stock'] <= p['low_stock_threshold'])
-    total_items = len(products)
     
     cur.close()
 
@@ -7049,6 +7114,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
