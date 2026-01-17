@@ -2168,22 +2168,15 @@ def stock_adjust():
         return redirect(url_for('inventory_master'))
 
 # =========================================================
-#  ADMIN INVENTORY MASTER MODULE
-# =========================================================
-
-
-# 1. Main Inventory Master View (Admin Side)
-# =========================================================
-#  UPDATED INVENTORY MASTER (With Allocated Stock Logic)
+#  1. INVENTORY MASTER (Corrected Calculation Logic)
 # =========================================================
 @app.route('/inventory_master')
 def inventory_master():
-    if "loggedin" not in session:
-        return redirect(url_for("login"))
+    if "loggedin" not in session: return redirect(url_for("login"))
 
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
-    # 1. Fetch Products
+    # 1. Fetch Products (Base Warehouse Stock is in 'stock' column)
     cur.execute("""
         SELECT p.*, pc.category_name 
         FROM products p
@@ -2192,9 +2185,12 @@ def inventory_master():
     """)
     products = cur.fetchall()
 
-    # 2. Calculate Allocated Stock (Live Logic)
+    # 2. Calculate Allocated Stock (Field Stock)
+    # Logic: Allocated = (Stock held by employees from previous days) + (Stock given TODAY)
+    
     allocated_map = {} 
     
+    # Get active employees
     cur.execute("SELECT id FROM employees WHERE status='active'")
     employees = cur.fetchall()
     
@@ -2204,12 +2200,13 @@ def inventory_master():
         eid = emp['id']
         emp_stock = {} 
 
-        # A. Get Last Settlement Closing Stock
+        # A. Previous Closing Stock (From LAST FINAL settlement BEFORE today)
+        # This gives us what they had at the end of yesterday.
         cur.execute("""
             SELECT id FROM evening_settle 
-            WHERE employee_id=%s AND status='final' 
-            ORDER BY date DESC, id DESC LIMIT 1
-        """, (eid,))
+            WHERE employee_id=%s AND status='final' AND date < %s
+            ORDER BY date DESC LIMIT 1
+        """, (eid, today_str))
         last_settle = cur.fetchone()
         
         if last_settle:
@@ -2217,37 +2214,49 @@ def inventory_master():
             for row in cur.fetchall():
                 pid = row['product_id']
                 qty = int(row['remaining_qty'])
-                if qty > 0:
-                    emp_stock[pid] = qty
+                if qty > 0: emp_stock[pid] = qty
 
-        # B. Add Today's Allocation (If any, and not yet settled)
+        # B. Today's Allocation (Morning + Restock)
+        # Even if evening is settled for today, we want to know what is "Allocated" (in field).
+        # If today is settled, the 'remaining' from that settlement IS the current allocated.
+        # If NOT settled, it is Yesterday's Remaining + Today's Given.
+        
+        # Check if today is settled
         cur.execute("SELECT id FROM evening_settle WHERE employee_id=%s AND date=%s AND status='final'", (eid, today_str))
         today_settled = cur.fetchone()
         
-        if not today_settled:
-            # If not settled, add today's morning allocation to previous closing
-            cur.execute("""
-                SELECT mai.product_id, SUM(mai.given_qty) as total_given 
+        if today_settled:
+             # If settled today, use Today's Closing as the current allocated status
+             # This overrides previous calculation because it's the most up-to-date state
+             emp_stock = {} 
+             cur.execute("SELECT product_id, remaining_qty FROM evening_item WHERE settle_id=%s", (today_settled['id'],))
+             for row in cur.fetchall():
+                pid = row['product_id']
+                qty = int(row['remaining_qty'])
+                if qty > 0: emp_stock[pid] = qty
+        else:
+             # If NOT settled today, add Today's Morning Allocations to Yesterday's Closing
+             # Fetch ALL allocations for today (this handles multiple restocks correctly by summing)
+             cur.execute("""
+                SELECT mai.product_id, SUM(mai.given_qty) as total_given
                 FROM morning_allocation_items mai
                 JOIN morning_allocations ma ON mai.allocation_id = ma.id
                 WHERE ma.employee_id = %s AND ma.date = %s
                 GROUP BY mai.product_id
             """, (eid, today_str))
-            
-            for row in cur.fetchall():
+             
+             for row in cur.fetchall():
                 pid = row['product_id']
                 qty = int(row['total_given'])
-                if pid in emp_stock:
-                    emp_stock[pid] += qty
-                else:
-                    emp_stock[pid] = qty
+                if pid in emp_stock: emp_stock[pid] += qty
+                else: emp_stock[pid] = qty
         
-        # Sum to global map
+        # Sum up to global map
         for pid, qty in emp_stock.items():
             if pid in allocated_map: allocated_map[pid] += qty
             else: allocated_map[pid] = qty
 
-    # 3. Merge Data into Products List
+    # 3. Merge & Stats
     total_value = 0
     low_stock_count = 0
     total_items = 0
@@ -2256,14 +2265,13 @@ def inventory_master():
         warehouse_stock = int(p['stock'] or 0)
         allocated_stock = allocated_map.get(p['id'], 0)
         
-        # Total Real Stock (Company Asset)
+        # Total Real Stock (Company Asset) = Warehouse + Field
         total_holding = warehouse_stock + allocated_stock
         
         p['warehouse_stock'] = warehouse_stock
         p['allocated_stock'] = allocated_stock
         p['total_stock'] = total_holding
         
-        # Stats
         total_value += (p['price'] * total_holding)
         if total_holding <= (p['low_stock_threshold'] or 10):
             low_stock_count += 1
@@ -2274,7 +2282,7 @@ def inventory_master():
     
     cur.close()
 
-    return render_template('inventory/inventory_master.html', 
+    return render_template('inventory_master.html', 
                            products=products, 
                            categories=categories,
                            stats={
@@ -7082,6 +7090,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
