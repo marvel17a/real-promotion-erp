@@ -3727,7 +3727,7 @@ class PDFGenerator(FPDF):
         self.contact = "+91 96623 22476 | help@realpromotion.in"
         # Updated GST Text with specific formatting
         self.gst_text = "GSTIN:24AJVPT0460H1ZW"
-        self.gst_subtext = "Composition Dealer- Not Eligibal To Collect Taxes On Supplies"
+        self.gst_subtext = "Composition Dealer- Not Eligibal To Collect Taxes On Sppliers"
 
     def header(self):
         # Company Header
@@ -3847,6 +3847,7 @@ class PDFGenerator(FPDF):
         self.set_font('Arial', 'I', 8)
         self.cell(0, 5, "This is a computer generated document.", 0, 1, 'C')
 
+    # --- UPDATED METHOD: OFFICE BILL BODY (FIXED SPACING & TOTALS) ---
     def generate_office_bill_body(self, sale_data, items):
         # 1. Customer Info
         self.set_font('Arial', '', 10)
@@ -3863,7 +3864,7 @@ class PDFGenerator(FPDF):
         else:
              self.ln(6)
 
-        # RIGHT SIDE: Bill Details (Including TIME)
+        # RIGHT SIDE: Bill Details (Including TIME & Sales Person)
         self.set_xy(120, y)
         self.set_font('Arial', '', 10)
         self.cell(20, 6, "Bill No:", 0, 0); self.set_font('Arial','B',10); self.cell(40, 6, str(sale_data['id']), 0, 1)
@@ -3872,12 +3873,16 @@ class PDFGenerator(FPDF):
         self.set_font('Arial', '', 10)
         self.cell(20, 6, "Date:", 0, 0); self.set_font('Arial','B',10); self.cell(40, 6, str(sale_data['sale_date']), 0, 1)
 
-        # Time Field Added Here
         self.set_xy(120, y+12)
         self.set_font('Arial', '', 10)
         self.cell(20, 6, "Time:", 0, 0); self.set_font('Arial','B',10); self.cell(40, 6, str(sale_data.get('sale_time', '')), 0, 1)
 
-        self.ln(20) # Space before table
+        # Added Sales Person Below Time
+        self.set_xy(120, y+18)
+        self.set_font('Arial', '', 10)
+        self.cell(20, 6, "Sales By:", 0, 0); self.set_font('Arial','B',10); self.cell(40, 6, str(sale_data['sales_person'] or 'Office'), 0, 1)
+
+        self.ln(25) # Increased space before table for sales person line
         
         # 2. Product Table
         cols = ["#", "Product Name", "Qty", "Price", "Total"]
@@ -3916,7 +3921,7 @@ class PDFGenerator(FPDF):
         self.cell(widths[3], 8, "", 1, 0, 'C', True)
         self.cell(widths[4], 8, f"{sum_total:.2f}", 1, 1, 'R', True)
         
-        self.ln(5) 
+        self.ln(5)
         
         # 3. Payment Totals
         x_start = 120
@@ -3966,7 +3971,7 @@ class PDFGenerator(FPDF):
 
 
 # ==========================================
-# 2. ROUTE: OFFICE SALES (GET/POST) - Time Fixed
+# 2. ROUTE: OFFICE SALES (GET/POST) - Time Fixed & Due Note
 # ==========================================
 @app.route('/office_sales', methods=['GET', 'POST'])
 def office_sales():
@@ -3994,7 +3999,7 @@ def office_sales():
             discount = float(request.form.get('discount') or 0)
             online_amt = float(request.form.get('online') or 0)
             cash_amt = float(request.form.get('cash') or 0)
-            due_note = None 
+            due_note = request.form.get('due_note') # Capture Due Note
             
             # 3. Products
             p_ids = request.form.getlist('product_id[]')
@@ -7042,6 +7047,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
