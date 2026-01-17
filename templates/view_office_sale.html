@@ -12,8 +12,8 @@
             </p>
         </div>
         <div class="d-flex gap-2">
-            <!-- WhatsApp Share -->
-            {% set pdf_link = url_for('download_office_bill', sale_id=sale.id, _external=True) %}
+            <!-- WhatsApp Share using PUBLIC ROUTE -->
+            {% set pdf_link = url_for('download_office_bill_public', sale_id=sale.id, _external=True) %}
             {% set wa_msg = "Hello " ~ sale.customer_name ~ ", here is your Bill of Supply (Inv #" ~ sale.id ~ "). Amount Paid: ₹" ~ (sale.cash_amount + sale.online_amount) ~ ". Download Bill: " ~ pdf_link %}
             
             <a href="https://wa.me/91{{ sale.customer_mobile }}?text={{ wa_msg | urlencode }}" target="_blank" class="btn btn-success rounded-pill shadow-sm px-4">
@@ -28,12 +28,9 @@
             </a>
         </div>
     </div>
-
+    
     <div class="row g-4">
-        <!-- LEFT COLUMN: Customer & Products -->
         <div class="col-lg-8">
-            
-            <!-- Customer Info Card -->
             <div class="card border-0 shadow-sm rounded-4 mb-4">
                 <div class="card-body p-4">
                     <div class="d-flex align-items-center">
@@ -55,7 +52,6 @@
                 </div>
             </div>
 
-            <!-- Product Table -->
             <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
                 <div class="card-header bg-white border-0 py-3 px-4">
                     <h6 class="fw-bold text-secondary mb-0 text-uppercase ls-1">Items Purchased</h6>
@@ -96,16 +92,12 @@
             </div>
         </div>
 
-        <!-- RIGHT COLUMN: Financials -->
         <div class="col-lg-4">
-            
-            <!-- Payment Summary Card -->
             <div class="card border-0 shadow-sm rounded-4 mb-4">
                 <div class="card-header bg-dark text-white py-3 px-4 rounded-top-4">
                     <h6 class="fw-bold mb-0"><i class="fa-solid fa-receipt me-2"></i>Bill Summary</h6>
                 </div>
                 <div class="card-body p-4">
-                    
                     <div class="d-flex justify-content-between mb-2">
                         <span class="text-muted">Sub Total</span>
                         <span class="fw-bold">₹ {{ "%.2f"|format(sale.sub_total) }}</span>
@@ -116,14 +108,10 @@
                         <span class="fw-bold">- {{ "%.2f"|format(sale.discount) }}</span>
                     </div>
                     {% endif %}
-
-                    <!-- Net Payable -->
                     <div class="d-flex justify-content-between mb-3">
                         <span class="text-dark fw-bold small text-uppercase">Net Payable</span>
                         <span class="fw-bold fs-5 text-dark">₹ {{ "%.2f"|format(sale.final_amount) }}</span>
                     </div>
-                    
-                    <!-- Payments -->
                     <div class="p-3 bg-light rounded-3 border mb-3">
                         {% if sale.online_amount > 0 %}
                         <div class="d-flex justify-content-between mb-2 text-info">
@@ -131,7 +119,6 @@
                             <span class="fw-bold">₹ {{ "%.2f"|format(sale.online_amount) }}</span>
                         </div>
                         {% endif %}
-                        
                         {% if sale.cash_amount > 0 %}
                         <div class="d-flex justify-content-between align-items-center text-success">
                             <span><i class="fa-solid fa-money-bill-wave me-1"></i> Cash Paid</span>
@@ -139,24 +126,27 @@
                         </div>
                         {% endif %}
                     </div>
-
-                    <!-- Due Section -->
+                    
                     {% set due = sale.final_amount - (sale.cash_amount + sale.online_amount) %}
                     <div class="text-center p-3 rounded-3 {% if due > 0.01 %}bg-danger bg-opacity-10 text-danger{% else %}bg-success bg-opacity-10 text-success{% endif %}">
                         <small class="text-uppercase fw-bold ls-1 d-block mb-1">Balance Due</small>
                         <h3 class="fw-800 mb-0">₹ {{ "%.2f"|format(due) }}</h3>
+                        
+                        <!-- Due Note Display -->
+                        {% if sale.due_note %}
+                        <div class="mt-2 small text-muted border-top border-secondary border-opacity-10 pt-2">
+                            <i class="fa-solid fa-note-sticky me-1"></i> {{ sale.due_note }}
+                        </div>
+                        {% endif %}
                     </div>
-
                 </div>
             </div>
             
-            <!-- Quick Actions -->
              <div class="d-grid gap-2">
                 <a href="{{ url_for('edit_office_sale', sale_id=sale.id) }}" class="btn btn-white border shadow-sm fw-bold text-primary">
                     <i class="fa-solid fa-pen me-2"></i> Edit Bill Details
                 </a>
              </div>
-
         </div>
     </div>
 </div>
