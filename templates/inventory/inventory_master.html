@@ -8,9 +8,11 @@
             <div class="d-flex justify-content-between align-items-end">
                 <div>
                     <h3 class="fw-bold text-dark mb-0">Inventory Master</h3>
-                    <p class="text-muted small mb-0">Real-time stock management and valuation.</p>
+                    <p class="text-muted small mb-0">Track Warehouse & Allocated Stock (Two-Way).</p>
                 </div>
                 <div class="d-flex gap-2">
+                    <!-- Global Stock Adjust Page Link (Optional, if you want a separate page) -->
+                    <!-- Kept your existing print/add buttons -->
                     <button onclick="window.print()" class="btn btn-white border shadow-sm text-secondary">
                         <i class="fa-solid fa-print"></i> Print
                     </button>
@@ -22,6 +24,7 @@
         </div>
     </div>
 
+    <!-- Stats Row -->
     <div class="row g-3 mb-4">
         <div class="col-md-4">
             <div class="card glass-card border-0 p-3 h-100">
@@ -30,236 +33,197 @@
                         <i class="fa-solid fa-cubes fa-lg"></i>
                     </div>
                     <div>
-                        <h4 class="mb-0 fw-bold">{{ stats.total_items }}</h4>
-                        <small class="text-muted">Total Products</small>
+                        <p class="text-uppercase text-muted fw-bold small mb-1">Total Asset Value</p>
+                        <h4 class="fw-bold mb-0">₹ {{ "%.2f"|format(stats.total_value) }}</h4>
+                        <small class="text-muted" style="font-size: 0.7rem;">(Warehouse + Allocated)</small>
                     </div>
                 </div>
             </div>
         </div>
-        
         <div class="col-md-4">
             <div class="card glass-card border-0 p-3 h-100">
                 <div class="d-flex align-items-center">
-                    <div class="icon-box bg-success-subtle text-success rounded-circle p-3 me-3">
-                        <i class="fa-solid fa-indian-rupee-sign fa-lg"></i>
-                    </div>
-                    <div>
-                        <h4 class="mb-0 fw-bold">₹{{ "%.0f"|format(stats.total_value) }}</h4>
-                        <small class="text-muted">Total Valuation</small>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-4">
-            <div class="card glass-card border-0 p-3 h-100">
-                <div class="d-flex align-items-center">
-                    <div class="icon-box bg-danger-subtle text-danger rounded-circle p-3 me-3">
+                    <div class="icon-box bg-warning-subtle text-warning rounded-circle p-3 me-3">
                         <i class="fa-solid fa-triangle-exclamation fa-lg"></i>
                     </div>
                     <div>
-                        <h4 class="mb-0 fw-bold">{{ stats.low_stock }}</h4>
-                        <small class="text-muted">Low Stock Alerts</small>
+                        <p class="text-uppercase text-muted fw-bold small mb-1">Low Stock Items</p>
+                        <h4 class="fw-bold mb-0">{{ stats.low_stock }}</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card glass-card border-0 p-3 h-100">
+                <div class="d-flex align-items-center">
+                    <div class="icon-box bg-info-subtle text-info rounded-circle p-3 me-3">
+                        <i class="fa-solid fa-boxes-stacked fa-lg"></i>
+                    </div>
+                    <div>
+                        <p class="text-uppercase text-muted fw-bold small mb-1">Total Items</p>
+                        <h4 class="fw-bold mb-0">{{ stats.total_items }}</h4>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- Filter Bar -->
     <div class="card glass-card border-0 shadow-sm mb-4">
-        <div class="card-body py-3">
-            <div class="row g-2 align-items-center">
-                <div class="col-md-5">
+        <div class="card-body p-3">
+            <div class="row g-3">
+                <div class="col-md-4">
                     <div class="input-group">
                         <span class="input-group-text bg-white border-end-0"><i class="fa-solid fa-search text-muted"></i></span>
-                        <input type="text" id="searchInput" class="form-control border-start-0 ps-0" placeholder="Search products...">
+                        <input type="text" id="searchInput" class="form-control border-start-0" placeholder="Search products...">
                     </div>
                 </div>
                 <div class="col-md-3">
                     <select id="categoryFilter" class="form-select">
                         <option value="all">All Categories</option>
-                        {% for c in categories %}
-                            <option value="{{ c.category_name }}">{{ c.category_name }}</option>
+                        {% for cat in categories %}
+                        <option value="{{ cat.category_name }}">{{ cat.category_name }}</option>
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-md-4 text-end">
-                    <a href="{{ url_for('category_master') }}" class="btn btn-outline-dark rounded-pill btn-sm">
-                        <i class="fa-solid fa-tags me-1"></i> Manage Categories
-                    </a>
-                </div>
             </div>
         </div>
     </div>
 
-    <div class="card glass-card border-0 shadow-sm">
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table align-middle table-hover mb-0" id="inventoryTable">
-                    <thead class="bg-light text-secondary small text-uppercase">
-                        <tr>
-                            <th class="ps-4" style="width: 80px;">Image</th>
-                            <th>Product Details</th>
-                            <th>Category</th>
-                            <th style="width: 200px;">Stock Health</th>
-                            <th>Price</th>
-                            <th class="text-end pe-4" style="width: 180px;">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for p in products %}
-                        <tr class="product-row" data-category="{{ p.category_name or 'Uncategorized' }}">
-                            <td class="ps-4">
-                                <div class="avatar shadow-sm rounded-3 overflow-hidden" style="width: 50px; height: 50px;">
-                                    <img src="{{ p.image | fix_image }}" style="width: 100%; height: 100%; object-fit: cover;">
+    <!-- Products Table -->
+    <div class="card glass-card border-0 shadow-sm overflow-hidden">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light text-uppercase small text-muted">
+                    <tr>
+                        <th class="ps-4">Product Name</th>
+                        <th>Category</th>
+                        <!-- NEW COLUMNS -->
+                        <th class="text-center" style="background: #fdfdfe;">Warehouse</th>
+                        <th class="text-center" style="background: #f0f9ff;">Allocated</th>
+                        <th class="text-center">Total Health</th>
+                        <th class="text-end">Price</th>
+                        <th class="text-end pe-4">Action</th>
+                    </tr>
+                </thead>
+                <tbody id="productTableBody">
+                    {% for p in products %}
+                    <tr class="product-row" data-category="{{ p.category_name }}">
+                        <td class="ps-4">
+                            <div class="d-flex align-items-center">
+                                <img src="{{ p.image|fix_image }}" class="rounded border me-3" width="45" height="45" style="object-fit: cover;">
+                                <div>
+                                    <div class="fw-bold text-dark">{{ p.name }}</div>
+                                    <small class="text-muted">ID: #{{ p.id }}</small>
                                 </div>
-                            </td>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="badge bg-light text-secondary border">{{ p.category_name or 'Uncategorized' }}</span>
+                        </td>
+                        
+                        <!-- Warehouse Stock (Direct DB value) -->
+                        <td class="text-center" style="background: #fdfdfe;">
+                            <span class="fw-bold text-dark fs-6">{{ p.warehouse_stock }}</span>
+                            <div class="small text-muted" style="font-size: 0.65rem;">IN OFFICE</div>
+                        </td>
 
-                            <td>
-                                <div class="fw-bold text-dark">{{ p.name }}</div>
-                                <small class="text-muted">ID: #{{ p.id }}</small>
-                            </td>
+                        <!-- Allocated Stock (Calculated) -->
+                        <td class="text-center" style="background: #f0f9ff;">
+                            <span class="fw-bold text-primary fs-6">{{ p.allocated_stock }}</span>
+                            <div class="small text-primary text-opacity-75" style="font-size: 0.65rem;">IN FIELD</div>
+                        </td>
 
-                            <td>
-                                <span class="badge bg-light text-dark border fw-normal px-3 py-2 rounded-pill">
-                                    {{ p.category_name or 'Uncategorized' }}
+                        <!-- Total Health (Sum) -->
+                        <td class="text-center">
+                            {% if p.total_stock <= p.low_stock_threshold %}
+                                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger px-3 rounded-pill shadow-sm">
+                                    Low: {{ p.total_stock }}
                                 </span>
-                            </td>
+                            {% else %}
+                                <span class="badge bg-success bg-opacity-10 text-success border border-success px-3 rounded-pill shadow-sm">
+                                    Good: {{ p.total_stock }}
+                                </span>
+                            {% endif %}
+                        </td>
 
-                            <td>
-                                <div class="d-flex justify-content-between mb-1">
-                                    <span class="fw-bold {% if p.stock <= p.low_stock_threshold %}text-danger{% else %}text-dark{% endif %}">
-                                        {{ p.stock }}
-                                    </span>
-                                    <small class="text-muted">Min: {{ p.low_stock_threshold }}</small>
-                                </div>
-                                <div class="progress" style="height: 6px;">
-                                    {% set percent = (p.stock / (p.low_stock_threshold * 3)) * 100 %}
-                                    {% if percent > 100 %}{% set percent = 100 %}{% endif %}
-                                    
-                                    <div class="progress-bar {% if p.stock <= p.low_stock_threshold %}bg-danger{% else %}bg-success{% endif %}" 
-                                         role="progressbar" 
-                                         style="width: {{ percent }}%">
-                                    </div>
-                                </div>
-                            </td>
+                        <td class="text-end fw-bold text-secondary">
+                            ₹ {{ "%.2f"|format(p.price) }}
+                        </td>
+                        <td class="text-end pe-4">
+                            <div class="btn-group">
+                                <a href="{{ url_for('edit_product', product_id=p.id) }}" class="btn btn-icon btn-light-hover text-secondary" data-bs-toggle="tooltip" title="Edit">
+                                    <i class="fa-solid fa-pen"></i>
+                                </a>
 
-                            <td class="fw-bold text-secondary">₹{{ "%.2f"|format(p.price) }}</td>
+                                <!-- STOCK ADJUST TOGGLE BUTTON (Restored) -->
+                                <button type="button" 
+                                        class="btn btn-icon btn-light-hover text-primary" 
+                                        data-bs-toggle="modal" 
+                                        data-bs-target="#adjustStockModal{{p.id}}"
+                                        title="Adjust Stock">
+                                    <i class="fa-solid fa-sliders"></i>
+                                </button>
 
-                            <td class="text-end pe-4">
-                                <div class="btn-group">
-                                    <a href="{{ url_for('edit_product', product_id=p.id) }}" 
-                                       class="btn btn-icon btn-light-hover text-secondary" 
-                                       data-bs-toggle="tooltip" title="Edit">
-                                        <i class="fa-solid fa-pen"></i>
-                                    </a>
+                                <a href="{{ url_for('product_history', product_id=p.id) }}" class="btn btn-icon btn-light-hover text-info" data-bs-toggle="tooltip" title="History">
+                                    <i class="fa-solid fa-clock-rotate-left"></i>
+                                </a>
 
-                                    <button type="button" 
-                                            class="btn btn-icon btn-light-hover text-primary" 
-                                            data-bs-toggle="modal" 
-                                            data-bs-target="#adjustStockModal{{p.id}}"
-                                            title="Adjust Stock">
-                                        <i class="fa-solid fa-sliders"></i>
+                                <form action="{{ url_for('delete_product', id=p.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this product?');">
+                                    <button class="btn btn-icon btn-light-hover text-danger" title="Delete">
+                                        <i class="fa-solid fa-trash"></i>
                                     </button>
-
-                                    <a href="{{ url_for('product_history', product_id=p.id) }}" 
-                                       class="btn btn-icon btn-light-hover text-info" 
-                                       data-bs-toggle="tooltip" title="History">
-                                        <i class="fa-solid fa-clock-rotate-left"></i>
-                                    </a>
-
-                                    <form action="{{ url_for('delete_product', id=p.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this product?');">
-                                        <button class="btn btn-icon btn-light-hover text-danger" title="Delete">
-                                            <i class="fa-solid fa-trash"></i>
-                                        </button>
-                                    </form>
-                                </div>
-                            </td>
-                        </tr>
-
-                        <div class="modal fade" id="adjustStockModal{{p.id}}" tabindex="-1">
-                            <div class="modal-dialog modal-dialog-centered">
-                                <form action="{{ url_for('stock_adjust') }}" method="POST">
-                                    <div class="modal-content glass-card border-0">
-                                        <div class="modal-header border-0">
-                                            <h6 class="modal-title fw-bold">Adjust Stock: {{ p.name }}</h6>
-                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                        </div>
-                                        <div class="modal-body">
-                                            <input type="hidden" name="product_id" value="{{ p.id }}">
-                                            
-                                            <div class="btn-group w-100 mb-3" role="group">
-                                                <input type="radio" class="btn-check" name="adjustment_type" id="add{{p.id}}" value="add" checked>
-                                                <label class="btn btn-outline-success" for="add{{p.id}}">+ Add</label>
-                                            
-                                                <input type="radio" class="btn-check" name="adjustment_type" id="sub{{p.id}}" value="subtract">
-                                                <label class="btn btn-outline-danger" for="sub{{p.id}}">- Remove</label>
-                                            </div>
-
-                                            <div class="form-floating mb-3">
-                                                <input type="number" name="quantity" class="form-control" id="qty{{p.id}}" placeholder="0" required>
-                                                <label for="qty{{p.id}}">Quantity</label>
-                                            </div>
-
-                                            <div class="form-floating">
-                                                <input type="text" name="reason" class="form-control" id="reason{{p.id}}" placeholder="Reason" required>
-                                                <label for="reason{{p.id}}">Reason (e.g. Damage, New Stock)</label>
-                                            </div>
-                                        </div>
-                                        <div class="modal-footer border-0">
-                                            <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
-                                            <button type="submit" class="btn btn-dark">Confirm</button>
-                                        </div>
-                                    </div>
                                 </form>
                             </div>
-                        </div>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+
+                            <!-- Modal for Stock Adjust -->
+                            <div class="modal fade" id="adjustStockModal{{p.id}}" tabindex="-1">
+                                <div class="modal-dialog modal-dialog-centered">
+                                    <form action="{{ url_for('stock_adjust') }}" method="POST">
+                                        <div class="modal-content glass-card border-0">
+                                            <div class="modal-header border-0">
+                                                <h6 class="modal-title fw-bold">Adjust Stock: {{ p.name }}</h6>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                            </div>
+                                            <div class="modal-body text-start">
+                                                <input type="hidden" name="product_id" value="{{ p.id }}">
+                                                
+                                                <div class="btn-group w-100 mb-3" role="group">
+                                                    <input type="radio" class="btn-check" name="adjustment_type" id="add{{p.id}}" value="add" checked>
+                                                    <label class="btn btn-outline-success" for="add{{p.id}}">+ Add</label>
+                                                    
+                                                    <input type="radio" class="btn-check" name="adjustment_type" id="sub{{p.id}}" value="subtract">
+                                                    <label class="btn btn-outline-danger" for="sub{{p.id}}">- Remove</label>
+                                                </div>
+
+                                                <div class="form-floating mb-3">
+                                                    <input type="number" name="quantity" class="form-control" id="qty{{p.id}}" placeholder="0" required>
+                                                    <label for="qty{{p.id}}">Quantity</label>
+                                                </div>
+
+                                                <div class="form-floating">
+                                                    <input type="text" name="reason" class="form-control" id="reason{{p.id}}" placeholder="Reason" required>
+                                                    <label for="reason{{p.id}}">Reason (e.g. Damage, New Stock)</label>
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer border-0">
+                                                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                                                <button type="submit" class="btn btn-dark">Confirm</button>
+                                            </div>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="7" class="text-center py-5 text-muted">No products found.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
-
-<style>
-    /* Styling for the new Modern Look */
-    .glass-card {
-        background: #ffffff;
-        border-radius: 16px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.03);
-    }
-    .icon-box {
-        width: 50px;
-        height: 50px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-    .btn-icon {
-        border: none;
-        background: transparent;
-        padding: 6px 10px;
-        transition: all 0.2s;
-        border-radius: 8px;
-    }
-    .btn-icon:hover {
-        background-color: #f3f4f6;
-        transform: translateY(-2px);
-    }
-    .btn-light-hover:hover.text-danger { color: #dc3545 !important; background: #ffe6e6; }
-    .btn-light-hover:hover.text-primary { color: #0d6efd !important; background: #e6f0ff; }
-    .btn-light-hover:hover.text-info { color: #0dcaf0 !important; background: #e6fcff; }
-
-    /* Fade In Animation */
-    .fade-in-up {
-        animation: fadeInUp 0.5s ease-out;
-    }
-    @keyframes fadeInUp {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-</style>
 
 <script>
     // Initialize Tooltips
@@ -295,5 +259,19 @@
     searchInput.addEventListener('keyup', filterProducts);
     categoryFilter.addEventListener('change', filterProducts);
 </script>
-{% endblock %}
 
+<style>
+    .glass-card { background: #fff; border-radius: 12px; }
+    .bg-primary-subtle { background-color: rgba(13, 110, 253, 0.1); }
+    .text-primary { color: #0d6efd !important; }
+    .table-hover tbody tr:hover { background-color: rgba(0,0,0,0.02); }
+    .fade-in-up { animation: fadeInUp 0.5s ease-out; }
+    @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    
+    .btn-icon { border: none; background: transparent; padding: 6px 10px; transition: all 0.2s; border-radius: 8px; }
+    .btn-icon:hover { background-color: #f3f4f6; transform: translateY(-2px); }
+    .btn-light-hover:hover.text-danger { color: #dc3545 !important; background: #ffe6e6; }
+    .btn-light-hover:hover.text-primary { color: #0d6efd !important; background: #e6f0ff; }
+    .btn-light-hover:hover.text-info { color: #0dcaf0 !important; background: #e6fcff; }
+</style>
+{% endblock %}
