@@ -5387,7 +5387,6 @@ def fetch_morning_allocation():
     finally:
         if 'cur' in locals(): cur.close()
 
-
 # ==========================================
 # 1. EDIT MORNING ALLOCATION (With Strict Inventory Sync)
 # ==========================================
@@ -5701,7 +5700,6 @@ def admin_evening_master():
                            filters={'start': start_date, 'end': end_date, 'emp': emp_filter})
 
 
-
 # ==========================================
 # 3. EDIT EVENING SETTLEMENT (Stock Return Logic)
 # ==========================================
@@ -5809,6 +5807,7 @@ def admin_edit_evening(settle_id):
     cur.close()
     
     return render_template('edit_evening_settle.html', settlement=settlement, items=items)
+
 
 
 # ==========================================
@@ -7111,6 +7110,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
