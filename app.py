@@ -5388,9 +5388,8 @@ def fetch_morning_allocation():
         if 'cur' in locals(): cur.close()
 
 
-
 # ==========================================
-# 1. EDIT MORNING ALLOCATION (With Inventory Sync)
+# 1. EDIT MORNING ALLOCATION (With Strict Inventory Sync)
 # ==========================================
 @app.route('/morning/edit/<int:allocation_id>', methods=['GET', 'POST'])
 def edit_morning_allocation(allocation_id):
@@ -5400,7 +5399,7 @@ def edit_morning_allocation(allocation_id):
     try:
         db_cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
         
-        # Security Check: Cannot edit if Evening Settlement is done
+        # Security Check
         db_cursor.execute("SELECT id FROM evening_settle WHERE allocation_id = %s", (allocation_id,))
         if db_cursor.fetchone():
             flash("Cannot edit: Evening settlement already submitted.", "warning")
@@ -5414,20 +5413,22 @@ def edit_morning_allocation(allocation_id):
             given_qtys = request.form.getlist('given[]')
             prices = request.form.getlist('price[]')
 
-            # 1. Fetch ALL existing items for this allocation to handle deletions
+            # 1. Fetch current DB state (Snapshot before changes)
             db_cursor.execute("SELECT id, product_id, given_qty FROM morning_allocation_items WHERE allocation_id = %s", (allocation_id,))
             existing_items_map = {str(row['id']): row for row in db_cursor.fetchall()}
             
             # IDs present in the submitted form
-            submitted_item_ids = set([iid for iid in item_ids if iid != 'new_item'])
+            # Filter out 'new_item' and empty strings
+            submitted_item_ids = set([str(iid) for iid in item_ids if iid and iid != 'new_item'])
 
-            # 2. HANDLE DELETIONS (Items in DB but not in Form)
+            # 2. HANDLE DELETIONS (Items in DB but MISSING in Form)
             for db_id, db_item in existing_items_map.items():
                 if db_id not in submitted_item_ids:
-                    # Restore Stock
+                    # Restore Stock (The logic you requested)
                     qty_to_restore = int(db_item['given_qty'])
                     if qty_to_restore > 0:
                         db_cursor.execute("UPDATE products SET stock = stock + %s WHERE id = %s", (qty_to_restore, db_item['product_id']))
+                    
                     # Delete Record
                     db_cursor.execute("DELETE FROM morning_allocation_items WHERE id = %s", (db_id,))
 
@@ -5435,46 +5436,54 @@ def edit_morning_allocation(allocation_id):
             for i, pid in enumerate(product_ids):
                 if not pid: continue
                 
-                item_id = item_ids[i]
+                item_id = str(item_ids[i])
                 op_qty = int(opening_qtys[i] or 0)
                 gv_qty = int(given_qtys[i] or 0)
                 price = float(prices[i] or 0)
 
                 if item_id == 'new_item':
-                    # INSERT NEW
+                    # INSERT NEW: Deduct Stock
                     db_cursor.execute("""
                         INSERT INTO morning_allocation_items 
                         (allocation_id, product_id, opening_qty, given_qty, unit_price)
                         VALUES (%s, %s, %s, %s, %s)
                     """, (allocation_id, pid, op_qty, gv_qty, price))
                     
-                    # Deduct from Stock
                     if gv_qty > 0:
                         db_cursor.execute("UPDATE products SET stock = stock - %s WHERE id = %s", (gv_qty, pid))
                 
                 elif item_id in existing_items_map:
-                    # UPDATE EXISTING
+                    # UPDATE EXISTING: Adjust Stock Difference
                     old_data = existing_items_map[item_id]
                     old_given = int(old_data['given_qty'])
                     
-                    # Calculate Difference
-                    diff = gv_qty - old_given
-                    
+                    # If Product ID changed, restore old product stock and deduct new product stock
+                    # (Edge case: User swaps product in dropdown)
+                    old_pid = str(old_data['product_id'])
+                    if old_pid != str(pid):
+                        # Restore old
+                        if old_given > 0:
+                            db_cursor.execute("UPDATE products SET stock = stock + %s WHERE id = %s", (old_given, old_pid))
+                        # Deduct new
+                        if gv_qty > 0:
+                            db_cursor.execute("UPDATE products SET stock = stock - %s WHERE id = %s", (gv_qty, pid))
+                    else:
+                        # Same product, just qty change
+                        diff = gv_qty - old_given
+                        if diff != 0:
+                            db_cursor.execute("UPDATE products SET stock = stock - %s WHERE id = %s", (diff, pid))
+
                     db_cursor.execute("""
                         UPDATE morning_allocation_items 
                         SET product_id=%s, opening_qty=%s, given_qty=%s, unit_price=%s
                         WHERE id=%s
                     """, (pid, op_qty, gv_qty, price, item_id))
-                    
-                    # Adjust Stock (If given more, diff is positive -> subtract from stock)
-                    if diff != 0:
-                        db_cursor.execute("UPDATE products SET stock = stock - %s WHERE id = %s", (diff, pid))
 
             mysql.connection.commit()
             flash("Allocation updated successfully!", "success")
             return redirect(url_for('allocation_list'))
 
-        # GET Request Logic
+        # GET Request
         db_cursor.execute("""
             SELECT ma.*, e.name as employee_name, e.image as emp_image 
             FROM morning_allocations ma
@@ -5519,7 +5528,10 @@ def edit_morning_allocation(allocation_id):
         if db_cursor: db_cursor.close()
 
 
-# --- DELETE ALLOCATION ROUTE ---
+
+# ==========================================
+# 2. DELETE ALLOCATION (With Inventory Restore)
+# ==========================================
 @app.route('/morning/delete/<int:id>', methods=['POST'])
 def delete_allocation(id):
     if "loggedin" not in session: return redirect(url_for("login"))
@@ -5558,7 +5570,6 @@ def delete_allocation(id):
         cursor.close()
         
     return redirect(url_for('allocation_list'))
-
 
 # ---------------------------------------------------------
 # 3. EVENING MASTER (History & Drafts) - WITH FILTERS
@@ -5692,7 +5703,7 @@ def admin_evening_master():
 
 
 # ==========================================
-# 2. EDIT EVENING SETTLEMENT (With Inventory Sync)
+# 3. EDIT EVENING SETTLEMENT (Stock Return Logic)
 # ==========================================
 @app.route('/admin/evening/edit/<int:settle_id>', methods=['GET', 'POST'])
 def admin_edit_evening(settle_id):
@@ -5702,7 +5713,7 @@ def admin_edit_evening(settle_id):
     
     if request.method == 'POST':
         try:
-            # 1. Fetch Old Data to compare stock changes
+            # 1. Fetch Old Data
             cur.execute("SELECT * FROM evening_item WHERE settle_id = %s", (settle_id,))
             old_items_map = {item['product_id']: item for item in cur.fetchall()}
             
@@ -5712,7 +5723,6 @@ def admin_edit_evening(settle_id):
             online = float(request.form.get('online') or 0)
             discount = float(request.form.get('discount') or 0)
             
-            # Ledger Data
             emp_c = float(request.form.get('emp_credit_amount') or 0)
             emp_c_n = request.form.get('emp_credit_note')
             emp_d = float(request.form.get('emp_debit_amount') or 0)
@@ -5731,32 +5741,20 @@ def admin_edit_evening(settle_id):
                 
                 if pid in old_items_map:
                     old_item = old_items_map[pid]
-                    old_sold = int(old_item['sold_qty'])
                     old_ret = int(old_item['return_qty'])
-                    total_qty = int(old_item['total_qty']) # Usually static in edit mode
+                    total_qty = int(old_item['total_qty']) 
                     
-                    # Logic:
-                    # 1. Sold Change: (Old - New) -> Add/Subtract from Stock? 
-                    # Actually, Sold doesn't affect Main Inventory (it's gone). 
-                    # BUT Return affects Main Inventory.
-                    # Wait, if I sold LESS, it means I have MORE 'Left'.
-                    # 'Left' implies it stays with Employee? OR does it return to stock?
-                    # STANDARD LOGIC: 
-                    # - Sold items leave inventory permanently (handled during allocation or confirmation).
-                    # - Returned items go BACK to inventory.
-                    
-                    # CHANGE: In 'evening' submit logic, we do: 
-                    # "if ret > 0: UPDATE products SET stock = stock + ret"
-                    # So here, we must adjust based on difference in RETURNS.
+                    # Logic: Only changes in RETURN quantity affect Warehouse Stock here.
+                    # Because Sales are deducted from Employee's 'Allocated Stock', not Warehouse (that happened in Morning).
+                    # Returns go back to Warehouse.
                     
                     diff_return = new_ret - old_ret
                     
                     if diff_return != 0:
-                        # If I return MORE now (diff > 0), Stock should INCREASE.
-                        # If I return LESS now (diff < 0), Stock should DECREASE (I took it back/sold it).
+                        # If I return MORE (positive diff), Add to Warehouse.
+                        # If I return LESS (negative diff), Remove from Warehouse (oops, I actually sold it).
                         cur.execute("UPDATE products SET stock = stock + %s WHERE id = %s", (diff_return, pid))
                     
-                    # Recalculate Remaining
                     new_remain = total_qty - new_sold - new_ret
                     if new_remain < 0: new_remain = 0
                     
@@ -5766,7 +5764,7 @@ def admin_edit_evening(settle_id):
                         WHERE id=%s
                     """, (new_sold, new_ret, new_remain, old_item['id']))
 
-            # 3. Update Settlement Header
+            # 3. Update Header
             cur.execute("""
                 UPDATE evening_settle 
                 SET total_amount=%s, cash_money=%s, online_money=%s, discount=%s,
@@ -5794,7 +5792,6 @@ def admin_edit_evening(settle_id):
     """, (settle_id,))
     settlement = cur.fetchone()
     
-    # Format Date for Display (dd-mm-yyyy)
     if settlement and settlement.get('date'):
         settlement['formatted_date'] = settlement['date'].strftime('%d-%m-%Y')
     
@@ -5811,10 +5808,12 @@ def admin_edit_evening(settle_id):
         
     cur.close()
     
-    return render_template('admin/edit_evening_settle.html', settlement=settlement, items=items)
+    return render_template('edit_evening_settle.html', settlement=settlement, items=items)
 
 
-# --- THE REQUESTED FIX: DELETE & REVERT STOCK ---
+# ==========================================
+# 4. DELETE EVENING SETTLEMENT (Reverse Returns)
+# ==========================================
 @app.route('/admin/evening/delete/<int:settle_id>', methods=['POST'])
 def admin_delete_evening(settle_id):
     if "loggedin" not in session: return redirect(url_for("login"))
@@ -5823,19 +5822,17 @@ def admin_delete_evening(settle_id):
     cursor = conn.cursor(MySQLdb.cursors.DictCursor)
     try:
         # 1. Fetch Items to Reverse Returns
+        # When deleting a settlement, we must "UNDO" the returns.
+        # Returns ADDED to stock. So Deleting means REMOVING from stock.
         cursor.execute("SELECT product_id, return_qty FROM evening_item WHERE settle_id = %s", (settle_id,))
         items = cursor.fetchall()
 
-        # 2. Subtract Returns FROM Stock (because we are undoing the return)
         for item in items:
             if item['return_qty'] > 0:
                 cursor.execute("UPDATE products SET stock = stock - %s WHERE id = %s", 
                                (item['return_qty'], item['product_id']))
 
-        # 3. Delete Record (and Ledger entries ideally, but cascading handles FK if set, otherwise manual delete)
-        # Note: If your DB has FK constraints on ledger linked to settle_id, good. 
-        # If not, you might have orphan ledger entries. Ideally delete those too based on description parsing or adding a link column.
-        
+        # 2. Delete Record
         cursor.execute("DELETE FROM evening_settle WHERE id = %s", (settle_id,))
         
         conn.commit()
@@ -7114,6 +7111,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
