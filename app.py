@@ -358,6 +358,7 @@ def edit_office_sale(sale_id):
             c_name = request.form.get('customer_name')
             c_mobile = request.form.get('customer_mobile')
             c_addr = request.form.get('customer_address')
+            sales_person = request.form.get('sales_person')
             
             b_date_str = request.form.get('bill_date')
             try: bill_date = datetime.strptime(b_date_str, '%d-%m-%Y').strftime('%Y-%m-%d')
@@ -366,6 +367,7 @@ def edit_office_sale(sale_id):
             discount = float(request.form.get('discount') or 0)
             online_amt = float(request.form.get('online') or 0)
             cash_amt = float(request.form.get('cash') or 0)
+            due_note = request.form.get('due_note') 
             
             p_ids = request.form.getlist('product_id[]')
             qtys = request.form.getlist('qty[]')
@@ -400,10 +402,10 @@ def edit_office_sale(sale_id):
             # 4. Update Header
             cursor.execute("""
                 UPDATE office_sales 
-                SET customer_name=%s, customer_mobile=%s, customer_address=%s, sale_date=%s,
-                    sub_total=%s, discount=%s, online_amount=%s, cash_amount=%s, final_amount=%s
+                SET customer_name=%s, customer_mobile=%s, customer_address=%s, sales_person=%s, sale_date=%s,
+                    sub_total=%s, discount=%s, online_amount=%s, cash_amount=%s, final_amount=%s, due_note=%s
                 WHERE id=%s
-            """, (c_name, c_mobile, c_addr, bill_date, total_amt, discount, online_amt, cash_amt, final_amt, sale_id))
+            """, (c_name, c_mobile, c_addr, sales_person, bill_date, total_amt, discount, online_amt, cash_amt, final_amt, due_note, sale_id))
             
             conn.commit()
             flash("Sale Updated Successfully!", "success")
@@ -3969,9 +3971,8 @@ class PDFGenerator(FPDF):
         self.set_xy(130, y_pos + 15)
         self.cell(50, 5, "(Authorized Signatory)", 0, 1, 'C')
 
-
 # ==========================================
-# 2. ROUTE: OFFICE SALES (GET/POST) - Time Fixed & Due Note
+# 2. ROUTE: OFFICE SALES (GET/POST) - Time Fixed
 # ==========================================
 @app.route('/office_sales', methods=['GET', 'POST'])
 def office_sales():
@@ -3999,7 +4000,7 @@ def office_sales():
             discount = float(request.form.get('discount') or 0)
             online_amt = float(request.form.get('online') or 0)
             cash_amt = float(request.form.get('cash') or 0)
-            due_note = request.form.get('due_note') # Capture Due Note
+            due_note = request.form.get('due_note') 
             
             # 3. Products
             p_ids = request.form.getlist('product_id[]')
@@ -4069,6 +4070,7 @@ def office_sales():
         p['image'] = resolve_img(p['image'])
 
     return render_template('office_sales.html', products=products, today=date.today().strftime('%d-%m-%Y'))
+
 
 # ==========================================
 # 3. ROUTE: DOWNLOAD OFFICE BILL PDF
@@ -7047,6 +7049,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
