@@ -166,12 +166,12 @@
                 <!-- ACTIONS -->
                 <div class="card-footer d-flex justify-content-between">
 
-                    <form action="{{ url_for('delete_product', id=product.id) }}"
+                    <!-- UPDATED: SOFT DELETE ACTION -->
+                    <form action="{{ url_for('delete_product_soft', id=product.id) }}"
                           method="POST"
-                          onsubmit="return confirm('Delete this product?');">
+                          onsubmit="return confirm('Archive this product? It will be hidden from lists.');">
                         <button class="btn btn-sm btn-outline-danger">
-                            <i class="bi bi-trash"></i> Delete
-                            
+                            <i class="bi bi-archive"></i> Archive
                         </button>
                     </form>
 
@@ -198,6 +198,7 @@
 <script src="{{ url_for('static', filename='js/inventory_add_edit.js') }}"></script>
 
 {% endblock %}
+
 
 
 
