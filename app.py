@@ -2205,6 +2205,13 @@ def inventory_master():
 
         # Step 1: Check if there is a Morning Allocation for TODAY
         # This table contains the latest snapshot: Opening (Yesterday's Left) + Given (Today's New)
+        # Note: If multiple restocks happened, we might have multiple rows per product if we didn't merge them.
+        # But our morning route logic merges them.
+        # However, to be safe, we SUM() opening and given.
+        # WAIT: Opening is fixed for the day. Given is cumulative.
+        # So we should take MAX(opening) + SUM(given)? No, opening is per line item.
+        # Our morning route logic ensures one row per product per allocation.
+        
         cur.execute("""
             SELECT mai.product_id, mai.opening_qty, mai.given_qty
             FROM morning_allocation_items mai
@@ -2216,9 +2223,11 @@ def inventory_master():
         
         if today_allocations:
             # SCENARIO A: Form exists today. Use (Opening + Given) logic.
+            # We iterate through all items allocated today.
             for item in today_allocations:
                 pid = item['product_id']
                 # Opening (Purana) + Given (Naya) = Total Current Holding
+                # This matches the "Total" column in Morning Page.
                 total = int(item['opening_qty']) + int(item['given_qty'])
                 
                 # Check Evening Sales for TODAY to deduct Sold items live (Optional but accurate)
@@ -2236,7 +2245,11 @@ def inventory_master():
                     total -= int(sold_data['sold_qty'])
 
                 if total > 0:
-                    emp_stock[pid] = total
+                    # If multiple rows exist (rare/error case), we add. Ideally should be one.
+                    if pid in emp_stock:
+                        emp_stock[pid] += total
+                    else:
+                        emp_stock[pid] = total
         else:
             # SCENARIO B: No form today. Fallback to Last Settlement Closing.
             cur.execute("""
@@ -2285,7 +2298,7 @@ def inventory_master():
     
     cur.close()
 
-    return render_template('inventory/inventory_master.html', 
+    return render_template('inventory_master.html', 
                            products=products, 
                            categories=categories,
                            stats={
@@ -2293,6 +2306,10 @@ def inventory_master():
                                "low_stock": low_stock_count,
                                "total_items": total_items
                            })
+
+
+
+
 
 
 # =========================================================
@@ -7093,6 +7110,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
