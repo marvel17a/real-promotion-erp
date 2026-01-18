@@ -5826,9 +5826,8 @@ def admin_edit_evening(settle_id):
 
 
 
-
 # ==========================================
-# 6. DELETE EVENING (Undo Returns & Sales)
+# 6. DELETE EVENING (Standard UNDO + Ledger Delete)
 # ==========================================
 @app.route('/admin/evening/delete/<int:settle_id>', methods=['POST'])
 def admin_delete_evening(settle_id):
@@ -5838,8 +5837,8 @@ def admin_delete_evening(settle_id):
     cursor = conn.cursor(MySQLdb.cursors.DictCursor)
     try:
         # 1. Fetch Items to Reverse Returns
-        # Logic: Settlement said "Returned X". Deleting it means "Return X didn't happen".
-        # So, Remove X from Warehouse.
+        # We need to subtract the returned quantity from the warehouse because 
+        # the settlement (which added it) is being deleted.
         cursor.execute("SELECT product_id, return_qty FROM evening_item WHERE settle_id = %s", (settle_id,))
         items = cursor.fetchall()
 
@@ -5847,28 +5846,17 @@ def admin_delete_evening(settle_id):
             ret = int(item['return_qty'])
             if ret > 0:
                 cursor.execute("UPDATE products SET stock = stock - %s WHERE id = %s", (ret, item['product_id']))
-                
-        # Logic for Sales:
-        # Settlement said "Sold Y". Deleting it means "Sale Y didn't happen".
-        # Since Sales came from "Allocated Stock" (Employee's hand), deleting the settlement
-        # implicitly puts them back into "Allocated Stock" because the Morning Allocation
-        # (which gave the stock) is still valid and active.
-        # The 'inventory_master' logic will see "No Evening Settlement" and fallback to 
-        # "Morning Opening + Given", which includes the unsold items.
-        # So NO warehouse update needed for Sales.
 
-        # 2. Delete Record
+        # 2. Delete Ledger Entries (Financial Reversal)
+        # Using the description pattern "Credit #{id}:..." or "Debit #{id}:..."
+        cursor.execute("DELETE FROM employee_transactions WHERE description LIKE %s", (f"%#{settle_id}:%",))
+
+        # 3. Delete Record
         cursor.execute("DELETE FROM evening_item WHERE settle_id = %s", (settle_id,))
         cursor.execute("DELETE FROM evening_settle WHERE id = %s", (settle_id,))
         
-        # Also delete associated ledger entries to keep finance accurate
-        # Assuming description contains "Evening Settle" or we can link via ID if column exists.
-        # Best effort deletion based on description/date/employee if no FK.
-        # But if you have 'description' like "Credit #ID...", we can try:
-        # cursor.execute("DELETE FROM employee_transactions WHERE description LIKE %s", (f"%#{settle_id}%",))
-        
         conn.commit()
-        flash("Settlement Deleted. Returns reversed from warehouse. Stock marked as allocated.", "success")
+        flash("Settlement Deleted. Returns removed from warehouse. Ledger entries removed.", "success")
     except Exception as e:
         conn.rollback()
         flash(f"Delete Error: {e}", "danger")
@@ -7143,6 +7131,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
