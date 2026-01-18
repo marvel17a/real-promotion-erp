@@ -92,9 +92,9 @@
     /* Selection States - As Requested: Credit Red, Debit Green */
     /* Credit Card (Red Theme) */
     .type-radio:checked + .type-card.credit-card {
-        border-color: #ef4444;
-        background: #fef2f2; /* Light Red Background */
-        color: #b91c1c;
+        border-color: green;
+        background: light green; /* Light Red Background */
+        color: green;
     }
     .type-radio:checked + .type-card.credit-card i {
         color: #ef4444;
@@ -103,9 +103,9 @@
     
     /* Debit Card (Green Theme) */
     .type-radio:checked + .type-card.debit-card {
-        border-color: #10b981;
-        background: #ecfdf5; /* Light Green Background */
-        color: #047857;
+        border-color: red;
+        background: red; /* Light Green Background */
+        color: red;
     }
     .type-radio:checked + .type-card.debit-card i {
         color: #10b981;
@@ -113,8 +113,8 @@
     }
 
     /* Unselected State Icons */
-    .type-card.credit-card i { color: #fca5a5; }
-    .type-card.debit-card i { color: #6ee7b7; }
+    .type-card.credit-card i { color: green; }
+    .type-card.debit-card i { color: red; }
 
 
     /* Input Styling */
@@ -296,3 +296,4 @@
     });
 </script>
 {% endblock %}
+
