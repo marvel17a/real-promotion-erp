@@ -299,7 +299,7 @@
             <!-- Due -> Red Style with Minus Sign -->
             <div class="kpi-card card-balance is-due">
                 <div class="kpi-label">
-                    <i class="fa-solid fa-circle-exclamation"></i> Net Pending (Due)
+                    <i class="fa-solid fa-circle-exclamation"></i> Pending Balance (Due)
                 </div>
                 <div class="kpi-value">- {{ final_balance|abs|inr }}</div>
             </div>
@@ -307,7 +307,7 @@
             <!-- Advance -> Green Style -->
             <div class="kpi-card card-balance is-advance">
                 <div class="kpi-label">
-                    <i class="fa-solid fa-wallet"></i> Advance Balance
+                    <i class="fa-solid fa-wallet"></i> Account Balance
                 </div>
                 <div class="kpi-value">{{ final_balance|abs|inr }}</div>
             </div>
@@ -470,3 +470,4 @@
     }
 </script>
 {% endblock %}
+
