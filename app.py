@@ -103,6 +103,44 @@ def parse_date_input(date_str):
         # Return as-is if it fails (might already be correct or None)
         return date_str
 
+
+
+# ==========================================
+# SOFT DELETE PRODUCT (Safe Delete)
+# ==========================================
+@app.route('/products/delete/soft/<int:id>', methods=['POST'])
+def delete_product_soft(id):
+    if "loggedin" not in session:
+        return redirect(url_for("login"))
+        
+    cursor = None
+    try:
+        cursor = mysql.connection.cursor()
+        
+        # SOFT DELETE LOGIC:
+        # Instead of removing the record, we mark it as 'inactive'.
+        # This preserves all historical data (sales, purchases, allocations).
+        
+        # Check if status column exists (Optional safety, or assume DB is updated)
+        # We assume the column 'status' exists.
+        
+        cursor.execute("UPDATE products SET status = 'inactive' WHERE id = %s", (id,))
+        
+        mysql.connection.commit()
+        flash("Product archived successfully! (Safe Delete)", "success")
+        
+    except Exception as e:
+        mysql.connection.rollback()
+        print(f"Error soft deleting product {id}: {e}") 
+        flash(f"Error archiving product: {e}", "danger")
+        
+    finally:
+        if cursor:
+            cursor.close()
+            
+    # Redirect back to the referrer page (inventory or inventory_master)
+    return redirect(request.referrer or url_for('inventory_master'))
+
 # --- VIEW EVENING SETTLEMENT DETAILS ---
 @app.route('/evening/view/<int:settle_id>')
 def view_evening_settlement(settle_id):
@@ -7131,6 +7169,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
