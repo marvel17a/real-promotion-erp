@@ -2445,28 +2445,35 @@ def product_history(product_id):
 
     return render_template('inventory/product_history.html', product=product, history=history)
 
+# =========================================================
+#  UPDATED INVENTORY PAGE (Correct Total Stock Logic)
+# =========================================================
 @app.route('/inventory')
 def inventory():
     if "loggedin" not in session:
         return redirect(url_for("login"))
 
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
-    # 1) Fetch all products
-    cursor.execute("SELECT * FROM products ORDER BY id DESC")
-    products = cursor.fetchall()
+    # 1) Fetch all ACTIVE products
+    try:
+        cur.execute("SELECT * FROM products WHERE status = 'active' ORDER BY id DESC")
+    except:
+        cur.execute("SELECT * FROM products ORDER BY id DESC")
+    products = cur.fetchall()
 
-    # 2) Fetch categories to build map {id: name}
-    cursor.execute("SELECT id, category_name FROM product_categories")
-    categories = cursor.fetchall()
+    # 2) Fetch categories
+    cur.execute("SELECT id, category_name FROM product_categories")
+    categories = cur.fetchall()
     categories_map = {c['id']: c['category_name'] for c in categories}
 
-    # --- 3) Calculate Allocated Stock (Logic from Inventory Master) ---
+    # --- 3) Calculate Allocated Stock (Field Stock) ---
+    # Logic: Allocated = (Morning Opening + Morning Given) - Evening Sold
     allocated_map = {} 
     
     # Get active employees
-    cursor.execute("SELECT id FROM employees WHERE status='active'")
-    employees = cursor.fetchall()
+    cur.execute("SELECT id FROM employees WHERE status='active'")
+    employees = cur.fetchall()
     
     today_str = date.today().strftime('%Y-%m-%d')
     
@@ -2474,8 +2481,8 @@ def inventory():
         eid = emp['id']
         emp_stock = {} 
         
-        # Step 1: Get Total Holdings (Opening + Given) from Morning Allocations
-        cursor.execute("""
+        # Step A: Get Total Holdings (Opening + Given) from Morning Allocations
+        cur.execute("""
             SELECT mai.product_id, SUM(mai.opening_qty) as total_opening, SUM(mai.given_qty) as total_given
             FROM morning_allocation_items mai
             JOIN morning_allocations ma ON mai.allocation_id = ma.id
@@ -2483,66 +2490,76 @@ def inventory():
             GROUP BY mai.product_id
         """, (eid, today_str))
         
-        holdings = cur_holdings = cursor.fetchall()
+        holdings = cur.fetchall()
         
-        # Step 2: Get Total Sold from Evening Settlement (if any) to deduct
-        cursor.execute("""
+        # Step B: Get Total Sold from Evening Settlement (if any) to deduct
+        cur.execute("""
             SELECT ei.product_id, SUM(ei.sold_qty) as total_sold
             FROM evening_item ei
             JOIN evening_settle es ON ei.settle_id = es.id
             WHERE es.employee_id = %s AND es.date = %s
             GROUP BY ei.product_id
         """, (eid, today_str))
-        sales_map = {row['product_id']: int(row['total_sold']) for row in cursor.fetchall()}
+        sales_map = {row['product_id']: int(row['total_sold']) for row in cur.fetchall()}
 
-        if cur_holdings:
-            for item in cur_holdings:
+        if holdings:
+            # SCENARIO: Morning Allocation Exists
+            for item in holdings:
                 pid = item['product_id']
                 total = int(item['total_opening']) + int(item['total_given'])
+                
+                # Subtract Sales
                 sold = sales_map.get(pid, 0)
                 total -= sold
+                
                 if total > 0: emp_stock[pid] = total
         else:
-            # Fallback to Last Settlement
-            cursor.execute("""
+            # SCENARIO: No Morning Allocation today. Fallback to Last Settlement.
+            cur.execute("""
                 SELECT id FROM evening_settle 
                 WHERE employee_id=%s AND status='final' AND date < %s
                 ORDER BY date DESC LIMIT 1
             """, (eid, today_str))
-            last_settle = cursor.fetchone()
+            last_settle = cur.fetchone()
+            
             if last_settle:
-                cursor.execute("SELECT product_id, remaining_qty FROM evening_item WHERE settle_id=%s", (last_settle['id'],))
-                for row in cursor.fetchall():
+                cur.execute("SELECT product_id, remaining_qty FROM evening_item WHERE settle_id=%s", (last_settle['id'],))
+                for row in cur.fetchall():
                     pid = row['product_id']
                     qty = int(row['remaining_qty'])
-                    if qty > 0: emp_stock[pid] = qty
+                    if qty > 0:
+                        emp_stock[pid] = qty
 
+        # Add this employee's stock to the global map
         for pid, qty in emp_stock.items():
             if pid in allocated_map: allocated_map[pid] += qty
             else: allocated_map[pid] = qty
     # -------------------------------------------------------------
 
-    # 4) Calculate Stats (Using Total = Warehouse + Allocated)
+    # 4) Calculate Stats & Update Product Objects
     total_value = 0
     low_stock_count = 0
     out_stock_count = 0
 
     for p in products:
         price = p.get('price', 0) or 0
-        warehouse_stock = p.get('stock', 0) or 0
+        
+        # 'stock' column in DB is Warehouse Stock
+        warehouse_stock = int(p.get('stock', 0) or 0)
+        
+        # Allocated Stock from calculation
         allocated_stock = allocated_map.get(p['id'], 0)
         
-        # Combined Stock
+        # Combined Total Stock
         total_holding = warehouse_stock + allocated_stock
         
-        # Update 'stock' key so the template displays the TOTAL available (Warehouse + Field)
-        # If you want to keep them separate in UI, use a new key. 
-        # But for 'Total Stock' requested:
+        # Update attributes for template
         p['warehouse_stock'] = warehouse_stock
         p['allocated_stock'] = allocated_stock
-        # Optional: p['stock'] = total_holding (Uncomment if you want the card to show total)
+        p['stock'] = total_holding  # Override 'stock' to show TOTAL in UI main label
         
-        total_value += price * total_holding # Value of EVERYTHING company owns
+        # Calculate Value based on Total Holding (Warehouse + Field)
+        total_value += price * total_holding 
         
         if total_holding <= (p.get('low_stock_threshold') or 10):
             low_stock_count += 1
@@ -2559,10 +2576,10 @@ def inventory():
     }
 
     # 5) Categories for filter dropdown
-    cursor.execute("SELECT category_name FROM product_categories ORDER BY category_name ASC")
-    filter_categories = cursor.fetchall()
+    cur.execute("SELECT category_name FROM product_categories ORDER BY category_name ASC")
+    filter_categories = cur.fetchall()
 
-    cursor.close()
+    cur.close()
 
     return render_template(
         "inventory.html",
@@ -7169,6 +7186,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
