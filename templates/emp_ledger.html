@@ -30,9 +30,9 @@ body { font-family: 'Outfit', sans-serif; background-color: var(--bg-body); colo
 
 /* Specific Card Styles */ .card-credit .kpi-value { color: var(--success-color); } .card-debit .kpi-value { color: var(--danger-color); }
 
-/* Dynamic Balance Card */ .card-balance.is-advance { background: linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%); border-color: #FCD34D; } .card-balance.is-advance .kpi-value { color: #B45309; } .card-balance.is-advance .kpi-label { color: #92400E; }
+/* Dynamic Balance Card */ .card-balance.is-advance { background: #22c55e; border-color: #22c55e; color: white; } .card-balance.is-advance .kpi-value { color: white !important; } .card-balance.is-advance .kpi-label { color: white !important; }
 
-.card-balance.is-due { background: linear-gradient(135deg, #FEF2F2 0%, #FEE2E2 100%); border-color: #FECACA; } .card-balance.is-due .kpi-value { color: #B91C1C; } .card-balance.is-due .kpi-label { color: #991B1B; }
+.card-balance.is-due { background: #ef4444; border-color: #ef4444; color: white; } .card-balance.is-due .kpi-value { color: white !important; } .card-balance.is-due .kpi-label { color: white !important; }
 
 .card-balance.is-neutral { background: var(--surface-card); }
 
@@ -66,141 +66,93 @@ body { font-family: 'Outfit', sans-serif; background-color: var(--bg-body); colo
 
 <!-- 2. Profile Header --> <div class="profile-header"> <div class="avatar-wrapper"> {% if employee.image %} <img src="{{ employee.image|fix_image }}" class="profile-avatar"> {% else %} <div class="profile-avatar bg-light d-flex align-items-center justify-content-center text-secondary fs-3 border"> <i class="fa-solid fa-user"></i> </div> {% endif %} <span class="status-dot"></span> </div> <div> <h2 class="fw-bold mb-1" style="font-size: 1.75rem;">{{ employee.name }}</h2> <p class="text-secondary mb-0 fw-medium"> {{ employee.position or 'Staff Member' }} <span class="mx-2 text-gray-300">•</span> {{ employee.phone }} </p> </div> </div>
 
-<!-- 3. KPI Stats Grid --> <div class="kpi-grid"> <!-- Total Credit --> <div class="kpi-card card-credit"> <div class="kpi-label"> <i class="fa-solid fa-arrow-down"></i> Total Received (Credit) </div> <div class="kpi-value">{{ total_credit|inr }}</div> </div>
+<!-- 3. KPI Stats Grid --> <div class="kpi-grid"> <!-- Total Credit --> <div class="kpi-card card-credit"> <div class="kpi-label"> <i class="fa-solid fa-arrow-down"></i> Total Received (Credit) </div> <div class="kpi-value" style="color: white; background-color: #22c55e; padding: 0.25rem 0.5rem; border-radius: 8px; display: inline-block;">{{ total_credit|inr }}</div> </div>
 
-<!-- Total Debit -->
-<div class="kpi-card card-debit">
-    <div class="kpi-label">
-        <i class="fa-solid fa-arrow-up"></i> Total Given (Debit)
-    </div>
-    <div class="kpi-value">{{ total_debit|inr }}</div>
-</div>
+<!-- Total Debit --> <div class="kpi-card card-debit"> <div class="kpi-label"> <i class="fa-solid fa-arrow-up"></i> Total Given (Debit) </div> <div class="kpi-value">{{ total_debit|inr }}</div> </div>
 
-<!-- Net Balance (Dynamic Color) -->
-{% if final_balance > 0 %}
-    <!-- Due -> Red Style -->
-    <div class="kpi-card card-balance is-due">
-        <div class="kpi-label">
-            <i class="fa-solid fa-circle-exclamation"></i> Net Pending (Due)
-        </div>
-        <div class="kpi-value">- {{ final_balance|abs|inr }}</div>
-    </div>
-{% elif final_balance < 0 %}
-    <!-- Advance -> Yellow/Amber Style -->
-    <div class="kpi-card card-balance is-advance">
-        <div class="kpi-label">
-            <i class="fa-solid fa-wallet"></i> Advance Balance
-        </div>
-        <div class="kpi-value" style="color: yellow;">{{ final_balance|abs|inr }}</div>
-    </div>
-{% else %}
-     <!-- Zero -> Neutral -->
-     <div class="kpi-card card-balance is-neutral">
-        <div class="kpi-label">
-            <i class="fa-solid fa-check-circle"></i> Settled
-        </div>
-        <div class="kpi-value">₹ 0.00</div>
-    </div>
-{% endif %}
+<!-- Net Balance (Dynamic Color) --> {% if final_balance > 0 %} <!-- Due -> Red Style --> <div class="kpi-card card-balance is-due"> <div class="kpi-label"> <i class="fa-solid fa-circle-exclamation"></i> Net Pending (Due) </div> <div class="kpi-value">- {{ final_balance|abs|inr }}</div> </div> {% elif final_balance < 0 %} <!-- Advance -> Green Background, White Text --> <div class="kpi-card card-balance is-advance"> <div class="kpi-label"> <i class="fa-solid fa-wallet"></i>  Balance </div> <div class="kpi-value">{{ final_balance|abs|inr }}</div> </div> {% else %} <!-- Zero -> Neutral --> <div class="kpi-card card-balance is-neutral"> <div class="kpi-label"> <i class="fa-solid fa-check-circle"></i> Settled </div> <div class="kpi-value">₹ 0.00</div> </div> {% endif %}
 
 </div>
 
 <!-- 4. Transactions List --> <div class="ledger-section"> <div class="p-4 border-bottom bg-white d-flex justify-content-between align-items-center"> <h5 class="fw-bold mb-0">Transaction History</h5> <div class="d-flex gap-2"> {% if not has_opening_balance %} <a href="{{ url_for('add_opening_balance', employee_id=employee.id) }}" class="btn btn-sm btn-light border rounded-pill px-3 fw-bold text-secondary"> + Add Opening </a> {% endif %} <a href="{{ url_for('add_transaction', employee_id=employee.id, type='credit') }}" class="btn btn-sm btn-green rounded-pill px-4"> + Credit </a> <a href="{{ url_for('add_transaction', employee_id=employee.id, type='debit') }}" class="btn btn-sm btn-danger rounded-pill px-4"> - Debit </a> </div> </div>
 
-<div class="table-responsive">
-    <table class="table table-modern mb-0">
-        <thead>
-            <tr>
-                <th class="ps-4">Date</th>
-                <th>Type</th>
-                <th>Details</th>
-                <th>Mode</th>
-                <th class="text-end">Amount</th>
-                <th class="text-end pe-4">Balance</th>
-                <th class="text-center">Action</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for t in transactions %}
-            <tr>
-                <td class="ps-4">
-                    <div class="fw-bold text-dark">{{ t.transaction_date.strftime('%d %b, %Y') if t.transaction_date else 'N/A' }}</div>
-                    <div class="small text-secondary" style="font-family: monospace;">{{ t.time_str }}</div>
-                </td>
-                
-                <!-- Type Badge -->
-                <td>
-                    {% if t.type == 'credit' %}
-                        <span class="badge-pill badge-credit">Credit</span>
-                    {% else %}
-                        <span class="badge-pill badge-debit">Debit</span>
-                    {% endif %}
-                </td>
+<div class="table-responsive"> <table class="table table-modern mb-0"> <thead> <tr> <th class="ps-4">Date</th> <th>Type</th> <th>Details</th> <th>Mode</th> <th class="text-end">Amount</th> <th class="text-end pe-4">Balance</th> <th class="text-center">Action</th> </tr> </thead> <tbody> {% for t in transactions %} <tr> <td class="ps-4"> <div class="fw-bold text-dark">{{ t.transaction_date.strftime('%d %b, %Y') if t.transaction_date else 'N/A' }}</div> <div class="small text-secondary" style="font-family: monospace;">{{ t.time_str }}</div> </td>
 
-                <!-- Description -->
-                <td class="text-secondary fw-medium">
-                    {{ t.description }}
-                </td>
-
-                <!-- Payment Mode -->
-                <td>
-                    <span class="mode-tag">
-                        {% if t.payment_mode == 'Cash' %}
-                            <i class="fa-solid fa-money-bill text-success"></i> Cash
-                        {% elif t.payment_mode == 'Online' %}
-                            <i class="fa-solid fa-globe text-primary"></i> Online
-                        {% elif t.payment_mode == 'Cheque' %}
-                            <i class="fa-solid fa-money-check text-warning"></i> Cheque
-                        {% else %}
-                            <i class="fa-solid fa-wallet"></i> {{ t.payment_mode or 'N/A' }}
-                        {% endif %}
-                    </span>
-                </td>
-
-                <!-- Amount -->
-                <td class="text-end font-monospace fw-bold fs-6">
-                    {% if t.type == 'debit' %}
-                        <span class="text-danger">- {{ t.amount|inr }}</span>
-                    {% else %}
-                        <span class="text-success">+ {{ t.amount|inr }}</span>
-                    {% endif %}
-                </td>
-
-                <!-- Balance -->
-                <td class="text-end pe-4">
-                    <span class="fw-bold {% if t.balance > 0 %}text-danger{% elif t.balance < 0 %}text-warning{% else %}text-dark{% endif %}">
-                        {{ t.balance|abs|inr }} 
-                        <span class="small text-muted fw-normal ms-1">{% if t.balance > 0 %}Dr{% else %}Cr{% endif %}</span>
-                    </span>
-                </td>
-
-                <!-- Actions -->
-                <td class="text-center">
-                    <a href="{{ url_for('edit_transaction', transaction_id=t.id) }}" class="icon-btn" title="Edit">
-                        <i class="fa-solid fa-pen-to-square"></i>
-                    </a>
-                    <button class="icon-btn delete" onclick="confirmDelete({{ t.id }}, '{{ t.amount|inr }}')" title="Delete">
-                        <i class="fa-regular fa-trash-can"></i>
-                    </button>
-                    <form id="delete-form-{{ t.id }}" action="{{ url_for('delete_transaction', transaction_id=t.id) }}" method="POST" style="display: none;"></form>
-                </td>
-            </tr>
+        <!-- Type Badge -->
+        <td>
+            {% if t.type == 'credit' %}
+                <span class="badge-pill badge-credit">Credit</span>
             {% else %}
-            <tr>
-                <td colspan="7" class="text-center py-5">
-                    <div class="text-muted opacity-50">
-                        <i class="fa-solid fa-clipboard-list fa-3x mb-3"></i>
-                        <p class="fw-bold mb-0">No transactions recorded yet.</p>
-                    </div>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
+                <span class="badge-pill badge-debit">Debit</span>
+            {% endif %}
+        </td>
+
+        <!-- Description -->
+        <td class="text-secondary fw-medium">
+            {{ t.description }}
+        </td>
+
+        <!-- Payment Mode -->
+        <td>
+            <span class="mode-tag">
+                {% if t.payment_mode == 'Cash' %}
+                    <i class="fa-solid fa-money-bill text-success"></i> Cash
+                {% elif t.payment_mode == 'Online' %}
+                    <i class="fa-solid fa-globe text-primary"></i> Online
+                {% elif t.payment_mode == 'Cheque' %}
+                    <i class="fa-solid fa-money-check text-warning"></i> Cheque
+                {% else %}
+                    <i class="fa-solid fa-wallet"></i> {{ t.payment_mode or 'N/A' }}
+                {% endif %}
+            </span>
+        </td>
+
+        <!-- Amount -->
+        <td class="text-end font-monospace fw-bold fs-6">
+            {% if t.type == 'debit' %}
+                <span class="text-danger">- {{ t.amount|inr }}</span>
+            {% else %}
+                <span class="text-success">+ {{ t.amount|inr }}</span>
+            {% endif %}
+        </td>
+
+        <!-- Balance -->
+        <td class="text-end pe-4">
+            <span class="fw-bold {% if t.balance > 0 %}text-danger{% elif t.balance < 0 %}text-warning{% else %}text-dark{% endif %}">
+                {{ t.balance|abs|inr }} 
+                <span class="small text-muted fw-normal ms-1">{% if t.balance > 0 %}Dr{% else %}Cr{% endif %}</span>
+            </span>
+        </td>
+
+        <!-- Actions -->
+        <td class="text-center">
+            <a href="{{ url_for('edit_transaction', transaction_id=t.id) }}" class="icon-btn" title="Edit">
+                <i class="fa-solid fa-pen-to-square"></i>
+            </a>
+            <button class="icon-btn delete" onclick="confirmDelete({{ t.id }}, '{{ t.amount|inr }}')" title="Delete">
+                <i class="fa-regular fa-trash-can"></i>
+            </button>
+            <form id="delete-form-{{ t.id }}" action="{{ url_for('delete_transaction', transaction_id=t.id) }}" method="POST" style="display: none;"></form>
+        </td>
+    </tr>
+    {% else %}
+    <tr>
+        <td colspan="7" class="text-center py-5">
+            <div class="text-muted opacity-50">
+                <i class="fa-solid fa-clipboard-list fa-3x mb-3"></i>
+                <p class="fw-bold mb-0">No transactions recorded yet.</p>
+            </div>
+        </td>
+    </tr>
+    {% endfor %}
+</tbody>
+
+</table>
 
 </div>
 
 </div>
 
-<!-- Scripts --> <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script> <script> function confirmDelete(id, amount) { Swal.fire({ title: 'Delete Entry?', text: Permanently remove transaction of ${amount}?, icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444', confirmButtonText: 'Yes, Delete', cancelButtonText: 'Cancel', customClass: { popup: 'rounded-4 border-0 shadow-lg' } }).then((result) => { if (result.isConfirmed) document.getElementById('delete-form-' + id).submit(); }) } </script> {% endblock %}$1- $2$3
+</div>
+
+<!-- Scripts --> <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script> <script> function confirmDelete(id, amount) { Swal.fire({ title: 'Delete Entry?', text: Permanently remove transaction of ${amount}?, icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444', confirmButtonText: 'Yes, Delete', cancelButtonText: 'Cancel', customClass: { popup: 'rounded-4 border-0 shadow-lg' } }).then((result) => { if (result.isConfirmed) document.getElementById('delete-form-' + id).submit(); }) } </script> {% endblock %}
