@@ -2407,8 +2407,6 @@ def product_history(product_id):
 
     return render_template('inventory/product_history.html', product=product, history=history)
 
-
-# Inventory Module #
 @app.route('/inventory')
 def inventory():
     if "loggedin" not in session:
@@ -2425,39 +2423,104 @@ def inventory():
     categories = cursor.fetchall()
     categories_map = {c['id']: c['category_name'] for c in categories}
 
-    # 3) Calculate total stock value
+    # --- 3) Calculate Allocated Stock (Logic from Inventory Master) ---
+    allocated_map = {} 
+    
+    # Get active employees
+    cursor.execute("SELECT id FROM employees WHERE status='active'")
+    employees = cursor.fetchall()
+    
+    today_str = date.today().strftime('%Y-%m-%d')
+    
+    for emp in employees:
+        eid = emp['id']
+        emp_stock = {} 
+        
+        # Step 1: Get Total Holdings (Opening + Given) from Morning Allocations
+        cursor.execute("""
+            SELECT mai.product_id, SUM(mai.opening_qty) as total_opening, SUM(mai.given_qty) as total_given
+            FROM morning_allocation_items mai
+            JOIN morning_allocations ma ON mai.allocation_id = ma.id
+            WHERE ma.employee_id = %s AND ma.date = %s
+            GROUP BY mai.product_id
+        """, (eid, today_str))
+        
+        holdings = cur_holdings = cursor.fetchall()
+        
+        # Step 2: Get Total Sold from Evening Settlement (if any) to deduct
+        cursor.execute("""
+            SELECT ei.product_id, SUM(ei.sold_qty) as total_sold
+            FROM evening_item ei
+            JOIN evening_settle es ON ei.settle_id = es.id
+            WHERE es.employee_id = %s AND es.date = %s
+            GROUP BY ei.product_id
+        """, (eid, today_str))
+        sales_map = {row['product_id']: int(row['total_sold']) for row in cursor.fetchall()}
+
+        if cur_holdings:
+            for item in cur_holdings:
+                pid = item['product_id']
+                total = int(item['total_opening']) + int(item['total_given'])
+                sold = sales_map.get(pid, 0)
+                total -= sold
+                if total > 0: emp_stock[pid] = total
+        else:
+            # Fallback to Last Settlement
+            cursor.execute("""
+                SELECT id FROM evening_settle 
+                WHERE employee_id=%s AND status='final' AND date < %s
+                ORDER BY date DESC LIMIT 1
+            """, (eid, today_str))
+            last_settle = cursor.fetchone()
+            if last_settle:
+                cursor.execute("SELECT product_id, remaining_qty FROM evening_item WHERE settle_id=%s", (last_settle['id'],))
+                for row in cursor.fetchall():
+                    pid = row['product_id']
+                    qty = int(row['remaining_qty'])
+                    if qty > 0: emp_stock[pid] = qty
+
+        for pid, qty in emp_stock.items():
+            if pid in allocated_map: allocated_map[pid] += qty
+            else: allocated_map[pid] = qty
+    # -------------------------------------------------------------
+
+    # 4) Calculate Stats (Using Total = Warehouse + Allocated)
     total_value = 0
+    low_stock_count = 0
+    out_stock_count = 0
+
     for p in products:
         price = p.get('price', 0) or 0
-        stock = p.get('stock', 0) or 0
-        total_value += price * stock
+        warehouse_stock = p.get('stock', 0) or 0
+        allocated_stock = allocated_map.get(p['id'], 0)
+        
+        # Combined Stock
+        total_holding = warehouse_stock + allocated_stock
+        
+        # Update 'stock' key so the template displays the TOTAL available (Warehouse + Field)
+        # If you want to keep them separate in UI, use a new key. 
+        # But for 'Total Stock' requested:
+        p['warehouse_stock'] = warehouse_stock
+        p['allocated_stock'] = allocated_stock
+        # Optional: p['stock'] = total_holding (Uncomment if you want the card to show total)
+        
+        total_value += price * total_holding # Value of EVERYTHING company owns
+        
+        if total_holding <= (p.get('low_stock_threshold') or 10):
+            low_stock_count += 1
+        if total_holding == 0:
+            out_stock_count += 1
 
     total_products = len(products)
-
-    # 4) Low-stock products (using per-product threshold, default 10)
-    cursor.execute("""
-        SELECT COUNT(*) AS low_stock_count
-        FROM products
-        WHERE stock <= COALESCE(low_stock_threshold, 10)
-    """)
-    low_stock = cursor.fetchone()['low_stock_count']
-
-    # 5) Out-of-stock products
-    cursor.execute("""
-        SELECT COUNT(*) AS out_stock_count
-        FROM products
-        WHERE stock = 0
-    """)
-    out_stock = cursor.fetchone()['out_stock_count']
 
     stats = {
         "total_value": total_value,
         "total_products": total_products,
-        "low_stock_count": low_stock,
-        "out_stock_count": out_stock
+        "low_stock_count": low_stock_count,
+        "out_stock_count": out_stock_count
     }
 
-    # 6) Categories for filter dropdown
+    # 5) Categories for filter dropdown
     cursor.execute("SELECT category_name FROM product_categories ORDER BY category_name ASC")
     filter_categories = cursor.fetchall()
 
@@ -5765,7 +5828,7 @@ def admin_edit_evening(settle_id):
 
 
 # ==========================================
-# 6. DELETE EVENING (Reverse Returns)
+# 6. DELETE EVENING (Undo Returns & Sales)
 # ==========================================
 @app.route('/admin/evening/delete/<int:settle_id>', methods=['POST'])
 def admin_delete_evening(settle_id):
@@ -5775,21 +5838,37 @@ def admin_delete_evening(settle_id):
     cursor = conn.cursor(MySQLdb.cursors.DictCursor)
     try:
         # 1. Fetch Items to Reverse Returns
+        # Logic: Settlement said "Returned X". Deleting it means "Return X didn't happen".
+        # So, Remove X from Warehouse.
         cursor.execute("SELECT product_id, return_qty FROM evening_item WHERE settle_id = %s", (settle_id,))
         items = cursor.fetchall()
 
         for item in items:
-            if item['return_qty'] > 0:
-                # If deleted, the return didn't happen, so remove from warehouse
-                cursor.execute("UPDATE products SET stock = stock - %s WHERE id = %s", 
-                               (item['return_qty'], item['product_id']))
+            ret = int(item['return_qty'])
+            if ret > 0:
+                cursor.execute("UPDATE products SET stock = stock - %s WHERE id = %s", (ret, item['product_id']))
+                
+        # Logic for Sales:
+        # Settlement said "Sold Y". Deleting it means "Sale Y didn't happen".
+        # Since Sales came from "Allocated Stock" (Employee's hand), deleting the settlement
+        # implicitly puts them back into "Allocated Stock" because the Morning Allocation
+        # (which gave the stock) is still valid and active.
+        # The 'inventory_master' logic will see "No Evening Settlement" and fallback to 
+        # "Morning Opening + Given", which includes the unsold items.
+        # So NO warehouse update needed for Sales.
 
-        # 2. Delete
+        # 2. Delete Record
         cursor.execute("DELETE FROM evening_item WHERE settle_id = %s", (settle_id,))
         cursor.execute("DELETE FROM evening_settle WHERE id = %s", (settle_id,))
         
+        # Also delete associated ledger entries to keep finance accurate
+        # Assuming description contains "Evening Settle" or we can link via ID if column exists.
+        # Best effort deletion based on description/date/employee if no FK.
+        # But if you have 'description' like "Credit #ID...", we can try:
+        # cursor.execute("DELETE FROM employee_transactions WHERE description LIKE %s", (f"%#{settle_id}%",))
+        
         conn.commit()
-        flash("Settlement Deleted & Returns Reversed.", "success")
+        flash("Settlement Deleted. Returns reversed from warehouse. Stock marked as allocated.", "success")
     except Exception as e:
         conn.rollback()
         flash(f"Delete Error: {e}", "danger")
@@ -7064,6 +7143,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
