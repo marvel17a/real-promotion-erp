@@ -108,20 +108,22 @@
     .card-credit .kpi-value { color: var(--success-color); }
     .card-debit .kpi-value { color: var(--danger-color); }
     
-    /* Dynamic Balance Card */
+    /* Dynamic Balance Card - REDESIGNED per Request */
     .card-balance.is-advance {
-        background: linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%);
-        border-color: #FCD34D;
+        background: #10b981; /* Green Background */
+        border-color: #059669;
     }
-    .card-balance.is-advance .kpi-value { color: #B45309; }
-    .card-balance.is-advance .kpi-label { color: #92400E; }
+    .card-balance.is-advance .kpi-value { color: #ffffff; } /* White Text */
+    .card-balance.is-advance .kpi-label { color: rgba(255, 255, 255, 0.9); }
+    .card-balance.is-advance .kpi-label i { color: rgba(255, 255, 255, 0.9); }
 
     .card-balance.is-due {
-        background: linear-gradient(135deg, #FEF2F2 0%, #FEE2E2 100%);
-        border-color: #FECACA;
+        background: #ef4444; /* Red Background */
+        border-color: #dc2626;
     }
-    .card-balance.is-due .kpi-value { color: #B91C1C; }
-    .card-balance.is-due .kpi-label { color: #991B1B; }
+    .card-balance.is-due .kpi-value { color: #ffffff; } /* White Text */
+    .card-balance.is-due .kpi-label { color: rgba(255, 255, 255, 0.9); }
+    .card-balance.is-due .kpi-label i { color: rgba(255, 255, 255, 0.9); }
 
     .card-balance.is-neutral {
         background: var(--surface-card);
@@ -292,17 +294,17 @@
             <div class="kpi-value">{{ total_debit|inr }}</div>
         </div>
 
-        <!-- Net Balance (Dynamic Color) -->
+        <!-- Net Balance (Dynamic Color: Red for Due, Green for Advance) -->
         {% if final_balance > 0 %}
-            <!-- Due -> Red Style -->
+            <!-- Due -> Red Background, White Text, Minus Sign -->
             <div class="kpi-card card-balance is-due">
                 <div class="kpi-label">
                     <i class="fa-solid fa-circle-exclamation"></i> Net Pending (Due)
                 </div>
-                <div class="kpi-value">{{ final_balance|abs|inr }}</div>
+                <div class="kpi-value">- {{ final_balance|abs|inr }}</div>
             </div>
         {% elif final_balance < 0 %}
-            <!-- Advance -> Yellow/Amber Style -->
+            <!-- Advance -> Green Background, White Text -->
             <div class="kpi-card card-balance is-advance">
                 <div class="kpi-label">
                     <i class="fa-solid fa-wallet"></i> Advance Balance
@@ -331,7 +333,7 @@
                 </a>
                 {% endif %}
                 
-                <!-- CREDIT BUTTON (NOW RED as requested) -->
+                <!-- CREDIT BUTTON (RED as requested) -->
                 <a href="{{ url_for('add_transaction', employee_id=employee.id, type='credit') }}" class="btn btn-sm rounded-pill px-4 fw-bold text-white shadow-sm" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); border:none;">
                      <i class="fa-solid fa-circle-arrow-down me-2"></i>Credit (In)
                 </a>
