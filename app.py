@@ -2167,8 +2167,9 @@ def stock_adjust():
         flash(f"Error loading products: {e}", "danger")
         return redirect(url_for('inventory_master'))
 
+
 # =========================================================
-#  UPDATED INVENTORY MASTER (Robust Logic)
+#  UPDATED INVENTORY MASTER (Perfect Logic: Opening + Given)
 # =========================================================
 @app.route('/inventory_master')
 def inventory_master():
@@ -2186,9 +2187,14 @@ def inventory_master():
     """)
     products = cur.fetchall()
 
-    # 2. Calculate Allocated Stock (Live Logic)
-    allocated_map = {} 
+    # 2. Calculate Allocated Stock (Field Stock)
+    # Logic: 
+    # If Morning Allocation exists today -> Allocated = Opening + Given (Matches Morning Form Total)
+    # If NO Morning Allocation today -> Allocated = Last Settlement Remaining (Leftover)
     
+    allocated_map = {} # {product_id: total_qty}
+    
+    # Get active employees
     cur.execute("SELECT id FROM employees WHERE status='active'")
     employees = cur.fetchall()
     
@@ -2199,44 +2205,43 @@ def inventory_master():
         emp_stock = {} 
 
         # Step 1: Check if there is a Morning Allocation for TODAY
-        # This is the PRIMARY source of truth for "Current Field Stock" during the day.
-        # It contains Opening (Yesterday's Left) + Given (Today's Total New).
-        
+        # This table contains the latest snapshot: Opening (Yesterday's Left) + Given (Today's New)
         cur.execute("""
-            SELECT mai.product_id, SUM(mai.opening_qty) as total_opening, SUM(mai.given_qty) as total_given
+            SELECT mai.product_id, mai.opening_qty, mai.given_qty
             FROM morning_allocation_items mai
             JOIN morning_allocations ma ON mai.allocation_id = ma.id
             WHERE ma.employee_id = %s AND ma.date = %s
-            GROUP BY mai.product_id
         """, (eid, today_str))
         
         today_allocations = cur.fetchall()
         
         if today_allocations:
-            # SCENARIO A: Allocation exists today.
+            # SCENARIO A: Form exists today. Use (Opening + Given) logic.
             for item in today_allocations:
                 pid = item['product_id']
-                # Total Holding = Opening + Given
-                total = int(item['total_opening']) + int(item['total_given'])
+                # FIX: Opening (Purana) + Given (Naya) = Total Current Holding
+                # This matches the "Total" column in Morning Page.
+                total = int(item['opening_qty']) + int(item['given_qty'])
                 
                 # Deduct SALES if Evening Settle is FINAL for today
-                # If settled, the 'remaining_qty' in evening_item is the accurate count.
-                # Let's verify if settled.
-                cur.execute("SELECT id FROM evening_settle WHERE employee_id=%s AND date=%s AND status='final'", (eid, today_str))
-                is_settled = cur.fetchone()
+                cur.execute("SELECT status FROM evening_settle WHERE employee_id=%s AND date=%s", (eid, today_str))
+                eve_status = cur.fetchone()
                 
-                if is_settled:
-                    # If settled, overwrite with actual remaining from evening record
-                    cur.execute("SELECT remaining_qty FROM evening_item WHERE settle_id=%s AND product_id=%s", (is_settled['id'], pid))
+                if eve_status and eve_status['status'] == 'final':
+                    # If settled, use the remaining qty from evening_item instead (most accurate)
+                    cur.execute("SELECT product_id, remaining_qty FROM evening_item ei JOIN evening_settle es ON ei.settle_id = es.id WHERE es.employee_id=%s AND es.date=%s AND ei.product_id=%s", (eid, today_str, pid))
                     rem_row = cur.fetchone()
                     if rem_row:
                         total = int(rem_row['remaining_qty'])
                 
                 if total > 0:
-                    emp_stock[pid] = total
+                    if pid in emp_stock:
+                        emp_stock[pid] += total
+                    else:
+                        emp_stock[pid] = total
+
         else:
-            # SCENARIO B: No allocation form today.
-            # Fallback to Last Settlement Closing.
+            # SCENARIO B: No form today. Fallback to Last Settlement Closing.
             cur.execute("""
                 SELECT id FROM evening_settle 
                 WHERE employee_id=%s AND status='final' AND date < %s
@@ -2266,6 +2271,7 @@ def inventory_master():
         warehouse_stock = int(p['stock'] or 0)
         allocated_stock = allocated_map.get(p['id'], 0)
         
+        # Total Asset = Warehouse + Field
         total_holding = warehouse_stock + allocated_stock
         
         p['warehouse_stock'] = warehouse_stock
@@ -2282,7 +2288,7 @@ def inventory_master():
     
     cur.close()
 
-    return render_template('inventory/inventory_master.html', 
+    return render_template('inventory_master.html', 
                            products=products, 
                            categories=categories,
                            stats={
@@ -4942,9 +4948,8 @@ def fetch_evening_data():
     finally:
         if 'cur' in locals(): cur.close()
 
-
 # ==========================================
-# 2. MORNING: SUBMIT (Restock & Merge Logic - Fixed)
+# 2. MORNING: SUBMIT (Restock & Merge Logic)
 # ==========================================
 @app.route('/morning', methods=['GET', 'POST'])
 def morning():
@@ -4970,15 +4975,11 @@ def morning():
 
             formatted_date = parse_date(date_str).strftime('%Y-%m-%d')
 
-            # Check Existing (Restock Mode)
             cursor.execute("SELECT id FROM morning_allocations WHERE employee_id=%s AND date=%s", (emp_id, formatted_date))
             existing_alloc = cursor.fetchone()
 
             if existing_alloc:
                 alloc_id = existing_alloc['id']
-                
-                # --- FIX: REMOVED DELETION LOGIC ---
-                # We only ADD/MERGE in Restock mode. No deletions.
                 
                 cursor.execute("SELECT id, product_id, given_qty FROM morning_allocation_items WHERE allocation_id=%s", (alloc_id,))
                 db_items = cursor.fetchall() 
@@ -4987,10 +4988,9 @@ def morning():
                 for i, pid in enumerate(p_ids):
                     if not pid: continue
                     gv = int(givens[i] or 0)
-                    ui_opening = int(opens[i] or 0) 
+                    ui_opening = int(opens[i] or 0)
                     pr = float(prices[i] or 0)
                     
-                    # Process if Given > 0 OR Opening > 0 (Manual add)
                     if gv > 0 or ui_opening > 0: 
                         match = next((x for x in db_items if str(x['product_id']) == str(pid)), None)
 
@@ -5005,7 +5005,6 @@ def morning():
                             if gv > 0:
                                 cursor.execute("UPDATE products SET stock = stock - %s WHERE id=%s", (gv, pid))
                         else:
-                            # INSERT NEW
                             cursor.execute("""
                                 INSERT INTO morning_allocation_items (allocation_id, product_id, opening_qty, given_qty, unit_price) 
                                 VALUES (%s, %s, %s, %s, %s)
@@ -5016,13 +5015,9 @@ def morning():
                         cnt += 1
                 
                 conn.commit()
-                if cnt > 0:
-                    flash("Restock Added & Merged Successfully.", "success")
-                else:
-                    flash("No valid items to restock.", "warning")
+                flash("Restock Added & Merged Successfully.", "success")
 
             else:
-                # FRESH ALLOCATION
                 cursor.execute("INSERT INTO morning_allocations (employee_id, date, created_at) VALUES (%s, %s, %s)", (emp_id, formatted_date, time_str))
                 alloc_id = cursor.lastrowid
                 cnt = 0
@@ -5058,6 +5053,7 @@ def morning():
         'image': resolve_img(p['image']), 'stock': int(p['stock'] or 0)
     } for p in cursor.fetchall()]
     return render_template('morning.html', employees=emps, products=prods, today_date=date.today().strftime('%d-%m-%Y'))
+
 
 
 # ==========================================
@@ -7065,6 +7061,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
