@@ -330,7 +330,7 @@
                     + Add Opening
                 </a>
                 {% endif %}
-                <a href="{{ url_for('add_transaction', employee_id=employee.id, type='credit') }}" class="btn btn-sm btn-dark rounded-pill px-4">
+                <a href="{{ url_for('add_transaction', employee_id=employee.id, type='credit') }}" class="btn btn-sm  rounded-pill px-4" color="green">
                     + Credit
                 </a>
                 <a href="{{ url_for('add_transaction', employee_id=employee.id, type='debit') }}" class="btn btn-sm btn-danger rounded-pill px-4">
@@ -453,3 +453,4 @@
     }
 </script>
 {% endblock %}
+
