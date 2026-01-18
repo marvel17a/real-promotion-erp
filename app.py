@@ -2295,7 +2295,7 @@ def inventory_master():
     
     cur.close()
 
-    return render_template('inventory_master.html', 
+    return render_template('inventory/inventory_master.html', 
                            products=products, 
                            categories=categories,
                            stats={
@@ -7108,6 +7108,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
