@@ -2168,7 +2168,7 @@ def stock_adjust():
         return redirect(url_for('inventory_master'))
 
 # =========================================================
-#  UPDATED INVENTORY MASTER (Perfect Logic: Opening + Given)
+#  UPDATED INVENTORY MASTER (Fix: Opening + Given Logic)
 # =========================================================
 @app.route('/inventory_master')
 def inventory_master():
@@ -2205,13 +2205,6 @@ def inventory_master():
 
         # Step 1: Check if there is a Morning Allocation for TODAY
         # This table contains the latest snapshot: Opening (Yesterday's Left) + Given (Today's New)
-        # Note: If multiple restocks happened, we might have multiple rows per product if we didn't merge them.
-        # But our morning route logic merges them.
-        # However, to be safe, we SUM() opening and given.
-        # WAIT: Opening is fixed for the day. Given is cumulative.
-        # So we should take MAX(opening) + SUM(given)? No, opening is per line item.
-        # Our morning route logic ensures one row per product per allocation.
-        
         cur.execute("""
             SELECT mai.product_id, mai.opening_qty, mai.given_qty
             FROM morning_allocation_items mai
@@ -2223,33 +2216,37 @@ def inventory_master():
         
         if today_allocations:
             # SCENARIO A: Form exists today. Use (Opening + Given) logic.
-            # We iterate through all items allocated today.
             for item in today_allocations:
                 pid = item['product_id']
-                # Opening (Purana) + Given (Naya) = Total Current Holding
+                # FIX: Opening (Purana) + Given (Naya) = Total Current Holding
                 # This matches the "Total" column in Morning Page.
                 total = int(item['opening_qty']) + int(item['given_qty'])
                 
-                # Check Evening Sales for TODAY to deduct Sold items live (Optional but accurate)
-                # Agar shaam ka form submit ho gaya hai, to Sold minus karna padega
-                # Lekin agar sirf allocate hua hai, to Total Holding wahi hai.
+                # Deduct SALES if Evening Settle is done/in progress for today
+                # because "Allocated" usually means "With Employee", if sold it's gone.
+                # However, Morning Form shows Total. Let's stick to what Employee HAS (or had before sale).
+                # User asked for "total products ka column hai wo consider kare".
+                # So we stick to Opening + Given.
                 
-                # Let's check if evening settled today strictly to deduct SALES
-                cur.execute("""
-                    SELECT sold_qty FROM evening_item ei
-                    JOIN evening_settle es ON ei.settle_id = es.id
-                    WHERE es.employee_id = %s AND es.date = %s AND ei.product_id = %s
-                """, (eid, today_str, pid))
-                sold_data = cur.fetchone()
-                if sold_data:
-                    total -= int(sold_data['sold_qty'])
-
+                # BUT, if evening settlement is FINAL, then allocated is technically 0 or remaining.
+                # Let's check evening status.
+                
+                cur.execute("SELECT status FROM evening_settle WHERE employee_id=%s AND date=%s", (eid, today_str))
+                eve_status = cur.fetchone()
+                
+                if eve_status and eve_status['status'] == 'final':
+                    # If settled, use the remaining qty from evening_item instead (most accurate)
+                    cur.execute("SELECT product_id, remaining_qty FROM evening_item ei JOIN evening_settle es ON ei.settle_id = es.id WHERE es.employee_id=%s AND es.date=%s AND ei.product_id=%s", (eid, today_str, pid))
+                    rem_row = cur.fetchone()
+                    if rem_row:
+                        total = int(rem_row['remaining_qty'])
+                
                 if total > 0:
-                    # If multiple rows exist (rare/error case), we add. Ideally should be one.
                     if pid in emp_stock:
                         emp_stock[pid] += total
                     else:
                         emp_stock[pid] = total
+
         else:
             # SCENARIO B: No form today. Fallback to Last Settlement Closing.
             cur.execute("""
@@ -2298,7 +2295,7 @@ def inventory_master():
     
     cur.close()
 
-    return render_template('inventory/inventory_master.html', 
+    return render_template('inventory_master.html', 
                            products=products, 
                            categories=categories,
                            stats={
@@ -2306,6 +2303,7 @@ def inventory_master():
                                "low_stock": low_stock_count,
                                "total_items": total_items
                            })
+
 
 
 
@@ -7110,6 +7108,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
