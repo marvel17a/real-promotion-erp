@@ -2169,7 +2169,7 @@ def stock_adjust():
 
 
 # =========================================================
-#  UPDATED INVENTORY MASTER (Perfect Logic: Opening + Given)
+#  UPDATED INVENTORY MASTER (Universal Logic)
 # =========================================================
 @app.route('/inventory_master')
 def inventory_master():
@@ -2188,74 +2188,77 @@ def inventory_master():
     products = cur.fetchall()
 
     # 2. Calculate Allocated Stock (Field Stock)
-    # Logic: 
-    # If Morning Allocation exists today -> Allocated = Opening + Given (Matches Morning Form Total)
-    # If NO Morning Allocation today -> Allocated = Last Settlement Remaining (Leftover)
+    # Logic: For every employee, find their CURRENT holding.
+    # Current Holding = Last Known State (Either from Morning or Evening).
     
-    allocated_map = {} # {product_id: total_qty}
+    allocated_map = {} 
     
-    # Get active employees
     cur.execute("SELECT id FROM employees WHERE status='active'")
     employees = cur.fetchall()
-    
-    today_str = date.today().strftime('%Y-%m-%d')
     
     for emp in employees:
         eid = emp['id']
         emp_stock = {} 
 
-        # Step 1: Check if there is a Morning Allocation for TODAY
-        # This table contains the latest snapshot: Opening (Yesterday's Left) + Given (Today's New)
-        cur.execute("""
-            SELECT mai.product_id, mai.opening_qty, mai.given_qty
-            FROM morning_allocation_items mai
-            JOIN morning_allocations ma ON mai.allocation_id = ma.id
-            WHERE ma.employee_id = %s AND ma.date = %s
-        """, (eid, today_str))
+        # Step A: Find the LATEST date of activity for this employee
+        # Check Morning Allocations
+        cur.execute("SELECT date FROM morning_allocations WHERE employee_id=%s ORDER BY date DESC LIMIT 1", (eid,))
+        last_morning = cur.fetchone()
         
-        today_allocations = cur.fetchall()
+        # Check Evening Settlements (Final)
+        cur.execute("SELECT date FROM evening_settle WHERE employee_id=%s AND status='final' ORDER BY date DESC LIMIT 1", (eid,))
+        last_evening = cur.fetchone()
         
-        if today_allocations:
-            # SCENARIO A: Form exists today. Use (Opening + Given) logic.
-            for item in today_allocations:
-                pid = item['product_id']
-                # FIX: Opening (Purana) + Given (Naya) = Total Current Holding
-                # This matches the "Total" column in Morning Page.
-                total = int(item['opening_qty']) + int(item['given_qty'])
-                
-                # Deduct SALES if Evening Settle is FINAL for today
-                cur.execute("SELECT status FROM evening_settle WHERE employee_id=%s AND date=%s", (eid, today_str))
-                eve_status = cur.fetchone()
-                
-                if eve_status and eve_status['status'] == 'final':
-                    # If settled, use the remaining qty from evening_item instead (most accurate)
-                    cur.execute("SELECT product_id, remaining_qty FROM evening_item ei JOIN evening_settle es ON ei.settle_id = es.id WHERE es.employee_id=%s AND es.date=%s AND ei.product_id=%s", (eid, today_str, pid))
-                    rem_row = cur.fetchone()
-                    if rem_row:
-                        total = int(rem_row['remaining_qty'])
-                
-                if total > 0:
-                    if pid in emp_stock:
-                        emp_stock[pid] += total
-                    else:
-                        emp_stock[pid] = total
-
-        else:
-            # SCENARIO B: No form today. Fallback to Last Settlement Closing.
-            cur.execute("""
-                SELECT id FROM evening_settle 
-                WHERE employee_id=%s AND status='final' AND date < %s
-                ORDER BY date DESC LIMIT 1
-            """, (eid, today_str))
-            last_settle = cur.fetchone()
+        target_date = None
+        source = None # 'morning' or 'evening'
+        
+        # Determine which record is more recent (or same day priority)
+        if last_morning and last_evening:
+            if last_morning['date'] > last_evening['date']:
+                target_date = last_morning['date']
+                source = 'morning'
+            elif last_evening['date'] > last_morning['date']:
+                target_date = last_evening['date']
+                source = 'evening'
+            else:
+                # Same date: Evening supersedes Morning (because it's end of day)
+                target_date = last_evening['date']
+                source = 'evening'
+        elif last_morning:
+            target_date = last_morning['date']
+            source = 'morning'
+        elif last_evening:
+            target_date = last_evening['date']
+            source = 'evening'
             
-            if last_settle:
-                cur.execute("SELECT product_id, remaining_qty FROM evening_item WHERE settle_id=%s", (last_settle['id'],))
+        # Step B: Fetch Stock based on the source
+        if target_date:
+            if source == 'evening':
+                # Fetch remaining from evening_item
+                cur.execute("""
+                    SELECT ei.product_id, ei.remaining_qty
+                    FROM evening_item ei
+                    JOIN evening_settle es ON ei.settle_id = es.id
+                    WHERE es.employee_id=%s AND es.date=%s
+                """, (eid, target_date))
                 for row in cur.fetchall():
                     pid = row['product_id']
                     qty = int(row['remaining_qty'])
-                    if qty > 0:
-                        emp_stock[pid] = qty
+                    if qty > 0: emp_stock[pid] = qty
+            else:
+                # Source is Morning: Fetch Opening + Given
+                # Note: This handles the "Restock" case correctly because restock updates 'given_qty'
+                # in the same morning_allocation_items record for that day.
+                cur.execute("""
+                    SELECT mai.product_id, mai.opening_qty, mai.given_qty
+                    FROM morning_allocation_items mai
+                    JOIN morning_allocations ma ON mai.allocation_id = ma.id
+                    WHERE ma.employee_id=%s AND ma.date=%s
+                """, (eid, target_date))
+                for row in cur.fetchall():
+                    pid = row['product_id']
+                    qty = int(row['opening_qty']) + int(row['given_qty'])
+                    if qty > 0: emp_stock[pid] = qty
 
         # Add this employee's stock to the global map
         for pid, qty in emp_stock.items():
@@ -2288,7 +2291,7 @@ def inventory_master():
     
     cur.close()
 
-    return render_template('inventory/inventory_master.html', 
+    return render_template('inventory_master.html', 
                            products=products, 
                            categories=categories,
                            stats={
@@ -7061,6 +7064,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
