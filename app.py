@@ -1124,9 +1124,6 @@ def edit_supplier(supplier_id):
     
     return render_template('suppliers/edit_supplier.html', supplier=supplier)
 
-# =====================================================================
-# SUPPLIER LEDGER & PAYMENT ROUTES
-# ===================================================
 @app.route('/supplier_ledger/<int:supplier_id>')
 def supplier_ledger(supplier_id):
     if 'loggedin' not in session: return redirect(url_for('login'))
@@ -1141,37 +1138,79 @@ def supplier_ledger(supplier_id):
         flash("Supplier not found!", "danger")
         return redirect(url_for('suppliers'))
 
-    # 2. Fetch Records 
-    # Purchases can stay DESC (Newest first) or change to ASC if you want consistent history
+    # 2. Fetch Records (Purchases, Payments, Adjustments)
+    # SORTING FIXED: Changed to DESC (Newest First)
     cursor.execute("SELECT * FROM purchases WHERE supplier_id=%s ORDER BY purchase_date DESC", (supplier_id,))
     purchases = cursor.fetchall()
     
     try:
-        # --- CHANGED: ORDER BY payment_date ASC (Oldest First) ---
-        cursor.execute("SELECT * FROM supplier_payments WHERE supplier_id=%s ORDER BY payment_date ASC", (supplier_id,))
+        cursor.execute("SELECT * FROM supplier_payments WHERE supplier_id=%s ORDER BY payment_date DESC", (supplier_id,))
         payments = cursor.fetchall()
     except: payments = []
     
     try:
-        # --- CHANGED: ORDER BY adjustment_date ASC (Oldest First) ---
-        cursor.execute("SELECT * FROM supplier_adjustments WHERE supplier_id=%s ORDER BY adjustment_date ASC", (supplier_id,))
+        cursor.execute("SELECT * FROM supplier_adjustments WHERE supplier_id=%s ORDER BY adjustment_date DESC", (supplier_id,))
         adjustments = cursor.fetchall()
     except: adjustments = []
     
-    # 3. Calculate Totals (Using COALESCE for safety)
+    # --- DATE FORMATTING FIX LOGIC ---
+    # We pre-format dates here to avoid Template Errors and ensure dd-mm-yyyy
     
-    # Purchases Total
+    # 1. Format Payments
+    for pay in payments:
+        if pay.get('payment_date'):
+            if isinstance(pay['payment_date'], (date, datetime)):
+                pay['formatted_date'] = pay['payment_date'].strftime('%d-%m-%Y')
+            else:
+                # Handle String Case (YYYY-MM-DD)
+                try:
+                    d_obj = datetime.strptime(str(pay['payment_date']), '%Y-%m-%d')
+                    pay['formatted_date'] = d_obj.strftime('%d-%m-%Y')
+                except:
+                    pay['formatted_date'] = str(pay['payment_date']) # Fallback
+        else:
+            pay['formatted_date'] = '-'
+
+    # 2. Format Adjustments
+    for adj in adjustments:
+        if adj.get('adjustment_date'):
+            if isinstance(adj['adjustment_date'], (date, datetime)):
+                adj['formatted_date'] = adj['adjustment_date'].strftime('%d-%m-%Y')
+            else:
+                try:
+                    d_obj = datetime.strptime(str(adj['adjustment_date']), '%Y-%m-%d')
+                    adj['formatted_date'] = d_obj.strftime('%d-%m-%Y')
+                except:
+                    adj['formatted_date'] = str(adj['adjustment_date'])
+        else:
+            adj['formatted_date'] = '-'
+            
+    # 3. Format Purchases
+    for pur in purchases:
+        if pur.get('purchase_date'):
+            if isinstance(pur['purchase_date'], (date, datetime)):
+                pur['formatted_date'] = pur['purchase_date'].strftime('%d-%m-%Y')
+            else:
+                try:
+                    d_obj = datetime.strptime(str(pur['purchase_date']), '%Y-%m-%d')
+                    pur['formatted_date'] = d_obj.strftime('%d-%m-%Y')
+                except:
+                    pur['formatted_date'] = str(pur['purchase_date'])
+        else:
+            pur['formatted_date'] = '-'
+
+    # ---------------------------------
+    
+    # 3. Calculate Totals (Using COALESCE for safety)
     cursor.execute("SELECT SUM(COALESCE(total_amount, 0)) as total FROM purchases WHERE supplier_id=%s", (supplier_id,))
     total_purchases = float(cursor.fetchone()['total'] or 0)
     
-    # Payments Total
     try:
         cursor.execute("SELECT SUM(COALESCE(amount_paid, 0)) as total FROM supplier_payments WHERE supplier_id=%s", (supplier_id,))
         total_paid = float(cursor.fetchone()['total'] or 0)
     except:
         total_paid = 0.0
         
-    # Adjustments (Other Dues) Total
     try:
         cursor.execute("SELECT SUM(COALESCE(amount, 0)) as total FROM supplier_adjustments WHERE supplier_id=%s", (supplier_id,))
         total_adjustments = float(cursor.fetchone()['total'] or 0)
@@ -1181,8 +1220,7 @@ def supplier_ledger(supplier_id):
     # Opening Balance
     opening_bal = float(supplier.get('opening_balance', 0.0))
     
-    # --- FORMULA ---
-    # Total Outstanding = (Opening + Purchases + Adjustments) - Payments
+    # Total Outstanding Formula
     total_outstanding_amount = (opening_bal + total_purchases + total_adjustments) - total_paid
     
     cursor.close()
@@ -7209,6 +7247,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
