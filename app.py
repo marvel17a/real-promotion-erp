@@ -1127,7 +1127,7 @@ def edit_supplier(supplier_id):
     
     return render_template('suppliers/edit_supplier.html', supplier=supplier)
 # =====================================================================
-# SUPPLIER LEDGER ROUTE (Final Fix: Dates & Sorting for ALL sections)
+# SUPPLIER LEDGER ROUTE (Complete Fix: Dates & Sorting)
 # =====================================================================
 @app.route('/supplier_ledger/<int:supplier_id>')
 def supplier_ledger(supplier_id):
@@ -1143,20 +1143,24 @@ def supplier_ledger(supplier_id):
         flash("Supplier not found!", "danger")
         return redirect(url_for('suppliers'))
 
-    # --- HELPER FUNCTION TO FORMAT DATES ---
+    # --- HELPER: Strict Date Formatting ---
     def format_list_dates(data_list, date_key):
+        """Converts date objects or strings to dd-mm-yyyy format."""
         for item in data_list:
-            if item.get(date_key):
-                # If it's a date object
-                if isinstance(item[date_key], (date, datetime)):
-                    item['formatted_date'] = item[date_key].strftime('%d-%m-%Y')
+            raw_date = item.get(date_key)
+            if raw_date:
+                # If already date/datetime object
+                if isinstance(raw_date, (date, datetime)):
+                    item['formatted_date'] = raw_date.strftime('%d-%m-%Y')
                 else:
-                    # If string, try to parse
+                    # If string (e.g. '2024-01-25'), parse and format
                     try:
-                        # Assuming MySQL stores as YYYY-MM-DD
-                        item['formatted_date'] = datetime.strptime(str(item[date_key]), '%Y-%m-%d').strftime('%d-%m-%Y')
-                    except:
-                        item['formatted_date'] = str(item[date_key])
+                        # Assuming standard MySQL format YYYY-MM-DD
+                        dt_obj = datetime.strptime(str(raw_date), '%Y-%m-%d')
+                        item['formatted_date'] = dt_obj.strftime('%d-%m-%Y')
+                    except ValueError:
+                        # Fallback if format is different or already formatted
+                        item['formatted_date'] = str(raw_date)
             else:
                 item['formatted_date'] = '-'
         return data_list
@@ -1168,22 +1172,22 @@ def supplier_ledger(supplier_id):
     purchases = cursor.fetchall()
     purchases = format_list_dates(purchases, 'purchase_date')
     
-    # B. Payments (History) - FIX: Newest First & Formatted
+    # B. Payments (History) - Newest First (DESC)
     try:
         cursor.execute("SELECT * FROM supplier_payments WHERE supplier_id=%s ORDER BY payment_date DESC", (supplier_id,))
         payments = cursor.fetchall()
-        payments = format_list_dates(payments, 'payment_date') # Uses the Helper Function above
+        payments = format_list_dates(payments, 'payment_date') 
     except Exception as e:
-        print(f"Payment Error: {e}")
+        print(f"Payment Fetch Error: {e}")
         payments = []
     
-    # C. Adjustments (Other Due) - FIX: Newest First & Formatted
+    # C. Adjustments (Other Due) - Newest First (DESC)
     try:
         cursor.execute("SELECT * FROM supplier_adjustments WHERE supplier_id=%s ORDER BY adjustment_date DESC", (supplier_id,))
         adjustments = cursor.fetchall()
-        adjustments = format_list_dates(adjustments, 'adjustment_date') # Uses the Helper Function above
+        adjustments = format_list_dates(adjustments, 'adjustment_date')
     except Exception as e:
-        print(f"Adj Error: {e}")
+        print(f"Adj Fetch Error: {e}")
         adjustments = []
     
     # 3. Calculate Totals
@@ -1204,7 +1208,7 @@ def supplier_ledger(supplier_id):
     
     opening_bal = float(supplier.get('opening_balance', 0.0))
     
-    # Net Outstanding
+    # Net Outstanding Logic
     total_outstanding_amount = (opening_bal + total_purchases + total_adjustments) - total_paid
     
     cursor.close()
@@ -7230,6 +7234,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
