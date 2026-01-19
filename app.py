@@ -111,7 +111,7 @@ def parse_date_input(date_str):
 
 @app.route('/delete_product_soft/<int:id>', methods=['POST'])
 def delete_product_soft(id):
-    if "user_id" not in session:
+    if "loggedin" not in session:
         return redirect(url_for("login"))
 
     try:
@@ -2202,7 +2202,7 @@ def stock_adjust():
 
 @app.route('/inventory_master')
 def inventory_master():
-    if "user_id" not in session:
+    if "loggedin" not in session:
         return redirect(url_for("login"))
 
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
@@ -2440,7 +2440,7 @@ def product_history(product_id):
 
 @app.route('/inventory')
 def inventory():
-    if "user_id" not in session:
+    if "loggedin" not in session:
         return redirect(url_for("login"))
 
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
@@ -7178,6 +7178,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
