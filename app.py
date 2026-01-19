@@ -804,70 +804,45 @@ def get_db_column(cursor, table_name, candidates):
         return candidates[0]
 
 # =================================================================================
-#  ADMIN DASHBOARD ROUTE (Fixed IST Date & Net Sales)
+#  ADMIN DASHBOARD ROUTE (Final Fix: IST Date, Yearly Stats, Net Sales)
 # =================================================================================
 @app.route("/dash")
 def dash():
-    """Admin Analytics Dashboard"""
     if "loggedin" not in session: return redirect(url_for("login"))
     
     conn = mysql.connection
     cursor = conn.cursor(MySQLdb.cursors.DictCursor)
     
-    # --- 1. TIMEZONE FIX: Force IST (UTC+5:30) ---
+    # --- 1. TIMEZONE FIX (IST) ---
     ist_now = datetime.utcnow() + timedelta(hours=5, minutes=30)
     today = ist_now.date() 
     current_year = today.year
     
     # --- 2. KEY METRICS ---
     
-    # A. SALES TODAY (Net: Total - Discount)
-    cursor.execute("""
-        SELECT SUM(total_amount - discount) as total 
-        FROM evening_settle 
-        WHERE date = %s AND status = 'final'
-    """, (today,))
+    # A. SALES TODAY (Net = Total - Discount)
+    cursor.execute("SELECT SUM(total_amount - discount) as total FROM evening_settle WHERE date = %s AND status = 'final'", (today,))
     row = cursor.fetchone()
     sales_today = float(row['total'] or 0)
 
     # B. SALES THIS MONTH
     start_of_month = today.replace(day=1)
-    cursor.execute("""
-        SELECT SUM(total_amount - discount) as total 
-        FROM evening_settle 
-        WHERE date >= %s AND date <= %s AND status = 'final'
-    """, (start_of_month, today))
+    cursor.execute("SELECT SUM(total_amount - discount) as total FROM evening_settle WHERE date >= %s AND date <= %s AND status = 'final'", (start_of_month, today))
     row = cursor.fetchone()
     sales_this_month = float(row['total'] or 0)
 
-    # C. YEARLY SALES
+    # C. YEARLY REVENUE (Calculated as requested)
     start_of_year = date(current_year, 1, 1)
-    cursor.execute("""
-        SELECT SUM(total_amount - discount) as total 
-        FROM evening_settle 
-        WHERE date >= %s AND status = 'final'
-    """, (start_of_year,))
+    cursor.execute("SELECT SUM(total_amount - discount) as total FROM evening_settle WHERE date >= %s AND status = 'final'", (start_of_year,))
     row = cursor.fetchone()
     yearly_sales = float(row['total'] or 0)
 
     # D. YEARLY EXPENSES
-    cursor.execute("""
-        SELECT SUM(amount) as total 
-        FROM expenses 
-        WHERE expense_date >= %s
-    """, (start_of_year,))
+    cursor.execute("SELECT SUM(amount) as total FROM expenses WHERE expense_date >= %s", (start_of_year,))
     row = cursor.fetchone()
     yearly_expenses = float(row['total'] or 0)
 
-    # E. LOW STOCK COUNT
-    try:
-        cursor.execute("SELECT COUNT(*) as cnt FROM products WHERE stock <= low_stock_threshold AND status='Active'")
-    except:
-        cursor.execute("SELECT COUNT(*) as cnt FROM products WHERE stock < 10")
-    row = cursor.fetchone()
-    low_stock = int(row['cnt'] or 0)
-
-    # F. SUPPLIER DUES
+    # E. SUPPLIER DUES & LOW STOCK
     cursor.execute("""
         SELECT SUM(
             opening_balance + 
@@ -877,28 +852,23 @@ def dash():
         ) as total_due 
         FROM suppliers s
     """)
-    row = cursor.fetchone()
-    supplier_dues = float(row['total_due'] or 0)
+    supplier_dues = float(cursor.fetchone()['total_due'] or 0)
 
-    # --- 3. CHART DATA ---
+    try:
+        cursor.execute("SELECT COUNT(*) as cnt FROM products WHERE stock <= low_stock_threshold AND status='Active'")
+    except:
+        cursor.execute("SELECT COUNT(*) as cnt FROM products WHERE stock < 10")
+    low_stock = int(cursor.fetchone()['cnt'] or 0)
+
+    # --- 3. CHARTS ---
     chart_months = []
     chart_sales = []
     chart_expenses = []
 
-    cursor.execute("""
-        SELECT MONTH(date) as m, SUM(total_amount - discount) as total
-        FROM evening_settle
-        WHERE YEAR(date) = %s AND status = 'final'
-        GROUP BY MONTH(date)
-    """, (current_year,))
+    cursor.execute("SELECT MONTH(date) as m, SUM(total_amount - discount) as total FROM evening_settle WHERE YEAR(date) = %s AND status = 'final' GROUP BY MONTH(date)", (current_year,))
     sales_map = {row['m']: float(row['total']) for row in cursor.fetchall()}
 
-    cursor.execute("""
-        SELECT MONTH(expense_date) as m, SUM(amount) as total
-        FROM expenses
-        WHERE YEAR(expense_date) = %s
-        GROUP BY MONTH(expense_date)
-    """, (current_year,))
+    cursor.execute("SELECT MONTH(expense_date) as m, SUM(amount) as total FROM expenses WHERE YEAR(expense_date) = %s GROUP BY MONTH(expense_date)", (current_year,))
     expense_map = {row['m']: float(row['total']) for row in cursor.fetchall()}
 
     for m in range(1, 13):
@@ -909,18 +879,14 @@ def dash():
     # --- 4. TOP PRODUCTS ---
     top_prod_names = []
     top_prod_qty = []
-    
     cursor.execute("""
         SELECT p.name, SUM(ei.sold_qty) as total_qty
         FROM evening_item ei
         JOIN products p ON ei.product_id = p.id
         JOIN evening_settle es ON ei.settle_id = es.id
         WHERE YEAR(es.date) = %s AND es.status = 'final'
-        GROUP BY p.id, p.name
-        ORDER BY total_qty DESC
-        LIMIT 5
+        GROUP BY p.id, p.name ORDER BY total_qty DESC LIMIT 5
     """, (current_year,))
-    
     for row in cursor.fetchall():
         top_prod_names.append(row['name'])
         top_prod_qty.append(int(row['total_qty']))
@@ -929,12 +895,12 @@ def dash():
 
     return render_template(
         "dash.html",
-        today_date=today, # Passed explicitly to fix template error
+        today_date=today, # Fixed Date Variable
         current_year=current_year,
         sales_today=sales_today,
         sales_this_month=sales_this_month,
-        yearly_sales=yearly_sales,
-        yearly_expenses=yearly_expenses,
+        yearly_sales=yearly_sales,     # Added
+        yearly_expenses=yearly_expenses, # Added
         low_stock=low_stock,
         supplier_dues=supplier_dues,
         chart_months=chart_months,
@@ -7099,6 +7065,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
