@@ -176,11 +176,11 @@
                                 </a>
 
                                 <!-- SOFT DELETE FORM -->
-                                <form action="{{ url_for('delete_product_soft', id=p.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Archive this product? It will be hidden but history preserved.');">
-                                    <button class="btn btn-sm btn-light border text-danger" title="Archive / Safe Delete">
-                                        <i class="fa-solid fa-box-archive"></i>
-                                    </button>
-                                </form>
+                                <form action="{{ url_for('delete_product_soft', id=p.id) }}" method="POST" onsubmit="return confirm('Are you sure? This will Archive the product.');" style="display:inline;">
+            <button type="submit" class="btn btn-icon text-danger btn-light-hover" title="Archive (Soft Delete)">
+                <i class="fa-solid fa-trash"></i>
+            </button>
+        </form>
                             </div>
 
                             <!-- Modal for Stock Adjust -->
@@ -282,6 +282,7 @@
     .btn-light-hover:hover.text-info { color: #0dcaf0 !important; background: #e6fcff; }
 </style>
 {% endblock %}
+
 
 
 
