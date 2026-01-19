@@ -108,37 +108,27 @@ def parse_date_input(date_str):
 # ==========================================
 # SOFT DELETE PRODUCT (Safe Delete)
 # ==========================================
-@app.route('/products/delete/soft/<int:id>', methods=['POST'])
+
+@app.route('/delete_product_soft/<int:id>', methods=['POST'])
 def delete_product_soft(id):
-    if "loggedin" not in session:
+    if "user_id" not in session:
         return redirect(url_for("login"))
-        
-    cursor = None
+
     try:
-        cursor = mysql.connection.cursor()
+        cur = mysql.connection.cursor()
         
-        # SOFT DELETE LOGIC:
-        # Instead of removing the record, we mark it as 'inactive'.
-        # This preserves all historical data (sales, purchases, allocations).
-        
-        # Check if status column exists (Optional safety, or assume DB is updated)
-        # We assume the column 'status' exists.
-        
-        cursor.execute("UPDATE products SET status = 'inactive' WHERE id = %s", (id,))
+        # 1. Update status to Inactive instead of DELETE
+        cur.execute("UPDATE products SET status = 'Inactive' WHERE id = %s", (id,))
         
         mysql.connection.commit()
-        flash("Product archived successfully! (Safe Delete)", "success")
+        cur.close()
+        
+        flash('Product archived successfully! It is now hidden from lists.', 'success')
         
     except Exception as e:
-        mysql.connection.rollback()
-        print(f"Error soft deleting product {id}: {e}") 
-        flash(f"Error archiving product: {e}", "danger")
+        flash(f'Error archiving product: {str(e)}', 'danger')
         
-    finally:
-        if cursor:
-            cursor.close()
-            
-    # Redirect back to the referrer page (inventory or inventory_master)
+    # Redirect back to where the user came from (Master or Main Inventory)
     return redirect(request.referrer or url_for('inventory_master'))
 
 # --- VIEW EVENING SETTLEMENT DETAILS ---
@@ -2209,23 +2199,25 @@ def stock_adjust():
 # =========================================================
 #  UPDATED INVENTORY MASTER (Universal Logic)
 # =========================================================
+
 @app.route('/inventory_master')
 def inventory_master():
-    if "loggedin" not in session:
+    if "user_id" not in session:
         return redirect(url_for("login"))
 
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
-    # 1. Fetch Products
+    # --- MODIFIED: Added "WHERE p.status = 'Active'" ---
     cur.execute("""
         SELECT p.*, pc.category_name 
         FROM products p
         LEFT JOIN product_categories pc ON p.category_id = pc.id
+        WHERE p.status = 'Active'
         ORDER BY p.id DESC
     """)
     products = cur.fetchall()
 
-    # 2. Calculate Allocated Stock (Field Stock)
+    # --- LOGIC PRESERVED: Calculate Allocated Stock (Field Stock) ---
     # Logic: For every employee, find their CURRENT holding.
     # Current Holding = Last Known State (Either from Morning or Evening).
     
@@ -2445,20 +2437,20 @@ def product_history(product_id):
 
     return render_template('inventory/product_history.html', product=product, history=history)
 
-# =========================================================
-#  UPDATED INVENTORY PAGE (Correct Total Stock Logic)
-# =========================================================
+
 @app.route('/inventory')
 def inventory():
-    if "loggedin" not in session:
+    if "user_id" not in session:
         return redirect(url_for("login"))
 
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
+    # --- MODIFIED: Added "WHERE status = 'Active'" ---
     # 1) Fetch all ACTIVE products
     try:
-        cur.execute("SELECT * FROM products WHERE status = 'active' ORDER BY id DESC")
+        cur.execute("SELECT * FROM products WHERE status = 'Active' ORDER BY id DESC")
     except:
+        # Fallback if column doesn't exist yet (prevents crash)
         cur.execute("SELECT * FROM products ORDER BY id DESC")
     products = cur.fetchall()
 
@@ -2467,7 +2459,7 @@ def inventory():
     categories = cur.fetchall()
     categories_map = {c['id']: c['category_name'] for c in categories}
 
-    # --- 3) Calculate Allocated Stock (Field Stock) ---
+    # --- LOGIC PRESERVED: Calculate Allocated Stock (Field Stock) ---
     # Logic: Allocated = (Morning Opening + Morning Given) - Evening Sold
     allocated_map = {} 
     
@@ -7186,6 +7178,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
