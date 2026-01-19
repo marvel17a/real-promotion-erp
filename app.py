@@ -803,9 +803,8 @@ def get_db_column(cursor, table_name, candidates):
     except:
         return candidates[0]
 
-
 # =================================================================================
-#  ADMIN DASHBOARD ROUTE (Fixed Logic & Charts)
+#  ADMIN DASHBOARD ROUTE (Fixed Date & Net Sales Logic)
 # =================================================================================
 @app.route("/dash")
 def dash():
@@ -815,12 +814,16 @@ def dash():
     conn = mysql.connection
     cursor = conn.cursor(MySQLdb.cursors.DictCursor)
     
-    today = date.today()
+    # --- TIMEZONE FIX: Force IST (UTC+5:30) ---
+    # This ensures "Today" means "Today in India"
+    ist_now = datetime.utcnow() + timedelta(hours=5, minutes=30)
+    today = ist_now.date() 
     current_year = today.year
     
     # --- 1. KEY METRICS ---
     
     # A. SALES TODAY (Net: Total - Discount)
+    # Only counting 'final' settlements
     cursor.execute("""
         SELECT SUM(total_amount - discount) as total 
         FROM evening_settle 
@@ -949,9 +952,9 @@ def dash():
         top_prod_names=top_prod_names,
         top_prod_qty=top_prod_qty,
         
-        # Context
+        # Context (Updated Date Variable)
         current_year=current_year,
-        date=date # Pass datetime date object for template rendering
+        today_date_display=today # Pass the IST date object
     )
 
 # =====================================================================
@@ -3884,7 +3887,7 @@ class PDFGenerator(FPDF):
         ]
         self.contact = "+91 96623 22476 | help@realpromotion.in"
         self.gst_text = "GSTIN:24AJVPT0460H1ZW"
-        self.gst_subtext = "Composition Dealer- Not Eligibal To Collect Taxes On Sppliers"
+        self.gst_subtext = "Composition Dealer- Not Eligibal To Collect Taxes On Supplies"
 
     def header(self):
         # Company Header
@@ -3971,7 +3974,7 @@ class PDFGenerator(FPDF):
             self.set_font('Arial', 'B', 10)
             self.cell(40, 6, str(form_id), 0, 1)
             
-        self.ln(10)
+        self.ln(15 if form_id else 10)
 
     def add_table_header(self, columns, widths):
         self.set_font('Arial', 'B', 9)
@@ -3983,37 +3986,64 @@ class PDFGenerator(FPDF):
             self.cell(widths[i], 8, col, 1, 0, 'C', True)
         self.ln()
 
-    def add_signature_section(self):
-        if self.get_y() > 220: self.add_page()
+    def add_signature_section(self, is_office_bill=False):
+        # Check space to ensure signature doesn't get cut off
+        if self.get_y() > 230: self.add_page()
+        
+        # Add Padding above signature to avoid overwriting elements
         self.ln(15) 
         y_pos = self.get_y()
         
-        # Authorized Signature Image (Automatic Print)
+        # Signature Image Logic
         sig_path = os.path.join(app.root_path, 'static', 'img', 'signature.png')
-        if os.path.exists(sig_path):
-            self.image(sig_path, x=20, y=y_pos-15, w=40) 
         
-        self.set_font('Arial', 'B', 10)
-        self.set_text_color(0, 0, 0)
-        
-        self.line(15, y_pos + 15, 75, y_pos + 15)
-        self.set_xy(15, y_pos + 17)
-        self.cell(60, 5, "Authorized Signature", 0, 0, 'C')
-        
-        # Employee Signature
-        self.line(135, y_pos + 15, 195, y_pos + 15)
-        self.set_xy(135, y_pos + 17)
-        self.cell(60, 5, "Employee Signature", 0, 1, 'C')
-        
-        self.ln(10)
+        if is_office_bill:
+            # === OFFICE BILL SIGNATURE (RIGHT SIDE ONLY) ===
+            # Image Position
+            if os.path.exists(sig_path):
+                # x=140 aligns it well on the right side
+                self.image(sig_path, x=140, y=y_pos, w=40)
+            
+            # Text Position (Below image)
+            # y_pos + 25 creates a safe gap below the image
+            self.set_xy(130, y_pos + 25)
+            self.set_font('Arial', 'B', 10)
+            self.set_text_color(0, 0, 0)
+            self.cell(60, 5, "For, REAL PROMOTION", 0, 1, 'C')
+            
+            self.set_xy(130, y_pos + 30)
+            self.cell(60, 5, "(Authorized Signatory)", 0, 1, 'C')
+            
+        else:
+            # === MORNING/EVENING SIGNATURES (TWO SIDES) ===
+            if os.path.exists(sig_path):
+                self.image(sig_path, x=20, y=y_pos, w=40)
+            
+            self.set_font('Arial', 'B', 10)
+            self.set_text_color(0, 0, 0)
+            
+            # Left: Authorized
+            self.line(15, y_pos + 25, 75, y_pos + 25)
+            self.set_xy(15, y_pos + 27)
+            self.cell(60, 5, "Authorized Signature", 0, 0, 'C')
+            
+            # Right: Employee
+            self.line(135, y_pos + 25, 195, y_pos + 25)
+            self.set_xy(135, y_pos + 27)
+            self.cell(60, 5, "Employee Signature", 0, 1, 'C')
+
+        # Footer Text
+        self.ln(15)
         self.set_font('Arial', 'I', 8)
+        self.set_text_color(128, 128, 128)
         self.cell(0, 5, "This is a computer generated document.", 0, 1, 'C')
 
     def generate_office_bill_body(self, sale_data, items):
-        # (Same logic as provided in your code, keeping it concise for this block)
+        # 1. Info Header
         self.set_font('Arial', '', 10)
         self.set_text_color(0, 0, 0)
         y = self.get_y()
+        
         self.set_xy(10, y)
         self.set_font('Arial','',10); self.cell(25, 6, "Customer:", 0, 0); self.set_font('Arial','B',10); self.cell(50, 6, str(sale_data['customer_name']), 0, 1)
         self.set_font('Arial','',10); self.cell(25, 6, "Mobile:", 0, 0); self.set_font('Arial','B',10); self.cell(50, 6, str(sale_data['customer_mobile'] or 'N/A'), 0, 1)
@@ -4035,6 +4065,7 @@ class PDFGenerator(FPDF):
         self.cell(20, 6, "Sales By:", 0, 0); self.set_font('Arial','B',10); self.cell(40, 6, str(sale_data['sales_person'] or 'Office'), 0, 1)
         self.ln(25)
 
+        # 2. Table
         cols = ["#", "Product Name", "Qty", "Price", "Total"]
         widths = [10, 90, 20, 30, 40]
         self.add_table_header(cols, widths)
@@ -4066,6 +4097,7 @@ class PDFGenerator(FPDF):
         self.cell(widths[4], 8, f"{sum_total:.2f}", 1, 1, 'R', True)
         self.ln(5)
         
+        # 3. Totals
         x_start = 120
         self.set_x(x_start)
         self.set_font('Arial', '', 10)
@@ -4085,6 +4117,7 @@ class PDFGenerator(FPDF):
         self.cell(30, 8, f"{float(sale_data['final_amount']):.2f}", 1, 1, 'R', True)
         self.ln(10)
         
+        # 4. Terms
         self.set_font('Arial', 'B', 10)
         self.cell(0, 6, "Terms & Conditions:", 0, 1)
         self.set_font('Arial', '', 9)
@@ -4093,7 +4126,8 @@ class PDFGenerator(FPDF):
         self.cell(0, 5, "3. 6 Month Warranty on Electronics.", 0, 1)
         self.cell(0, 5, "4. Subject to Nadiad Jurisdiction.", 0, 1)
         
-        self.add_signature_section()
+        # 5. Correct Signature Call
+        self.add_signature_section(is_office_bill=True)
 
 # ==========================================
 # UPDATED: MORNING PDF ROUTE (With Opening Totals & Dynamic Name)
@@ -4140,8 +4174,8 @@ def download_morning_pdf(allocation_id):
 
     pdf.add_info_section(header['emp_name'], header['emp_mobile'], d_val, t_val, f"MA-{allocation_id}")
     
-    # Columns: Added logic for Opening Total in footer
-    cols = ["#", "Product Name", "Opening", "Given Qty", "Price", "Amount"]
+    # Columns
+    cols = ["NO", "Product Name", "Opening", "Given Qty", "Price", "Amount"]
     widths = [10, 80, 20, 25, 25, 30]
     
     pdf.add_table_header(cols, widths)
@@ -4171,7 +4205,7 @@ def download_morning_pdf(allocation_id):
         total_amount_sum += amt
         fill = not fill 
         
-    # TOTAL ROW (Modified for Opening + Given Totals)
+    # TOTAL ROW
     pdf.set_font('Arial', 'B', 10)
     pdf.cell(widths[0]+widths[1], 8, "TOTALS", 1, 0, 'R', True)
     pdf.cell(widths[2], 8, str(total_opening_sum), 1, 0, 'C', True) # Opening Total
@@ -4179,13 +4213,12 @@ def download_morning_pdf(allocation_id):
     pdf.cell(widths[4], 8, "", 1, 0, 'C', True)
     pdf.cell(widths[5], 8, f"{total_amount_sum:.2f}", 1, 1, 'R', True)
     
-    pdf.add_signature_section()
+    pdf.add_signature_section(is_office_bill=False)
     
     pdf_string = pdf.output(dest='S').encode('latin-1')
     buffer = io.BytesIO(pdf_string)
     buffer.seek(0)
     
-    # Filename: Name_Morning_ID.pdf
     safe_name = str(header['emp_name']).replace(" ", "_")
     filename = f"{safe_name}_Morning_{allocation_id}.pdf"
     return send_file(buffer, as_attachment=True, download_name=filename, mimetype='application/pdf')
@@ -4227,7 +4260,7 @@ def download_morning_pdf_public(allocation_id):
 
     pdf.add_info_section(header['emp_name'], header['emp_mobile'], d_val, t_val, f"MA-{allocation_id}")
     
-    cols = ["#", "Product Name", "Opening", "Given Qty", "Price", "Amount"]
+    cols = ["No", "Product Name", "Opening", "Given Qty", "Price", "Amount"]
     widths = [10, 80, 20, 25, 25, 30]
     pdf.add_table_header(cols, widths)
     
@@ -4263,7 +4296,7 @@ def download_morning_pdf_public(allocation_id):
     pdf.cell(widths[4], 8, "", 1, 0, 'C', True)
     pdf.cell(widths[5], 8, f"{total_amount_sum:.2f}", 1, 1, 'R', True)
     
-    pdf.add_signature_section()
+    pdf.add_signature_section(is_office_bill=False)
     
     pdf_string = pdf.output(dest='S').encode('latin-1')
     buffer = io.BytesIO(pdf_string)
@@ -4274,7 +4307,7 @@ def download_morning_pdf_public(allocation_id):
     return send_file(buffer, as_attachment=True, download_name=filename, mimetype='application/pdf')
 
 # ==========================================
-# UPDATED: EVENING PDF ROUTE (Total Cols, Balance Col, Dynamic Name)
+# UPDATED: EVENING PDF ROUTE (Balance Left of Return)
 # ==========================================
 @app.route('/download_evening_pdf/<int:settle_id>')
 def download_evening_pdf(settle_id):
@@ -4317,10 +4350,13 @@ def download_evening_pdf(settle_id):
     
     pdf.add_info_section(data['emp_name'], data['emp_mobile'], d_val, t_val, f"EV-{settle_id}")
     
-    # COLUMNS: #, Product, Total Stock, Sold, Price, Amount, Balance, Return
-    cols = ["#", "Product", "Total", "Sold", "Price", "Amount", "Balance", "Return"]
-    # Widths must sum approx 190. 
-    # 8 + 52 + 18 + 18 + 20 + 24 + 20 + 20 = 180
+    # COLUMNS (Reordered as per request):
+    # Old: ..., Amount, Balance, Return
+    # New: ..., Amount, Balance, Return (Wait, this is the same)
+    # User said: "return column ke pass left column add karo" -> Balance should be left of Return.
+    # Columns: # | Product | Total | Sold | Price | Amount | Balance | Return
+    
+    cols = ["No", "Product", "Total", "Sold", "Price", "Amount", "Left", "Return"]
     widths = [8, 52, 18, 18, 20, 24, 20, 20]
     
     pdf.add_table_header(cols, widths)
@@ -4340,7 +4376,6 @@ def download_evening_pdf(settle_id):
         pdf.cell(widths[0], 7, str(i+1), 1, 0, 'C', fill)
         pdf.cell(widths[1], 7, str(item['name']), 1, 0, 'L', fill)
         
-        # Data
         pdf.cell(widths[2], 7, str(item['total_qty']), 1, 0, 'C', fill)
         pdf.cell(widths[3], 7, str(item['sold_qty']), 1, 0, 'C', fill)
         pdf.cell(widths[4], 7, f"{float(item['unit_price']):.2f}", 1, 0, 'R', fill)
@@ -4348,11 +4383,12 @@ def download_evening_pdf(settle_id):
         amt = float(item['sold_qty']) * float(item['unit_price'])
         pdf.cell(widths[5], 7, f"{amt:.2f}", 1, 0, 'R', fill)
         
-        # New Column: Balance (remaining_qty)
-        # Assuming Balance = Total - Sold - Return. 'remaining_qty' stores this.
-        bal = int(item['remaining_qty'])
-        pdf.cell(widths[6], 7, str(bal), 1, 0, 'C', fill)
+        # Calculate Balance correctly if remaining_qty is not reliable
+        # Balance = Total - Sold - Return
+        bal = int(item['total_qty']) - int(item['sold_qty']) - int(item['return_qty'])
+        # Or use DB value if preferred: bal = int(item['remaining_qty'])
         
+        pdf.cell(widths[6], 7, str(bal), 1, 0, 'C', fill) # Balance LEFT of Return
         pdf.cell(widths[7], 7, str(item['return_qty']), 1, 1, 'C', fill)
         
         tot_stock_sum += int(item['total_qty'])
@@ -4362,7 +4398,7 @@ def download_evening_pdf(settle_id):
         tot_ret += int(item['return_qty'])
         fill = not fill
 
-    # TOTAL ROW (Updated for Total Stock, Sold, Balance, Return)
+    # TOTAL ROW
     pdf.set_font('Arial', 'B', 10)
     pdf.cell(widths[0]+widths[1], 8, "TOTALS", 1, 0, 'R', True)
     pdf.cell(widths[2], 8, str(tot_stock_sum), 1, 0, 'C', True) # Total Stock Sum
@@ -4442,13 +4478,12 @@ def download_evening_pdf(settle_id):
     text_status = "BALANCE DUE" if balance_due > 0 else "BALANCE CLEARED"
     pdf.cell(0, 12, f" {text_status}:  {balance_due:.2f} ", 1, 1, 'C', True)
     
-    pdf.add_signature_section()
+    pdf.add_signature_section(is_office_bill=False)
     
     pdf_string = pdf.output(dest='S').encode('latin-1')
     buffer = io.BytesIO(pdf_string)
     buffer.seek(0)
     
-    # Filename: Name_Evening_ID.pdf
     safe_name = str(data['emp_name']).replace(" ", "_")
     filename = f"{safe_name}_Evening_{settle_id}.pdf"
     return send_file(buffer, as_attachment=True, download_name=filename, mimetype='application/pdf')
@@ -4492,7 +4527,6 @@ def download_office_bill(sale_id):
     buffer = io.BytesIO(pdf_string)
     buffer.seek(0)
     
-    # Filename: CustomerName_Bill_ID.pdf
     cust_name = str(sale.get('customer_name', 'Customer')).replace(" ", "_")
     filename = f"{cust_name}_Bill_{sale_id}.pdf"
     return send_file(buffer, as_attachment=True, download_name=filename, mimetype='application/pdf')
@@ -4535,7 +4569,6 @@ def download_office_bill_public(sale_id):
     cust_name = str(sale.get('customer_name', 'Customer')).replace(" ", "_")
     filename = f"{cust_name}_Bill_{sale_id}.pdf"
     return send_file(buffer, as_attachment=True, download_name=filename, mimetype='application/pdf')
-
 
 # =====================================================================================
 # 2. OFFICE SALES ROUTE (Updated to show only Active Products)
@@ -7076,6 +7109,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
