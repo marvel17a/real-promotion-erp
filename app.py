@@ -358,10 +358,9 @@ def delete_office_sale(sale_id):
         
     return redirect(url_for('office_sales_master'))
 
-
-# ==========================================
-# 6. EDIT OFFICE SALE (Route & View)
-# ==========================================
+# =====================================================================================
+# 4. EDIT OFFICE SALE ROUTE (Updated to show only Active Products)
+# =====================================================================================
 @app.route('/office_sales/edit/<int:sale_id>', methods=['GET', 'POST'])
 def edit_office_sale(sale_id):
     if "loggedin" not in session: return redirect(url_for("login"))
@@ -459,8 +458,12 @@ def edit_office_sale(sale_id):
     """, (sale_id,))
     items = cursor.fetchall()
     
-    # Fetch All Products for Dropdown
-    cursor.execute("SELECT id, name, price, stock, image FROM products ORDER BY name")
+    # --- MODIFIED: Fetch ONLY Active Products for Dropdown ---
+    try:
+        cursor.execute("SELECT id, name, price, stock, image FROM products WHERE status='Active' ORDER BY name")
+    except:
+        cursor.execute("SELECT id, name, price, stock, image FROM products ORDER BY name")
+    
     all_products = cursor.fetchall()
     
     # Image resolving
@@ -469,6 +472,7 @@ def edit_office_sale(sale_id):
     
     cursor.close()
     return render_template('edit_office_sale.html', sale=sale, items=items, products=all_products)
+
         
 
 
@@ -1421,6 +1425,10 @@ def purchases():
     return render_template('purchases/purchases.html', purchases=all_purchases)
 
 
+
+# =====================================================================================
+# 5. NEW PURCHASE ROUTE (Updated to show only Active Products)
+# =====================================================================================
 @app.route('/new_purchase', methods=['GET', 'POST'])
 def new_purchase():
     if 'loggedin' not in session: return redirect(url_for('login'))
@@ -1445,21 +1453,17 @@ def new_purchase():
             
             for i in range(len(product_ids)):
                 if product_ids[i]: 
-                    # --- FIX 1: Safe Float Conversion (Prevents "could not convert string to float") ---
                     try:
                         raw_qty = quantities[i]
-                        # Convert to float, default to 0.0 if empty string
                         qty = float(raw_qty) if raw_qty and str(raw_qty).strip() else 0.0
                     except ValueError:
                         qty = 0.0
 
                     try:
                         raw_price = prices[i]
-                        # Convert to float, default to 0.0 if empty string
                         price = float(raw_price) if raw_price and str(raw_price).strip() else 0.0
                     except ValueError:
                         price = 0.0
-                    # ---------------------------------------------------------------------------------
 
                     total_amount += (qty * price)
                     valid_items.append({'p_id': product_ids[i], 'qty': qty, 'price': price})
@@ -1503,9 +1507,8 @@ def new_purchase():
                     # Calculate New Total Quantity
                     final_total_qty = old_qty + new_qty
                     
-                    # --- FIX 2: Logic for Price Update ---
+                    # --- Price Update Logic (Weighted Average) ---
                     if new_price > 0:
-                        # SCENARIO A: Paid Purchase -> Calculate Weighted Average
                         total_old_value = old_qty * old_price
                         total_new_value = new_qty * new_price
                         final_total_value = total_old_value + total_new_value
@@ -1515,17 +1518,15 @@ def new_purchase():
                         else:
                             new_avg_price = 0.0
                     else:
-                        # SCENARIO B: Zero Price (Free/Bonus) -> KEEP OLD PRICE
-                        # The user specifically requested NOT to update price if new price is missing/zero.
                         new_avg_price = old_price
 
-                    # E. Insert Item
+                    # Insert Item
                     cursor.execute("""
                         INSERT INTO purchase_items (purchase_id, product_id, quantity, purchase_price)
                         VALUES (%s, %s, %s, %s)
                     """, (purchase_id, p_id, new_qty, new_price))
                     
-                    # F. Update Product with Calculated Price and New Quantity
+                    # Update Product
                     update_query = f"UPDATE products SET {stock_col} = %s, price = %s WHERE id = %s"
                     cursor.execute(update_query, (final_total_qty, new_avg_price, p_id))
             
@@ -1541,7 +1542,6 @@ def new_purchase():
         except Exception as e:
             mysql.connection.rollback()
             flash(f"Error creating purchase: {str(e)}", "danger")
-            # Log error to console for debugging
             print(f"Purchase Error: {e}") 
             return redirect(url_for('purchases'))
             
@@ -1549,12 +1549,16 @@ def new_purchase():
     cursor.execute("SELECT id, name FROM suppliers ORDER BY name")
     suppliers = cursor.fetchall()
     
-    cursor.execute("SELECT * FROM products ORDER BY name")
+    # --- MODIFIED: Fetch ONLY Active Products ---
+    try:
+        cursor.execute("SELECT * FROM products WHERE status='Active' ORDER BY name")
+    except:
+        cursor.execute("SELECT * FROM products ORDER BY name")
+        
     products = cursor.fetchall()
     
     cursor.close()
     return render_template('purchases/new_purchase.html', suppliers=suppliers, products=products)
-
 
 
 
@@ -4179,9 +4183,9 @@ class PDFGenerator(FPDF):
         self.set_xy(130, y_pos + 15)
         self.cell(50, 5, "(Authorized Signatory)", 0, 1, 'C')
 
-# ==========================================
-# 2. ROUTE: OFFICE SALES (GET/POST) - Time Fixed
-# ==========================================
+# =====================================================================================
+# 2. OFFICE SALES ROUTE (Updated to show only Active Products)
+# =====================================================================================
 @app.route('/office_sales', methods=['GET', 'POST'])
 def office_sales():
     if "loggedin" not in session: return redirect(url_for("login"))
@@ -4270,8 +4274,12 @@ def office_sales():
             flash(f"Error: {str(e)}", "danger")
             return redirect(url_for('office_sales'))
 
-    # GET: Fetch Products
-    cursor.execute("SELECT id, name, price, stock, image FROM products ORDER BY name")
+    # --- MODIFIED: Fetch ONLY Active Products ---
+    try:
+        cursor.execute("SELECT id, name, price, stock, image FROM products WHERE status='Active' ORDER BY name")
+    except:
+        cursor.execute("SELECT id, name, price, stock, image FROM products ORDER BY name")
+        
     products = cursor.fetchall()
     
     for p in products:
@@ -5072,9 +5080,9 @@ def fetch_evening_data():
     finally:
         if 'cur' in locals(): cur.close()
 
-# ==========================================
-# 2. MORNING: SUBMIT (Restock & Merge Logic)
-# ==========================================
+# =====================================================================================
+# 1. MORNING ALLOCATION ROUTE (Updated to show only Active Products)
+# =====================================================================================
 @app.route('/morning', methods=['GET', 'POST'])
 def morning():
     if "loggedin" not in session: return redirect(url_for("login"))
@@ -5171,12 +5179,20 @@ def morning():
     cursor.execute("SELECT id, name, image FROM employees WHERE status='active' ORDER BY name")
     emps = cursor.fetchall()
     for e in emps: e['image'] = resolve_img(e['image'])
-    cursor.execute("SELECT id, name, price, image, stock FROM products ORDER BY name")
+    
+    # --- MODIFIED: Fetch ONLY Active Products ---
+    try:
+        cursor.execute("SELECT id, name, price, image, stock FROM products WHERE status='Active' ORDER BY name")
+    except:
+        cursor.execute("SELECT id, name, price, image, stock FROM products ORDER BY name")
+        
     prods = [{
         'id': p['id'], 'name': p['name'], 'price': float(p['price']), 
         'image': resolve_img(p['image']), 'stock': int(p['stock'] or 0)
     } for p in cursor.fetchall()]
+    
     return render_template('morning.html', employees=emps, products=prods, today_date=date.today().strftime('%d-%m-%Y'))
+
 
 
 
@@ -7189,6 +7205,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
