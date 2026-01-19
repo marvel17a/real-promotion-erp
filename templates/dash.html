@@ -15,7 +15,7 @@
         <div class="d-flex gap-3 align-items-center">
             <div class="date-pill">
                 <i class="fa-regular fa-calendar me-2 text-primary"></i>
-                <!-- FIXED LINE: Uses 'today_date' passed from backend instead of 'date.today()' -->
+                <!-- FIXED: Using correct backend variable -->
                 {{ today_date.strftime('%d %B %Y') }}
             </div>
             <button class="btn btn-dark rounded-circle shadow-sm" style="width: 45px; height: 45px;" onclick="location.reload()" title="Refresh Data">
@@ -24,22 +24,21 @@
         </div>
     </div>
 
-    <!-- ROW 1: KEY METRICS (Glass Cards) -->
-    <div class="row g-4 mb-5">
-        
+    <!-- ROW 1: KEY METRICS (Daily/Monthly) -->
+    <div class="row g-4 mb-4">
         <!-- 1. SALES TODAY -->
         <div class="col-xl-3 col-md-6">
             <div class="glass-stat-card border-start border-5 border-primary shadow-sm h-100 p-4 position-relative overflow-hidden">
                 <div class="d-flex justify-content-between align-items-start z-1 position-relative">
                     <div>
                         <p class="text-uppercase fw-bold text-muted small mb-2 ls-1">Sales Today</p>
+                        <!-- FIXED: |inr filter handles decimals -->
                         <h2 class="fw-bold mb-0 text-dark">{{ sales_today|inr }}</h2>
                     </div>
                     <div class="icon-box bg-primary bg-opacity-10 text-primary rounded-3">
                         <i class="fa-solid fa-cash-register fa-lg"></i>
                     </div>
                 </div>
-                <!-- Decor Circle -->
                 <div class="decor-circle bg-primary"></div>
             </div>
         </div>
@@ -93,7 +92,39 @@
         </div>
     </div>
 
-    <!-- ROW 2: CHARTS -->
+    <!-- ROW 2: YEARLY OVERVIEW (ADDED AS REQUESTED) -->
+    <div class="row g-4 mb-5">
+        <!-- Yearly Revenue -->
+        <div class="col-md-6">
+            <div class="glass-stat-card border-0 shadow-sm h-100 p-4 position-relative overflow-hidden bg-white">
+                <div class="d-flex align-items-center">
+                    <div class="icon-box bg-info bg-opacity-10 text-info rounded-circle me-3">
+                        <i class="fa-solid fa-sack-dollar fa-lg"></i>
+                    </div>
+                    <div>
+                        <p class="text-uppercase fw-bold text-muted small mb-1">Total Yearly Revenue</p>
+                        <h3 class="fw-bold mb-0 text-dark">{{ yearly_sales|inr }}</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Yearly Expense -->
+        <div class="col-md-6">
+            <div class="glass-stat-card border-0 shadow-sm h-100 p-4 position-relative overflow-hidden bg-white">
+                <div class="d-flex align-items-center">
+                    <div class="icon-box bg-danger bg-opacity-10 text-danger rounded-circle me-3">
+                        <i class="fa-solid fa-money-bill-transfer fa-lg"></i>
+                    </div>
+                    <div>
+                        <p class="text-uppercase fw-bold text-muted small mb-1">Total Yearly Expenses</p>
+                        <h3 class="fw-bold mb-0 text-dark">{{ yearly_expenses|inr }}</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ROW 3: CHARTS -->
     <div class="row g-4 mb-5">
         <!-- Sales vs Expenses -->
         <div class="col-lg-8">
@@ -142,16 +173,6 @@
     // --- 1. MAIN CHART (Bar) ---
     const ctxMain = document.getElementById('mainChart').getContext('2d');
     
-    // Gradient for Sales
-    const gradientSales = ctxMain.createLinearGradient(0, 0, 0, 400);
-    gradientSales.addColorStop(0, 'rgba(99, 102, 241, 0.5)'); // Indigo
-    gradientSales.addColorStop(1, 'rgba(99, 102, 241, 0.0)');
-
-    // Gradient for Expenses
-    const gradientExp = ctxMain.createLinearGradient(0, 0, 0, 400);
-    gradientExp.addColorStop(0, 'rgba(239, 68, 68, 0.5)');   // Red
-    gradientExp.addColorStop(1, 'rgba(239, 68, 68, 0.0)');
-
     new Chart(ctxMain, {
         type: 'bar',
         data: {
@@ -187,7 +208,7 @@
         }
     });
 
-    // --- 2. PRODUCT CHART --
+    // --- 2. PRODUCT CHART ---
     const ctxProduct = document.getElementById('productChart').getContext('2d');
     new Chart(ctxProduct, {
         type: 'doughnut',
@@ -210,35 +231,4 @@
         }
     });
 </script>
-
-<style>
-    /* Minimal Glass Styles for Dash */
-    .glass-stat-card {
-        background: rgba(255, 255, 255, 0.9);
-        border-radius: 16px;
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
-    }
-    .glass-stat-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 10px 30px rgba(0,0,0,0.08) !important;
-    }
-    .icon-box {
-        width: 50px; height: 50px;
-        display: flex; align-items: center; justify-content: center;
-    }
-    .decor-circle {
-        position: absolute;
-        width: 120px; height: 120px;
-        border-radius: 50%;
-        bottom: -60px; right: -60px;
-        opacity: 0.05;
-    }
-    .dashboard-header h2 { font-weight: 800; letter-spacing: -0.5px; color: #1e293b; }
-    .date-pill {
-        background: #fff; padding: 8px 20px; border-radius: 50px;
-        font-weight: 600; color: #64748b;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.03);
-    }
-    .glass-card { background: #fff; border-radius: 16px; }
-</style>
 {% endblock %}
