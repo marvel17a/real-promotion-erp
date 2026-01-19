@@ -1035,21 +1035,41 @@ def dash():
         current_year=current_year
     )
 
-# ... (rest of your app.py remains unchanged) ...
-
-
 # =====================================================================
-# SUPPLIER MANAGEMENT ROUTES
+# SUPPLIER MANAGEMENT MODULE (Complete & Fixed)
 # =====================================================================
+
+# --- Helper to guarantee date format ---
+def format_records_date(records, date_key):
+    """
+    Iterates through a list of dicts, parses the specific date key, 
+    and adds a 'formatted_date' key (dd-mm-yyyy) to each record.
+    """
+    for r in records:
+        val = r.get(date_key)
+        if val:
+            if isinstance(val, (date, datetime)):
+                r['formatted_date'] = val.strftime('%d-%m-%Y')
+            else:
+                # If it's a string, try to parse standard SQL format
+                try:
+                    dt = datetime.strptime(str(val), '%Y-%m-%d')
+                    r['formatted_date'] = dt.strftime('%d-%m-%Y')
+                except:
+                    # Fallback if format is weird, just show as is
+                    r['formatted_date'] = str(val)
+        else:
+            r['formatted_date'] = '-'
+    return records
+
+# 1. LIST SUPPLIERS
 @app.route('/suppliers')
 def suppliers():
     if 'loggedin' not in session: return redirect(url_for('login'))
     
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
-    # FETCH SUPPLIERS WITH DYNAMIC DUE CALCULATION
-    # Formula: Opening + Purchases + Adjustments - Payments
-    # Ordered by ID ASC
+    # Calculate dynamic due for list view
     query = """
         SELECT s.*, 
             (
@@ -1063,12 +1083,10 @@ def suppliers():
     """
     cursor.execute(query)
     suppliers = cursor.fetchall()
-    
     cursor.close()
     return render_template('suppliers/suppliers.html', suppliers=suppliers)
 
-
-
+# 2. ADD SUPPLIER
 @app.route('/suppliers/add', methods=['GET', 'POST'])
 def add_supplier():
     if 'loggedin' not in session: return redirect(url_for('login'))
@@ -1079,8 +1097,6 @@ def add_supplier():
         email = request.form['email']
         gstin = request.form.get('gstim', '')
         address = request.form.get('address', '')
-        
-        # New Fields
         opening_balance = request.form.get('opening_balance', 0.0)
         payment_terms = request.form.get('payment_terms', 60)
         
@@ -1097,6 +1113,7 @@ def add_supplier():
         
     return render_template('suppliers/add_supplier.html')
 
+# 3. EDIT SUPPLIER
 @app.route('/suppliers/edit/<int:supplier_id>', methods=['GET', 'POST'])
 def edit_supplier(supplier_id):
     if 'loggedin' not in session: return redirect(url_for('login'))
@@ -1126,16 +1143,57 @@ def edit_supplier(supplier_id):
     cursor.close()
     
     return render_template('suppliers/edit_supplier.html', supplier=supplier)
+
+# 4. DELETE SUPPLIER
+@app.route('/suppliers/delete/<int:supplier_id>', methods=['POST'])
+def delete_supplier(supplier_id):
+    if 'loggedin' not in session: return redirect(url_for('login'))
+    
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    try:
+        # Delete Payments
+        cursor.execute("DELETE FROM supplier_payments WHERE supplier_id = %s", (supplier_id,))
+        
+        # Delete Purchases & Items
+        cursor.execute("SELECT id FROM purchases WHERE supplier_id = %s", (supplier_id,))
+        purchase_ids = [p['id'] for p in cursor.fetchall()]
+        if purchase_ids:
+            if len(purchase_ids) == 1:
+                ids_tuple = f"({purchase_ids[0]})"
+            else:
+                ids_tuple = str(tuple(purchase_ids))
+            cursor.execute(f"DELETE FROM purchase_items WHERE purchase_id IN {ids_tuple}")
+            cursor.execute("DELETE FROM purchases WHERE supplier_id=%s", (supplier_id,))
+
+        # Delete Adjustments
+        cursor.execute("DELETE FROM supplier_adjustments WHERE supplier_id = %s", (supplier_id,))
+
+        # Delete Supplier
+        cursor.execute("DELETE FROM suppliers WHERE id=%s", (supplier_id,))
+        
+        mysql.connection.commit()
+        flash('Supplier deleted successfully.', 'success')
+        
+    except Exception as e:
+        mysql.connection.rollback()
+        flash(f"Error deleting supplier: {str(e)}", "danger")
+        
+    finally:
+        cursor.close()
+        
+    return redirect(url_for('suppliers'))
+
 # =====================================================================
-# SUPPLIER LEDGER ROUTE (Complete Fix: Dates & Sorting)
+#  SUPPLIER LEDGER & TRANSACTIONS (The Core Logic)
 # =====================================================================
+
 @app.route('/supplier_ledger/<int:supplier_id>')
 def supplier_ledger(supplier_id):
     if 'loggedin' not in session: return redirect(url_for('login'))
     
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
-    # 1. Fetch Supplier Info
+    # 1. Fetch Supplier
     cursor.execute("SELECT * FROM suppliers WHERE id=%s", (supplier_id,))
     supplier = cursor.fetchone()
     
@@ -1143,52 +1201,26 @@ def supplier_ledger(supplier_id):
         flash("Supplier not found!", "danger")
         return redirect(url_for('suppliers'))
 
-    # --- HELPER: Strict Date Formatting ---
-    def format_list_dates(data_list, date_key):
-        """Converts date objects or strings to dd-mm-yyyy format."""
-        for item in data_list:
-            raw_date = item.get(date_key)
-            if raw_date:
-                # If already date/datetime object
-                if isinstance(raw_date, (date, datetime)):
-                    item['formatted_date'] = raw_date.strftime('%d-%m-%Y')
-                else:
-                    # If string (e.g. '2024-01-25'), parse and format
-                    try:
-                        # Assuming standard MySQL format YYYY-MM-DD
-                        dt_obj = datetime.strptime(str(raw_date), '%Y-%m-%d')
-                        item['formatted_date'] = dt_obj.strftime('%d-%m-%Y')
-                    except ValueError:
-                        # Fallback if format is different or already formatted
-                        item['formatted_date'] = str(raw_date)
-            else:
-                item['formatted_date'] = '-'
-        return data_list
-
-    # 2. Fetch Records
+    # 2. Fetch Records (ALL SORTED DESC - Newest First)
     
-    # A. Purchases (Newest First)
+    # A. Purchases
     cursor.execute("SELECT * FROM purchases WHERE supplier_id=%s ORDER BY purchase_date DESC", (supplier_id,))
     purchases = cursor.fetchall()
-    purchases = format_list_dates(purchases, 'purchase_date')
+    purchases = format_records_date(purchases, 'purchase_date') # Format Dates
     
-    # B. Payments (History) - Newest First (DESC)
+    # B. Payments (Fixed)
     try:
         cursor.execute("SELECT * FROM supplier_payments WHERE supplier_id=%s ORDER BY payment_date DESC", (supplier_id,))
         payments = cursor.fetchall()
-        payments = format_list_dates(payments, 'payment_date') 
-    except Exception as e:
-        print(f"Payment Fetch Error: {e}")
-        payments = []
+        payments = format_records_date(payments, 'payment_date') # Format Dates
+    except: payments = []
     
-    # C. Adjustments (Other Due) - Newest First (DESC)
+    # C. Adjustments (Fixed)
     try:
         cursor.execute("SELECT * FROM supplier_adjustments WHERE supplier_id=%s ORDER BY adjustment_date DESC", (supplier_id,))
         adjustments = cursor.fetchall()
-        adjustments = format_list_dates(adjustments, 'adjustment_date')
-    except Exception as e:
-        print(f"Adj Fetch Error: {e}")
-        adjustments = []
+        adjustments = format_records_date(adjustments, 'adjustment_date') # Format Dates
+    except: adjustments = []
     
     # 3. Calculate Totals
     cursor.execute("SELECT SUM(COALESCE(total_amount, 0)) as total FROM purchases WHERE supplier_id=%s", (supplier_id,))
@@ -1197,18 +1229,14 @@ def supplier_ledger(supplier_id):
     try:
         cursor.execute("SELECT SUM(COALESCE(amount_paid, 0)) as total FROM supplier_payments WHERE supplier_id=%s", (supplier_id,))
         total_paid = float(cursor.fetchone()['total'] or 0)
-    except:
-        total_paid = 0.0
+    except: total_paid = 0.0
         
     try:
         cursor.execute("SELECT SUM(COALESCE(amount, 0)) as total FROM supplier_adjustments WHERE supplier_id=%s", (supplier_id,))
         total_adjustments = float(cursor.fetchone()['total'] or 0)
-    except:
-        total_adjustments = 0.0
+    except: total_adjustments = 0.0
     
     opening_bal = float(supplier.get('opening_balance', 0.0))
-    
-    # Net Outstanding Logic
     total_outstanding_amount = (opening_bal + total_purchases + total_adjustments) - total_paid
     
     cursor.close()
@@ -1218,28 +1246,22 @@ def supplier_ledger(supplier_id):
                          purchases=purchases, 
                          payments=payments, 
                          adjustments=adjustments,
-                         total_outstanding_amount=total_outstanding_amount,
+                         total_outstanding_amount=total_outstanding_amount, 
                          opening_balance=opening_bal,
                          total_purchases=total_purchases,
                          total_adjustments=total_adjustments,
                          total_paid=total_paid)
 
-# Route to Add Manual Due (Other Reason)
+# Route to Add Manual Due (Adjustments)
 @app.route('/suppliers/add_due/<int:supplier_id>', methods=['GET', 'POST'])
 def supplier_add_due(supplier_id):
     if 'loggedin' not in session: return redirect(url_for('login'))
     
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    cursor.execute("SELECT * FROM suppliers WHERE id = %s", (supplier_id,))
-    supplier = cursor.fetchone()
     
-    if not supplier:
-        flash("Supplier not found.", "danger")
-        return redirect(url_for('suppliers'))
-        
     if request.method == 'POST':
         amount = request.form.get('amount')
-        date_val = request.form.get('date')
+        date_val = request.form.get('date') # Format from form is usually YYYY-MM-DD
         notes = request.form.get('notes')
         
         try:
@@ -1248,12 +1270,9 @@ def supplier_add_due(supplier_id):
                 VALUES (%s, %s, %s, %s)
             """, (supplier_id, amount, date_val, notes))
             
-            # Update current_due in suppliers table (Increase Debt)
-            cursor.execute("""
-                UPDATE suppliers SET current_due = current_due + %s WHERE id = %s
-            """, (amount, supplier_id))
-            
+            cursor.execute("UPDATE suppliers SET current_due = current_due + %s WHERE id = %s", (amount, supplier_id))
             mysql.connection.commit()
+            
             flash("Manual due added successfully.", "success")
             return redirect(url_for('supplier_ledger', supplier_id=supplier_id))
             
@@ -1261,18 +1280,17 @@ def supplier_add_due(supplier_id):
             mysql.connection.rollback()
             flash(f"Error: {e}", "danger")
             
+    cursor.execute("SELECT * FROM suppliers WHERE id = %s", (supplier_id,))
+    supplier = cursor.fetchone()
     cursor.close()
     return render_template('suppliers/add_manual_due.html', supplier=supplier, today_date=date.today().isoformat())
 
-
-
+# Delete Adjustment
 @app.route('/suppliers/delete_adjustment/<int:adjustment_id>', methods=['POST'])
 def delete_supplier_adjustment(adjustment_id):
     if 'loggedin' not in session: return redirect(url_for('login'))
     
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    
-    # Get supplier ID first to redirect back
     cursor.execute("SELECT supplier_id, amount FROM supplier_adjustments WHERE id=%s", (adjustment_id,))
     adj = cursor.fetchone()
     
@@ -1281,78 +1299,42 @@ def delete_supplier_adjustment(adjustment_id):
         amount = adj['amount']
         
         try:
-            # Delete adjustment
             cursor.execute("DELETE FROM supplier_adjustments WHERE id=%s", (adjustment_id,))
-            
-            # Update supplier current_due (Decrease debt)
             cursor.execute("UPDATE suppliers SET current_due = current_due - %s WHERE id=%s", (amount, supplier_id))
-            
             mysql.connection.commit()
-            flash("Adjustment deleted successfully.", "success")
+            flash("Adjustment deleted.", "success")
             return redirect(url_for('supplier_ledger', supplier_id=supplier_id))
         except Exception as e:
             mysql.connection.rollback()
-            flash(f"Error deleting adjustment: {e}", "danger")
-            return redirect(url_for('suppliers')) # Fallback
+            flash(f"Error: {e}", "danger")
             
     cursor.close()
     return redirect(url_for('suppliers'))
 
-
+# Record Payment
 @app.route('/suppliers/<int:supplier_id>/payment/new', methods=['GET', 'POST'])
 def record_payment(supplier_id):
     if 'loggedin' not in session: return redirect(url_for('login'))
     
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
-    # Fetch Supplier
-    cursor.execute("SELECT * FROM suppliers WHERE id = %s", (supplier_id,))
-    supplier = cursor.fetchone()
-    
-    if not supplier:
-        flash("Supplier not found.", "danger")
-        return redirect(url_for('suppliers'))
-
-    # Calculate Current Due Dynamically for Display
-    cursor.execute("SELECT SUM(total_amount) as total FROM purchases WHERE supplier_id=%s", (supplier_id,))
-    total_purchases = float(cursor.fetchone()['total'] or 0)
-    
-    try:
-        cursor.execute("SELECT SUM(amount_paid) as total FROM supplier_payments WHERE supplier_id=%s", (supplier_id,))
-        total_paid = float(cursor.fetchone()['total'] or 0)
-    except: total_paid = 0.0
-    
-    try:
-        cursor.execute("SELECT SUM(amount) as total FROM supplier_adjustments WHERE supplier_id=%s", (supplier_id,))
-        total_adj = float(cursor.fetchone()['total'] or 0)
-    except: total_adj = 0.0
-    
-    opening_bal = float(supplier.get('opening_balance', 0.0))
-    
-    # Net Payable
-    current_due_display = (opening_bal + total_purchases + total_adj) - total_paid
-
     if request.method == 'POST':
         amount_paid = request.form.get('amount_paid')
-        payment_date = request.form.get('payment_date')
+        payment_date = request.form.get('payment_date') # from form YYYY-MM-DD
         payment_mode = request.form.get('payment_mode')
         notes = request.form.get('notes')
 
         if not amount_paid or not payment_date:
             flash("Payment amount and date are required.", "danger")
-            return render_template('suppliers/new_payment.html', supplier=supplier, current_due=current_due_display, today_date=date.today().isoformat())
+            return redirect(request.url)
         
         try:
-            # Insert into supplier_payments
             cursor.execute("""
                 INSERT INTO supplier_payments (supplier_id, amount_paid, payment_date, payment_mode, notes)
                 VALUES (%s, %s, %s, %s, %s)
             """, (supplier_id, amount_paid, payment_date, payment_mode, notes))
 
-            # Update 'current_due' in suppliers table (Optional sync, but good practice)
-            cursor.execute("""
-                UPDATE suppliers SET current_due = current_due - %s WHERE id = %s
-            """, (amount_paid, supplier_id))
+            cursor.execute("UPDATE suppliers SET current_due = current_due - %s WHERE id = %s", (amount_paid, supplier_id))
             
             mysql.connection.commit()
             flash('Payment recorded successfully!', 'success')
@@ -1362,69 +1344,42 @@ def record_payment(supplier_id):
             mysql.connection.rollback()
             flash(f"An error occurred: {e}", "danger")
     
-    cursor.close()
+    cursor.execute("SELECT * FROM suppliers WHERE id = %s", (supplier_id,))
+    supplier = cursor.fetchone()
     
-    # Pass 'current_due_display' to template
+    # Recalculate due for display
+    # (Simplified logic for display)
+    cursor.execute("SELECT current_due FROM suppliers WHERE id=%s", (supplier_id,))
+    res = cursor.fetchone()
+    current_due_display = res['current_due'] if res else 0
+    
+    cursor.close()
     return render_template('suppliers/new_payment.html', supplier=supplier, current_due=current_due_display, today_date=date.today().isoformat())
 
-
-
-
-
-@app.route('/suppliers/delete/<int:supplier_id>', methods=['POST'])
-def delete_supplier(supplier_id):
+# Delete Payment
+@app.route('/supplier/payment/delete/<int:payment_id>', methods=['POST'])
+def delete_supplier_payment(payment_id):
     if 'loggedin' not in session: return redirect(url_for('login'))
     
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    try:
-        # 1. Delete Supplier Payments (Purchase Order Payments)
-        # We try this, but if table doesn't exist or is empty, we continue
-        try:
-            cursor.execute("DELETE FROM supplier_payments WHERE supplier_id = %s", (supplier_id,))
-        except Exception:
-            pass # Table might not exist or other issue
-            
-        # 2. Delete Purchases (and items)
-        # Get purchase IDs to manually delete items if CASCADE is missing
-        cursor.execute("SELECT id FROM purchases WHERE supplier_id = %s", (supplier_id,))
-        purchase_ids = [p['id'] for p in cursor.fetchall()]
+    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    cur.execute("SELECT * FROM supplier_payments WHERE id = %s", (payment_id,))
+    payment = cur.fetchone()
+    
+    if payment:
+        amount = payment['amount_paid']
+        supplier_id = payment['supplier_id']
         
-        if purchase_ids:
-            if len(purchase_ids) == 1:
-                ids_tuple = f"({purchase_ids[0]})"
-            else:
-                ids_tuple = str(tuple(purchase_ids))
-                
-            cursor.execute(f"DELETE FROM purchase_items WHERE purchase_id IN {ids_tuple}")
-            cursor.execute("DELETE FROM purchases WHERE supplier_id=%s", (supplier_id,))
-
-        # 3. Delete Manual Adjustments (if any)
-        try:
-            cursor.execute("DELETE FROM supplier_adjustments WHERE supplier_id = %s", (supplier_id,))
-        except:
-            pass
-
-        # NOTE: Removed 'supplier_cashflow' deletion as per instruction ("module removed")
-
-        # 4. Finally, Delete the Supplier
-        cursor.execute("DELETE FROM suppliers WHERE id=%s", (supplier_id,))
+        cur.execute("DELETE FROM supplier_payments WHERE id = %s", (payment_id,))
+        cur.execute("UPDATE suppliers SET current_due = current_due + %s WHERE id = %s", (amount, supplier_id))
         
         mysql.connection.commit()
-        flash('Supplier and related records deleted successfully.', 'success')
+        flash('Payment deleted and due amount reversed.', 'warning')
+        cur.close()
+        return redirect(url_for('supplier_ledger', supplier_id=supplier_id))
         
-    except Exception as e:
-        mysql.connection.rollback()
-        # Check for specific FK error (1451) to give better message
-        if "1451" in str(e):
-             flash("Cannot delete supplier: They still have linked records (possibly in Cashflow/Archive) that must be removed first.", "danger")
-        else:
-             flash(f"Error deleting supplier: {str(e)}", "danger")
-        
-    finally:
-        cursor.close()
-        
+    cur.close()
+    flash('Payment not found.', 'danger')
     return redirect(url_for('suppliers'))
-
 
 
 # =====================================================================#
@@ -7234,6 +7189,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
