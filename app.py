@@ -3967,7 +3967,6 @@ class PDFGenerator(FPDF):
             "Nadiad-387001, Gujarat, India"
         ]
         self.contact = "+91 96623 22476 | help@realpromotion.in"
-        # Updated GST Text with specific formatting
         self.gst_text = "GSTIN:24AJVPT0460H1ZW"
         self.gst_subtext = "Composition Dealer- Not Eligibal To Collect Taxes On Sppliers"
 
@@ -4008,7 +4007,7 @@ class PDFGenerator(FPDF):
         elif self.title_type == "Evening":
             title = "EVENING SETTLEMENT RECEIPT"
         elif self.title_type == "Office":
-            title = "BILL OF SUPPLY" # Office Sale Title
+            title = "BILL OF SUPPLY"
         else:
             title = "DOCUMENT"
         self.cell(0, 10, title, 0, 1, 'C')
@@ -4034,7 +4033,6 @@ class PDFGenerator(FPDF):
         self.set_font('Arial', '', 10)
         self.cell(35, 6, "Mobile No:", 0, 0)
         self.set_font('Arial', 'B', 10)
-        # Fix: Ensure mobile is displayed even if None in DB (pass empty string fallback logic in route)
         self.cell(70, 6, str(emp_mobile) if emp_mobile else "N/A", 0, 1)
 
         # Right: Date/Time
@@ -4066,11 +4064,11 @@ class PDFGenerator(FPDF):
         self.ln(15) 
         y_pos = self.get_y()
         
-        # Owner Signature Logic
+        # --- AUTOMATIC SIGNATURE LOGIC ---
+        # It checks for 'static/img/signature.png'
         sig_path = os.path.join(app.root_path, 'static', 'img', 'signature.png')
         if os.path.exists(sig_path):
-            # Embed Image
-            # x=20 aligns with "Authorized Signature" text roughly
+            # Embed Image (x=20 aligns with Authorized Signature)
             self.image(sig_path, x=20, y=y_pos-15, w=40) 
         
         self.set_font('Arial', 'B', 10)
@@ -4424,9 +4422,10 @@ def download_office_bill_public(sale_id):
     
     return send_file(buffer, as_attachment=True, download_name=f"Bill_{sale_id}.pdf", mimetype='application/pdf')
 
-# ==========================================
-# UPDATED: MORNING PDF ROUTE (Matches Allocation List Link)
-# ==========================================
+
+# =================================================================================
+# 1. MORNING ALLOCATION PDF ROUTE (Updated Filename)
+# =================================================================================
 @app.route('/download_morning_pdf/<int:allocation_id>')
 def download_morning_pdf(allocation_id):
     if "loggedin" not in session: return redirect(url_for("login"))
@@ -4434,7 +4433,6 @@ def download_morning_pdf(allocation_id):
     conn = mysql.connection
     cursor = conn.cursor(MySQLdb.cursors.DictCursor)
     
-    # 1. Header (Added e.phone for Mobile No)
     cursor.execute("""
         SELECT ma.date, ma.created_at, e.name as emp_name, e.phone as emp_mobile
         FROM morning_allocations ma
@@ -4447,7 +4445,6 @@ def download_morning_pdf(allocation_id):
         flash("Allocation not found", "danger")
         return redirect(url_for('allocation_list'))
         
-    # 2. Items
     cursor.execute("""
         SELECT p.name, mai.opening_qty, mai.given_qty, mai.unit_price
         FROM morning_allocation_items mai
@@ -4456,18 +4453,14 @@ def download_morning_pdf(allocation_id):
     """, (allocation_id,))
     items = cursor.fetchall()
     
-    # 3. Generate
     pdf = PDFGenerator("Morning")
     pdf.alias_nb_pages()
     pdf.add_page()
     
-    # Date/Time Format
     d_val = header['date'].strftime('%d-%m-%Y') if header['date'] else ""
-    
     t_val = "N/A"
     if header.get('created_at'):
         if isinstance(header['created_at'], timedelta):
-            # Handle timedelta if stored as duration
             dummy = datetime.min + header['created_at']
             t_val = dummy.strftime('%I:%M %p')
         elif isinstance(header['created_at'], datetime):
@@ -4477,11 +4470,7 @@ def download_morning_pdf(allocation_id):
 
     pdf.add_info_section(header['emp_name'], header['emp_mobile'], d_val, t_val)
     
-    # FIX: Updated columns to match Morning Edit Page structure
     cols = ["#", "Product Name", "Opening", "Given Qty", "Price", "Amount"]
-    widths = [10, 70, 20, 20, 20, 30] # Adjusted width for 6 cols
-    # Wait, 10+70+20+20+20+30 = 170. Max is approx 190.
-    # Let's widen Product Name slightly
     widths = [10, 80, 20, 25, 25, 30]
     
     pdf.add_table_header(cols, widths)
@@ -4490,6 +4479,7 @@ def download_morning_pdf(allocation_id):
     pdf.set_text_color(0, 0, 0)
     pdf.set_fill_color(245, 245, 245)
     
+    total_opening_sum = 0 
     total_qty_sum = 0
     total_amount_sum = 0
     fill = False
@@ -4502,20 +4492,22 @@ def download_morning_pdf(allocation_id):
         
         pdf.cell(widths[4], 7, f"{float(item['unit_price']):.2f}", 1, 0, 'R', fill)
         
-        # Amount Calculation: Usually Morning Challan Value is based on Total Held stock
         total_held = int(item['opening_qty']) + int(item['given_qty'])
         amt = total_held * float(item['unit_price'])
         
         pdf.cell(widths[5], 7, f"{amt:.2f}", 1, 1, 'R', fill)
         
+        # Accumulate Totals
+        total_opening_sum += int(item['opening_qty']) 
         total_qty_sum += int(item['given_qty']) 
         total_amount_sum += amt
         fill = not fill 
         
     pdf.set_font('Arial', 'B', 10)
-    # Sum of widths for first 3 cols to align "Total Given" under 'Given' column if possible or just grand total row
-    # Let's align "TOTAL GIVEN" to right of product name column
-    pdf.cell(widths[0]+widths[1]+widths[2], 8, "TOTAL GIVEN", 1, 0, 'R', True)
+    
+    # --- UPDATED TOTALS ROW LOGIC ---
+    pdf.cell(widths[0]+widths[1], 8, "TOTALS", 1, 0, 'R', True)
+    pdf.cell(widths[2], 8, str(total_opening_sum), 1, 0, 'C', True)
     pdf.cell(widths[3], 8, str(total_qty_sum), 1, 0, 'C', True)
     pdf.cell(widths[4], 8, "", 1, 0, 'C', True)
     pdf.cell(widths[5], 8, f"{total_amount_sum:.2f}", 1, 1, 'R', True)
@@ -4526,11 +4518,16 @@ def download_morning_pdf(allocation_id):
     buffer = io.BytesIO(pdf_string)
     buffer.seek(0)
     
-    return send_file(buffer, as_attachment=True, download_name=f"Morning_Alloc_{allocation_id}.pdf", mimetype='application/pdf')
+    # --- DYNAMIC FILENAME LOGIC ---
+    safe_name = "".join(c for c in header['emp_name'] if c.isalnum() or c in (' ', '_', '-')).strip().replace(' ', '_')
+    filename = f"{safe_name}_Morning_{allocation_id}.pdf"
+    
+    return send_file(buffer, as_attachment=True, download_name=filename, mimetype='application/pdf')
 
-# ==========================================
-# UPDATED: EVENING PDF ROUTE (Layout Updated)
-# ==========================================
+
+# =================================================================================
+# 2. EVENING SETTLEMENT PDF ROUTE (Updated Filename)
+# =================================================================================
 @app.route('/download_evening_pdf/<int:settle_id>')
 def download_evening_pdf(settle_id):
     if "loggedin" not in session: return redirect(url_for("login"))
@@ -4538,7 +4535,6 @@ def download_evening_pdf(settle_id):
     conn = mysql.connection
     cursor = conn.cursor(MySQLdb.cursors.DictCursor)
     
-    # 1. Header
     cursor.execute("""
         SELECT es.*, e.name as emp_name, e.phone as emp_mobile
         FROM evening_settle es
@@ -4551,7 +4547,6 @@ def download_evening_pdf(settle_id):
         flash("Settlement not found", "danger")
         return redirect(url_for('admin_evening_master'))
         
-    # 2. Items
     cursor.execute("""
         SELECT p.name, ei.total_qty, ei.sold_qty, ei.return_qty, ei.unit_price
         FROM evening_item ei
@@ -4560,14 +4555,11 @@ def download_evening_pdf(settle_id):
     """, (settle_id,))
     items = cursor.fetchall()
     
-    # 3. Generate
     pdf = PDFGenerator("Evening")
     pdf.alias_nb_pages()
     pdf.add_page()
     
-    # Date/Time Format
     d_val = data['date'].strftime('%d-%m-%Y') if data['date'] else ""
-    
     t_val = "N/A"
     if data.get('created_at'):
         if isinstance(data['created_at'], timedelta):
@@ -4588,6 +4580,7 @@ def download_evening_pdf(settle_id):
     pdf.set_text_color(0, 0, 0)
     pdf.set_fill_color(245, 245, 245)
     
+    tot_total_qty = 0 
     tot_sold = 0
     tot_amt = 0
     tot_ret = 0
@@ -4605,13 +4598,18 @@ def download_evening_pdf(settle_id):
         
         pdf.cell(widths[6], 7, str(item['return_qty']), 1, 1, 'C', fill)
         
+        # Accumulate Totals
+        tot_total_qty += int(item['total_qty']) 
         tot_sold += int(item['sold_qty'])
         tot_amt += amt
         tot_ret += int(item['return_qty'])
         fill = not fill
 
     pdf.set_font('Arial', 'B', 10)
-    pdf.cell(sum(widths[:3]), 8, "TOTALS", 1, 0, 'R', True)
+    
+    # --- UPDATED TOTALS ROW LOGIC ---
+    pdf.cell(widths[0]+widths[1], 8, "TOTALS", 1, 0, 'R', True)
+    pdf.cell(widths[2], 8, str(tot_total_qty), 1, 0, 'C', True)
     pdf.cell(widths[3], 8, str(tot_sold), 1, 0, 'C', True)
     pdf.cell(widths[4], 8, "", 1, 0, 'C', True)
     pdf.cell(widths[5], 8, f"{tot_amt:.2f}", 1, 0, 'R', True)
@@ -4625,18 +4623,15 @@ def download_evening_pdf(settle_id):
     pdf.cell(0, 8, " FINANCE & SETTLEMENT SUMMARY ", 1, 1, 'C', True)
     pdf.ln(2)
     
-    # Prepare Variables
     emp_credit = float(data.get('emp_credit_amount', 0) or 0)
     emp_debit = float(data.get('emp_debit_amount', 0) or 0)
     
-    # --- SPLIT LAYOUT (Left: Settlement, Right: Employee Finance) ---
     y_start = pdf.get_y()
     
     # LEFT COL (Cash Settlement)
     pdf.set_text_color(0, 0, 0)
     pdf.set_xy(10, y_start)
     
-    # Helper for key-value pair
     def print_row(label, val, x, y):
         pdf.set_xy(x, y)
         pdf.set_font('Arial', '', 10)
@@ -4654,7 +4649,6 @@ def download_evening_pdf(settle_id):
     print_row("CASH PAID:", f"{float(data.get('cash_money', 0) or 0):.2f}", 10, y_start + 21)
 
     # RIGHT COL (Employee Finance)
-    # Only if amounts exist
     if emp_credit > 0 or emp_debit > 0:
         x_right = 110
         pdf.set_xy(x_right, y_start)
@@ -4703,8 +4697,11 @@ def download_evening_pdf(settle_id):
     buffer = io.BytesIO(pdf_string)
     buffer.seek(0)
     
-    return send_file(buffer, as_attachment=True, download_name=f"Evening_Settle_{settle_id}.pdf", mimetype='application/pdf')
-
+    # --- DYNAMIC FILENAME LOGIC ---
+    safe_name = "".join(c for c in data['emp_name'] if c.isalnum() or c in (' ', '_', '-')).strip().replace(' ', '_')
+    filename = f"{safe_name}_Evening_{settle_id}.pdf"
+    
+    return send_file(buffer, as_attachment=True, download_name=filename, mimetype='application/pdf')
 
 # ==========================================
 # PUBLIC ROUTE: DOWNLOAD MORNING PDF (No Login Required)
@@ -4712,12 +4709,10 @@ def download_evening_pdf(settle_id):
 @app.route('/public/download_morning_pdf/<int:allocation_id>')
 def download_morning_pdf_public(allocation_id):
     # REMOVED LOGIN CHECK for direct WhatsApp access
-    # if "loggedin" not in session: return redirect(url_for("login"))
     
     conn = mysql.connection
     cursor = conn.cursor(MySQLdb.cursors.DictCursor)
     
-    # 1. Header (Added e.phone for Mobile No)
     cursor.execute("""
         SELECT ma.date, ma.created_at, e.name as emp_name, e.phone as emp_mobile
         FROM morning_allocations ma
@@ -4729,7 +4724,6 @@ def download_morning_pdf_public(allocation_id):
     if not header:
         return "Allocation not found", 404
         
-    # 2. Items
     cursor.execute("""
         SELECT p.name, mai.opening_qty, mai.given_qty, mai.unit_price
         FROM morning_allocation_items mai
@@ -4738,14 +4732,11 @@ def download_morning_pdf_public(allocation_id):
     """, (allocation_id,))
     items = cursor.fetchall()
     
-    # 3. Generate
     pdf = PDFGenerator("Morning")
     pdf.alias_nb_pages()
     pdf.add_page()
     
-    # Date/Time Format
     d_val = header['date'].strftime('%d-%m-%Y') if header['date'] else ""
-    
     t_val = "N/A"
     if header.get('created_at'):
         if isinstance(header['created_at'], timedelta):
@@ -4760,12 +4751,14 @@ def download_morning_pdf_public(allocation_id):
     
     cols = ["#", "Product Name", "Opening", "Given Qty", "Price", "Amount"]
     widths = [10, 80, 20, 25, 25, 30]
+    
     pdf.add_table_header(cols, widths)
     
     pdf.set_font('Arial', '', 9)
     pdf.set_text_color(0, 0, 0)
     pdf.set_fill_color(245, 245, 245)
     
+    total_opening_sum = 0 
     total_qty_sum = 0
     total_amount_sum = 0
     fill = False
@@ -4783,12 +4776,16 @@ def download_morning_pdf_public(allocation_id):
         
         pdf.cell(widths[5], 7, f"{amt:.2f}", 1, 1, 'R', fill)
         
+        total_opening_sum += int(item['opening_qty']) 
         total_qty_sum += int(item['given_qty']) 
         total_amount_sum += amt
         fill = not fill 
         
     pdf.set_font('Arial', 'B', 10)
-    pdf.cell(sum(widths[:3]), 8, "TOTAL GIVEN", 1, 0, 'R', True)
+    
+    # --- UPDATED TOTALS ROW LOGIC ---
+    pdf.cell(widths[0]+widths[1], 8, "TOTALS", 1, 0, 'R', True)
+    pdf.cell(widths[2], 8, str(total_opening_sum), 1, 0, 'C', True)
     pdf.cell(widths[3], 8, str(total_qty_sum), 1, 0, 'C', True)
     pdf.cell(widths[4], 8, "", 1, 0, 'C', True)
     pdf.cell(widths[5], 8, f"{total_amount_sum:.2f}", 1, 1, 'R', True)
@@ -4799,7 +4796,11 @@ def download_morning_pdf_public(allocation_id):
     buffer = io.BytesIO(pdf_string)
     buffer.seek(0)
     
-    return send_file(buffer, as_attachment=True, download_name=f"Morning_Alloc_{allocation_id}.pdf", mimetype='application/pdf')
+    # --- DYNAMIC FILENAME LOGIC (SAME AS PRIVATE ROUTE) ---
+    safe_name = "".join(c for c in header['emp_name'] if c.isalnum() or c in (' ', '_', '-')).strip().replace(' ', '_')
+    filename = f"{safe_name}_Morning_{allocation_id}.pdf"
+    
+    return send_file(buffer, as_attachment=True, download_name=filename, mimetype='application/pdf')
 
 
 # --- Helper: Robust Date Parsing ---
@@ -7233,6 +7234,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
