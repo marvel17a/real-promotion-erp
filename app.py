@@ -3949,6 +3949,12 @@ def exp_report():
         report_data=report_data # <--- Passing the variable with 'summary'
     )
 
+import os
+import io
+from datetime import datetime, timedelta
+from flask import session, redirect, url_for, send_file, flash, request
+from flask_mysqldb import MySQL
+from fpdf import FPDF
 
 # =================================================================================
 #  PDF GENERATOR CLASS (Signature Fixed, Evening Layout Updated)
@@ -3966,7 +3972,7 @@ class PDFGenerator(FPDF):
         ]
         self.contact = "+91 96623 22476 | help@realpromotion.in"
         self.gst_text = "GSTIN:24AJVPT0460H1ZW"
-        self.gst_subtext = "Composition Dealer- Not Eligibal To Collect Taxes On Supplies"
+        self.gst_subtext = "Composition Dealer- Not Eligibal To Collect Taxes On Spplies"
 
     def header(self):
         self.set_font('Arial', 'B', 24)
@@ -4056,6 +4062,7 @@ class PDFGenerator(FPDF):
         
         sig_path = os.path.join(app.root_path, 'static', 'img', 'signature.png')
         if os.path.exists(sig_path):
+            # Adjusted Y to place ABOVE the text
             self.image(sig_path, x=20, y=y_pos-20, w=40) 
         
         self.set_font('Arial', 'B', 10)
@@ -4171,7 +4178,7 @@ class PDFGenerator(FPDF):
         
         self.add_signature_section()
 
-# --- HELPER FUNCTION: Generate Morning PDF Logic ---
+# --- INTERNAL HELPER (NOT A ROUTE) ---
 def generate_morning_pdf(allocation_id):
     conn = mysql.connection
     cursor = conn.cursor(MySQLdb.cursors.DictCursor)
@@ -4250,6 +4257,47 @@ def generate_morning_pdf(allocation_id):
     safe_name = "".join(c for c in header['emp_name'] if c.isalnum() or c in (' ', '_', '-')).strip().replace(' ', '_')
     filename = f"{safe_name}_Morning_{allocation_id}.pdf"
     
+    return buffer, filename
+
+# --- INTERNAL HELPER (NOT A ROUTE) ---
+def generate_office_pdf_logic(sale_id):
+    conn = mysql.connection
+    cursor = conn.cursor(MySQLdb.cursors.DictCursor)
+    
+    cursor.execute("SELECT * FROM office_sales WHERE id=%s", (sale_id,))
+    sale = cursor.fetchone()
+    
+    if not sale: return None
+    
+    if sale['sale_date']:
+        sale['sale_date'] = sale['sale_date'].strftime('%d-%m-%Y')
+
+    if sale.get('created_at'):
+         try: sale['sale_time'] = sale['created_at'].strftime('%I:%M %p')
+         except: sale['sale_time'] = ""
+    else: sale['sale_time'] = ""
+
+    cursor.execute("""
+        SELECT i.*, p.name as product_name 
+        FROM office_sale_items i 
+        JOIN products p ON i.product_id = p.id 
+        WHERE i.sale_id=%s
+    """, (sale_id,))
+    items = cursor.fetchall()
+    
+    pdf = PDFGenerator("Office")
+    pdf.alias_nb_pages()
+    pdf.add_page()
+    
+    pdf.generate_office_bill_body(sale, items)
+    
+    pdf_string = pdf.output(dest='S').encode('latin-1')
+    buffer = io.BytesIO(pdf_string)
+    buffer.seek(0)
+    
+    cust_name = sale['customer_name'] or "Customer"
+    safe_name = "".join(c for c in cust_name if c.isalnum() or c in (' ', '_', '-')).strip().replace(' ', '_')
+    filename = f"{safe_name}_Bill_{sale_id}.pdf"
     return buffer, filename
 
 # 1. MORNING ALLOCATION PDF (Private)
@@ -4429,47 +4477,6 @@ def download_evening_pdf(settle_id):
     filename = f"{safe_name}_Evening_{settle_id}.pdf"
     
     return send_file(buffer, as_attachment=True, download_name=filename, mimetype='application/pdf')
-
-# --- HELPER FUNCTION: Generate Office PDF Logic ---
-def generate_office_pdf_logic(sale_id):
-    conn = mysql.connection
-    cursor = conn.cursor(MySQLdb.cursors.DictCursor)
-    
-    cursor.execute("SELECT * FROM office_sales WHERE id=%s", (sale_id,))
-    sale = cursor.fetchone()
-    
-    if not sale: return None
-    
-    if sale['sale_date']:
-        sale['sale_date'] = sale['sale_date'].strftime('%d-%m-%Y')
-
-    if sale.get('created_at'):
-         try: sale['sale_time'] = sale['created_at'].strftime('%I:%M %p')
-         except: sale['sale_time'] = ""
-    else: sale['sale_time'] = ""
-
-    cursor.execute("""
-        SELECT i.*, p.name as product_name 
-        FROM office_sale_items i 
-        JOIN products p ON i.product_id = p.id 
-        WHERE i.sale_id=%s
-    """, (sale_id,))
-    items = cursor.fetchall()
-    
-    pdf = PDFGenerator("Office")
-    pdf.alias_nb_pages()
-    pdf.add_page()
-    
-    pdf.generate_office_bill_body(sale, items)
-    
-    pdf_string = pdf.output(dest='S').encode('latin-1')
-    buffer = io.BytesIO(pdf_string)
-    buffer.seek(0)
-    
-    cust_name = sale['customer_name'] or "Customer"
-    safe_name = "".join(c for c in cust_name if c.isalnum() or c in (' ', '_', '-')).strip().replace(' ', '_')
-    filename = f"{safe_name}_Bill_{sale_id}.pdf"
-    return buffer, filename
 
 # 4. OFFICE SALE PDF (Private)
 @app.route('/office_sales/print/<int:sale_id>')
@@ -7027,6 +7034,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
