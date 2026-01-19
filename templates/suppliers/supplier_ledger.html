@@ -98,7 +98,8 @@
                         <tbody>
                             {% for pur in purchases %}
                             <tr>
-                                <td>{% if pur.purchase_date %}{{ pur.purchase_date.strftime('%d-%b-%Y') }}{% else %}-{% endif %}</td>
+                                <!-- UPDATED DATE DISPLAY -->
+                                <td>{{ pur.formatted_date }}</td>
                                 <td>{{ pur.bill_number }}</td>
                                 <td class="text-end fw-bold text-danger">{{ pur.total_amount|inr }}</td>
                                 <td class="text-center">
@@ -124,7 +125,8 @@
                         <tbody>
                             {% for adj in adjustments %}
                             <tr>
-                                <td>{{ adj.adjustment_date }}</td>
+                                <!-- UPDATED DATE DISPLAY -->
+                                <td>{{ adj.formatted_date }}</td>
                                 <td>{{ adj.notes }}</td>
                                 <td class="text-end fw-bold text-danger">{{ adj.amount|inr }}</td>
                                 <td class="text-center">
@@ -154,7 +156,8 @@
                         <tbody>
                             {% for pay in payments %}
                             <tr>
-                                <td>{% if pay.payment_date %}{{ pay.payment_date.strftime('%d-%b-%Y') }}{% else %}-{% endif %}</td>
+                                <!-- UPDATED DATE DISPLAY -->
+                                <td>{{ pay.formatted_date }}</td>
                                 <td><span class="badge bg-success bg-opacity-10 text-success border border-success-subtle">{{ pay.payment_mode }}</span></td>
                                 <td class="text-end fw-bold text-success">- {{ pay.amount_paid|inr }}</td>
                                 <td class="text-center">
