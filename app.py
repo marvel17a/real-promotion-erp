@@ -1127,7 +1127,7 @@ def edit_supplier(supplier_id):
     
     return render_template('suppliers/edit_supplier.html', supplier=supplier)
 # =====================================================================
-# SUPPLIER LEDGER ROUTE (Newest First & Date Fix)
+# SUPPLIER LEDGER ROUTE (Fixed: Date Format & Newest First)
 # =====================================================================
 @app.route('/supplier_ledger/<int:supplier_id>')
 def supplier_ledger(supplier_id):
@@ -1149,25 +1149,24 @@ def supplier_ledger(supplier_id):
     cursor.execute("SELECT * FROM purchases WHERE supplier_id=%s ORDER BY purchase_date DESC", (supplier_id,))
     purchases = cursor.fetchall()
     
-    # B. Payments (FIXED: Newest First + Python Date Formatting)
+    # B. Payments (FIXED: Newest First & Robust Date Formatting)
     try:
-        # ORDER BY payment_date DESC -> Newest date at top
+        # ORDER BY payment_date DESC ensures the transaction you just recorded (New) comes FIRST (Top)
         cursor.execute("SELECT * FROM supplier_payments WHERE supplier_id=%s ORDER BY payment_date DESC", (supplier_id,))
         payments = cursor.fetchall()
         
-        # --- DATE FORMATTING LOGIC IN PYTHON ---
+        # --- ROBUST DATE FORMATTING LOGIC ---
         for p in payments:
+            # We explicitly format the date here so the HTML doesn't have to guess
             if p.get('payment_date'):
-                # Check if it is a proper date object
                 if isinstance(p['payment_date'], (date, datetime)):
                     p['formatted_date'] = p['payment_date'].strftime('%d-%m-%Y')
                 else:
-                    # If it's a string, try to parse and format
+                    # Handle string dates (e.g. '2024-01-19')
                     try:
-                        # Assuming DB format is YYYY-MM-DD
                         p['formatted_date'] = datetime.strptime(str(p['payment_date']), '%Y-%m-%d').strftime('%d-%m-%Y')
                     except:
-                        # Fallback: Show as is
+                        # Fallback
                         p['formatted_date'] = str(p['payment_date'])
             else:
                 p['formatted_date'] = '-'
@@ -1182,7 +1181,7 @@ def supplier_ledger(supplier_id):
         adjustments = cursor.fetchall()
     except: adjustments = []
     
-    # 3. Calculate Totals
+    # 3. Calculate Totals (Using COALESCE for safety)
     cursor.execute("SELECT SUM(COALESCE(total_amount, 0)) as total FROM purchases WHERE supplier_id=%s", (supplier_id,))
     total_purchases = float(cursor.fetchone()['total'] or 0)
     
@@ -1199,6 +1198,8 @@ def supplier_ledger(supplier_id):
         total_adjustments = 0.0
     
     opening_bal = float(supplier.get('opening_balance', 0.0))
+    
+    # Net Outstanding Formula
     total_outstanding_amount = (opening_bal + total_purchases + total_adjustments) - total_paid
     
     cursor.close()
@@ -1213,7 +1214,6 @@ def supplier_ledger(supplier_id):
                          total_purchases=total_purchases,
                          total_adjustments=total_adjustments,
                          total_paid=total_paid)
-
 
 # Route to Add Manual Due (Other Reason)
 @app.route('/suppliers/add_due/<int:supplier_id>', methods=['GET', 'POST'])
@@ -7225,6 +7225,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
