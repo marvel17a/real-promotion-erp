@@ -1127,7 +1127,7 @@ def edit_supplier(supplier_id):
     
     return render_template('suppliers/edit_supplier.html', supplier=supplier)
 # =====================================================================
-# SUPPLIER LEDGER ROUTE (Fixed: Date Format & Newest First)
+# SUPPLIER LEDGER ROUTE (Final Fix: Dates & Sorting for ALL sections)
 # =====================================================================
 @app.route('/supplier_ledger/<int:supplier_id>')
 def supplier_ledger(supplier_id):
@@ -1143,45 +1143,50 @@ def supplier_ledger(supplier_id):
         flash("Supplier not found!", "danger")
         return redirect(url_for('suppliers'))
 
+    # --- HELPER FUNCTION TO FORMAT DATES ---
+    def format_list_dates(data_list, date_key):
+        for item in data_list:
+            if item.get(date_key):
+                # If it's a date object
+                if isinstance(item[date_key], (date, datetime)):
+                    item['formatted_date'] = item[date_key].strftime('%d-%m-%Y')
+                else:
+                    # If string, try to parse
+                    try:
+                        # Assuming MySQL stores as YYYY-MM-DD
+                        item['formatted_date'] = datetime.strptime(str(item[date_key]), '%Y-%m-%d').strftime('%d-%m-%Y')
+                    except:
+                        item['formatted_date'] = str(item[date_key])
+            else:
+                item['formatted_date'] = '-'
+        return data_list
+
     # 2. Fetch Records
     
     # A. Purchases (Newest First)
     cursor.execute("SELECT * FROM purchases WHERE supplier_id=%s ORDER BY purchase_date DESC", (supplier_id,))
     purchases = cursor.fetchall()
+    purchases = format_list_dates(purchases, 'purchase_date')
     
-    # B. Payments (FIXED: Newest First & Robust Date Formatting)
+    # B. Payments (History) - FIX: Newest First & Formatted
     try:
-        # ORDER BY payment_date DESC ensures the transaction you just recorded (New) comes FIRST (Top)
         cursor.execute("SELECT * FROM supplier_payments WHERE supplier_id=%s ORDER BY payment_date DESC", (supplier_id,))
         payments = cursor.fetchall()
-        
-        # --- ROBUST DATE FORMATTING LOGIC ---
-        for p in payments:
-            # We explicitly format the date here so the HTML doesn't have to guess
-            if p.get('payment_date'):
-                if isinstance(p['payment_date'], (date, datetime)):
-                    p['formatted_date'] = p['payment_date'].strftime('%d-%m-%Y')
-                else:
-                    # Handle string dates (e.g. '2024-01-19')
-                    try:
-                        p['formatted_date'] = datetime.strptime(str(p['payment_date']), '%Y-%m-%d').strftime('%d-%m-%Y')
-                    except:
-                        # Fallback
-                        p['formatted_date'] = str(p['payment_date'])
-            else:
-                p['formatted_date'] = '-'
-                
-    except Exception as e: 
-        print(f"Payment fetch error: {e}")
+        payments = format_list_dates(payments, 'payment_date') # Uses the Helper Function above
+    except Exception as e:
+        print(f"Payment Error: {e}")
         payments = []
     
-    # C. Adjustments (Newest First)
+    # C. Adjustments (Other Due) - FIX: Newest First & Formatted
     try:
         cursor.execute("SELECT * FROM supplier_adjustments WHERE supplier_id=%s ORDER BY adjustment_date DESC", (supplier_id,))
         adjustments = cursor.fetchall()
-    except: adjustments = []
+        adjustments = format_list_dates(adjustments, 'adjustment_date') # Uses the Helper Function above
+    except Exception as e:
+        print(f"Adj Error: {e}")
+        adjustments = []
     
-    # 3. Calculate Totals (Using COALESCE for safety)
+    # 3. Calculate Totals
     cursor.execute("SELECT SUM(COALESCE(total_amount, 0)) as total FROM purchases WHERE supplier_id=%s", (supplier_id,))
     total_purchases = float(cursor.fetchone()['total'] or 0)
     
@@ -1199,7 +1204,7 @@ def supplier_ledger(supplier_id):
     
     opening_bal = float(supplier.get('opening_balance', 0.0))
     
-    # Net Outstanding Formula
+    # Net Outstanding
     total_outstanding_amount = (opening_bal + total_purchases + total_adjustments) - total_paid
     
     cursor.close()
@@ -7225,6 +7230,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
