@@ -1124,13 +1124,16 @@ def edit_supplier(supplier_id):
     
     return render_template('suppliers/edit_supplier.html', supplier=supplier)
 
+# ==========================================
+# 3. FIX LEDGER DISPLAY (Sorting & Formatting)
+# ==========================================
 @app.route('/supplier_ledger/<int:supplier_id>')
 def supplier_ledger(supplier_id):
     if 'loggedin' not in session: return redirect(url_for('login'))
     
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
-    # 1. Fetch Supplier Info
+    # 1. Fetch Supplier
     cursor.execute("SELECT * FROM suppliers WHERE id=%s", (supplier_id,))
     supplier = cursor.fetchone()
     
@@ -1138,8 +1141,7 @@ def supplier_ledger(supplier_id):
         flash("Supplier not found!", "danger")
         return redirect(url_for('suppliers'))
 
-    # 2. Fetch Records (Purchases, Payments, Adjustments)
-    # SORTING FIXED: Changed to DESC (Newest First)
+    # 2. Fetch Records (SORTED BY DATE DESC - NEWEST FIRST)
     cursor.execute("SELECT * FROM purchases WHERE supplier_id=%s ORDER BY purchase_date DESC", (supplier_id,))
     purchases = cursor.fetchall()
     
@@ -1153,74 +1155,53 @@ def supplier_ledger(supplier_id):
         adjustments = cursor.fetchall()
     except: adjustments = []
     
-    # --- DATE FORMATTING FIX LOGIC ---
-    # We pre-format dates here to avoid Template Errors and ensure dd-mm-yyyy
-    
-    # 1. Format Payments
-    for pay in payments:
-        if pay.get('payment_date'):
-            if isinstance(pay['payment_date'], (date, datetime)):
-                pay['formatted_date'] = pay['payment_date'].strftime('%d-%m-%Y')
-            else:
-                # Handle String Case (YYYY-MM-DD)
-                try:
-                    d_obj = datetime.strptime(str(pay['payment_date']), '%Y-%m-%d')
-                    pay['formatted_date'] = d_obj.strftime('%d-%m-%Y')
-                except:
-                    pay['formatted_date'] = str(pay['payment_date']) # Fallback
-        else:
-            pay['formatted_date'] = '-'
+    # --- ROBUST DATE FORMATTING HELPER ---
+    def format_record_date(record, date_key):
+        val = record.get(date_key)
+        if not val:
+            return "-"
+        
+        # If it's already a Date object
+        if isinstance(val, (date, datetime)):
+            return val.strftime('%d-%m-%Y')
+        
+        # If it's a string, try to parse
+        s_val = str(val)
+        try:
+            # Try yyyy-mm-dd (Standard DB)
+            return datetime.strptime(s_val, '%Y-%m-%d').strftime('%d-%m-%Y')
+        except ValueError:
+            try:
+                # Try dd-mm-yyyy (If saved as string)
+                return datetime.strptime(s_val, '%d-%m-%Y').strftime('%d-%m-%Y')
+            except ValueError:
+                return s_val # Give up, return as is
 
-    # 2. Format Adjustments
-    for adj in adjustments:
-        if adj.get('adjustment_date'):
-            if isinstance(adj['adjustment_date'], (date, datetime)):
-                adj['formatted_date'] = adj['adjustment_date'].strftime('%d-%m-%Y')
-            else:
-                try:
-                    d_obj = datetime.strptime(str(adj['adjustment_date']), '%Y-%m-%d')
-                    adj['formatted_date'] = d_obj.strftime('%d-%m-%Y')
-                except:
-                    adj['formatted_date'] = str(adj['adjustment_date'])
-        else:
-            adj['formatted_date'] = '-'
-            
-    # 3. Format Purchases
+    # Apply formatting
+    for p in payments:
+        p['formatted_date'] = format_record_date(p, 'payment_date')
+        
+    for a in adjustments:
+        a['formatted_date'] = format_record_date(a, 'adjustment_date')
+        
     for pur in purchases:
-        if pur.get('purchase_date'):
-            if isinstance(pur['purchase_date'], (date, datetime)):
-                pur['formatted_date'] = pur['purchase_date'].strftime('%d-%m-%Y')
-            else:
-                try:
-                    d_obj = datetime.strptime(str(pur['purchase_date']), '%Y-%m-%d')
-                    pur['formatted_date'] = d_obj.strftime('%d-%m-%Y')
-                except:
-                    pur['formatted_date'] = str(pur['purchase_date'])
-        else:
-            pur['formatted_date'] = '-'
+        pur['formatted_date'] = format_record_date(pur, 'purchase_date')
 
-    # ---------------------------------
-    
-    # 3. Calculate Totals (Using COALESCE for safety)
+    # 3. Calculate Totals
     cursor.execute("SELECT SUM(COALESCE(total_amount, 0)) as total FROM purchases WHERE supplier_id=%s", (supplier_id,))
     total_purchases = float(cursor.fetchone()['total'] or 0)
     
     try:
         cursor.execute("SELECT SUM(COALESCE(amount_paid, 0)) as total FROM supplier_payments WHERE supplier_id=%s", (supplier_id,))
         total_paid = float(cursor.fetchone()['total'] or 0)
-    except:
-        total_paid = 0.0
+    except: total_paid = 0.0
         
     try:
         cursor.execute("SELECT SUM(COALESCE(amount, 0)) as total FROM supplier_adjustments WHERE supplier_id=%s", (supplier_id,))
         total_adjustments = float(cursor.fetchone()['total'] or 0)
-    except:
-        total_adjustments = 0.0
+    except: total_adjustments = 0.0
     
-    # Opening Balance
     opening_bal = float(supplier.get('opening_balance', 0.0))
-    
-    # Total Outstanding Formula
     total_outstanding_amount = (opening_bal + total_purchases + total_adjustments) - total_paid
     
     cursor.close()
@@ -1238,6 +1219,9 @@ def supplier_ledger(supplier_id):
 
 
 # Route to Add Manual Due (Other Reason)
+# ==========================================
+# 2. FIX SAVING MANUAL DUE (Convert dd-mm-yyyy -> yyyy-mm-dd)
+# ==========================================
 @app.route('/suppliers/add_due/<int:supplier_id>', methods=['GET', 'POST'])
 def supplier_add_due(supplier_id):
     if 'loggedin' not in session: return redirect(url_for('login'))
@@ -1252,19 +1236,22 @@ def supplier_add_due(supplier_id):
         
     if request.method == 'POST':
         amount = request.form.get('amount')
-        date_val = request.form.get('date')
+        raw_date = request.form.get('date') # Likely dd-mm-yyyy
         notes = request.form.get('notes')
         
+        # --- FIX: CONVERT DATE ---
+        try:
+            final_date = datetime.strptime(raw_date, '%d-%m-%Y').strftime('%Y-%m-%d')
+        except ValueError:
+            final_date = raw_date
+
         try:
             cursor.execute("""
                 INSERT INTO supplier_adjustments (supplier_id, amount, adjustment_date, notes)
                 VALUES (%s, %s, %s, %s)
-            """, (supplier_id, amount, date_val, notes))
+            """, (supplier_id, amount, final_date, notes))
             
-            # Update current_due in suppliers table (Increase Debt)
-            cursor.execute("""
-                UPDATE suppliers SET current_due = current_due + %s WHERE id = %s
-            """, (amount, supplier_id))
+            cursor.execute("UPDATE suppliers SET current_due = current_due + %s WHERE id = %s", (amount, supplier_id))
             
             mysql.connection.commit()
             flash("Manual due added successfully.", "success")
@@ -1275,8 +1262,7 @@ def supplier_add_due(supplier_id):
             flash(f"Error: {e}", "danger")
             
     cursor.close()
-    return render_template('suppliers/add_manual_due.html', supplier=supplier, today_date=date.today().isoformat())
-
+    return render_template('suppliers/add_manual_due.html', supplier=supplier, today_date=date.today().strftime('%d-%m-%Y'))
 
 
 @app.route('/suppliers/delete_adjustment/<int:adjustment_id>', methods=['POST'])
@@ -1311,7 +1297,9 @@ def delete_supplier_adjustment(adjustment_id):
     cursor.close()
     return redirect(url_for('suppliers'))
 
-
+# ==========================================
+# 1. FIX SAVING PAYMENT (Convert dd-mm-yyyy -> yyyy-mm-dd)
+# ==========================================
 @app.route('/suppliers/<int:supplier_id>/payment/new', methods=['GET', 'POST'])
 def record_payment(supplier_id):
     if 'loggedin' not in session: return redirect(url_for('login'))
@@ -1326,7 +1314,7 @@ def record_payment(supplier_id):
         flash("Supplier not found.", "danger")
         return redirect(url_for('suppliers'))
 
-    # Calculate Current Due Dynamically for Display
+    # Calculate Current Due
     cursor.execute("SELECT SUM(total_amount) as total FROM purchases WHERE supplier_id=%s", (supplier_id,))
     total_purchases = float(cursor.fetchone()['total'] or 0)
     
@@ -1341,31 +1329,34 @@ def record_payment(supplier_id):
     except: total_adj = 0.0
     
     opening_bal = float(supplier.get('opening_balance', 0.0))
-    
-    # Net Payable
     current_due_display = (opening_bal + total_purchases + total_adj) - total_paid
 
     if request.method == 'POST':
         amount_paid = request.form.get('amount_paid')
-        payment_date = request.form.get('payment_date')
+        raw_date = request.form.get('payment_date') # Likely dd-mm-yyyy
         payment_mode = request.form.get('payment_mode')
         notes = request.form.get('notes')
 
-        if not amount_paid or not payment_date:
+        if not amount_paid or not raw_date:
             flash("Payment amount and date are required.", "danger")
-            return render_template('suppliers/new_payment.html', supplier=supplier, current_due=current_due_display, today_date=date.today().isoformat())
+            return render_template('suppliers/new_payment.html', supplier=supplier, current_due=current_due_display, today_date=date.today().strftime('%d-%m-%Y'))
         
+        # --- FIX: CONVERT DATE ---
         try:
-            # Insert into supplier_payments
+            # Try parsing dd-mm-yyyy first
+            final_date = datetime.strptime(raw_date, '%d-%m-%Y').strftime('%Y-%m-%d')
+        except ValueError:
+            # If failed, maybe it's already yyyy-mm-dd
+            final_date = raw_date
+
+        try:
             cursor.execute("""
                 INSERT INTO supplier_payments (supplier_id, amount_paid, payment_date, payment_mode, notes)
                 VALUES (%s, %s, %s, %s, %s)
-            """, (supplier_id, amount_paid, payment_date, payment_mode, notes))
+            """, (supplier_id, amount_paid, final_date, payment_mode, notes))
 
-            # Update 'current_due' in suppliers table (Optional sync, but good practice)
-            cursor.execute("""
-                UPDATE suppliers SET current_due = current_due - %s WHERE id = %s
-            """, (amount_paid, supplier_id))
+            # Sync with Supplier Table
+            cursor.execute("UPDATE suppliers SET current_due = current_due - %s WHERE id = %s", (amount_paid, supplier_id))
             
             mysql.connection.commit()
             flash('Payment recorded successfully!', 'success')
@@ -1376,12 +1367,7 @@ def record_payment(supplier_id):
             flash(f"An error occurred: {e}", "danger")
     
     cursor.close()
-    
-    # Pass 'current_due_display' to template
-    return render_template('suppliers/new_payment.html', supplier=supplier, current_due=current_due_display, today_date=date.today().isoformat())
-
-
-
+    return render_template('suppliers/new_payment.html', supplier=supplier, current_due=current_due_display, today_date=date.today().strftime('%d-%m-%Y'))
 
 
 @app.route('/suppliers/delete/<int:supplier_id>', methods=['POST'])
@@ -7247,6 +7233,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
