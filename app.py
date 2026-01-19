@@ -4506,7 +4506,7 @@ def download_morning_pdf(allocation_id):
     pdf.set_font('Arial', 'B', 10)
     
     # --- UPDATED TOTALS ROW LOGIC ---
-    pdf.cell(widths[0]+widths[1], 8, "TOTALS", 1, 0, 'R', True)
+    pdf.cell(widths[0]+widths[1], 8, "TOTAL", 1, 0, 'R', True)
     pdf.cell(widths[2], 8, str(total_opening_sum), 1, 0, 'C', True)
     pdf.cell(widths[3], 8, str(total_qty_sum), 1, 0, 'C', True)
     pdf.cell(widths[4], 8, "", 1, 0, 'C', True)
@@ -4608,7 +4608,7 @@ def download_evening_pdf(settle_id):
     pdf.set_font('Arial', 'B', 10)
     
     # --- UPDATED TOTALS ROW LOGIC ---
-    pdf.cell(widths[0]+widths[1], 8, "TOTALS", 1, 0, 'R', True)
+    pdf.cell(widths[0]+widths[1], 8, "TOTAL", 1, 0, 'R', True)
     pdf.cell(widths[2], 8, str(tot_total_qty), 1, 0, 'C', True)
     pdf.cell(widths[3], 8, str(tot_sold), 1, 0, 'C', True)
     pdf.cell(widths[4], 8, "", 1, 0, 'C', True)
@@ -7234,6 +7234,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
