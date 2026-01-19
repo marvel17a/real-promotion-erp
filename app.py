@@ -3951,10 +3951,9 @@ def exp_report():
 
 
 
-
-# ==========================================
-# PDF GENERATOR CLASS (UPDATED & STANDARDIZED)
-# ==========================================
+# =================================================================================
+#  UPDATED PDF CLASS (Signature Logic Restored & Layout Fixed)
+# =================================================================================
 class PDFGenerator(FPDF):
     def __init__(self, title_type="Morning"):
         super().__init__()
@@ -3968,16 +3967,15 @@ class PDFGenerator(FPDF):
         ]
         self.contact = "+91 96623 22476 | help@realpromotion.in"
         self.gst_text = "GSTIN:24AJVPT0460H1ZW"
-        self.gst_subtext = "Composition Dealer- Not Eligibal To Collect Taxes On Supplies"
+        self.gst_subtext = "Composition Dealer- Not Eligibal To Collect Taxes On Sppliers"
 
     def header(self):
-        # Company Header
         self.set_font('Arial', 'B', 24)
-        self.set_text_color(26, 35, 126) # Dark Blue
+        self.set_text_color(26, 35, 126)
         self.cell(0, 10, self.company_name, 0, 1, 'C')
         
         self.set_font('Arial', 'B', 10)
-        self.set_text_color(100, 100, 100) # Grey
+        self.set_text_color(100, 100, 100)
         self.cell(0, 5, self.slogan, 0, 1, 'C')
         self.ln(2)
         
@@ -3987,30 +3985,24 @@ class PDFGenerator(FPDF):
             self.cell(0, 4, line, 0, 1, 'C')
         self.cell(0, 4, self.contact, 0, 1, 'C')
         
-        # GST Section
         self.set_font('Arial', 'B', 9)
         self.cell(0, 4, self.gst_text, 0, 1, 'C')
         self.set_font('Arial', 'I', 8)
         self.cell(0, 4, self.gst_subtext, 0, 1, 'C')
         self.ln(5)
         
-        # Divider
         self.set_draw_color(200, 200, 200)
         self.line(10, self.get_y(), 200, self.get_y())
         self.ln(5)
 
-        # Title
         self.set_font('Arial', 'B', 16)
         self.set_text_color(0, 0, 0)
-        if self.title_type == "Morning":
-            title = "DAILY STOCK ALLOCATION CHALLAN"
-        elif self.title_type == "Evening":
-            title = "EVENING SETTLEMENT RECEIPT"
-        elif self.title_type == "Office":
-            title = "BILL OF SUPPLY"
-        else:
-            title = "DOCUMENT"
-        self.cell(0, 10, title, 0, 1, 'C')
+        title_map = {
+            "Morning": "DAILY STOCK ALLOCATION CHALLAN",
+            "Evening": "EVENING SETTLEMENT RECEIPT",
+            "Office": "BILL OF SUPPLY"
+        }
+        self.cell(0, 10, title_map.get(self.title_type, "DOCUMENT"), 0, 1, 'C')
         self.ln(5)
 
     def footer(self):
@@ -4024,7 +4016,6 @@ class PDFGenerator(FPDF):
         self.set_text_color(0, 0, 0)
         start_y = self.get_y()
         
-        # Left: Employee
         self.set_xy(10, start_y)
         self.cell(35, 6, "Employee Name:", 0, 0)
         self.set_font('Arial', 'B', 10)
@@ -4035,7 +4026,6 @@ class PDFGenerator(FPDF):
         self.set_font('Arial', 'B', 10)
         self.cell(70, 6, str(emp_mobile) if emp_mobile else "N/A", 0, 1)
 
-        # Right: Date/Time
         self.set_xy(140, start_y)
         self.set_font('Arial', '', 10)
         self.cell(20, 6, "Date:", 0, 0)
@@ -4061,15 +4051,15 @@ class PDFGenerator(FPDF):
 
     def add_signature_section(self):
         if self.get_y() > 220: self.add_page()
+        
+        # RESTORED LOGIC AS REQUESTED
         self.ln(15) 
         y_pos = self.get_y()
         
-        # --- AUTOMATIC SIGNATURE LOGIC (Adjusted Position) ---
+        # --- FIXED SIGNATURE PLACEMENT ---
         # Checks for 'static/img/signature.png'
-        # To align nicely above "Authorized Signature", we adjust Y slightly up
-        # Y_POS is the current cursor. Line is at Y_POS + 15. Text is at Y_POS + 17.
-        # So we place image at Y_POS - 10 (approx) with height ~30-40 depending on aspect ratio.
-        # Adjusted: y=y_pos-20 to give it space above the line.
+        # Places it specifically above "Authorized Signature"
+        # Y-20 positions it slightly above the line
         
         sig_path = os.path.join(app.root_path, 'static', 'img', 'signature.png')
         if os.path.exists(sig_path):
@@ -4078,14 +4068,15 @@ class PDFGenerator(FPDF):
         self.set_font('Arial', 'B', 10)
         self.set_text_color(0, 0, 0)
         
+        # Left Side
         self.line(15, y_pos + 15, 75, y_pos + 15)
         self.set_xy(15, y_pos + 17)
         self.cell(60, 5, "Authorized Signature", 0, 0, 'C')
         
-        # Employee Signature
+        # Right Side
         self.line(135, y_pos + 15, 195, y_pos + 15)
         self.set_xy(135, y_pos + 17)
-        self.cell(60, 5, "Employee Signature", 0, 1, 'C')
+        self.cell(60, 5, "Employee/Customer", 0, 1, 'C')
         
         self.ln(10)
         self.set_font('Arial', 'I', 8)
@@ -4097,55 +4088,33 @@ class PDFGenerator(FPDF):
         self.set_text_color(0, 0, 0)
         y = self.get_y()
         
-        # LEFT SIDE: Customer Details
+        # LEFT: Customer
         self.set_xy(10, y)
         self.set_font('Arial','',10); self.cell(25, 6, "Customer:", 0, 0); self.set_font('Arial','B',10); self.cell(50, 6, str(sale_data['customer_name']), 0, 1)
         self.set_font('Arial','',10); self.cell(25, 6, "Mobile:", 0, 0); self.set_font('Arial','B',10); self.cell(50, 6, str(sale_data['customer_mobile'] or 'N/A'), 0, 1)
-        
         if sale_data['customer_address']:
              self.set_font('Arial','',10); self.cell(25, 6, "Address:", 0, 0); self.set_font('Arial','',9); self.multi_cell(60, 6, str(sale_data['customer_address']), 0, 'L')
-        else:
-             self.ln(6)
+        else: self.ln(6)
 
-        # RIGHT SIDE: Bill Details
+        # RIGHT: Bill Details
         self.set_xy(120, y)
         self.set_font('Arial', '', 10)
         self.cell(20, 6, "Bill No:", 0, 0); self.set_font('Arial','B',10); self.cell(40, 6, str(sale_data['id']), 0, 1)
-        
         self.set_xy(120, y+6)
         self.set_font('Arial', '', 10)
         self.cell(20, 6, "Date:", 0, 0); self.set_font('Arial','B',10); self.cell(40, 6, str(sale_data['sale_date']), 0, 1)
-
         self.set_xy(120, y+12)
         self.set_font('Arial', '', 10)
         self.cell(20, 6, "Time:", 0, 0); self.set_font('Arial','B',10); self.cell(40, 6, str(sale_data.get('sale_time', '')), 0, 1)
-
         self.set_xy(120, y+18)
         self.set_font('Arial', '', 10)
         self.cell(20, 6, "Sales By:", 0, 0); self.set_font('Arial','B',10); self.cell(40, 6, str(sale_data['sales_person'] or 'Office'), 0, 1)
 
-        # Payment Mode Logic
-        cash = float(sale_data.get('cash_amount') or 0)
-        online = float(sale_data.get('online_amount') or 0)
-        
-        pay_mode = "Unpaid"
-        if cash > 0 and online > 0:
-            pay_mode = "Cash & Online"
-        elif cash > 0:
-            pay_mode = "Cash"
-        elif online > 0:
-            pay_mode = "Online"
-            
-        self.set_xy(120, y+24)
-        self.set_font('Arial', '', 10)
-        self.cell(20, 6, "Mode:", 0, 0); self.set_font('Arial','B',10); self.cell(40, 6, pay_mode, 0, 1)
-
-        self.ln(30) # Increased space
+        self.ln(30)
         
         # 2. Product Table
         cols = ["#", "Product Name", "Qty", "Price", "Total"]
         widths = [10, 90, 20, 30, 40]
-        
         self.add_table_header(cols, widths)
         
         self.set_font('Arial', '', 10)
@@ -4153,16 +4122,10 @@ class PDFGenerator(FPDF):
         fill = False
         self.set_fill_color(245, 245, 245)
         
-        sum_qty = 0
-        sum_total = 0
-        
+        sum_qty = 0; sum_total = 0
         for i, item in enumerate(items):
-            qty = int(item['qty'])
-            price = float(item['unit_price'])
-            total = float(item['total_price'])
-            
-            sum_qty += qty
-            sum_total += total
+            qty = int(item['qty']); price = float(item['unit_price']); total = float(item['total_price'])
+            sum_qty += qty; sum_total += total
             
             self.cell(widths[0], 7, str(i+1), 1, 0, 'C', fill)
             self.cell(widths[1], 7, str(item['product_name']), 1, 0, 'L', fill)
@@ -4171,16 +4134,15 @@ class PDFGenerator(FPDF):
             self.cell(widths[4], 7, f"{total:.2f}", 1, 1, 'R', fill) 
             fill = not fill
             
-        # --- TOTAL ROW ---
+        # Total Row
         self.set_font('Arial', 'B', 10)
         self.cell(widths[0]+widths[1], 8, "TOTAL ITEMS", 1, 0, 'R', True)
         self.cell(widths[2], 8, str(sum_qty), 1, 0, 'C', True)
         self.cell(widths[3], 8, "", 1, 0, 'C', True)
         self.cell(widths[4], 8, f"{sum_total:.2f}", 1, 1, 'R', True)
-        
         self.ln(5)
         
-        # 3. Payment Totals
+        # --- FINANCIAL SUMMARY ---
         x_start = 120
         self.set_x(x_start)
         self.set_font('Arial', '', 10)
@@ -4194,6 +4156,20 @@ class PDFGenerator(FPDF):
             self.cell(40, 6, "Discount (-):", 0, 0, 'R')
             self.set_font('Arial', 'B', 10)
             self.cell(30, 6, f"{float(sale_data['discount']):.2f}", 0, 1, 'R')
+
+        # --- PAYMENT MODE DISPLAY (Correct Position) ---
+        cash = float(sale_data.get('cash_amount') or 0)
+        online = float(sale_data.get('online_amount') or 0)
+        pay_mode = "Unpaid"
+        if cash > 0 and online > 0: pay_mode = "Cash & Online"
+        elif cash > 0: pay_mode = "Cash"
+        elif online > 0: pay_mode = "Online"
+
+        self.set_x(x_start)
+        self.set_font('Arial', '', 10)
+        self.cell(40, 6, "Payment Mode:", 0, 0, 'R')
+        self.set_font('Arial', 'B', 10)
+        self.cell(30, 6, pay_mode, 0, 1, 'R')
             
         self.set_x(x_start)
         self.set_font('Arial', 'B', 12)
@@ -4202,22 +4178,21 @@ class PDFGenerator(FPDF):
         self.cell(30, 8, f"{float(sale_data['final_amount']):.2f}", 1, 1, 'R', True)
         self.ln(10)
         
-        # 4. Terms & Conditions
+        # Terms & Conditions
         self.set_font('Arial', 'B', 10)
         self.cell(0, 6, "Terms & Conditions:", 0, 1)
         self.set_font('Arial', '', 9)
         self.cell(0, 5, "1. Goods once sold will not be taken back.", 0, 1)
         self.cell(0, 5, "2. 7 Days Return Policy (Damage product not accepted).", 0, 1)
         self.cell(0, 5, "3. 6 Month Warranty on Electronics.", 0, 1)
-        self.cell(0, 5, "4. Subject to Nadiad Jurisdiction.", 0, 1)
         
-        # 5. Signatures (Auto aligned)
-        self.ln(15)
+        # --- OFFICE BILL SIGNATURE (Relocated Logic) ---
+        self.ln(15) 
         y_pos = self.get_y()
         
         sig_path = os.path.join(app.root_path, 'static', 'img', 'signature.png')
         if os.path.exists(sig_path):
-            self.image(sig_path, x=150, y=y_pos-20, w=35) # Adjusted Y-20 for office bill too
+            self.image(sig_path, x=150, y=y_pos-20, w=35) # Adjusted for right alignment
             
         self.set_xy(130, y_pos + 10)
         self.set_font('Arial', 'B', 9)
@@ -4330,9 +4305,9 @@ def office_sales():
     return render_template('office_sales.html', products=products, today=date.today().strftime('%d-%m-%Y'))
 
 
-# ==========================================
-# 3. ROUTE: DOWNLOAD OFFICE BILL PDF
-# ==========================================
+# =================================================================================
+# 4. OFFICE SALE PDF (Private)
+# =================================================================================
 @app.route('/office_sales/print/<int:sale_id>')
 def download_office_bill(sale_id):
     if "loggedin" not in session: return redirect(url_for("login"))
@@ -4340,28 +4315,21 @@ def download_office_bill(sale_id):
     conn = mysql.connection
     cursor = conn.cursor(MySQLdb.cursors.DictCursor)
     
-    # Fetch Sale
     cursor.execute("SELECT * FROM office_sales WHERE id=%s", (sale_id,))
     sale = cursor.fetchone()
     
     if not sale:
         flash("Bill not found", "danger")
-        return redirect(url_for('office_sales'))
+        return redirect(url_for('office_sales_master'))
     
-    # Format Date
     if sale['sale_date']:
         sale['sale_date'] = sale['sale_date'].strftime('%d-%m-%Y')
-        
-    # Format Time (IST)
-    if sale.get('created_at'):
-         try:
-             sale['sale_time'] = sale['created_at'].strftime('%I:%M %p')
-         except:
-             sale['sale_time'] = ""
-    else:
-         sale['sale_time'] = ""
 
-    # Fetch Items
+    if sale.get('created_at'):
+         try: sale['sale_time'] = sale['created_at'].strftime('%I:%M %p')
+         except: sale['sale_time'] = ""
+    else: sale['sale_time'] = ""
+
     cursor.execute("""
         SELECT i.*, p.name as product_name 
         FROM office_sale_items i 
@@ -4370,84 +4338,72 @@ def download_office_bill(sale_id):
     """, (sale_id,))
     items = cursor.fetchall()
     
-    # Generate PDF
-    pdf = PDFGenerator("Office") # Use "Office" type for Bill Title
+    pdf = PDFGenerator("Office")
     pdf.alias_nb_pages()
     pdf.add_page()
     
-    # Use the specific body method
     pdf.generate_office_bill_body(sale, items)
     
     pdf_string = pdf.output(dest='S').encode('latin-1')
     buffer = io.BytesIO(pdf_string)
     buffer.seek(0)
     
-    return send_file(buffer, as_attachment=True, download_name=f"Bill_{sale_id}.pdf", mimetype='application/pdf')
-
-
-
-# =================================================================================
-# 4. PUBLIC ROUTE: OFFICE SALE PDF (Updated Filename & No Login)
-# =================================================================================
-@app.route('/public/office_sales/print/<int:sale_id>')
-def download_office_bill_public(sale_id):
-    # NO LOGIN CHECK HERE
-    
-    conn = mysql.connection
-    cursor = conn.cursor(MySQLdb.cursors.DictCursor)
-    
-    # Fetch Sale
-    cursor.execute("SELECT * FROM office_sales WHERE id=%s", (sale_id,))
-    sale = cursor.fetchone()
-    
-    if not sale:
-        return "Bill not found", 404
-    
-    # Format Date
-    if sale['sale_date']:
-        sale['sale_date'] = sale['sale_date'].strftime('%d-%m-%Y')
-
-    # Format Time (IST)
-    if sale.get('created_at'):
-         try:
-             # Assuming created_at is datetime
-             sale['sale_time'] = sale['created_at'].strftime('%I:%M %p')
-         except:
-             sale['sale_time'] = ""
-    else:
-         sale['sale_time'] = ""
-
-    # Fetch Items
-    cursor.execute("""
-        SELECT i.*, p.name as product_name 
-        FROM office_sale_items i 
-        JOIN products p ON i.product_id = p.id 
-        WHERE i.sale_id=%s
-    """, (sale_id,))
-    items = cursor.fetchall()
-    
-    # Generate PDF
-    pdf = PDFGenerator("Office") # Use "Office" type for Bill Title
-    pdf.alias_nb_pages()
-    pdf.add_page()
-    
-    # Use the specific body method
-    pdf.generate_office_bill_body(sale, items)
-    
-    pdf_string = pdf.output(dest='S').encode('latin-1')
-    buffer = io.BytesIO(pdf_string)
-    buffer.seek(0)
-    
-    # --- DYNAMIC FILENAME LOGIC ---
-    # Using Customer Name for Office Bills
     cust_name = sale['customer_name'] or "Customer"
     safe_name = "".join(c for c in cust_name if c.isalnum() or c in (' ', '_', '-')).strip().replace(' ', '_')
     filename = f"{safe_name}_Bill_{sale_id}.pdf"
     
     return send_file(buffer, as_attachment=True, download_name=filename, mimetype='application/pdf')
 
+
 # =================================================================================
-# 1. MORNING ALLOCATION PDF ROUTE
+# 5. OFFICE SALE PDF (Public - No Login)
+# =================================================================================
+@app.route('/public/office_sales/print/<int:sale_id>')
+def download_office_bill_public(sale_id):
+    conn = mysql.connection
+    cursor = conn.cursor(MySQLdb.cursors.DictCursor)
+    
+    cursor.execute("SELECT * FROM office_sales WHERE id=%s", (sale_id,))
+    sale = cursor.fetchone()
+    
+    if not sale:
+        return "Bill not found", 404
+    
+    if sale['sale_date']:
+        sale['sale_date'] = sale['sale_date'].strftime('%d-%m-%Y')
+
+    if sale.get('created_at'):
+         try: sale['sale_time'] = sale['created_at'].strftime('%I:%M %p')
+         except: sale['sale_time'] = ""
+    else: sale['sale_time'] = ""
+
+    cursor.execute("""
+        SELECT i.*, p.name as product_name 
+        FROM office_sale_items i 
+        JOIN products p ON i.product_id = p.id 
+        WHERE i.sale_id=%s
+    """, (sale_id,))
+    items = cursor.fetchall()
+    
+    pdf = PDFGenerator("Office")
+    pdf.alias_nb_pages()
+    pdf.add_page()
+    
+    pdf.generate_office_bill_body(sale, items)
+    
+    pdf_string = pdf.output(dest='S').encode('latin-1')
+    buffer = io.BytesIO(pdf_string)
+    buffer.seek(0)
+    
+    cust_name = sale['customer_name'] or "Customer"
+    safe_name = "".join(c for c in cust_name if c.isalnum() or c in (' ', '_', '-')).strip().replace(' ', '_')
+    filename = f"{safe_name}_Bill_{sale_id}.pdf"
+    
+    return send_file(buffer, as_attachment=True, download_name=filename, mimetype='application/pdf')
+
+
+# =================================================================================
+# 1. MORNING ALLOCATION PDF (Private)
 # =================================================================================
 @app.route('/download_morning_pdf/<int:allocation_id>')
 def download_morning_pdf(allocation_id):
@@ -4483,23 +4439,16 @@ def download_morning_pdf(allocation_id):
     d_val = header['date'].strftime('%d-%m-%Y') if header['date'] else ""
     t_val = "N/A"
     if header.get('created_at'):
-        if isinstance(header['created_at'], timedelta):
-            dummy = datetime.min + header['created_at']
-            t_val = dummy.strftime('%I:%M %p')
-        elif isinstance(header['created_at'], datetime):
-            t_val = header['created_at'].strftime('%I:%M %p')
-        else:
-            t_val = str(header['created_at'])
+        try: t_val = header['created_at'].strftime('%I:%M %p')
+        except: t_val = str(header['created_at'])
 
     pdf.add_info_section(header['emp_name'], header['emp_mobile'], d_val, t_val)
     
     cols = ["#", "Product Name", "Opening", "Given Qty", "Price", "Amount"]
     widths = [10, 80, 20, 25, 25, 30]
-    
     pdf.add_table_header(cols, widths)
     
     pdf.set_font('Arial', '', 9)
-    pdf.set_text_color(0, 0, 0)
     pdf.set_fill_color(245, 245, 245)
     
     total_opening_sum = 0 
@@ -4512,12 +4461,10 @@ def download_morning_pdf(allocation_id):
         pdf.cell(widths[1], 7, str(item['name']), 1, 0, 'L', fill)
         pdf.cell(widths[2], 7, str(item['opening_qty']), 1, 0, 'C', fill)
         pdf.cell(widths[3], 7, str(item['given_qty']), 1, 0, 'C', fill)
-        
         pdf.cell(widths[4], 7, f"{float(item['unit_price']):.2f}", 1, 0, 'R', fill)
         
         total_held = int(item['opening_qty']) + int(item['given_qty'])
         amt = total_held * float(item['unit_price'])
-        
         pdf.cell(widths[5], 7, f"{amt:.2f}", 1, 1, 'R', fill)
         
         total_opening_sum += int(item['opening_qty']) 
@@ -4526,9 +4473,7 @@ def download_morning_pdf(allocation_id):
         fill = not fill 
         
     pdf.set_font('Arial', 'B', 10)
-    
-    # TOTALS
-    pdf.cell(widths[0]+widths[1], 8, "TOTAL", 1, 0, 'R', True)
+    pdf.cell(widths[0]+widths[1], 8, "TOTALS", 1, 0, 'R', True)
     pdf.cell(widths[2], 8, str(total_opening_sum), 1, 0, 'C', True)
     pdf.cell(widths[3], 8, str(total_qty_sum), 1, 0, 'C', True)
     pdf.cell(widths[4], 8, "", 1, 0, 'C', True)
@@ -4547,7 +4492,7 @@ def download_morning_pdf(allocation_id):
 
 
 # =================================================================================
-# 2. EVENING SETTLEMENT PDF ROUTE
+# 3. EVENING SETTLEMENT PDF ROUTE (Private)
 # =================================================================================
 @app.route('/download_evening_pdf/<int:settle_id>')
 def download_evening_pdf(settle_id):
@@ -4583,29 +4528,23 @@ def download_evening_pdf(settle_id):
     d_val = data['date'].strftime('%d-%m-%Y') if data['date'] else ""
     t_val = "N/A"
     if data.get('created_at'):
-        if isinstance(data['created_at'], timedelta):
-            dummy = datetime.min + data['created_at']
-            t_val = dummy.strftime('%I:%M %p')
-        elif isinstance(data['created_at'], datetime):
-            t_val = data['created_at'].strftime('%I:%M %p')
-        else:
-            t_val = str(data['created_at'])
+        try: t_val = data['created_at'].strftime('%I:%M %p')
+        except: t_val = str(data['created_at'])
     
     pdf.add_info_section(data['emp_name'], data['emp_mobile'], d_val, t_val)
     
-    # Updated Columns to include Return properly and check width logic
-    cols = ["#", "Product", "Total", "Sold", "Price", "Amount", "Return"]
-    widths = [10, 60, 20, 20, 25, 30, 25]
+    # --- UPDATED: Return Column Logic ---
+    cols = ["#", "Product", "Total", "Sold", "Return", "Price", "Amount"]
+    widths = [10, 60, 20, 20, 20, 25, 35]
     pdf.add_table_header(cols, widths)
     
     pdf.set_font('Arial', '', 9)
-    pdf.set_text_color(0, 0, 0)
     pdf.set_fill_color(245, 245, 245)
     
     tot_total_qty = 0
     tot_sold = 0
-    tot_amt = 0
     tot_ret = 0
+    tot_amt = 0
     fill = False
     
     for i, item in enumerate(items):
@@ -4613,29 +4552,27 @@ def download_evening_pdf(settle_id):
         pdf.cell(widths[1], 7, str(item['name']), 1, 0, 'L', fill)
         pdf.cell(widths[2], 7, str(item['total_qty']), 1, 0, 'C', fill)
         pdf.cell(widths[3], 7, str(item['sold_qty']), 1, 0, 'C', fill)
-        pdf.cell(widths[4], 7, f"{float(item['unit_price']):.2f}", 1, 0, 'R', fill)
+        pdf.cell(widths[4], 7, str(item['return_qty']), 1, 0, 'C', fill) # Moved Here
+        pdf.cell(widths[5], 7, f"{float(item['unit_price']):.2f}", 1, 0, 'R', fill)
         
         amt = float(item['sold_qty']) * float(item['unit_price'])
-        pdf.cell(widths[5], 7, f"{amt:.2f}", 1, 0, 'R', fill)
-        
-        pdf.cell(widths[6], 7, str(item['return_qty']), 1, 1, 'C', fill)
+        pdf.cell(widths[6], 7, f"{amt:.2f}", 1, 1, 'R', fill)
         
         # Totals
         tot_total_qty += int(item['total_qty']) 
         tot_sold += int(item['sold_qty'])
-        tot_amt += amt
         tot_ret += int(item['return_qty'])
+        tot_amt += amt
         fill = not fill
 
     pdf.set_font('Arial', 'B', 10)
     
-    # TOTAL ROW
-    pdf.cell(widths[0]+widths[1], 8, "TOTAL", 1, 0, 'R', True)
+    pdf.cell(widths[0]+widths[1], 8, "TOTALS", 1, 0, 'R', True)
     pdf.cell(widths[2], 8, str(tot_total_qty), 1, 0, 'C', True)
     pdf.cell(widths[3], 8, str(tot_sold), 1, 0, 'C', True)
-    pdf.cell(widths[4], 8, "", 1, 0, 'C', True)
-    pdf.cell(widths[5], 8, f"{tot_amt:.2f}", 1, 0, 'R', True)
-    pdf.cell(widths[6], 8, str(tot_ret), 1, 1, 'C', True) # Added Return Total
+    pdf.cell(widths[4], 8, str(tot_ret), 1, 0, 'C', True)
+    pdf.cell(widths[5], 8, "", 1, 0, 'C', True)
+    pdf.cell(widths[6], 8, f"{tot_amt:.2f}", 1, 1, 'R', True)
     pdf.ln(5)
     
     # --- FINANCE SUMMARY BLOCK ---
@@ -4725,12 +4662,10 @@ def download_evening_pdf(settle_id):
     return send_file(buffer, as_attachment=True, download_name=filename, mimetype='application/pdf')
 
 # =================================================================================
-# 3. PUBLIC ROUTE: DOWNLOAD MORNING PDF (Updated Filename & No Login)
+# 2. MORNING ALLOCATION PDF (Public)
 # =================================================================================
 @app.route('/public/download_morning_pdf/<int:allocation_id>')
 def download_morning_pdf_public(allocation_id):
-    # REMOVED LOGIN CHECK for direct WhatsApp access
-    
     conn = mysql.connection
     cursor = conn.cursor(MySQLdb.cursors.DictCursor)
     
@@ -4760,23 +4695,16 @@ def download_morning_pdf_public(allocation_id):
     d_val = header['date'].strftime('%d-%m-%Y') if header['date'] else ""
     t_val = "N/A"
     if header.get('created_at'):
-        if isinstance(header['created_at'], timedelta):
-            dummy = datetime.min + header['created_at']
-            t_val = dummy.strftime('%I:%M %p')
-        elif isinstance(header['created_at'], datetime):
-            t_val = header['created_at'].strftime('%I:%M %p')
-        else:
-            t_val = str(header['created_at'])
+        try: t_val = header['created_at'].strftime('%I:%M %p')
+        except: t_val = str(header['created_at'])
 
     pdf.add_info_section(header['emp_name'], header['emp_mobile'], d_val, t_val)
     
     cols = ["#", "Product Name", "Opening", "Given Qty", "Price", "Amount"]
     widths = [10, 80, 20, 25, 25, 30]
-    
     pdf.add_table_header(cols, widths)
     
     pdf.set_font('Arial', '', 9)
-    pdf.set_text_color(0, 0, 0)
     pdf.set_fill_color(245, 245, 245)
     
     total_opening_sum = 0 
@@ -4789,23 +4717,18 @@ def download_morning_pdf_public(allocation_id):
         pdf.cell(widths[1], 7, str(item['name']), 1, 0, 'L', fill)
         pdf.cell(widths[2], 7, str(item['opening_qty']), 1, 0, 'C', fill)
         pdf.cell(widths[3], 7, str(item['given_qty']), 1, 0, 'C', fill)
-        
         pdf.cell(widths[4], 7, f"{float(item['unit_price']):.2f}", 1, 0, 'R', fill)
         
         total_held = int(item['opening_qty']) + int(item['given_qty'])
         amt = total_held * float(item['unit_price'])
-        
         pdf.cell(widths[5], 7, f"{amt:.2f}", 1, 1, 'R', fill)
         
-        # Accumulate Totals
         total_opening_sum += int(item['opening_qty']) 
         total_qty_sum += int(item['given_qty']) 
         total_amount_sum += amt
         fill = not fill 
         
     pdf.set_font('Arial', 'B', 10)
-    
-    # TOTALS
     pdf.cell(widths[0]+widths[1], 8, "TOTALS", 1, 0, 'R', True)
     pdf.cell(widths[2], 8, str(total_opening_sum), 1, 0, 'C', True)
     pdf.cell(widths[3], 8, str(total_qty_sum), 1, 0, 'C', True)
@@ -4818,11 +4741,11 @@ def download_morning_pdf_public(allocation_id):
     buffer = io.BytesIO(pdf_string)
     buffer.seek(0)
     
-    # --- DYNAMIC FILENAME LOGIC ---
     safe_name = "".join(c for c in header['emp_name'] if c.isalnum() or c in (' ', '_', '-')).strip().replace(' ', '_')
     filename = f"{safe_name}_Morning_{allocation_id}.pdf"
     
     return send_file(buffer, as_attachment=True, download_name=filename, mimetype='application/pdf')
+
 
 
 # --- Helper: Robust Date Parsing ---
@@ -7256,6 +7179,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
