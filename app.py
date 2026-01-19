@@ -3968,7 +3968,7 @@ class PDFGenerator(FPDF):
         ]
         self.contact = "+91 96623 22476 | help@realpromotion.in"
         self.gst_text = "GSTIN:24AJVPT0460H1ZW"
-        self.gst_subtext = "Composition Dealer- Not Eligibal To Collect Taxes On Sppliers"
+        self.gst_subtext = "Composition Dealer- Not Eligibal To Collect Taxes On Supplies"
 
     def header(self):
         # Company Header
@@ -4064,12 +4064,16 @@ class PDFGenerator(FPDF):
         self.ln(15) 
         y_pos = self.get_y()
         
-        # --- AUTOMATIC SIGNATURE LOGIC ---
-        # It checks for 'static/img/signature.png'
+        # --- AUTOMATIC SIGNATURE LOGIC (Adjusted Position) ---
+        # Checks for 'static/img/signature.png'
+        # To align nicely above "Authorized Signature", we adjust Y slightly up
+        # Y_POS is the current cursor. Line is at Y_POS + 15. Text is at Y_POS + 17.
+        # So we place image at Y_POS - 10 (approx) with height ~30-40 depending on aspect ratio.
+        # Adjusted: y=y_pos-20 to give it space above the line.
+        
         sig_path = os.path.join(app.root_path, 'static', 'img', 'signature.png')
         if os.path.exists(sig_path):
-            # Embed Image (x=20 aligns with Authorized Signature)
-            self.image(sig_path, x=20, y=y_pos-15, w=40) 
+            self.image(sig_path, x=20, y=y_pos-20, w=40) 
         
         self.set_font('Arial', 'B', 10)
         self.set_text_color(0, 0, 0)
@@ -4087,7 +4091,6 @@ class PDFGenerator(FPDF):
         self.set_font('Arial', 'I', 8)
         self.cell(0, 5, "This is a computer generated document.", 0, 1, 'C')
 
-    # --- UPDATED METHOD: OFFICE BILL BODY (FIXED SPACING & TOTALS) ---
     def generate_office_bill_body(self, sale_data, items):
         # 1. Customer Info
         self.set_font('Arial', '', 10)
@@ -4104,7 +4107,7 @@ class PDFGenerator(FPDF):
         else:
              self.ln(6)
 
-        # RIGHT SIDE: Bill Details (Including TIME & Sales Person)
+        # RIGHT SIDE: Bill Details
         self.set_xy(120, y)
         self.set_font('Arial', '', 10)
         self.cell(20, 6, "Bill No:", 0, 0); self.set_font('Arial','B',10); self.cell(40, 6, str(sale_data['id']), 0, 1)
@@ -4117,12 +4120,27 @@ class PDFGenerator(FPDF):
         self.set_font('Arial', '', 10)
         self.cell(20, 6, "Time:", 0, 0); self.set_font('Arial','B',10); self.cell(40, 6, str(sale_data.get('sale_time', '')), 0, 1)
 
-        # Added Sales Person Below Time
         self.set_xy(120, y+18)
         self.set_font('Arial', '', 10)
         self.cell(20, 6, "Sales By:", 0, 0); self.set_font('Arial','B',10); self.cell(40, 6, str(sale_data['sales_person'] or 'Office'), 0, 1)
 
-        self.ln(25) # Increased space before table for sales person line
+        # Payment Mode Logic
+        cash = float(sale_data.get('cash_amount') or 0)
+        online = float(sale_data.get('online_amount') or 0)
+        
+        pay_mode = "Unpaid"
+        if cash > 0 and online > 0:
+            pay_mode = "Cash & Online"
+        elif cash > 0:
+            pay_mode = "Cash"
+        elif online > 0:
+            pay_mode = "Online"
+            
+        self.set_xy(120, y+24)
+        self.set_font('Arial', '', 10)
+        self.cell(20, 6, "Mode:", 0, 0); self.set_font('Arial','B',10); self.cell(40, 6, pay_mode, 0, 1)
+
+        self.ln(30) # Increased space
         
         # 2. Product Table
         cols = ["#", "Product Name", "Qty", "Price", "Total"]
@@ -4139,7 +4157,6 @@ class PDFGenerator(FPDF):
         sum_total = 0
         
         for i, item in enumerate(items):
-            # Safe conversion
             qty = int(item['qty'])
             price = float(item['unit_price'])
             total = float(item['total_price'])
@@ -4185,7 +4202,7 @@ class PDFGenerator(FPDF):
         self.cell(30, 8, f"{float(sale_data['final_amount']):.2f}", 1, 1, 'R', True)
         self.ln(10)
         
-        # 4. Terms & Conditions (Company Policy)
+        # 4. Terms & Conditions
         self.set_font('Arial', 'B', 10)
         self.cell(0, 6, "Terms & Conditions:", 0, 1)
         self.set_font('Arial', '', 9)
@@ -4194,14 +4211,13 @@ class PDFGenerator(FPDF):
         self.cell(0, 5, "3. 6 Month Warranty on Electronics.", 0, 1)
         self.cell(0, 5, "4. Subject to Nadiad Jurisdiction.", 0, 1)
         
-        # 5. Signatures
+        # 5. Signatures (Auto aligned)
         self.ln(15)
         y_pos = self.get_y()
         
-        # Signature Image
         sig_path = os.path.join(app.root_path, 'static', 'img', 'signature.png')
         if os.path.exists(sig_path):
-            self.image(sig_path, x=150, y=y_pos-10, w=35)
+            self.image(sig_path, x=150, y=y_pos-20, w=35) # Adjusted Y-20 for office bill too
             
         self.set_xy(130, y_pos + 10)
         self.set_font('Arial', 'B', 9)
@@ -4369,9 +4385,10 @@ def download_office_bill(sale_id):
     return send_file(buffer, as_attachment=True, download_name=f"Bill_{sale_id}.pdf", mimetype='application/pdf')
 
 
-# ==========================================
-# 4. NEW PUBLIC ROUTE: DOWNLOAD OFFICE BILL
-# ==========================================
+
+# =================================================================================
+# 4. PUBLIC ROUTE: OFFICE SALE PDF (Updated Filename & No Login)
+# =================================================================================
 @app.route('/public/office_sales/print/<int:sale_id>')
 def download_office_bill_public(sale_id):
     # NO LOGIN CHECK HERE
@@ -4393,6 +4410,7 @@ def download_office_bill_public(sale_id):
     # Format Time (IST)
     if sale.get('created_at'):
          try:
+             # Assuming created_at is datetime
              sale['sale_time'] = sale['created_at'].strftime('%I:%M %p')
          except:
              sale['sale_time'] = ""
@@ -4420,11 +4438,16 @@ def download_office_bill_public(sale_id):
     buffer = io.BytesIO(pdf_string)
     buffer.seek(0)
     
-    return send_file(buffer, as_attachment=True, download_name=f"Bill_{sale_id}.pdf", mimetype='application/pdf')
-
+    # --- DYNAMIC FILENAME LOGIC ---
+    # Using Customer Name for Office Bills
+    cust_name = sale['customer_name'] or "Customer"
+    safe_name = "".join(c for c in cust_name if c.isalnum() or c in (' ', '_', '-')).strip().replace(' ', '_')
+    filename = f"{safe_name}_Bill_{sale_id}.pdf"
+    
+    return send_file(buffer, as_attachment=True, download_name=filename, mimetype='application/pdf')
 
 # =================================================================================
-# 1. MORNING ALLOCATION PDF ROUTE (Updated Filename)
+# 1. MORNING ALLOCATION PDF ROUTE
 # =================================================================================
 @app.route('/download_morning_pdf/<int:allocation_id>')
 def download_morning_pdf(allocation_id):
@@ -4497,7 +4520,6 @@ def download_morning_pdf(allocation_id):
         
         pdf.cell(widths[5], 7, f"{amt:.2f}", 1, 1, 'R', fill)
         
-        # Accumulate Totals
         total_opening_sum += int(item['opening_qty']) 
         total_qty_sum += int(item['given_qty']) 
         total_amount_sum += amt
@@ -4505,7 +4527,7 @@ def download_morning_pdf(allocation_id):
         
     pdf.set_font('Arial', 'B', 10)
     
-    # --- UPDATED TOTALS ROW LOGIC ---
+    # TOTALS
     pdf.cell(widths[0]+widths[1], 8, "TOTAL", 1, 0, 'R', True)
     pdf.cell(widths[2], 8, str(total_opening_sum), 1, 0, 'C', True)
     pdf.cell(widths[3], 8, str(total_qty_sum), 1, 0, 'C', True)
@@ -4518,7 +4540,6 @@ def download_morning_pdf(allocation_id):
     buffer = io.BytesIO(pdf_string)
     buffer.seek(0)
     
-    # --- DYNAMIC FILENAME LOGIC ---
     safe_name = "".join(c for c in header['emp_name'] if c.isalnum() or c in (' ', '_', '-')).strip().replace(' ', '_')
     filename = f"{safe_name}_Morning_{allocation_id}.pdf"
     
@@ -4526,7 +4547,7 @@ def download_morning_pdf(allocation_id):
 
 
 # =================================================================================
-# 2. EVENING SETTLEMENT PDF ROUTE (Updated Filename)
+# 2. EVENING SETTLEMENT PDF ROUTE
 # =================================================================================
 @app.route('/download_evening_pdf/<int:settle_id>')
 def download_evening_pdf(settle_id):
@@ -4572,6 +4593,7 @@ def download_evening_pdf(settle_id):
     
     pdf.add_info_section(data['emp_name'], data['emp_mobile'], d_val, t_val)
     
+    # Updated Columns to include Return properly and check width logic
     cols = ["#", "Product", "Total", "Sold", "Price", "Amount", "Return"]
     widths = [10, 60, 20, 20, 25, 30, 25]
     pdf.add_table_header(cols, widths)
@@ -4580,7 +4602,7 @@ def download_evening_pdf(settle_id):
     pdf.set_text_color(0, 0, 0)
     pdf.set_fill_color(245, 245, 245)
     
-    tot_total_qty = 0 
+    tot_total_qty = 0
     tot_sold = 0
     tot_amt = 0
     tot_ret = 0
@@ -4598,7 +4620,7 @@ def download_evening_pdf(settle_id):
         
         pdf.cell(widths[6], 7, str(item['return_qty']), 1, 1, 'C', fill)
         
-        # Accumulate Totals
+        # Totals
         tot_total_qty += int(item['total_qty']) 
         tot_sold += int(item['sold_qty'])
         tot_amt += amt
@@ -4607,13 +4629,13 @@ def download_evening_pdf(settle_id):
 
     pdf.set_font('Arial', 'B', 10)
     
-    # --- UPDATED TOTALS ROW LOGIC ---
+    # TOTAL ROW
     pdf.cell(widths[0]+widths[1], 8, "TOTAL", 1, 0, 'R', True)
     pdf.cell(widths[2], 8, str(tot_total_qty), 1, 0, 'C', True)
     pdf.cell(widths[3], 8, str(tot_sold), 1, 0, 'C', True)
     pdf.cell(widths[4], 8, "", 1, 0, 'C', True)
     pdf.cell(widths[5], 8, f"{tot_amt:.2f}", 1, 0, 'R', True)
-    pdf.cell(widths[6], 8, str(tot_ret), 1, 1, 'C', True)
+    pdf.cell(widths[6], 8, str(tot_ret), 1, 1, 'C', True) # Added Return Total
     pdf.ln(5)
     
     # --- FINANCE SUMMARY BLOCK ---
@@ -4697,15 +4719,14 @@ def download_evening_pdf(settle_id):
     buffer = io.BytesIO(pdf_string)
     buffer.seek(0)
     
-    # --- DYNAMIC FILENAME LOGIC ---
     safe_name = "".join(c for c in data['emp_name'] if c.isalnum() or c in (' ', '_', '-')).strip().replace(' ', '_')
     filename = f"{safe_name}_Evening_{settle_id}.pdf"
     
     return send_file(buffer, as_attachment=True, download_name=filename, mimetype='application/pdf')
 
-# ==========================================
-# PUBLIC ROUTE: DOWNLOAD MORNING PDF (No Login Required)
-# ==========================================
+# =================================================================================
+# 3. PUBLIC ROUTE: DOWNLOAD MORNING PDF (Updated Filename & No Login)
+# =================================================================================
 @app.route('/public/download_morning_pdf/<int:allocation_id>')
 def download_morning_pdf_public(allocation_id):
     # REMOVED LOGIN CHECK for direct WhatsApp access
@@ -4776,6 +4797,7 @@ def download_morning_pdf_public(allocation_id):
         
         pdf.cell(widths[5], 7, f"{amt:.2f}", 1, 1, 'R', fill)
         
+        # Accumulate Totals
         total_opening_sum += int(item['opening_qty']) 
         total_qty_sum += int(item['given_qty']) 
         total_amount_sum += amt
@@ -4783,7 +4805,7 @@ def download_morning_pdf_public(allocation_id):
         
     pdf.set_font('Arial', 'B', 10)
     
-    # --- UPDATED TOTALS ROW LOGIC ---
+    # TOTALS
     pdf.cell(widths[0]+widths[1], 8, "TOTALS", 1, 0, 'R', True)
     pdf.cell(widths[2], 8, str(total_opening_sum), 1, 0, 'C', True)
     pdf.cell(widths[3], 8, str(total_qty_sum), 1, 0, 'C', True)
@@ -4796,7 +4818,7 @@ def download_morning_pdf_public(allocation_id):
     buffer = io.BytesIO(pdf_string)
     buffer.seek(0)
     
-    # --- DYNAMIC FILENAME LOGIC (SAME AS PRIVATE ROUTE) ---
+    # --- DYNAMIC FILENAME LOGIC ---
     safe_name = "".join(c for c in header['emp_name'] if c.isalnum() or c in (' ', '_', '-')).strip().replace(' ', '_')
     filename = f"{safe_name}_Morning_{allocation_id}.pdf"
     
@@ -7234,6 +7256,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
