@@ -804,26 +804,26 @@ def get_db_column(cursor, table_name, candidates):
         return candidates[0]
 
 # =================================================================================
-#  ADMIN DASHBOARD ROUTE (Fixed Date & Net Sales Logic)
+#  ADMIN DASHBOARD ROUTE (Fixed IST Date & Net Sales)
 # =================================================================================
 @app.route("/dash")
 def dash():
-    """Admin Analytics Dashboard (Premium)"""
+    """Admin Analytics Dashboard"""
     if "loggedin" not in session: return redirect(url_for("login"))
     
     conn = mysql.connection
     cursor = conn.cursor(MySQLdb.cursors.DictCursor)
     
-    # --- TIMEZONE FIX: Force IST (UTC+5:30) ---
-    # This ensures "Today" means "Today in India"
+    # --- 1. TIMEZONE FIX: Force IST (UTC+5:30) ---
+    # This calculates the exact date in India right now
     ist_now = datetime.utcnow() + timedelta(hours=5, minutes=30)
     today = ist_now.date() 
     current_year = today.year
     
-    # --- 1. KEY METRICS ---
+    # --- 2. KEY METRICS ---
     
     # A. SALES TODAY (Net: Total - Discount)
-    # Only counting 'final' settlements
+    # We filter by 'final' status to ensure only completed sales are counted
     cursor.execute("""
         SELECT SUM(total_amount - discount) as total 
         FROM evening_settle 
@@ -862,16 +862,15 @@ def dash():
     yearly_expenses = float(row['total'] or 0)
 
     # E. LOW STOCK COUNT
-    # Assuming 'Active' products only
+    # Checks active products
     try:
         cursor.execute("SELECT COUNT(*) as cnt FROM products WHERE stock <= low_stock_threshold AND status='Active'")
     except:
-        cursor.execute("SELECT COUNT(*) as cnt FROM products WHERE stock < 10") # Fallback
+        cursor.execute("SELECT COUNT(*) as cnt FROM products WHERE stock < 10")
     row = cursor.fetchone()
     low_stock = int(row['cnt'] or 0)
 
     # F. SUPPLIER DUES (Total Outstanding)
-    # Formula: Opening + Purchases + Adjustments - Payments
     cursor.execute("""
         SELECT SUM(
             opening_balance + 
@@ -884,12 +883,12 @@ def dash():
     row = cursor.fetchone()
     supplier_dues = float(row['total_due'] or 0)
 
-    # --- 2. CHART DATA (Monthly Trends for Current Year) ---
+    # --- 3. CHART DATA (Monthly Trends) ---
     chart_months = []
     chart_sales = []
     chart_expenses = []
 
-    # Get Monthly Sales Data
+    # Monthly Sales (Net)
     cursor.execute("""
         SELECT MONTH(date) as m, SUM(total_amount - discount) as total
         FROM evening_settle
@@ -898,7 +897,7 @@ def dash():
     """, (current_year,))
     sales_map = {row['m']: float(row['total']) for row in cursor.fetchall()}
 
-    # Get Monthly Expenses Data
+    # Monthly Expenses
     cursor.execute("""
         SELECT MONTH(expense_date) as m, SUM(amount) as total
         FROM expenses
@@ -907,13 +906,12 @@ def dash():
     """, (current_year,))
     expense_map = {row['m']: float(row['total']) for row in cursor.fetchall()}
 
-    # Populate Arrays for Chart.js (1 to 12 months)
     for m in range(1, 13):
-        chart_months.append(calendar.month_abbr[m]) # Jan, Feb...
+        chart_months.append(calendar.month_abbr[m])
         chart_sales.append(sales_map.get(m, 0.0))
         chart_expenses.append(expense_map.get(m, 0.0))
 
-    # --- 3. TOP PRODUCTS (By Quantity Sold) ---
+    # --- 4. TOP PRODUCTS ---
     top_prod_names = []
     top_prod_qty = []
     
@@ -934,10 +932,13 @@ def dash():
 
     cursor.close()
 
-    # Pass all data to template
     return render_template(
         "dash.html",
-        # Metrics
+        # Pass the Fixed IST Date
+        today_date=today, 
+        current_year=current_year,
+        
+        # Data
         sales_today=sales_today,
         sales_this_month=sales_this_month,
         yearly_sales=yearly_sales,
@@ -950,11 +951,7 @@ def dash():
         chart_sales=chart_sales,
         chart_expenses=chart_expenses,
         top_prod_names=top_prod_names,
-        top_prod_qty=top_prod_qty,
-        
-        # Context (Updated Date Variable)
-        current_year=current_year,
-        today_date_display=today # Pass the IST date object
+        top_prod_qty=top_prod_qty
     )
 
 # =====================================================================
@@ -3872,7 +3869,7 @@ def exp_report():
     )
 
 # ==========================================
-# PDF GENERATOR CLASS (UPDATED & STANDARDIZED)
+# UPDATED PDF GENERATOR CLASS (Office Bill Fixes)
 # ==========================================
 class PDFGenerator(FPDF):
     def __init__(self, title_type="Morning"):
@@ -3887,16 +3884,15 @@ class PDFGenerator(FPDF):
         ]
         self.contact = "+91 96623 22476 | help@realpromotion.in"
         self.gst_text = "GSTIN:24AJVPT0460H1ZW"
-        self.gst_subtext = "Composition Dealer- Not Eligibal To Collect Taxes On Supplies"
+        self.gst_subtext = "Composition Dealer- Not Eligibal To Collect Taxes On Sppliers"
 
     def header(self):
-        # Company Header
         self.set_font('Arial', 'B', 24)
-        self.set_text_color(26, 35, 126) # Dark Blue
+        self.set_text_color(26, 35, 126) 
         self.cell(0, 10, self.company_name, 0, 1, 'C')
         
         self.set_font('Arial', 'B', 10)
-        self.set_text_color(100, 100, 100) # Grey
+        self.set_text_color(100, 100, 100) 
         self.cell(0, 5, self.slogan, 0, 1, 'C')
         self.ln(2)
         
@@ -3906,29 +3902,22 @@ class PDFGenerator(FPDF):
             self.cell(0, 4, line, 0, 1, 'C')
         self.cell(0, 4, self.contact, 0, 1, 'C')
         
-        # GST Section
         self.set_font('Arial', 'B', 9)
         self.cell(0, 4, self.gst_text, 0, 1, 'C')
         self.set_font('Arial', 'I', 8)
         self.cell(0, 4, self.gst_subtext, 0, 1, 'C')
         self.ln(5)
         
-        # Divider
         self.set_draw_color(200, 200, 200)
         self.line(10, self.get_y(), 200, self.get_y())
         self.ln(5)
 
-        # Title
         self.set_font('Arial', 'B', 16)
         self.set_text_color(0, 0, 0)
-        if self.title_type == "Morning":
-            title = "DAILY STOCK ALLOCATION CHALLAN"
-        elif self.title_type == "Evening":
-            title = "EVENING SETTLEMENT RECEIPT"
-        elif self.title_type == "Office":
-            title = "BILL OF SUPPLY"
-        else:
-            title = "DOCUMENT"
+        if self.title_type == "Morning": title = "DAILY STOCK ALLOCATION CHALLAN"
+        elif self.title_type == "Evening": title = "EVENING SETTLEMENT RECEIPT"
+        elif self.title_type == "Office": title = "BILL OF SUPPLY"
+        else: title = "DOCUMENT"
         self.cell(0, 10, title, 0, 1, 'C')
         self.ln(5)
 
@@ -3937,44 +3926,6 @@ class PDFGenerator(FPDF):
         self.set_font('Arial', 'I', 8)
         self.set_text_color(128, 128, 128)
         self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
-
-    def add_info_section(self, emp_name, emp_mobile, date_str, time_str, form_id=None):
-        self.set_font('Arial', '', 10)
-        self.set_text_color(0, 0, 0)
-        start_y = self.get_y()
-        
-        # Left: Employee
-        self.set_xy(10, start_y)
-        self.cell(35, 6, "Employee Name:", 0, 0)
-        self.set_font('Arial', 'B', 10)
-        self.cell(70, 6, str(emp_name).upper(), 0, 1)
-        
-        self.set_font('Arial', '', 10)
-        self.cell(35, 6, "Mobile No:", 0, 0)
-        self.set_font('Arial', 'B', 10)
-        self.cell(70, 6, str(emp_mobile) if emp_mobile else "N/A", 0, 1)
-
-        # Right: Date/Time
-        self.set_xy(140, start_y)
-        self.set_font('Arial', '', 10)
-        self.cell(20, 6, "Date:", 0, 0)
-        self.set_font('Arial', 'B', 10)
-        self.cell(40, 6, str(date_str), 0, 1)
-
-        self.set_xy(140, start_y + 6)
-        self.set_font('Arial', '', 10)
-        self.cell(20, 6, "Time:", 0, 0)
-        self.set_font('Arial', 'B', 10)
-        self.cell(40, 6, str(time_str), 0, 1)
-        
-        if form_id:
-            self.set_xy(140, start_y + 12)
-            self.set_font('Arial', '', 10)
-            self.cell(20, 6, "Form ID:", 0, 0)
-            self.set_font('Arial', 'B', 10)
-            self.cell(40, 6, str(form_id), 0, 1)
-            
-        self.ln(15 if form_id else 10)
 
     def add_table_header(self, columns, widths):
         self.set_font('Arial', 'B', 9)
@@ -3987,25 +3938,32 @@ class PDFGenerator(FPDF):
         self.ln()
 
     def add_signature_section(self, is_office_bill=False):
-        # Check space to ensure signature doesn't get cut off
-        if self.get_y() > 230: self.add_page()
+        # SPACE CHECK: Ensure 50mm space exists for signature
+        # 297mm (A4 Height) - 15mm (Bottom Margin) = 282mm
+        # If current Y > 232, add page.
+        if self.get_y() > 230: 
+            self.add_page()
         
-        # Add Padding above signature to avoid overwriting elements
-        self.ln(15) 
+        self.ln(10) # Small gap before signature block
         y_pos = self.get_y()
         
-        # Signature Image Logic
         sig_path = os.path.join(app.root_path, 'static', 'img', 'signature.png')
         
         if is_office_bill:
             # === OFFICE BILL SIGNATURE (RIGHT SIDE ONLY) ===
-            # Image Position
+            # Ensure we don't go off page
+            if y_pos > 240:
+                self.add_page()
+                y_pos = self.get_y() + 10
+
+            # Image logic
             if os.path.exists(sig_path):
-                # x=140 aligns it well on the right side
+                # x=140 right side, y=current position
                 self.image(sig_path, x=140, y=y_pos, w=40)
             
-            # Text Position (Below image)
-            # y_pos + 25 creates a safe gap below the image
+            # Text Position (Below image space)
+            # We assume image height is approx 15-20 units. 
+            # Place text at y_pos + 25
             self.set_xy(130, y_pos + 25)
             self.set_font('Arial', 'B', 10)
             self.set_text_color(0, 0, 0)
@@ -4022,18 +3980,19 @@ class PDFGenerator(FPDF):
             self.set_font('Arial', 'B', 10)
             self.set_text_color(0, 0, 0)
             
-            # Left: Authorized
             self.line(15, y_pos + 25, 75, y_pos + 25)
             self.set_xy(15, y_pos + 27)
             self.cell(60, 5, "Authorized Signature", 0, 0, 'C')
             
-            # Right: Employee
             self.line(135, y_pos + 25, 195, y_pos + 25)
             self.set_xy(135, y_pos + 27)
             self.cell(60, 5, "Employee Signature", 0, 1, 'C')
 
-        # Footer Text
-        self.ln(15)
+        # Footer disclaimer
+        self.ln(10)
+        # Avoid writing over footer
+        if self.get_y() > 270: self.add_page()
+        
         self.set_font('Arial', 'I', 8)
         self.set_text_color(128, 128, 128)
         self.cell(0, 5, "This is a computer generated document.", 0, 1, 'C')
@@ -4097,7 +4056,10 @@ class PDFGenerator(FPDF):
         self.cell(widths[4], 8, f"{sum_total:.2f}", 1, 1, 'R', True)
         self.ln(5)
         
-        # 3. Totals
+        # 3. Totals (Compact)
+        # Check space before printing totals. If near bottom, add page.
+        if self.get_y() > 240: self.add_page()
+
         x_start = 120
         self.set_x(x_start)
         self.set_font('Arial', '', 10)
@@ -4115,19 +4077,21 @@ class PDFGenerator(FPDF):
         self.set_fill_color(230, 230, 230)
         self.cell(40, 8, "GRAND TOTAL:", 1, 0, 'R', True)
         self.cell(30, 8, f"{float(sale_data['final_amount']):.2f}", 1, 1, 'R', True)
-        self.ln(10)
+        self.ln(8)
         
-        # 4. Terms
-        self.set_font('Arial', 'B', 10)
-        self.cell(0, 6, "Terms & Conditions:", 0, 1)
-        self.set_font('Arial', '', 9)
-        self.cell(0, 5, "1. Goods once sold will not be taken back.", 0, 1)
-        self.cell(0, 5, "2. 7 Days Return Policy (Damage product not accepted).", 0, 1)
-        self.cell(0, 5, "3. 6 Month Warranty on Electronics.", 0, 1)
-        self.cell(0, 5, "4. Subject to Nadiad Jurisdiction.", 0, 1)
+        # 4. Terms (Compact)
+        if self.get_y() > 240: self.add_page()
+        self.set_font('Arial', 'B', 9)
+        self.cell(0, 5, "Terms & Conditions:", 0, 1)
+        self.set_font('Arial', '', 8)
+        self.cell(0, 4, "1. Goods once sold will not be taken back.", 0, 1)
+        self.cell(0, 4, "2. 7 Days Return Policy (Damage product not accepted).", 0, 1)
+        self.cell(0, 4, "3. 6 Month Warranty on Electronics.", 0, 1)
+        self.cell(0, 4, "4. Subject to Nadiad Jurisdiction.", 0, 1)
         
-        # 5. Correct Signature Call
+        # 5. Add Signature (Passed True for Office Bill)
         self.add_signature_section(is_office_bill=True)
+
 
 # ==========================================
 # UPDATED: MORNING PDF ROUTE (With Opening Totals & Dynamic Name)
@@ -4527,6 +4491,7 @@ def download_office_bill(sale_id):
     buffer = io.BytesIO(pdf_string)
     buffer.seek(0)
     
+    # Filename: CustomerName_Bill_ID.pdf
     cust_name = str(sale.get('customer_name', 'Customer')).replace(" ", "_")
     filename = f"{cust_name}_Bill_{sale_id}.pdf"
     return send_file(buffer, as_attachment=True, download_name=filename, mimetype='application/pdf')
@@ -7109,6 +7074,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
