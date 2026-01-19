@@ -1200,44 +1200,55 @@ def supplier_ledger(supplier_id):
         flash("Supplier not found!", "danger")
         return redirect(url_for('suppliers'))
 
-    # --- HELPER: Strict Date Formatting & Handling ---
-    def process_records(records, date_key):
-        """Sorts by date DESC and formats date to dd-mm-yyyy string."""
+    # --- INTERNAL HELPER: Force Date Formatting ---
+    def robust_formatter(records, date_col):
+        """
+        Iterates over records and creates a 'formatted_date' key.
+        Handles date objects, datetime objects, and string formats.
+        """
         for r in records:
-            d_val = r.get(date_key)
-            if d_val:
-                if isinstance(d_val, (date, datetime)):
-                    r['formatted_date'] = d_val.strftime('%d-%m-%Y')
-                else:
-                    # Fallback for string dates
-                    try:
-                        dt = datetime.strptime(str(d_val), '%Y-%m-%d')
-                        r['formatted_date'] = dt.strftime('%d-%m-%Y')
-                    except:
-                        r['formatted_date'] = str(d_val)
-            else:
-                r['formatted_date'] = '-'
+            val = r.get(date_col)
+            r['formatted_date'] = '-' # Default
+            
+            if val:
+                try:
+                    # Case 1: It's a proper Python Date/Datetime object
+                    if isinstance(val, (date, datetime)):
+                        r['formatted_date'] = val.strftime('%d-%m-%Y')
+                    
+                    # Case 2: It's a string (e.g. '2024-01-25')
+                    elif isinstance(val, str):
+                        # Try parsing standard SQL format
+                        d_obj = datetime.strptime(val, '%Y-%m-%d')
+                        r['formatted_date'] = d_obj.strftime('%d-%m-%Y')
+                        
+                    # Case 3: Fallback
+                    else:
+                        r['formatted_date'] = str(val)
+                except Exception:
+                    # If parsing fails, just show the raw value to avoid empty column
+                    r['formatted_date'] = str(val)
         return records
 
-    # 2. Fetch Records (SORTING: Date DESC + ID DESC ensures newest entry is top)
+    # 2. Fetch Records (Applied Sorting: Date DESC + ID DESC)
     
     # A. Purchases
     cursor.execute("SELECT * FROM purchases WHERE supplier_id=%s ORDER BY purchase_date DESC, id DESC", (supplier_id,))
     purchases = cursor.fetchall()
-    purchases = process_records(purchases, 'purchase_date')
+    purchases = robust_formatter(purchases, 'purchase_date')
     
     # B. Payments (History)
     try:
         cursor.execute("SELECT * FROM supplier_payments WHERE supplier_id=%s ORDER BY payment_date DESC, id DESC", (supplier_id,))
         payments = cursor.fetchall()
-        payments = process_records(payments, 'payment_date')
+        payments = robust_formatter(payments, 'payment_date')
     except: payments = []
     
     # C. Adjustments (Other Due)
     try:
         cursor.execute("SELECT * FROM supplier_adjustments WHERE supplier_id=%s ORDER BY adjustment_date DESC, id DESC", (supplier_id,))
         adjustments = cursor.fetchall()
-        adjustments = process_records(adjustments, 'adjustment_date')
+        adjustments = robust_formatter(adjustments, 'adjustment_date')
     except: adjustments = []
     
     # 3. Calculate Totals
@@ -7183,6 +7194,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
