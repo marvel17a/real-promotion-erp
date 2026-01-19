@@ -2437,36 +2437,40 @@ def product_history(product_id):
 
     return render_template('inventory/product_history.html', product=product, history=history)
 
+# -------------------------------------------------------------------------
+# REPLACE THE 'inventory' FUNCTION IN YOUR app.py WITH THIS CODE
+# -------------------------------------------------------------------------
 
 @app.route('/inventory')
 def inventory():
-    if "loggedin" not in session:
+    # 1. Security Check
+    if "user_id" not in session:
         return redirect(url_for("login"))
 
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
-    # --- MODIFIED: Added "WHERE status = 'Active'" ---
-    # 1) Fetch all ACTIVE products
+    # 2. Fetch Active Products
+    # We use a try-except block to handle cases where the 'status' column might not exist yet
     try:
         cur.execute("SELECT * FROM products WHERE status = 'Active' ORDER BY id DESC")
     except:
-        # Fallback if column doesn't exist yet (prevents crash)
         cur.execute("SELECT * FROM products ORDER BY id DESC")
     products = cur.fetchall()
 
-    # 2) Fetch categories
+    # 3. Fetch Categories
     cur.execute("SELECT id, category_name FROM product_categories")
     categories = cur.fetchall()
     categories_map = {c['id']: c['category_name'] for c in categories}
 
-    # --- LOGIC PRESERVED: Calculate Allocated Stock (Field Stock) ---
-    # Logic: Allocated = (Morning Opening + Morning Given) - Evening Sold
+    # -------------------------------------------------------------
+    # 4. Calculate Allocated Stock (Field Stock) Logic
+    # -------------------------------------------------------------
     allocated_map = {} 
     
-    # Get active employees
     cur.execute("SELECT id FROM employees WHERE status='active'")
     employees = cur.fetchall()
     
+    # We need today's date to check for live morning allocations
     today_str = date.today().strftime('%Y-%m-%d')
     
     for emp in employees:
@@ -2485,6 +2489,7 @@ def inventory():
         holdings = cur.fetchall()
         
         # Step B: Get Total Sold from Evening Settlement (if any) to deduct
+        # This ensures Real-Time accuracy during the day
         cur.execute("""
             SELECT ei.product_id, SUM(ei.sold_qty) as total_sold
             FROM evening_item ei
@@ -2495,18 +2500,18 @@ def inventory():
         sales_map = {row['product_id']: int(row['total_sold']) for row in cur.fetchall()}
 
         if holdings:
-            # SCENARIO: Morning Allocation Exists
+            # SCENARIO: Morning Allocation Exists Today
             for item in holdings:
                 pid = item['product_id']
                 total = int(item['total_opening']) + int(item['total_given'])
                 
-                # Subtract Sales
+                # Subtract Sales to get current hand stock
                 sold = sales_map.get(pid, 0)
                 total -= sold
                 
                 if total > 0: emp_stock[pid] = total
         else:
-            # SCENARIO: No Morning Allocation today. Fallback to Last Settlement.
+            # SCENARIO: No Morning Allocation Today. Fallback to Last Final Settlement.
             cur.execute("""
                 SELECT id FROM evening_settle 
                 WHERE employee_id=%s AND status='final' AND date < %s
@@ -2522,13 +2527,14 @@ def inventory():
                     if qty > 0:
                         emp_stock[pid] = qty
 
-        # Add this employee's stock to the global map
+        # Add this employee's stock to the global allocated map
         for pid, qty in emp_stock.items():
             if pid in allocated_map: allocated_map[pid] += qty
             else: allocated_map[pid] = qty
-    # -------------------------------------------------------------
 
-    # 4) Calculate Stats & Update Product Objects
+    # -------------------------------------------------------------
+    # 5. Merge Data & Update Product Objects for Display
+    # -------------------------------------------------------------
     total_value = 0
     low_stock_count = 0
     out_stock_count = 0
@@ -2539,18 +2545,23 @@ def inventory():
         # 'stock' column in DB is Warehouse Stock
         warehouse_stock = int(p.get('stock', 0) or 0)
         
-        # Allocated Stock from calculation
+        # Allocated Stock from our calculation above
         allocated_stock = allocated_map.get(p['id'], 0)
         
-        # Combined Total Stock
+        # Combined Total Stock (Warehouse + Field)
         total_holding = warehouse_stock + allocated_stock
         
-        # Update attributes for template
+        # --- CRITICAL FIX START ---
+        # Update attributes so the Template shows the TOTAL
         p['warehouse_stock'] = warehouse_stock
         p['allocated_stock'] = allocated_stock
-        p['stock'] = total_holding  # Override 'stock' to show TOTAL in UI main label
         
-        # Calculate Value based on Total Holding (Warehouse + Field)
+        # HERE IS THE MAGIC: We overwrite 'stock' with 'total_holding'
+        # This ensures the Main Site Inventory Card shows (Warehouse + Allocated)
+        p['stock'] = total_holding  
+        # --- CRITICAL FIX END ---
+        
+        # Calculate Value based on Total Holding
         total_value += price * total_holding 
         
         if total_holding <= (p.get('low_stock_threshold') or 10):
@@ -2567,7 +2578,7 @@ def inventory():
         "out_stock_count": out_stock_count
     }
 
-    # 5) Categories for filter dropdown
+    # 6. Fetch Categories for Filter Dropdown
     cur.execute("SELECT category_name FROM product_categories ORDER BY category_name ASC")
     filter_categories = cur.fetchall()
 
@@ -7178,6 +7189,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
