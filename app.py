@@ -1128,11 +1128,8 @@ def edit_supplier(supplier_id):
     return render_template('suppliers/edit_supplier.html', supplier=supplier)
 
 # =====================================================================
-# SUPPLIER LEDGER & PAYMENT ROUTES
-# ===================================================
-
-
-
+# SUPPLIER LEDGER ROUTE (Updated Sorting)
+# =====================================================================
 @app.route('/supplier_ledger/<int:supplier_id>')
 def supplier_ledger(supplier_id):
     if 'loggedin' not in session: return redirect(url_for('login'))
@@ -1147,15 +1144,18 @@ def supplier_ledger(supplier_id):
         flash("Supplier not found!", "danger")
         return redirect(url_for('suppliers'))
 
-    # 2. Fetch Records (Purchases, Payments, Adjustments)
+    # 2. Fetch Records
+    # Purchases (Keep Newest First for easy viewing of recent bills)
     cursor.execute("SELECT * FROM purchases WHERE supplier_id=%s ORDER BY purchase_date DESC", (supplier_id,))
     purchases = cursor.fetchall()
     
+    # Payments (UPDATED: Shows Newest First - "New transaction first dikhe")
     try:
         cursor.execute("SELECT * FROM supplier_payments WHERE supplier_id=%s ORDER BY payment_date DESC", (supplier_id,))
         payments = cursor.fetchall()
     except: payments = []
     
+    # Adjustments (Newest First)
     try:
         cursor.execute("SELECT * FROM supplier_adjustments WHERE supplier_id=%s ORDER BY adjustment_date DESC", (supplier_id,))
         adjustments = cursor.fetchall()
@@ -7212,6 +7212,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
