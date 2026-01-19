@@ -1184,16 +1184,15 @@ def delete_supplier(supplier_id):
     return redirect(url_for('suppliers'))
 
 # =====================================================================
-#  SUPPLIER LEDGER & TRANSACTIONS (The Core Logic)
+# SUPPLIER LEDGER ROUTE (Robust Date & Sorting Fix)
 # =====================================================================
-
 @app.route('/supplier_ledger/<int:supplier_id>')
 def supplier_ledger(supplier_id):
     if 'loggedin' not in session: return redirect(url_for('login'))
     
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
-    # 1. Fetch Supplier
+    # 1. Fetch Supplier Info
     cursor.execute("SELECT * FROM suppliers WHERE id=%s", (supplier_id,))
     supplier = cursor.fetchone()
     
@@ -1201,25 +1200,44 @@ def supplier_ledger(supplier_id):
         flash("Supplier not found!", "danger")
         return redirect(url_for('suppliers'))
 
-    # 2. Fetch Records (ALL SORTED DESC - Newest First)
+    # --- HELPER: Strict Date Formatting & Handling ---
+    def process_records(records, date_key):
+        """Sorts by date DESC and formats date to dd-mm-yyyy string."""
+        for r in records:
+            d_val = r.get(date_key)
+            if d_val:
+                if isinstance(d_val, (date, datetime)):
+                    r['formatted_date'] = d_val.strftime('%d-%m-%Y')
+                else:
+                    # Fallback for string dates
+                    try:
+                        dt = datetime.strptime(str(d_val), '%Y-%m-%d')
+                        r['formatted_date'] = dt.strftime('%d-%m-%Y')
+                    except:
+                        r['formatted_date'] = str(d_val)
+            else:
+                r['formatted_date'] = '-'
+        return records
+
+    # 2. Fetch Records (SORTING: Date DESC + ID DESC ensures newest entry is top)
     
     # A. Purchases
-    cursor.execute("SELECT * FROM purchases WHERE supplier_id=%s ORDER BY purchase_date DESC", (supplier_id,))
+    cursor.execute("SELECT * FROM purchases WHERE supplier_id=%s ORDER BY purchase_date DESC, id DESC", (supplier_id,))
     purchases = cursor.fetchall()
-    purchases = format_records_date(purchases, 'purchase_date') # Format Dates
+    purchases = process_records(purchases, 'purchase_date')
     
-    # B. Payments (Fixed)
+    # B. Payments (History)
     try:
-        cursor.execute("SELECT * FROM supplier_payments WHERE supplier_id=%s ORDER BY payment_date DESC", (supplier_id,))
+        cursor.execute("SELECT * FROM supplier_payments WHERE supplier_id=%s ORDER BY payment_date DESC, id DESC", (supplier_id,))
         payments = cursor.fetchall()
-        payments = format_records_date(payments, 'payment_date') # Format Dates
+        payments = process_records(payments, 'payment_date')
     except: payments = []
     
-    # C. Adjustments (Fixed)
+    # C. Adjustments (Other Due)
     try:
-        cursor.execute("SELECT * FROM supplier_adjustments WHERE supplier_id=%s ORDER BY adjustment_date DESC", (supplier_id,))
+        cursor.execute("SELECT * FROM supplier_adjustments WHERE supplier_id=%s ORDER BY adjustment_date DESC, id DESC", (supplier_id,))
         adjustments = cursor.fetchall()
-        adjustments = format_records_date(adjustments, 'adjustment_date') # Format Dates
+        adjustments = process_records(adjustments, 'adjustment_date')
     except: adjustments = []
     
     # 3. Calculate Totals
@@ -1246,7 +1264,7 @@ def supplier_ledger(supplier_id):
                          purchases=purchases, 
                          payments=payments, 
                          adjustments=adjustments,
-                         total_outstanding_amount=total_outstanding_amount, 
+                         total_outstanding_amount=total_outstanding_amount,
                          opening_balance=opening_bal,
                          total_purchases=total_purchases,
                          total_adjustments=total_adjustments,
@@ -7165,6 +7183,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
