@@ -15,7 +15,7 @@
         <div class="d-flex gap-3 align-items-center">
             <div class="date-pill">
                 <i class="fa-regular fa-calendar me-2 text-primary"></i>
-                <!-- FIXED: Using the variable passed from Python -->
+                <!-- FIXED LINE: Uses 'today_date' passed from backend instead of 'date.today()' -->
                 {{ today_date.strftime('%d %B %Y') }}
             </div>
             <button class="btn btn-dark rounded-circle shadow-sm" style="width: 45px; height: 45px;" onclick="location.reload()" title="Refresh Data">
@@ -187,7 +187,7 @@
         }
     });
 
-    // --- 2. PRODUCT CHART ---
+    // --- 2. PRODUCT CHART --
     const ctxProduct = document.getElementById('productChart').getContext('2d');
     new Chart(ctxProduct, {
         type: 'doughnut',
