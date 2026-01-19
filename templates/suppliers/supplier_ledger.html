@@ -18,203 +18,206 @@
             <a href="{{ url_for('record_payment', supplier_id=supplier.id) }}" class="btn btn-glass-primary text-decoration-none d-flex align-items-center">
                 <i class="fa-solid fa-wallet me-2"></i>Pay Bill
             </a>
-            <a href="https://wa.me/?text=Hi {{ supplier.name }}, total outstanding amount is {{ total_outstanding_amount|inr }}" target="_blank" class="btn btn-success rounded-circle shadow-sm" style="width: 40px; height: 40px; display:flex; align-items:center; justify-content:center;">
-                <i class="fa-brands fa-whatsapp"></i>
+            <a href="https://wa.me/?text=Hi {{ supplier.name }}, total outstanding amount is {{ total_outstanding_amount|inr }}" target="_blank" class="btn btn-success rounded-circle shadow-sm" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+                <i class="fa-brands fa-whatsapp fa-lg"></i>
             </a>
-            <button onclick="downloadPDF()" class="btn btn-danger rounded-circle shadow-sm" style="width: 40px; height: 40px; display:flex; align-items:center; justify-content:center;">
-                <i class="fa-solid fa-file-pdf"></i>
+            <button onclick="downloadPDF()" class="btn btn-white border rounded-circle shadow-sm" style="width: 40px; height: 40px;">
+                <i class="fa-solid fa-download text-secondary"></i>
             </button>
-            <a href="{{ url_for('suppliers') }}" class="btn btn-light rounded-pill shadow-sm px-4">
-                <i class="fa-solid fa-arrow-left me-2"></i>Back
-            </a>
         </div>
     </div>
 
-    <!-- MAIN PANEL CARD ROW -->
-    <div class="row g-4 mb-4">
-        
-        <!-- SINGLE CARD: TOTAL OUTSTANDING AMOUNT (With List Breakdown) -->
-        <div class="col-lg-8">
-            <div class="glass-panel p-4 h-100 border-start border-5 {% if total_outstanding_amount > 0 %}border-danger{% else %}border-success{% endif %} shadow-sm position-relative overflow-hidden d-flex align-items-center justify-content-between">
-                
-                <!-- Left Side: Main Amount -->
-                <div>
-                    <h6 class="text-uppercase fw-bold text-muted ls-2 mb-2">Total Outstanding Amount</h6>
-                    <h1 class="display-3 fw-bold mb-0 {% if total_outstanding_amount > 0 %}text-danger{% else %}text-success{% endif %}">
-                        {{ (total_outstanding_amount|abs)|inr }}
-                    </h1>
-                    <span class="badge rounded-pill px-3 py-2 mt-2 {% if total_outstanding_amount > 0 %}bg-danger{% else %}bg-success{% endif %}">
-                        {% if total_outstanding_amount > 0 %}Payment Pending{% else %}All Cleared{% endif %}
-                    </span>
-                </div>
-
-                <!-- Right Side: Breakdown List -->
-                <div class="border-start ps-4 ms-4 d-none d-md-block" style="min-width: 280px;">
-                    <ul class="list-unstyled mb-0 small text-muted">
-                        <li class="d-flex justify-content-between mb-1">
-                            <span>Opening Balance:</span> 
-                            <span class="fw-bold text-dark">{{ (opening_balance or 0)|inr }}</span>
-                        </li>
-                        <li class="d-flex justify-content-between mb-1">
-                            <span>+ Purchase Amount:</span> 
-                            <span class="fw-bold text-dark">{{ (total_purchases or 0)|inr }}</span>
-                        </li>
-                        <li class="d-flex justify-content-between mb-1">
-                            <span>+ Other Dues:</span> 
-                            <span class="fw-bold text-dark">{{ (total_adjustments or 0)|inr }}</span>
-                        </li>
-                        <li class="d-flex justify-content-between border-top pt-1 mt-1 text-success">
-                            <span>- Total Paid:</span> 
-                            <span class="fw-bold">{{ (total_paid or 0)|inr }}</span>
-                        </li>
-                    </ul>
-                </div>
-
+    <!-- Summary Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card glass-card border-0 p-3 bg-primary-subtle h-100">
+                <small class="text-muted text-uppercase fw-bold">Total Purchases</small>
+                <h3 class="fw-bold text-primary mb-0 mt-2">₹{{ "%.2f"|format(total_purchases) }}</h3>
             </div>
         </div>
-
-        <!-- CHART CARD -->
-        <div class="col-lg-4">
-            <div class="glass-panel p-4 h-100 d-flex flex-column align-items-center justify-content-center text-center">
-                <h6 class="text-muted small fw-bold mb-3 text-uppercase">Balance Status</h6>
-                <div style="height: 160px; width: 160px;">
-                    <canvas id="balanceChart"></canvas>
+        <div class="col-md-3">
+            <div class="card glass-card border-0 p-3 bg-warning-subtle h-100">
+                <small class="text-muted text-uppercase fw-bold">Opening Balance</small>
+                <h3 class="fw-bold text-dark mb-0 mt-2">₹{{ "%.2f"|format(opening_balance) }}</h3>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card glass-card border-0 p-3 bg-success-subtle h-100">
+                <small class="text-muted text-uppercase fw-bold">Total Paid</small>
+                <h3 class="fw-bold text-success mb-0 mt-2">₹{{ "%.2f"|format(total_paid) }}</h3>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card glass-card border-0 p-3 bg-danger-subtle h-100 position-relative overflow-hidden">
+                <div class="position-relative z-1">
+                    <small class="text-muted text-uppercase fw-bold">Net Outstanding</small>
+                    <h2 class="fw-bold text-danger mb-0 mt-1">₹{{ "%.2f"|format(total_outstanding_amount) }}</h2>
                 </div>
+                <canvas id="balanceChart" class="position-absolute" style="right: -20px; bottom: -20px; width: 100px; height: 100px; opacity: 0.2;"></canvas>
             </div>
         </div>
     </div>
 
-    <!-- TABLES ROW -->
-    <div class="row g-4">
-        <!-- LEFT: PURCHASES + OTHER DUES -->
-        <div class="col-lg-6">
-            <div class="glass-panel p-0 overflow-hidden mb-4 shadow-sm">
-                <div class="p-3 border-bottom bg-light bg-opacity-50 d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0 fw-bold text-dark"><i class="fa-solid fa-cart-shopping me-2 text-primary"></i>Purchases</h5>
+    <div class="row">
+        <!-- Purchase History -->
+        <div class="col-md-6 mb-4">
+            <div class="card glass-card border-0 h-100">
+                <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center">
+                    <h5 class="fw-bold mb-0 text-primary"><i class="fa-solid fa-file-invoice me-2"></i>Purchase History</h5>
                 </div>
-                <div class="table-responsive p-3" style="max-height: 300px; overflow-y: auto;">
-                    <table class="table-glass">
-                        <thead><tr><th>Date</th><th>Bill #</th><th class="text-end">Amount</th><th>View</th></tr></thead>
-                        <tbody>
-                            {% for pur in purchases %}
-                            <tr>
-                                <td>{% if pur.purchase_date %}{{ pur.purchase_date.strftime('%d-%b-%Y') }}{% else %}-{% endif %}</td>
-                                <td>{{ pur.bill_number }}</td>
-                                <td class="text-end fw-bold text-danger">{{ pur.total_amount|inr }}</td>
-                                <td class="text-center">
-                                    <a href="{{ url_for('view_purchase', purchase_id=pur.id) }}" class="btn btn-sm btn-outline-primary rounded-circle"><i class="fa-solid fa-eye"></i></a>
-                                </td>
-                            </tr>
-                            {% else %}
-                            <tr><td colspan="4" class="text-center text-muted">No purchases.</td></tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                <div class="card-body p-0">
+                    <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="bg-light sticky-top">
+                                <tr>
+                                    <th class="ps-3">Date</th>
+                                    <th>Bill No</th>
+                                    <th class="text-end pe-3">Amount</th>
+                                    <th class="text-end pe-3">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if purchases %}
+                                {% for purchase in purchases %}
+                                <tr>
+                                    <!-- Use formatted_date -->
+                                    <td class="ps-3 text-secondary small fw-bold">{{ purchase.formatted_date }}</td>
+                                    <td>
+                                        <span class="badge bg-light text-dark border">
+                                            #{{ purchase.bill_number or 'N/A' }}
+                                        </span>
+                                    </td>
+                                    <td class="text-end pe-3 fw-bold">
+                                        ₹{{ "%.2f"|format(purchase.total_amount) }}
+                                    </td>
+                                    <td class="text-end pe-3">
+                                        <div class="dropdown">
+                                            <button class="btn btn-sm btn-light border-0" type="button" data-bs-toggle="dropdown">
+                                                <i class="fa-solid fa-ellipsis-vertical text-muted"></i>
+                                            </button>
+                                            <ul class="dropdown-menu border-0 shadow-sm">
+                                                <li><a class="dropdown-item small" href="{{ url_for('view_purchase', purchase_id=purchase.id) }}"><i class="fa-solid fa-eye me-2"></i>View</a></li>
+                                                <li>
+                                                    <form action="{{ url_for('delete_purchase', purchase_id=purchase.id) }}" method="POST" onsubmit="return confirm('Delete this purchase? Stock will be reversed.');" style="margin:0;">
+                                                        <button type="submit" class="dropdown-item small text-danger"><i class="fa-solid fa-trash me-2"></i>Delete</button>
+                                                    </form>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                                {% else %}
+                                <tr><td colspan="4" class="text-center text-muted py-4">No purchases found.</td></tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
+        </div>
 
-            <!-- Other Dues -->
-            <div class="col-12 mb-4">
-    <div class="card glass-card border-0">
-        <div class="card-header bg-transparent border-0">
-            <h5 class="fw-bold mb-0 text-warning"><i class="fa-solid fa-exclamation-circle me-2"></i>Other Dues / Adjustments</h5>
-        </div>
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="bg-light">
-                        <tr>
-                            <th class="ps-3">Date</th>
-                            <th>Description/Notes</th>
-                            <th class="text-end pe-3">Amount</th>
-                            <th class="text-end pe-3">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% if adjustments %}
-                        {% for adj in adjustments %}
-                        <tr>
-                            <!-- DATE FIX: Shows dd-mm-yyyy -->
-                            <td class="ps-3 text-secondary small fw-bold">
-                                {{ adj.formatted_date }}
-                            </td>
-                            <td>{{ adj.notes or 'Manual Adjustment' }}</td>
-                            <td class="text-end pe-3 fw-bold text-danger">
-                                + ₹{{ "%.2f"|format(adj.amount) }}
-                            </td>
-                            <td class="text-end pe-3">
-                                <form action="{{ url_for('delete_supplier_adjustment', adjustment_id=adj.id) }}" method="POST" onsubmit="return confirm('Delete this adjustment?');" style="display:inline;">
-                                    <button type="submit" class="btn btn-icon text-danger btn-sm p-0">
-                                        <i class="fa-solid fa-trash"></i>
-                                    </button>
-                                </form>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                        {% else %}
-                        <tr><td colspan="4" class="text-center text-muted py-3">No other dues recorded.</td></tr>
-                        {% endif %}
-                    </tbody>
-                </table>
+        <!-- Payment History (Date & Sort Fixed) -->
+        <div class="col-md-6 mb-4">
+            <div class="card glass-card border-0 h-100">
+                <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center">
+                    <h5 class="fw-bold mb-0 text-success"><i class="fa-solid fa-hand-holding-dollar me-2"></i>Payment History</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="bg-light sticky-top">
+                                <tr>
+                                    <th class="ps-3">Date</th>
+                                    <th>Mode</th>
+                                    <th>Notes</th>
+                                    <th class="text-end pe-3">Amount</th>
+                                    <th class="text-end pe-3">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if payments %}
+                                {% for payment in payments %}
+                                <tr>
+                                    <!-- Use formatted_date -->
+                                    <td class="ps-3 text-secondary small fw-bold">{{ payment.formatted_date }}</td>
+                                    <td>
+                                        <span class="badge bg-light text-dark border">
+                                            {{ payment.payment_mode or 'Cash' }}
+                                        </span>
+                                    </td>
+                                    <td class="small text-muted text-truncate" style="max-width: 100px;" title="{{ payment.notes }}">
+                                        {{ payment.notes or '-' }}
+                                    </td>
+                                    <td class="text-end pe-3 fw-bold text-success">
+                                        - ₹{{ "%.2f"|format(payment.amount_paid) }}
+                                    </td>
+                                    <td class="text-end pe-3">
+                                        <form action="{{ url_for('delete_supplier_payment', payment_id=payment.id) }}" method="POST" onsubmit="return confirm('Delete this payment? This will increase the due amount.');" style="display:inline;">
+                                            <button type="submit" class="btn btn-icon text-danger btn-sm p-0" title="Delete">
+                                                <i class="fa-solid fa-trash"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                                {% else %}
+                                <tr><td colspan="5" class="text-center text-muted py-4">No payments found.</td></tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
-    </div>
-</div>
-        
-<div class="col-md-6 mb-4">
-    <div class="card glass-card border-0 h-100">
-        <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center">
-            <h5 class="fw-bold mb-0 text-success"><i class="fa-solid fa-hand-holding-dollar me-2"></i>Payment History</h5>
-        </div>
-        <div class="card-body p-0">
-            <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="bg-light sticky-top">
-                        <tr>
-                            <th class="ps-3">Date</th>
-                            <th>Mode</th>
-                            <th>Notes</th>
-                            <th class="text-end pe-3">Amount</th>
-                            <th class="text-end pe-3">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% if payments %}
-                        {% for payment in payments %}
-                        <tr>
-                            <!-- DATE FIX: Shows dd-mm-yyyy -->
-                            <td class="ps-3 text-secondary small fw-bold">
-                                {{ payment.formatted_date }}
-                            </td>
-                            <td>
-                                <span class="badge bg-light text-dark border">
-                                    {{ payment.payment_mode or 'Cash' }}
-                                </span>
-                            </td>
-                            <td class="small text-muted text-truncate" style="max-width: 100px;" title="{{ payment.notes }}">
-                                {{ payment.notes or '-' }}
-                            </td>
-                            <td class="text-end pe-3 fw-bold text-success">
-                                - ₹{{ "%.2f"|format(payment.amount_paid) }}
-                            </td>
-                            <td class="text-end pe-3">
-                                <form action="{{ url_for('delete_supplier_payment', payment_id=payment.id) }}" method="POST" onsubmit="return confirm('Delete this payment? This will increase the due amount.');" style="display:inline;">
-                                    <button type="submit" class="btn btn-icon text-danger btn-sm p-0" title="Delete">
-                                        <i class="fa-solid fa-trash"></i>
-                                    </button>
-                                </form>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                        {% else %}
-                        <tr><td colspan="5" class="text-center text-muted py-4">No payments found.</td></tr>
-                        {% endif %}
-                    </tbody>
-                </table>
+
+        <!-- Adjustments / Other Dues (Date & Sort Fixed) -->
+        <div class="col-12 mb-4">
+            <div class="card glass-card border-0">
+                <div class="card-header bg-transparent border-0">
+                    <h5 class="fw-bold mb-0 text-warning"><i class="fa-solid fa-exclamation-circle me-2"></i>Other Dues / Adjustments</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th class="ps-3">Date</th>
+                                    <th>Description/Notes</th>
+                                    <th class="text-end pe-3">Amount</th>
+                                    <th class="text-end pe-3">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if adjustments %}
+                                {% for adj in adjustments %}
+                                <tr>
+                                    <!-- Use formatted_date -->
+                                    <td class="ps-3 text-secondary small fw-bold">{{ adj.formatted_date }}</td>
+                                    <td>{{ adj.notes or 'Manual Adjustment' }}</td>
+                                    <td class="text-end pe-3 fw-bold text-danger">
+                                        + ₹{{ "%.2f"|format(adj.amount) }}
+                                    </td>
+                                    <td class="text-end pe-3">
+                                        <form action="{{ url_for('delete_supplier_adjustment', adjustment_id=adj.id) }}" method="POST" onsubmit="return confirm('Delete this adjustment?');" style="display:inline;">
+                                            <button type="submit" class="btn btn-icon text-danger btn-sm p-0">
+                                                <i class="fa-solid fa-trash"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                                {% else %}
+                                <tr><td colspan="4" class="text-center text-muted py-3">No other dues recorded.</td></tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
+
     </div>
-</div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -242,9 +245,27 @@
 
     function downloadPDF() {
         const element = document.getElementById('ledgerContent');
-        html2pdf().from(element).save();
+        const opt = {
+            margin: 0.5,
+            filename: 'Supplier_Ledger.pdf',
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2 },
+            jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+        };
+        html2pdf().set(opt).from(element).save();
     }
 </script>
+
+<style>
+    .glass-card { background: #fff; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
+    .bg-primary-subtle { background-color: rgba(13, 110, 253, 0.05) !important; }
+    .bg-success-subtle { background-color: rgba(25, 135, 84, 0.05) !important; }
+    .bg-danger-subtle { background-color: rgba(220, 53, 69, 0.05) !important; }
+    .bg-warning-subtle { background-color: rgba(255, 193, 7, 0.05) !important; }
+    .page-title { font-weight: 800; letter-spacing: -0.5px; color: #1e293b; }
+    .btn-glass-primary { background: linear-gradient(135deg, #6366f1, #4f46e5); color: white; border: none; box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3); border-radius: 50px; padding: 8px 20px; font-weight: 600; }
+    .btn-glass-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(79, 70, 229, 0.4); color: white; }
+    .table-hover tbody tr:hover { background-color: rgba(0,0,0,0.015); }
+    .btn-icon:hover { transform: scale(1.1); }
+</style>
 {% endblock %}
-
-
