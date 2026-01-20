@@ -10,37 +10,35 @@
     :root {
         --primary-color: #4361ee;
         --secondary-color: #3f37c9;
-        --accent-color: #4cc9f0;
         --text-dark: #2b2d42;
         --text-light: #8d99ae;
-        --glass-bg: rgba(255, 255, 255, 0.7);
-        --glass-border: 1px solid rgba(255, 255, 255, 0.5);
-        --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+        --glass-bg: rgba(255, 255, 255, 0.85);
+        --glass-border: 1px solid rgba(255, 255, 255, 0.6);
+        --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05);
     }
 
     body {
         font-family: 'Poppins', sans-serif;
-        background-color: #f8f9fa; /* Clean White/Light Gray Background */
+        background-color: #f8f9fa;
         color: var(--text-dark);
     }
 
     /* Container Spacing */
     .reports-container {
-        padding: 3rem 1.5rem;
-        max-width: 1400px;
+        padding: 2rem 1.5rem;
+        max-width: 1600px; /* Wider for more cards */
         margin: 0 auto;
     }
 
     /* Header Styling */
     .reports-header {
-        margin-bottom: 3.5rem;
+        margin-bottom: 2.5rem;
         text-align: center;
-        position: relative;
     }
     
     .reports-header h2 {
         font-weight: 700;
-        font-size: 2.5rem;
+        font-size: 2.2rem;
         color: var(--text-dark);
         margin-bottom: 0.5rem;
         letter-spacing: -0.5px;
@@ -48,216 +46,197 @@
     
     .reports-header p {
         color: var(--text-light);
-        font-size: 1.1rem;
-        font-weight: 300;
+        font-size: 1rem;
+        font-weight: 400;
     }
 
-    /* Section Titles with Pill Style */
+    /* Section Pills */
     .section-pill {
         display: inline-flex;
         align-items: center;
         background: white;
-        padding: 0.5rem 1.5rem;
+        padding: 0.4rem 1.2rem;
         border-radius: 50px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        box-shadow: 0 2px 10px rgba(0,0,0,0.03);
         font-weight: 600;
         color: var(--primary-color);
-        margin-bottom: 1.5rem;
-        font-size: 0.95rem;
+        margin-bottom: 1.2rem;
+        font-size: 0.9rem;
         text-transform: uppercase;
-        letter-spacing: 1px;
+        letter-spacing: 0.8px;
     }
 
-    /* Glass Cards */
+    /* Uniform Glass Cards */
     .report-card {
-        background: rgba(255, 255, 255, 0.8);
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
+        background: var(--glass-bg);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
         border: var(--glass-border);
-        border-radius: 24px;
-        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        border-radius: 20px;
+        transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
         text-decoration: none;
         display: flex;
         flex-direction: column;
-        height: 100%;
-        overflow: hidden;
+        height: 100%; /* Forces equal height in grid */
         position: relative;
+        overflow: hidden;
         box-shadow: var(--glass-shadow);
     }
 
     .report-card:hover {
-        transform: translateY(-10px);
+        transform: translateY(-6px);
         background: #ffffff;
         border-color: var(--primary-color);
-        box-shadow: 0 20px 40px rgba(67, 97, 238, 0.15);
+        box-shadow: 0 15px 30px rgba(67, 97, 238, 0.12);
     }
 
+    /* Card Body Layout */
     .card-body {
-        padding: 2rem;
-        text-align: left; /* Modern Left Align */
+        padding: 1.5rem;
         display: flex;
         flex-direction: column;
-        justify-content: space-between;
+        align-items: flex-start;
         height: 100%;
-        z-index: 2;
     }
 
-    /* Floating Icon Circles */
+    /* Icon Circle */
     .icon-circle {
-        width: 60px;
-        height: 60px;
-        border-radius: 18px;
+        width: 50px;
+        height: 50px;
+        border-radius: 14px;
         display: flex;
         align-items: center;
         justify-content: center;
-        margin-bottom: 1.5rem;
-        font-size: 1.5rem;
-        transition: transform 0.4s ease;
+        margin-bottom: 1rem;
+        font-size: 1.2rem;
+        transition: transform 0.3s ease;
     }
 
     .report-card:hover .icon-circle {
         transform: scale(1.1) rotate(5deg);
     }
 
-    /* Gradients for Icons */
-    .bg-financial { background: linear-gradient(135deg, #fff0f0 0%, #ffdede 100%); color: #ff6b6b; }
-    .bg-sales { background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); color: #2196f3; }
-    .bg-inventory { background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); color: #4caf50; }
-    .bg-employee { background: linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%); color: #9c27b0; }
+    /* Icon Colors */
+    .bg-financial { background: #ffe5e5; color: #ff6b6b; }
+    .bg-sales { background: #e3f2fd; color: #2196f3; }
+    .bg-inventory { background: #e8f5e9; color: #4caf50; }
+    .bg-employee { background: #f3e5f5; color: #9c27b0; }
 
+    /* Typography */
     .card-title {
         font-weight: 600;
-        font-size: 1.25rem;
+        font-size: 1.1rem;
         margin-bottom: 0.5rem;
         color: var(--text-dark);
+        line-height: 1.3;
     }
 
     .card-text {
-        font-size: 0.9rem;
+        font-size: 0.85rem;
         color: var(--text-light);
-        line-height: 1.6;
-        margin-bottom: 1.5rem;
+        line-height: 1.5;
+        margin-bottom: auto; /* Pushes arrow to bottom */
         font-weight: 400;
+        display: -webkit-box;
+        -webkit-line-clamp: 3; /* Limit text lines for uniformity */
+        -webkit-box-orient: vertical;
+        overflow: hidden;
     }
 
     /* Arrow Indicator */
     .card-arrow {
         align-self: flex-end;
-        width: 35px;
-        height: 35px;
+        width: 32px;
+        height: 32px;
         border-radius: 50%;
-        background: #f8f9fa;
+        background: #f1f3f5;
         display: flex;
         align-items: center;
         justify-content: center;
         color: var(--text-dark);
+        font-size: 0.9rem;
         transition: all 0.3s ease;
-        margin-top: auto;
+        margin-top: 1rem;
     }
 
     .report-card:hover .card-arrow {
         background: var(--primary-color);
         color: #fff;
-        transform: translateX(5px);
+        transform: translateX(4px);
     }
 
-    /* Responsive Grid Adjustments */
+    /* Responsive Grid */
     @media (max-width: 768px) {
-        .reports-header h2 { font-size: 2rem; }
-        .card-body { padding: 1.5rem; }
+        .reports-container { padding: 1.5rem 1rem; }
+        .reports-header h2 { font-size: 1.8rem; }
+        .card-body { padding: 1.25rem; }
     }
 
-    /* Fade In Animation */
+    /* Fade Animation */
     .fade-in-up {
-        animation: fadeInUp 0.6s ease-out forwards;
+        animation: fadeInUp 0.5s ease-out forwards;
         opacity: 0;
-        transform: translateY(20px);
+        transform: translateY(15px);
     }
-
-    @keyframes fadeInUp {
-        to { opacity: 1; transform: translateY(0); }
-    }
-
-    /* Stagger Animations */
-    .row > div:nth-child(1) .report-card { animation-delay: 0.1s; }
-    .row > div:nth-child(2) .report-card { animation-delay: 0.2s; }
-    .row > div:nth-child(3) .report-card { animation-delay: 0.3s; }
-    .row > div:nth-child(4) .report-card { animation-delay: 0.4s; }
+    @keyframes fadeInUp { to { opacity: 1; transform: translateY(0); } }
 
 </style>
 
 <div class="reports-container fade-in-up">
     
-    <!-- Header -->
     <div class="reports-header">
         <h2>Analytics Hub</h2>
-        <p>Comprehensive insights to drive your business forward</p>
+        <p>Unified dashboard for business intelligence & reporting</p>
     </div>
 
     <!-- 1. FINANCIAL INSIGHTS -->
     <div class="mb-5">
         <div class="section-pill"><i class="fa-solid fa-chart-pie me-2"></i> Financial Insights</div>
-        <div class="row g-4">
+        <div class="row g-3 g-xl-4"> <!-- Uniform Gap -->
             
             <!-- Daily Summary -->
-            <div class="col-md-6 col-lg-3">
+            <div class="col-12 col-sm-6 col-lg-4 col-xl-3">
                 <a href="{{ url_for('daily_summary') }}" class="report-card">
                     <div class="card-body">
-                        <div>
-                            <div class="icon-circle bg-financial">
-                                <i class="fa-solid fa-sun"></i>
-                            </div>
-                            <h5 class="card-title">Daily Summary</h5>
-                            <p class="card-text">Sales vs Expenses overview for the day. Includes Net Cash Flow analysis.</p>
-                        </div>
+                        <div class="icon-circle bg-financial"><i class="fa-solid fa-sun"></i></div>
+                        <h5 class="card-title">Daily Summary</h5>
+                        <p class="card-text">Sales vs Expenses overview for the day. Includes Net Cash Flow analysis.</p>
                         <div class="card-arrow"><i class="fa-solid fa-arrow-right"></i></div>
                     </div>
                 </a>
             </div>
             
             <!-- Profitability -->
-            <div class="col-md-6 col-lg-3">
+            <div class="col-12 col-sm-6 col-lg-4 col-xl-3">
                 <a href="{{ url_for('profitability_report') }}" class="report-card">
                     <div class="card-body">
-                        <div>
-                            <div class="icon-circle bg-financial">
-                                <i class="fa-solid fa-coins"></i>
-                            </div>
-                            <h5 class="card-title">Profitability</h5>
-                            <p class="card-text">Net Profit calculation based on Cost of Goods Sold (COGS) and Expenses.</p>
-                        </div>
+                        <div class="icon-circle bg-financial"><i class="fa-solid fa-coins"></i></div>
+                        <h5 class="card-title">Profitability</h5>
+                        <p class="card-text">Net Profit calculation based on COGS and Operational Expenses.</p>
                         <div class="card-arrow"><i class="fa-solid fa-arrow-right"></i></div>
                     </div>
                 </a>
             </div>
 
             <!-- Expense Report -->
-            <div class="col-md-6 col-lg-3">
+            <div class="col-12 col-sm-6 col-lg-4 col-xl-3">
                 <a href="{{ url_for('exp_report') }}" class="report-card">
                     <div class="card-body">
-                        <div>
-                            <div class="icon-circle bg-financial">
-                                <i class="fa-solid fa-file-invoice-dollar"></i>
-                            </div>
-                            <h5 class="card-title">Expenses</h5>
-                            <p class="card-text">Detailed breakdown of operational costs by category and subcategory.</p>
-                        </div>
+                        <div class="icon-circle bg-financial"><i class="fa-solid fa-file-invoice-dollar"></i></div>
+                        <h5 class="card-title">Expenses</h5>
+                        <p class="card-text">Detailed breakdown of costs categorized by type and sub-category.</p>
                         <div class="card-arrow"><i class="fa-solid fa-arrow-right"></i></div>
                     </div>
                 </a>
             </div>
 
             <!-- Transaction Log -->
-            <div class="col-md-6 col-lg-3">
+            <div class="col-12 col-sm-6 col-lg-4 col-xl-3">
                 <a href="{{ url_for('transaction_report') }}" class="report-card">
                     <div class="card-body">
-                        <div>
-                            <div class="icon-circle bg-financial">
-                                <i class="fa-solid fa-money-bill-transfer"></i>
-                            </div>
-                            <h5 class="card-title">Ledger Logs</h5>
-                            <p class="card-text">Track all employee financial transactions, credits, and debits.</p>
-                        </div>
+                        <div class="icon-circle bg-financial"><i class="fa-solid fa-money-bill-transfer"></i></div>
+                        <h5 class="card-title">Ledger Logs</h5>
+                        <p class="card-text">Track employee financial history including credits, debits, and advances.</p>
                         <div class="card-arrow"><i class="fa-solid fa-arrow-right"></i></div>
                     </div>
                 </a>
@@ -268,50 +247,39 @@
     <!-- 2. SALES PERFORMANCE -->
     <div class="mb-5">
         <div class="section-pill"><i class="fa-solid fa-chart-line me-2"></i> Sales Performance</div>
-        <div class="row g-4">
+        <div class="row g-3 g-xl-4">
+            
             <!-- Monthly Dashboard -->
-            <div class="col-md-6 col-lg-4">
+            <div class="col-12 col-sm-6 col-lg-4 col-xl-3">
                 <a href="{{ url_for('monthly_sales_dashboard') }}" class="report-card">
                     <div class="card-body">
-                        <div>
-                            <div class="icon-circle bg-sales">
-                                <i class="fa-solid fa-calendar-days"></i>
-                            </div>
-                            <h5 class="card-title">Monthly Trends</h5>
-                            <p class="card-text">Visualize sales growth month-over-month with interactive charts.</p>
-                        </div>
+                        <div class="icon-circle bg-sales"><i class="fa-solid fa-calendar-days"></i></div>
+                        <h5 class="card-title">Monthly Trends</h5>
+                        <p class="card-text">Visualize sales growth month-over-month with interactive charts.</p>
                         <div class="card-arrow"><i class="fa-solid fa-arrow-right"></i></div>
                     </div>
                 </a>
             </div>
 
             <!-- Detailed Daily Sales -->
-            <div class="col-md-6 col-lg-4">
+            <div class="col-12 col-sm-6 col-lg-4 col-xl-3">
                 <a href="{{ url_for('daily_sales') }}" class="report-card">
                     <div class="card-body">
-                        <div>
-                            <div class="icon-circle bg-sales">
-                                <i class="fa-solid fa-list-check"></i>
-                            </div>
-                            <h5 class="card-title">Detailed Sales</h5>
-                            <p class="card-text">Granular item-wise list of every sale recorded today.</p>
-                        </div>
+                        <div class="icon-circle bg-sales"><i class="fa-solid fa-list-check"></i></div>
+                        <h5 class="card-title">Detailed Sales</h5>
+                        <p class="card-text">Granular item-wise list of every sale recorded today.</p>
                         <div class="card-arrow"><i class="fa-solid fa-arrow-right"></i></div>
                     </div>
                 </a>
             </div>
 
             <!-- Top Products -->
-            <div class="col-md-6 col-lg-4">
+            <div class="col-12 col-sm-6 col-lg-4 col-xl-3">
                 <a href="{{ url_for('product_perfrm') }}" class="report-card">
                     <div class="card-body">
-                        <div>
-                            <div class="icon-circle bg-sales">
-                                <i class="fa-solid fa-trophy"></i>
-                            </div>
-                            <h5 class="card-title">Top Sellers</h5>
-                            <p class="card-text">Identify best-performing products by revenue or quantity sold.</p>
-                        </div>
+                        <div class="icon-circle bg-sales"><i class="fa-solid fa-trophy"></i></div>
+                        <h5 class="card-title">Top Sellers</h5>
+                        <p class="card-text">Identify best-performing products by revenue or quantity sold.</p>
                         <div class="card-arrow"><i class="fa-solid fa-arrow-right"></i></div>
                     </div>
                 </a>
@@ -322,66 +290,51 @@
     <!-- 3. INVENTORY & STAFF -->
     <div class="mb-4">
         <div class="section-pill"><i class="fa-solid fa-box-open me-2"></i> Inventory & Staff</div>
-        <div class="row g-4">
+        <div class="row g-3 g-xl-4">
+            
             <!-- Purchase History -->
-            <div class="col-md-6 col-lg-3">
+            <div class="col-12 col-sm-6 col-lg-4 col-xl-3">
                 <a href="{{ url_for('purchase_report') }}" class="report-card">
                     <div class="card-body">
-                        <div>
-                            <div class="icon-circle bg-inventory">
-                                <i class="fa-solid fa-truck-fast"></i>
-                            </div>
-                            <h5 class="card-title">Purchases</h5>
-                            <p class="card-text">History of stock procurement from suppliers.</p>
-                        </div>
+                        <div class="icon-circle bg-inventory"><i class="fa-solid fa-truck-fast"></i></div>
+                        <h5 class="card-title">Purchases</h5>
+                        <p class="card-text">History of stock procurement from suppliers with PO details.</p>
                         <div class="card-arrow"><i class="fa-solid fa-arrow-right"></i></div>
                     </div>
                 </a>
             </div>
 
             <!-- Product Sales Detail -->
-            <div class="col-md-6 col-lg-3">
+            <div class="col-12 col-sm-6 col-lg-4 col-xl-3">
                 <a href="{{ url_for('product_sales') }}" class="report-card">
                     <div class="card-body">
-                        <div>
-                            <div class="icon-circle bg-inventory">
-                                <i class="fa-solid fa-magnifying-glass-chart"></i>
-                            </div>
-                            <h5 class="card-title">Product Lookup</h5>
-                            <p class="card-text">Audit exactly who sold a specific product and when.</p>
-                        </div>
+                        <div class="icon-circle bg-inventory"><i class="fa-solid fa-magnifying-glass-chart"></i></div>
+                        <h5 class="card-title">Product Lookup</h5>
+                        <p class="card-text">Audit exactly who sold a specific product and when.</p>
                         <div class="card-arrow"><i class="fa-solid fa-arrow-right"></i></div>
                     </div>
                 </a>
             </div>
 
             <!-- Employee Ranking -->
-            <div class="col-md-6 col-lg-3">
+            <div class="col-12 col-sm-6 col-lg-4 col-xl-3">
                 <a href="{{ url_for('employee_performance') }}" class="report-card">
                     <div class="card-body">
-                        <div>
-                            <div class="icon-circle bg-employee">
-                                <i class="fa-solid fa-users-viewfinder"></i>
-                            </div>
-                            <h5 class="card-title">Staff Ranking</h5>
-                            <p class="card-text">Leaderboard of employees based on sales performance.</p>
-                        </div>
+                        <div class="icon-circle bg-employee"><i class="fa-solid fa-users-viewfinder"></i></div>
+                        <h5 class="card-title">Staff Ranking</h5>
+                        <p class="card-text">Leaderboard of employees based on sales performance.</p>
                         <div class="card-arrow"><i class="fa-solid fa-arrow-right"></i></div>
                     </div>
                 </a>
             </div>
             
              <!-- Inventory Sales -->
-            <div class="col-md-6 col-lg-3">
+            <div class="col-12 col-sm-6 col-lg-4 col-xl-3">
                 <a href="{{ url_for('product_sales_report') }}" class="report-card">
                     <div class="card-body">
-                        <div>
-                            <div class="icon-circle bg-inventory">
-                                <i class="fa-solid fa-cubes-stacked"></i>
-                            </div>
-                            <h5 class="card-title">Stock Sales</h5>
-                            <p class="card-text">General overview of inventory movement and sales.</p>
-                        </div>
+                        <div class="icon-circle bg-inventory"><i class="fa-solid fa-cubes-stacked"></i></div>
+                        <h5 class="card-title">Stock Sales</h5>
+                        <p class="card-text">General overview of inventory movement and sales metrics.</p>
                         <div class="card-arrow"><i class="fa-solid fa-arrow-right"></i></div>
                     </div>
                 </a>
