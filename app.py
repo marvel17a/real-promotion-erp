@@ -1610,64 +1610,190 @@ def update_purchase(purchase_id):
 
 
 
-# --- PDF Class ---
-# We must define this class before it's used
-class PDF(FPDF):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.font_family = 'Arial' # Default
-        font_path_regular = os.path.join(app.static_folder, 'fonts', 'DejaVuSans.ttf')
-        font_path_bold = os.path.join(app.static_folder, 'fonts', 'DejaVuSans-Bold.ttf')
-
-        # Check if font files exist
-        # You MUST add DejaVuSans.ttf and DejaVuSans-Bold.ttf to your static/fonts/ folder
-        if os.path.exists(font_path_regular) and os.path.exists(font_path_bold):
-            try:
-                self.add_font('DejaVu', '', font_path_regular, uni=True)
-                self.add_font('DejaVu', 'B', font_path_bold, uni=True)
-                self.font_family = 'DejaVu'
-                app.logger.info("DejaVu font loaded for PDF.")
-            except Exception as e:
-                app.logger.warning(f"Could not load DejaVu font, falling back to Arial. Error: {e}")
-        else:
-             app.logger.warning("DejaVu font files not found in static/fonts/. Falling back to Arial.")
+# ==========================================
+# PURCHASE ORDER PDF GENERATOR (Dedicated Class)
+# ==========================================
+class PurchasePDFGenerator(FPDF):
+    def __init__(self):
+        super().__init__()
+        self.company_name = "REAL PROMOTION"
+        self.slogan = "SINCE 2005"
+        self.address_lines = [
+            "Real Promotion, G/12, Tulsimangalam Complex,",
+            "B/h. Trimurti Complex, Ghodiya Bazar,",
+            "Nadiad-387001, Gujarat, India"
+        ]
+        self.contact = "+91 96623 22476 | help@realpromotion.in"
+        self.gst_text = "GSTIN:24AJVPT0460H1ZW"
+        self.gst_subtext = "Composition Dealer- Not Eligibal To Collect Taxes On Sppliers"
 
     def header(self):
-        self.set_font(self.font_family, 'B', 16)
-        self.cell(0, 10, 'Purchase Order', 0, 1, 'C')
-        self.ln(10)
+        # Company Header (Same style as other PDFs)
+        self.set_font('Arial', 'B', 24)
+        self.set_text_color(26, 35, 126) 
+        self.cell(0, 10, self.company_name, 0, 1, 'C')
+        
+        self.set_font('Arial', 'B', 10)
+        self.set_text_color(100, 100, 100) 
+        self.cell(0, 5, self.slogan, 0, 1, 'C')
+        self.ln(2)
+        
+        self.set_font('Arial', '', 9)
+        self.set_text_color(50, 50, 50)
+        for line in self.address_lines:
+            self.cell(0, 4, line, 0, 1, 'C')
+        self.cell(0, 4, self.contact, 0, 1, 'C')
+        
+        self.set_font('Arial', 'B', 9)
+        self.cell(0, 4, self.gst_text, 0, 1, 'C')
+        self.set_font('Arial', 'I', 8)
+        self.cell(0, 4, self.gst_subtext, 0, 1, 'C')
+        self.ln(5)
+        
+        self.set_draw_color(200, 200, 200)
+        self.line(10, self.get_y(), 200, self.get_y())
+        self.ln(5)
+
+        self.set_font('Arial', 'B', 16)
+        self.set_text_color(0, 0, 0)
+        self.cell(0, 10, "PURCHASE ORDER", 0, 1, 'C')
+        self.ln(5)
 
     def footer(self):
         self.set_y(-15)
-        self.set_font(self.font_family, 'I', 8)
+        self.set_font('Arial', 'I', 8)
+        self.set_text_color(128, 128, 128)
         self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
 
-    def safe_text(self, text):
-        """Encodes text to latin-1 safely for FPDF if not using Unicode font."""
-        text_str = str(text or '') # Ensure it's a string, handle None
-        if self.font_family == 'DejaVu':
-            return text_str # DejaVu handles Unicode
-        # Fallback for Arial: encode non-Latin characters
-        return text_str.encode('latin-1', 'replace').decode('latin-1')
+    def add_po_info(self, purchase):
+        self.set_font('Arial', '', 10)
+        self.set_text_color(0, 0, 0)
+        y = self.get_y()
+        
+        # Left: Supplier Info
+        self.set_xy(10, y)
+        self.set_font('Arial', 'B', 11)
+        self.cell(0, 6, "Supplier Details:", 0, 1)
+        self.set_font('Arial', '', 10)
+        self.cell(25, 6, "Name:", 0, 0); self.set_font('Arial','B',10); self.cell(70, 6, str(purchase['supplier_name']), 0, 1)
+        self.set_font('Arial','',10); self.cell(25, 6, "Contact:", 0, 0); self.set_font('Arial','B',10); self.cell(70, 6, str(purchase['supplier_phone'] or 'N/A'), 0, 1)
+        
+        # Address handling
+        addr = purchase.get('supplier_address') or 'N/A'
+        self.set_font('Arial','',10); self.cell(25, 6, "Address:", 0, 0); self.set_font('Arial','',9); self.multi_cell(70, 6, str(addr), 0, 'L')
+        
+        # Right: PO Details
+        self.set_xy(120, y)
+        self.set_font('Arial', 'B', 11)
+        self.cell(0, 6, "Order Details:", 0, 1)
+        
+        # Use helper or string conversion for date
+        p_date = purchase['purchase_date'].strftime('%d-%m-%Y') if purchase['purchase_date'] else "N/A"
+        
+        self.set_xy(120, y+8)
+        self.set_font('Arial','',10); self.cell(25, 6, "PO ID:", 0, 0); self.set_font('Arial','B',10); self.cell(40, 6, f"#{purchase['id']}", 0, 1)
+        
+        self.set_xy(120, y+14)
+        self.set_font('Arial','',10); self.cell(25, 6, "Date:", 0, 0); self.set_font('Arial','B',10); self.cell(40, 6, p_date, 0, 1)
+        
+        self.set_xy(120, y+20)
+        self.set_font('Arial','',10); self.cell(25, 6, "Bill No:", 0, 0); self.set_font('Arial','B',10); self.cell(40, 6, str(purchase['bill_number'] or 'N/A'), 0, 1)
+        
+        if purchase.get('supplier_gst'):
+            self.set_xy(120, y+26)
+            self.set_font('Arial','',10); self.cell(25, 6, "GSTIN:", 0, 0); self.set_font('Arial','B',10); self.cell(40, 6, str(purchase['supplier_gst']), 0, 1)
 
+        self.ln(20) # Space before table
 
-# --- HELPER: Safe Date Formatter ---
-def safe_date_format(date_obj, format='%d-%m-%Y', default='N/A'):
-    """Safely formats a date object, returning default if None."""
-    if date_obj:
-        return date_obj.strftime(format)
-    return default
+    def add_table(self, items):
+        # Header
+        cols = ["#", "Product Description", "Qty", "Unit Price", "Total Amount"]
+        widths = [10, 90, 20, 30, 40]
+        
+        self.set_font('Arial', 'B', 10)
+        self.set_fill_color(26, 35, 126) 
+        self.set_text_color(255, 255, 255)
+        self.set_draw_color(0, 0, 0)
+        self.set_line_width(0.3)
+        
+        for i, col in enumerate(cols):
+            self.cell(widths[i], 8, col, 1, 0, 'C', True)
+        self.ln()
+        
+        # Rows
+        self.set_font('Arial', '', 10)
+        self.set_text_color(0, 0, 0)
+        fill = False
+        self.set_fill_color(245, 245, 245)
+        
+        total_qty = 0
+        grand_total = 0
+        
+        for i, item in enumerate(items):
+            qty = float(item['quantity'])
+            price = float(item['purchase_price'])
+            # Calculate row total explicitly to be safe
+            row_total = qty * price 
+            
+            total_qty += qty
+            grand_total += row_total
+            
+            self.cell(widths[0], 8, str(i+1), 1, 0, 'C', fill)
+            self.cell(widths[1], 8, str(item['product_name']), 1, 0, 'L', fill)
+            self.cell(widths[2], 8, str(int(qty)), 1, 0, 'C', fill)
+            self.cell(widths[3], 8, f"{price:.2f}", 1, 0, 'R', fill)
+            self.cell(widths[4], 8, f"{row_total:.2f}", 1, 1, 'R', fill)
+            fill = not fill
+            
+        # Totals Row
+        self.set_font('Arial', 'B', 10)
+        self.cell(widths[0]+widths[1], 8, "TOTALS", 1, 0, 'R', True)
+        self.cell(widths[2], 8, str(int(total_qty)), 1, 0, 'C', True)
+        self.cell(widths[3], 8, "", 1, 0, 'C', True)
+        self.cell(widths[4], 8, f"{grand_total:.2f}", 1, 1, 'R', True)
+        self.ln(10)
+        
+        # Grand Total Box
+        self.set_x(120)
+        self.set_fill_color(230, 230, 230)
+        self.set_font('Arial', 'B', 12)
+        self.cell(40, 10, "GRAND TOTAL:", 1, 0, 'R', True)
+        self.cell(30, 10, f"{grand_total:.2f}", 1, 1, 'R', True)
+        self.ln(10)
 
+    def add_signature(self):
+        # Ensure space
+        if self.get_y() > 240: self.add_page()
+        self.ln(10)
+        y_pos = self.get_y()
+        
+        sig_path = os.path.join(app.root_path, 'static', 'img', 'signature.png')
+        if os.path.exists(sig_path):
+            self.image(sig_path, x=140, y=y_pos, w=40)
+            
+        self.set_xy(130, y_pos + 25)
+        self.set_font('Arial', 'B', 10)
+        self.set_text_color(0, 0, 0)
+        self.cell(60, 5, "For, REAL PROMOTION", 0, 1, 'C')
+        
+        self.set_xy(130, y_pos + 30)
+        self.cell(60, 5, "(Authorized Signatory)", 0, 1, 'C')
+        
+        self.ln(20)
+        self.set_font('Arial', 'I', 8)
+        self.set_text_color(128, 128, 128)
+        self.cell(0, 5, "This is a computer generated document.", 0, 1, 'C')
 
-
+# ==========================================
+# UPDATED PURCHASE PDF ROUTE
+# ==========================================
 @app.route('/purchases/pdf/<int:purchase_id>')
 def purchase_pdf(purchase_id):
     if 'loggedin' not in session: return redirect(url_for('login'))
     
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
-    # Fetch Purchase & Supplier
-    # FIX: Changed s.gst_number to s.gstin based on schema inference
+    # 1. Fetch Purchase & Supplier
     cursor.execute("""
         SELECT p.*, s.name as supplier_name, s.address as supplier_address, s.phone as supplier_phone, s.gstin as supplier_gst
         FROM purchases p 
@@ -1680,7 +1806,7 @@ def purchase_pdf(purchase_id):
         flash("Purchase not found", "danger")
         return redirect(url_for('purchases'))
         
-    # Fetch Items
+    # 2. Fetch Items
     cursor.execute("""
         SELECT pi.*, pr.name as product_name 
         FROM purchase_items pi 
@@ -1691,71 +1817,34 @@ def purchase_pdf(purchase_id):
     
     cursor.close()
     
-    # Generate PDF
-    pdf = FPDF()
+    # 3. Generate PDF using Dedicated Class
+    pdf = PurchasePDFGenerator()
+    pdf.alias_nb_pages()
     pdf.add_page()
     
-    # Title
-    pdf.set_font("Arial", 'B', 16)
-    pdf.cell(0, 10, f"Purchase Order #{purchase['id']}", 0, 1, 'C')
-    pdf.ln(10)
+    pdf.add_po_info(purchase)
+    pdf.add_table(items)
+    pdf.add_signature()
     
-    # Supplier Info
-    pdf.set_font("Arial", 'B', 12)
-    pdf.cell(0, 10, "Supplier Details:", 0, 1)
-    pdf.set_font("Arial", '', 10)
-    pdf.cell(0, 6, f"Name: {purchase['supplier_name']}", 0, 1)
-    pdf.cell(0, 6, f"Address: {purchase['supplier_address'] or 'N/A'}", 0, 1)
-    pdf.cell(0, 6, f"Phone: {purchase['supplier_phone'] or 'N/A'}", 0, 1)
-    if purchase.get('supplier_gst'):
-        pdf.cell(0, 6, f"GSTIN: {purchase['supplier_gst']}", 0, 1)
+    pdf_string = pdf.output(dest='S').encode('latin-1')
+    buffer = io.BytesIO(pdf_string)
+    buffer.seek(0)
     
-    # Purchase Info (FIXED DATE HERE)
-    pdf.ln(5)
-    pdf.set_font("Arial", 'B', 12)
-    pdf.cell(0, 10, "Order Details:", 0, 1)
-    pdf.set_font("Arial", '', 10)
+    # Filename: PO_ID_Supplier.pdf
+    supp_name = str(purchase.get('supplier_name', 'Unknown')).replace(" ", "_")
+    filename = f"PO_{purchase['id']}_{supp_name}.pdf"
     
-    # Use helper or inline check
-    p_date = safe_date_format(purchase['purchase_date'])
-    pdf.cell(0, 6, f"Date: {p_date}", 0, 1)
-    pdf.cell(0, 6, f"Bill No: {purchase['bill_number'] or 'N/A'}", 0, 1)
-    pdf.ln(10)
-    
-    # Items Table Header
-    pdf.set_font("Arial", 'B', 10)
-    pdf.set_fill_color(240, 240, 240)
-    pdf.cell(10, 10, "#", 1, 0, 'C', 1)
-    pdf.cell(80, 10, "Product", 1, 0, 'L', 1)
-    pdf.cell(25, 10, "Qty", 1, 0, 'C', 1)
-    pdf.cell(35, 10, "Price", 1, 0, 'R', 1)
-    pdf.cell(40, 10, "Total", 1, 1, 'R', 1)
-    
-    # Items Rows
-    pdf.set_font("Arial", '', 10)
-    total_calc = 0
-    for i, item in enumerate(items):
-        item_total = float(item['quantity']) * float(item['purchase_price'])
-        total_calc += item_total
-        
-        pdf.cell(10, 10, str(i+1), 1, 0, 'C')
-        pdf.cell(80, 10, str(item['product_name']), 1, 0, 'L')
-        pdf.cell(25, 10, str(item['quantity']), 1, 0, 'C')
-        pdf.cell(35, 10, f"{float(item['purchase_price']):.2f}", 1, 0, 'R')
-        pdf.cell(40, 10, f"{item_total:.2f}", 1, 1, 'R')
-    
-    # Grand Total
-    pdf.set_font("Arial", 'B', 12)
-    pdf.cell(150, 10, "Grand Total", 1, 0, 'R')
-    # Use stored total_amount or calculated one
-    final_total = purchase['total_amount'] if purchase['total_amount'] else total_calc
-    pdf.cell(40, 10, f"{float(final_total):.2f}", 1, 1, 'R')
-    
-    # Output
-    response = make_response(pdf.output(dest='S').encode('latin1'))
-    response.headers['Content-Type'] = 'application/pdf'
-    response.headers['Content-Disposition'] = f'attachment; filename=PO_{purchase_id}.pdf'
-    return response
+    return send_file(buffer, as_attachment=True, download_name=filename, mimetype='application/pdf')
+
+# --- HELPER: Safe Date Formatter ---
+def safe_date_format(date_obj, format='%d-%m-%Y', default='N/A'):
+    """Safely formats a date object, returning default if None."""
+    if date_obj:
+        return date_obj.strftime(format)
+    return default
+
+
+
 
 
 
@@ -3841,7 +3930,7 @@ class PDFGenerator(FPDF):
         ]
         self.contact = "+91 96623 22476 | help@realpromotion.in"
         self.gst_text = "GSTIN:24AJVPT0460H1ZW"
-        self.gst_subtext = "Composition Dealer- Not Eligibal To Collect Taxes On Sppliers"
+        self.gst_subtext = "Composition Dealer- Not Eligibal To Collect Taxes On Supplies"
 
     def header(self):
         # Company Header
@@ -4020,7 +4109,7 @@ class PDFGenerator(FPDF):
         self.ln(25)
 
         # 2. Table
-        cols = ["#", "Product Name", "Qty", "Price", "Total"]
+        cols = ["No", "Product Name", "Qty", "Price", "Total"]
         widths = [10, 90, 20, 30, 40]
         self.add_table_header(cols, widths)
         
@@ -4130,7 +4219,7 @@ def download_morning_pdf(allocation_id):
     pdf.add_info_section(header['emp_name'], header['emp_mobile'], d_val, t_val, f"MA-{allocation_id}")
     
     # Columns
-    cols = ["#", "Product Name", "Opening", "Given Qty", "Price", "Amount"]
+    cols = ["No", "Product Name", "Opening", "Given Qty", "Price", "Amount"]
     widths = [10, 80, 20, 25, 25, 30]
     
     pdf.add_table_header(cols, widths)
@@ -4162,7 +4251,7 @@ def download_morning_pdf(allocation_id):
         
     # TOTAL ROW
     pdf.set_font('Arial', 'B', 10)
-    pdf.cell(widths[0]+widths[1], 8, "TOTALS", 1, 0, 'R', True)
+    pdf.cell(widths[0]+widths[1], 8, "TOTAL", 1, 0, 'R', True)
     pdf.cell(widths[2], 8, str(total_opening_sum), 1, 0, 'C', True) # Opening Total
     pdf.cell(widths[3], 8, str(total_given_sum), 1, 0, 'C', True)   # Given Total
     pdf.cell(widths[4], 8, "", 1, 0, 'C', True)
@@ -4312,7 +4401,7 @@ def download_evening_pdf(settle_id):
     # User said: "return column ke pass left column add karo" -> Balance should be left of Return.
     # Columns: # | Product | Total | Sold | Price | Amount | Balance | Return
     
-    cols = ["#", "Product", "Total", "Sold", "Price", "Amount", "Left", "Return"]
+    cols = ["No", "Product", "Total", "Sold", "Price", "Amount", "Left", "Return"]
     widths = [8, 52, 18, 18, 20, 24, 20, 20]
     
     pdf.add_table_header(cols, widths)
@@ -7065,6 +7154,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
