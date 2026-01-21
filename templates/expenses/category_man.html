@@ -28,10 +28,10 @@
                     <form action="{{ url_for('category_man') }}" method="POST">
                         <input type="hidden" name="form_type" value="main_category">
                         <div class="mb-3">
-                            <label class="form-label small fw-bold text-muted text-uppercase">Name</label>
-                            <input type="text" name="category_name" class="form-control input-glass" placeholder="e.g. Utilities, Salary" required>
+                            <label class="form-label small fw-bold text-muted">Category Name</label>
+                            <input type="text" name="category_name" class="form-control rounded-3" placeholder="e.g. Office Supplies" required>
                         </div>
-                        <button type="submit" class="btn btn-primary rounded-pill w-100">Add Category</button>
+                        <button class="btn btn-primary w-100 rounded-3">Add Category</button>
                     </form>
                 </div>
             </div>
@@ -41,25 +41,25 @@
         <div class="col-md-6">
             <div class="glass-card h-100">
                 <div class="glass-header bg-success bg-opacity-10">
-                    <h6 class="mb-0 fw-bold text-success"><i class="fas fa-stream me-2"></i>Add Subcategory</h6>
+                    <h6 class="mb-0 fw-bold text-success"><i class="fas fa-list-ul me-2"></i>Add Sub-Category</h6>
                 </div>
                 <div class="p-4">
                     <form action="{{ url_for('category_man') }}" method="POST">
                         <input type="hidden" name="form_type" value="subcategory">
                         <div class="mb-3">
-                            <label class="form-label small fw-bold text-muted text-uppercase">Parent Category</label>
-                            <select name="parent_category_id" class="form-select input-glass" required>
-                                <option value="" disabled selected>Select Parent</option>
+                            <label class="form-label small fw-bold text-muted">Parent Category</label>
+                            <select name="parent_category_id" class="form-select rounded-3" required>
+                                <option value="" disabled selected>Select Parent...</option>
                                 {% for cat in categories %}
-                                    <option value="{{ cat.category_id }}">{{ cat.category_name }}</option>
+                                <option value="{{ cat.category_id }}">{{ cat.category_name }}</option>
                                 {% endfor %}
                             </select>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label small fw-bold text-muted text-uppercase">Item Name</label>
-                            <input type="text" name="subcategory_name" class="form-control input-glass" placeholder="e.g. Electric Bill" required>
+                            <label class="form-label small fw-bold text-muted">Sub-Category Name</label>
+                            <input type="text" name="subcategory_name" class="form-control rounded-3" placeholder="e.g. Printer Paper" required>
                         </div>
-                        <button type="submit" class="btn btn-success rounded-pill w-100">Add Subcategory</button>
+                        <button class="btn btn-success w-100 rounded-3">Add Sub-Category</button>
                     </form>
                 </div>
             </div>
@@ -67,38 +67,35 @@
     </div>
 
     <!-- List -->
-    <div class="glass-card">
-        <div class="glass-header">
-            <h6 class="mb-0 fw-bold text-dark">Existing Structure</h6>
-        </div>
-        <div class="p-0">
-            {% for category in categories %}
-            <div class="border-bottom p-3 bg-white bg-opacity-50">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <span class="fw-bold text-dark fs-5">{{ category.category_name }}</span>
-                    <!-- FIX: Corrected route name to 'delete_category' (check app.py if it is 'dalete_category') -->
-                    <form action="{{ url_for('delete_category', category_id=category.category_id) }}" method="POST" onsubmit="return confirm('Delete this main category AND all subcategories?');">
-                        <button type="submit" class="btn btn-sm btn-light text-danger border shadow-sm rounded-circle" title="Delete Category" style="width: 32px; height: 32px;"><i class="fas fa-trash"></i></button>
-                    </form>
-                </div>
-                
-                {% if category.subcategories %}
-                <div class="ps-3 border-start border-3 border-primary ms-2">
-                    {% for subcat in category.subcategories %}
-                    <div class="d-flex justify-content-between align-items-center py-2 border-bottom border-light">
-                        <span class="text-muted">{{ subcat.subcategory_name }}</span>
-                        <!-- FIX: Corrected route name to 'delete_subcategory' -->
-                        <form action="{{ url_for('delete_subcategory', subcategory_id=subcat.subcategory_id) }}" method="POST" onsubmit="return confirm('Delete this item?');">
-                            <button type="submit" class="text-danger bg-transparent border-0 opacity-50 hover-opacity-100"><i class="fas fa-times"></i></button>
-                        </form>
+    <div class="row">
+        <div class="col-12">
+            <h5 class="fw-bold mb-4">Existing Hierarchy</h5>
+            <div class="row g-4">
+                {% for category in categories %}
+                <div class="col-md-4">
+                    <div class="glass-card p-3 h-100 position-relative">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="fw-bold mb-0 text-primary">{{ category.category_name }}</h6>
+                            <form action="{{ url_for('delete_category', category_id=category.category_id) }}" method="POST" onsubmit="return confirm('Delete this category?');">
+                                <button class="btn btn-sm btn-light text-danger rounded-circle border"><i class="fas fa-trash"></i></button>
+                            </form>
+                        </div>
+                        <ul class="list-group list-group-flush small">
+                            {% for sub in category.subcategories %}
+                            <li class="list-group-item bg-transparent d-flex justify-content-between align-items-center px-0">
+                                {{ sub.subcategory_name }}
+                                <form action="{{ url_for('delete_subcategory', subcategory_id=sub.subcategory_id) }}" method="POST" onsubmit="return confirm('Delete?');">
+                                    <button class="btn btn-sm p-0 text-danger border-0"><i class="fas fa-times"></i></button>
+                                </form>
+                            </li>
+                            {% else %}
+                            <li class="list-group-item bg-transparent text-muted fst-italic px-0">No items yet.</li>
+                            {% endfor %}
+                        </ul>
                     </div>
-                    {% endfor %}
                 </div>
-                {% else %}
-                <p class="text-muted small ps-3 ms-2 mb-0 fst-italic">No subcategories yet.</p>
-                {% endif %}
+                {% endfor %}
             </div>
-            {% endfor %}
         </div>
     </div>
 </div>
