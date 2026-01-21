@@ -6,43 +6,31 @@
 
 <div class="container-fluid py-4 fade-in-up">
     
-    <!-- Balance Header (Live Financials) -->
+    <!-- FINANCIAL HEALTH HEADER -->
     <div class="row mb-4">
         <div class="col-md-6">
-            <div class="card border-0 shadow-sm rounded-4 bg-gradient-primary text-white overflow-hidden position-relative">
-                <div class="card-body p-4">
-                    <div class="d-flex justify-content-between align-items-center position-relative z-1">
-                        <div>
-                            <p class="text-white-50 text-uppercase fw-bold small mb-1">CEO Cash Hand</p>
-                            <h2 class="fw-bold mb-0">₹ {{ "{:,.2f}".format(fin_status.cash_balance) }}</h2>
-                        </div>
-                        <div class="icon-circle bg-white bg-opacity-25 rounded-circle d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
-                            <i class="fa-solid fa-wallet fs-4"></i>
-                        </div>
-                    </div>
+            <div class="glass-card bg-gradient-primary text-white p-4 rounded-4 position-relative overflow-hidden border-0 shadow-sm">
+                <div class="position-relative z-1">
+                    <p class="text-white-50 text-uppercase fw-bold small mb-1">CEO Cash Hand</p>
+                    <h2 class="fw-bold mb-0">₹ {{ "{:,.2f}".format(fin_status.cash_balance) }}</h2>
                 </div>
+                <i class="fas fa-wallet position-absolute end-0 bottom-0 display-1 opacity-10 me-n3 mb-n3"></i>
             </div>
         </div>
         <div class="col-md-6">
-            <div class="card border-0 shadow-sm rounded-4 bg-white text-dark overflow-hidden">
-                <div class="card-body p-4">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <p class="text-muted text-uppercase fw-bold small mb-1">Company Bank Balance</p>
-                            <h2 class="fw-bold mb-0 text-primary">₹ {{ "{:,.2f}".format(fin_status.bank_balance) }}</h2>
-                        </div>
-                        <div class="icon-circle bg-primary bg-opacity-10 rounded-circle d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
-                            <i class="fa-solid fa-building-columns fs-4 text-primary"></i>
-                        </div>
-                    </div>
+            <div class="glass-card bg-white text-dark p-4 rounded-4 position-relative overflow-hidden border-0 shadow-sm">
+                <div class="position-relative z-1">
+                    <p class="text-muted text-uppercase fw-bold small mb-1">Bank Balance</p>
+                    <h2 class="fw-bold mb-0 text-primary">₹ {{ "{:,.2f}".format(fin_status.bank_balance) }}</h2>
                 </div>
+                <i class="fas fa-university position-absolute end-0 bottom-0 display-1 text-primary opacity-10 me-n3 mb-n3"></i>
             </div>
         </div>
     </div>
 
     <!-- Main Form -->
     <form action="{{ url_for('add_expense') }}" method="POST" id="expenseForm">
-        <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
+        <div class="card glass-card border-0 shadow-lg rounded-4 overflow-hidden">
             <div class="card-header bg-white border-0 p-4 d-flex justify-content-between align-items-center">
                 <h4 class="fw-bold mb-0"><i class="fa-solid fa-file-invoice-dollar me-2 text-primary"></i>New Expense Entry</h4>
                 <div class="text-end">
@@ -63,7 +51,7 @@
                         <input type="time" name="expense_time" class="form-control shadow-sm" value="{{ now_time }}" required>
                     </div>
                     <div class="col-md-3">
-                        <label class="form-label fw-bold small text-muted">Deduct From (Source)</label>
+                        <label class="form-label fw-bold small text-muted">Source</label>
                         <select name="payment_method" class="form-select shadow-sm" required>
                             <option value="Cash">Cash (CEO Hand)</option>
                             <option value="Online">Online / UPI</option>
@@ -84,9 +72,7 @@
                                 <th style="width: 5%"></th>
                             </tr>
                         </thead>
-                        <tbody id="itemsBody">
-                            <!-- Rows will be added here via JS -->
-                        </tbody>
+                        <tbody id="itemsBody"></tbody>
                     </table>
                     <button type="button" class="btn btn-light border w-100 py-2 fw-bold text-primary dashed-border" onclick="addRow()">
                         <i class="fa-solid fa-plus me-1"></i> Add Another Item
@@ -102,15 +88,13 @@
     </form>
 </div>
 
-<!-- JS Logic for Dynamic Rows -->
 <script>
-    // Data passed from backend
     const categories = {{ categories | tojson }};
     const subcategories = {{ subcategories | tojson }};
 
     function addRow() {
         const tbody = document.getElementById('itemsBody');
-        const rowId = Date.now(); // Unique ID for row
+        const rowId = Date.now();
         
         let catOptions = '<option value="" selected disabled>Select...</option>';
         categories.forEach(c => {
@@ -120,25 +104,19 @@
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td>
-                <select name="category_id[]" class="form-select border-0 bg-light" onchange="updateSubcats(this, ${rowId})" required>
-                    ${catOptions}
-                </select>
+                <select name="category_id[]" class="form-select border-0 bg-light" onchange="updateSubcats(this, ${rowId})" required>${catOptions}</select>
             </td>
             <td>
-                <select name="subcategory_id[]" id="sub_${rowId}" class="form-select border-0 bg-light" required>
-                    <option value="" disabled selected>-- Select Main First --</option>
-                </select>
+                <select name="subcategory_id[]" id="sub_${rowId}" class="form-select border-0 bg-light" required><option value="" disabled selected>--</option></select>
             </td>
             <td>
-                <input type="text" name="description[]" class="form-control border-0 bg-light" placeholder="e.g. Printer Paper">
+                <input type="text" name="description[]" class="form-control border-0 bg-light" placeholder="Desc">
             </td>
             <td>
                 <input type="number" name="amount[]" class="form-control border-0 bg-light fw-bold text-end amount-input" step="0.01" min="0" oninput="calcTotal()" required>
             </td>
             <td class="text-center">
-                <button type="button" class="btn btn-sm btn-icon text-danger" onclick="this.closest('tr').remove(); calcTotal();">
-                    <i class="fa-solid fa-times"></i>
-                </button>
+                <button type="button" class="btn btn-sm btn-icon text-danger" onclick="this.closest('tr').remove(); calcTotal();"><i class="fa-solid fa-times"></i></button>
             </td>
         `;
         tbody.appendChild(tr);
@@ -147,26 +125,18 @@
     function updateSubcats(selectElem, rowId) {
         const catId = selectElem.value;
         const subSelect = document.getElementById(`sub_${rowId}`);
-        
-        // Filter subcategories
         const filtered = subcategories.filter(s => s.category_id == catId);
-        
-        let html = '<option value="" disabled selected>Select...</option>';
-        filtered.forEach(s => {
-            html += `<option value="${s.subcategory_id}">${s.subcategory_name}</option>`;
-        });
+        let html = '<option value="" disabled selected>--</option>';
+        filtered.forEach(s => { html += `<option value="${s.subcategory_id}">${s.subcategory_name}</option>`; });
         subSelect.innerHTML = html;
     }
 
     function calcTotal() {
         let total = 0;
-        document.querySelectorAll('.amount-input').forEach(input => {
-            total += parseFloat(input.value) || 0;
-        });
+        document.querySelectorAll('.amount-input').forEach(input => { total += parseFloat(input.value) || 0; });
         document.getElementById('grandTotal').innerText = "₹ " + total.toFixed(2);
     }
 
-    // Init with one row
     document.addEventListener('DOMContentLoaded', () => {
         flatpickr(".flatpickr-date", { dateFormat: "Y-m-d" });
         addRow();
@@ -176,5 +146,6 @@
 <style>
     .dashed-border { border-style: dashed !important; border-color: #cbd5e1 !important; }
     .bg-gradient-primary { background: linear-gradient(135deg, #4f46e5, #3b82f6); }
+    .glass-card { background: #fff; border-radius: 12px; }
 </style>
 {% endblock %}
