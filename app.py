@@ -2098,7 +2098,6 @@ def stock_adjust():
 # =========================================================
 #  UPDATED INVENTORY MASTER (Universal Logic)
 # =========================================================
-
 @app.route('/inventory_master')
 def inventory_master():
     if "loggedin" not in session:
@@ -2211,8 +2210,15 @@ def inventory_master():
         p['total_stock'] = total_holding
         
         total_value += (p['price'] * total_holding)
-        if total_holding <= (p['low_stock_threshold'] or 10):
+        
+        # --- FIX START: Handle 0 Threshold Correctly ---
+        threshold = p['low_stock_threshold']
+        if threshold is None: threshold = 10
+            
+        if total_holding <= threshold:
             low_stock_count += 1
+        # --- FIX END ---
+        
         total_items += 1
 
     cur.execute("SELECT * FROM product_categories ORDER BY category_name")
@@ -2220,7 +2226,8 @@ def inventory_master():
     
     cur.close()
 
-    return render_template('inventory/inventory_master.html', 
+    # NOTE: Keeping your original template path
+    return render_template('inventory_master.html', 
                            products=products, 
                            categories=categories,
                            stats={
@@ -2349,6 +2356,7 @@ def inventory():
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
     # 2. Fetch Active Products (Soft Delete Logic Applied)
+    # --- LOGIC PRESERVED: Keeping your try-except block ---
     try:
         cur.execute("SELECT * FROM products WHERE status = 'Active' ORDER BY id DESC")
     except:
@@ -2470,8 +2478,14 @@ def inventory():
         # Calculate Value based on Total Holding
         total_value += price * total_holding 
         
-        if total_holding <= (p.get('low_stock_threshold') or 10):
+        # --- FIX START: Handle 0 Threshold Correctly ---
+        threshold = p.get('low_stock_threshold')
+        if threshold is None: threshold = 10
+            
+        if total_holding <= threshold:
             low_stock_count += 1
+        # --- FIX END ---
+            
         if total_holding == 0:
             out_stock_count += 1
 
@@ -7259,6 +7273,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
