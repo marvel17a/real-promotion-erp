@@ -1,23 +1,112 @@
 {% extends "base.html" %}
 {% block content %}
 
-<link rel="stylesheet" href="{{ url_for('static', filename='css/inventory.css') }}">
+<!-- Custom CSS for Premium Look -->
+<style>
+    :root {
+        --card-bg: #ffffff;
+        --body-bg: #f8f9fa;
+        --text-primary: #2c3e50;
+        --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
 
-<div class="container-fluid py-4">
+    body {
+        background-color: var(--body-bg);
+    }
+
+    .glass-card {
+        background: var(--card-bg);
+        border: 1px solid rgba(0,0,0,0.05);
+        border-radius: 16px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .glass-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 15px rgba(0,0,0,0.05);
+    }
+
+    .stat-card {
+        border-left: 4px solid transparent;
+    }
+    
+    .stat-card.primary { border-left-color: #4e73df; }
+    .stat-card.success { border-left-color: #1cc88a; }
+    .stat-card.warning { border-left-color: #f6c23e; }
+    .stat-card.danger { border-left-color: #e74a3b; }
+
+    .product-card {
+        border: none;
+        border-radius: 16px;
+        overflow: hidden;
+        background: #fff;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.03);
+        transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    }
+
+    .product-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 15px 30px rgba(0,0,0,0.1);
+    }
+
+    .product-image-container {
+        height: 200px;
+        background: #f8f9fc;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .product-image-container img {
+        transition: transform 0.5s ease;
+    }
+
+    .product-card:hover .product-image-container img {
+        transform: scale(1.05);
+    }
+
+    .badge-float {
+        position: absolute;
+        top: 12px;
+        left: 12px;
+        z-index: 10;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        border-radius: 8px;
+        padding: 6px 12px;
+        font-weight: 600;
+        font-size: 0.75rem;
+    }
+
+    .search-bar-container {
+        background: #fff;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+    }
+
+    .btn-rounded {
+        border-radius: 50px;
+    }
+</style>
+
+<div class="container-fluid py-4 fade-in-up">
 
     <!-- HEADER -->
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="mb-0"><i class="bi bi-box-seam me-2"></i> Inventory</h2>
+        <div>
+            <h2 class="mb-0 fw-bold text-dark"><i class="bi bi-box-seam me-2 text-primary"></i>Inventory</h2>
+            <p class="text-muted small mb-0">Manage your stock and products efficiently.</p>
+        </div>
 
         <div>
-          
+            <a href="{{ url_for('product_sales_report') }}" class="btn btn-outline-success btn-rounded me-2 shadow-sm">
+                <i class="bi bi-graph-up-arrow me-1"></i> Sales Report
+            </a>
 
-            <a href="{{ url_for('product_sales_report') }}" class="btn btn-outline-success me-2">
-    <i class="bi bi-graph-up-arrow me-1"></i> Sales Report
-</a>
-
-
-            <a href="{{ url_for('add_product') }}" class="btn btn-primary">
+            <a href="{{ url_for('add_product') }}" class="btn btn-primary btn-rounded shadow-sm">
                 <i class="bi bi-plus-lg me-1"></i> Add Product
             </a>
         </div>
@@ -27,77 +116,72 @@
     <div class="row g-4 mb-4">
         <!-- Total Stock Value -->
         <div class="col-lg-3 col-md-6">
-            <div class="card shadow-sm">
+            <div class="card glass-card stat-card primary h-100">
                 <div class="card-body">
-                    <h6 class="text-muted small">Total Stock Value</h6>
-                    <h4 class="fw-bold mb-0">
+                    <h6 class="text-muted text-uppercase small fw-bold ls-1">Total Stock Value</h6>
+                    <h3 class="fw-bold mb-0 text-primary">
                         ₹{{ "%.0f"|format(stats.total_value) }}
-                    </h4>
+                    </h3>
                 </div>
             </div>
         </div>
 
         <!-- Total Products -->
         <div class="col-lg-3 col-md-6">
-            <div class="card shadow-sm">
+            <div class="card glass-card stat-card success h-100">
                 <div class="card-body">
-                    <h6 class="text-muted small">Total Products</h6>
-                    <h4 class="fw-bold mb-0">
+                    <h6 class="text-muted text-uppercase small fw-bold ls-1">Total Products</h6>
+                    <h3 class="fw-bold mb-0 text-dark">
                         {{ stats.total_products }}
-                    </h4>
+                    </h3>
                 </div>
             </div>
         </div>
 
         <!-- Low Stock Products -->
         <div class="col-lg-3 col-md-6">
-            <div class="card shadow-sm">
+            <div class="card glass-card stat-card warning h-100">
                 <div class="card-body">
-                    <h6 class="text-danger small">Low Stock Products</h6>
-                    <h4 class="fw-bold text-danger mb-0">
+                    <h6 class="text-warning text-uppercase small fw-bold ls-1">Low Stock Alert</h6>
+                    <h3 class="fw-bold mb-0 text-warning">
                         {{ stats.low_stock_count }}
-                    </h4>
+                    </h3>
                 </div>
             </div>
         </div>
 
         <!-- Out of Stock Products -->
         <div class="col-lg-3 col-md-6">
-            <div class="card shadow-sm">
+            <div class="card glass-card stat-card danger h-100">
                 <div class="card-body">
-                    <h6 class="text-danger small">Out of Stock</h6>
-                    <h4 class="fw-bold text-danger mb-0">
+                    <h6 class="text-danger text-uppercase small fw-bold ls-1">Out of Stock</h6>
+                    <h3 class="fw-bold mb-0 text-danger">
                         {{ stats.out_stock_count }}
-                    </h4>
+                    </h3>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- SEARCH + FILTER BAR -->
-    <div class="card shadow-sm mb-4">
-        <div class="card-body">
+    <div class="search-bar-container mb-4">
+        <div class="row g-3 align-items-center">
+            
+            <!-- Search -->
+            <div class="col-md-8 position-relative">
+                <i class="bi bi-search position-absolute text-muted" style="top: 50%; left: 25px; transform: translateY(-50%);"></i>
+                <input type="text" id="searchProduct" class="form-control form-control-lg border-0 bg-light ps-5" 
+                       placeholder="Search products by name..." style="border-radius: 12px;">
+            </div>
 
-            <div class="row g-4">
-
-                <!-- Search -->
-                <div class="col-md-8">
-                    <label class="form-label">Search Product</label>
-                    <input type="text" id="searchProduct" class="form-control"
-                           placeholder="Search by product name...">
-                </div>
-
-                <!-- Category Filter -->
-                <div class="col-md-4">
-                    <label class="form-label">Filter by Category</label>
-                    <select id="filterCategory" class="form-select">
-                        <option value="all">All Categories</option>
-                        {% for cat in filters.categories %}
-                            <option value="{{ cat.category_name }}">{{ cat.category_name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-
+            <!-- Category Filter -->
+            <div class="col-md-4">
+                <select id="filterCategory" class="form-select form-select-lg border-0 bg-light" style="border-radius: 12px;">
+                    <option value="all">All Categories</option>
+                    {% for cat in filters.categories %}
+                        <option value="{{ cat.category_name }}">{{ cat.category_name }}</option>
+                    {% endfor %}
+                </select>
             </div>
 
         </div>
@@ -108,54 +192,65 @@
 
         {% for product in products %}
 
-        <div class="col-xl-3 col-lg-4 col-md-6 product-card-filter"
-             data-name="{{ product.name.lower() }}"
+        <!-- Filter Attributes -->
+        <div class="col-xl-3 col-lg-4 col-md-6 product-card-filter fade-in" 
+             data-name="{{ product.name.lower() }}" 
              data-category="{{ categories_map.get(product.category_id, 'Uncategorized') }}">
 
-            <div class="card shadow-sm product-card">
+            <div class="card product-card h-100">
 
                 <!-- IMAGE SECTION -->
-                <div class="position-relative">
+                <div class="product-image-container">
 
-                    {% set threshold = product.low_stock_threshold or 10 %}
+                    <!-- FIXED LOGIC: Strict comparison. No 'or 10' fallback. -->
+                    {% if product.stock <= product.low_stock_threshold %}
+                        <span class="badge bg-danger badge-float">
+                            <i class="bi bi-exclamation-triangle-fill me-1"></i> Low: {{ product.stock }}
+                        </span>
+                    {% endif %}
 
-                    {% if product.stock <= threshold %}
-                        <span class="badge bg-danger position-absolute top-0 start-0 m-2">
-                            Low ({{ product.stock }})
+                    {% if product.stock == 0 %}
+                         <span class="badge bg-dark badge-float">
+                            <i class="bi bi-x-circle-fill me-1"></i> Out of Stock
                         </span>
                     {% endif %}
 
                     {% if product.image %}
-                        <img src="{{ product.image | fix_image }}"
-                             class="card-img-top"
-                             style="height:180px; object-fit:cover;">
+                        <img src="{{ product.image | fix_image }}" 
+                             class="img-fluid" 
+                             style="max-height: 80%; max-width: 80%; object-fit: contain;">
                     {% else %}
-                        <div class="d-flex flex-column justify-content-center align-items-center"
-                             style="height:180px; background:#f5f5f5;">
-                            <i class="bi bi-image" style="font-size:48px; color:#999;"></i>
-                            <span class="text-muted">No Image</span>
+                        <div class="text-center text-muted opacity-50">
+                            <i class="bi bi-image fs-1"></i>
+                            <div class="small mt-2">No Image</div>
                         </div>
                     {% endif %}
                 </div>
 
                 <!-- CARD BODY -->
-                <div class="card-body">
+                <div class="card-body d-flex flex-column">
 
-                    <p class="text-muted small mb-1">
-                        {{ categories_map.get(product.category_id, 'Uncategorized') }}
-                    </p>
+                    <div class="mb-2">
+                        <span class="badge bg-light text-secondary border rounded-pill fw-normal px-2">
+                            {{ categories_map.get(product.category_id, 'Uncategorized') }}
+                        </span>
+                    </div>
 
-                    <h5 class="fw-bold">{{ product.name }}</h5>
+                    <h5 class="fw-bold text-dark mb-1 text-truncate" title="{{ product.name }}">
+                        {{ product.name }}
+                    </h5>
 
-                    <div class="d-flex justify-content-between mt-3">
+                    <div class="mt-auto pt-3 d-flex justify-content-between align-items-end border-top">
                         <div>
-                            <small class="text-muted">Stock</small>
-                            <div class="fw-bold">{{ product.stock }}</div>
+                            <small class="text-muted text-uppercase" style="font-size: 0.7rem;">Stock</small>
+                            <div class="fw-bold fs-5 {% if product.stock <= product.low_stock_threshold %}text-danger{% else %}text-success{% endif %}">
+                                {{ product.stock }}
+                            </div>
                         </div>
 
                         <div class="text-end">
-                            <small class="text-muted">Price</small>
-                            <div class="fw-bold">
+                            <small class="text-muted text-uppercase" style="font-size: 0.7rem;">Price</small>
+                            <div class="fw-bold fs-5 text-dark">
                                 ₹{{ "%.0f"|format(product.price) }}
                             </div>
                         </div>
@@ -164,20 +259,19 @@
                 </div>
 
                 <!-- ACTIONS -->
-                <div class="card-footer d-flex justify-content-between">
+                <div class="card-footer bg-white border-0 pt-0 pb-3 d-flex justify-content-between px-3">
 
-                    <!-- UPDATED: SOFT DELETE ACTION -->
-                    <form action="{{ url_for('delete_product_soft', id=product.id) }}"
-                          method="POST"
+                    <form action="{{ url_for('delete_product_soft', id=product.id) }}" 
+                          method="POST" 
                           onsubmit="return confirm('Archive this product? It will be hidden from lists.');">
-                        <button class="btn btn-sm btn-outline-danger">
-                            <i class="bi bi-archive"></i> Archive
+                        <button class="btn btn-sm btn-light text-danger rounded-pill px-3">
+                            <i class="bi bi-archive me-1"></i> Archive
                         </button>
                     </form>
 
-                    <a href="{{ url_for('edit_product', product_id=product.id) }}"
-                       class="btn btn-sm btn-primary">
-                        <i class="bi bi-pencil"></i> Edit
+                    <a href="{{ url_for('edit_product', product_id=product.id) }}" 
+                       class="btn btn-sm btn-primary rounded-pill px-3 shadow-sm">
+                        <i class="bi bi-pencil me-1"></i> Edit
                     </a>
 
                 </div>
@@ -187,7 +281,8 @@
 
         {% else %}
         <div class="col-12 text-center text-muted p-5">
-            No products found.
+            <div class="mb-3"><i class="bi bi-inbox fs-1 opacity-25"></i></div>
+            <h5 class="fw-light">No products found in inventory.</h5>
         </div>
         {% endfor %}
 
@@ -195,10 +290,38 @@
 
 </div>
 
-<script src="{{ url_for('static', filename='js/inventory_add_edit.js') }}"></script>
+<!-- JAVASCRIPT FOR SEARCH & FILTER -->
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const searchInput = document.getElementById('searchProduct');
+        const filterCategory = document.getElementById('filterCategory');
+        const productItems = document.querySelectorAll('.product-card-filter');
+
+        function filterProducts() {
+            const searchValue = searchInput.value.toLowerCase().trim();
+            const selectedCategory = filterCategory.value;
+
+            productItems.forEach(item => {
+                const productName = item.getAttribute('data-name');
+                const productCategory = item.getAttribute('data-category');
+
+                const matchesSearch = productName.includes(searchValue);
+                // Check if 'all' is selected OR if the category string matches exactly
+                const matchesCategory = (selectedCategory === 'all') || (productCategory === selectedCategory);
+
+                if (matchesSearch && matchesCategory) {
+                    item.style.display = ''; // Show
+                    item.classList.add('fade-in'); // Optional animation class
+                } else {
+                    item.style.display = 'none'; // Hide
+                }
+            });
+        }
+
+        // Attach Event Listeners
+        if(searchInput) searchInput.addEventListener('input', filterProducts);
+        if(filterCategory) filterCategory.addEventListener('change', filterProducts);
+    });
+</script>
 
 {% endblock %}
-
-
-
-
