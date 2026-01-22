@@ -58,12 +58,32 @@
         </div>
     </div>
 </div>
-<!-- Reuse Add Expense Script Logic Here (Simplified for brevity, copy JS from add_expense.html) -->
+<!-- Reusing JS logic for brevity -->
 <script>
     const categories = {{ categories | tojson }};
     const subcategories = {{ subcategories | tojson }};
-    function addRow() { /* Copy addRow logic */ }
-    function updSub(el, id) { /* Copy updSub logic */ }
-    function calc() { /* Copy calc logic */ }
+    function addRow() { 
+        const rowId = Date.now();
+        let catOpts = '<option value="" disabled selected>Select</option>';
+        categories.forEach(c => catOpts += `<option value="${c.category_id}">${c.category_name}</option>`);
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td><select name="category_id[]" class="form-select border-0 bg-light" onchange="updSub(this, ${rowId})" required>${catOpts}</select></td>
+            <td><select name="subcategory_id[]" id="sub_${rowId}" class="form-select border-0 bg-light" required><option disabled selected>--</option></select></td>
+            <td><input type="text" name="description[]" class="form-control border-0 bg-light" placeholder="Note"></td>
+            <td><input type="number" name="amount[]" class="form-control border-0 bg-light fw-bold text-end amt" step="0.01" oninput="calc()" required></td>
+            <td><button type="button" class="btn btn-sm text-danger" onclick="this.closest('tr').remove(); calc();"><i class="fas fa-times"></i></button></td>`;
+        document.getElementById('itemsBody').appendChild(tr);
+    }
+    function updSub(el, id) {
+        const subs = subcategories.filter(s => s.category_id == el.value);
+        let h = '<option disabled selected>--</option>';
+        subs.forEach(s => h += `<option value="${s.subcategory_id}">${s.subcategory_name}</option>`);
+        document.getElementById(`sub_${id}`).innerHTML = h;
+    }
+    function calc() {
+        let t = 0;
+        document.querySelectorAll('.amt').forEach(i => t += parseFloat(i.value) || 0);
+        document.getElementById('grandTotal').innerText = "₹ " + t.toFixed(2);
+    }
 </script>
 {% endblock %}
