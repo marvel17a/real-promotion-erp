@@ -168,6 +168,14 @@
     }
 </style>
 
+<!-- Calculate Out of Stock Count using Jinja since backend might not pass it for Master -->
+{% set out_of_stock_count = 0 %}
+{% for p in products %}
+    {% if p.stock == 0 %}
+        {% set out_of_stock_count = out_of_stock_count + 1 %}
+    {% endif %}
+{% endfor %}
+
 <div class="container-fluid py-4 fade-in-up">
     
     <!-- Header -->
@@ -196,10 +204,10 @@
         </div>
     </div>
 
-    <!-- Stats Row -->
+    <!-- Stats Row (4 Cards as requested) -->
     <div class="row g-3 mb-4">
-        <!-- Total Value -->
-        <div class="col-md-4">
+        <!-- 1. Total Value -->
+        <div class="col-xl-3 col-md-6">
             <div class="card glass-card h-100 border-0">
                 <div class="card-body p-4">
                     <div class="d-flex align-items-center">
@@ -209,33 +217,15 @@
                         <div>
                             <p class="text-uppercase text-muted fw-bold small mb-1">Total Asset Value</p>
                             <h4 class="fw-bold mb-0 text-dark">₹ {{ "%.0f"|format(stats.total_value) }}</h4>
-                            <small class="text-xs text-primary bg-primary bg-opacity-10 px-2 py-1 rounded-pill mt-1 d-inline-block">Warehouse + Allocated</small>
+                            <small class="text-xs text-primary bg-primary bg-opacity-10 px-2 py-1 rounded-pill mt-1 d-inline-block">Warehouse + Field</small>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
         
-        <!-- Low Stock -->
-        <div class="col-md-4">
-            <div class="card glass-card h-100 border-0">
-                <div class="card-body p-4">
-                    <div class="d-flex align-items-center">
-                        <div class="icon-box bg-danger bg-opacity-10 text-danger me-3">
-                            <i class="fa-solid fa-triangle-exclamation"></i>
-                        </div>
-                        <div>
-                            <p class="text-uppercase text-muted fw-bold small mb-1">Low Stock Items</p>
-                            <h4 class="fw-bold mb-0 text-dark">{{ stats.low_stock_count }}</h4>
-                            <small class="text-xs text-muted mt-1 d-block">Requires Attention</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Total Items -->
-        <div class="col-md-4">
+        <!-- 2. Total Items -->
+        <div class="col-xl-3 col-md-6">
             <div class="card glass-card h-100 border-0">
                 <div class="card-body p-4">
                     <div class="d-flex align-items-center">
@@ -245,7 +235,43 @@
                         <div>
                             <p class="text-uppercase text-muted fw-bold small mb-1">Total Products</p>
                             <h4 class="fw-bold mb-0 text-dark">{{ stats.total_products }}</h4>
-                            <small class="text-xs text-muted mt-1 d-block">Active Inventory</small>
+                            <small class="text-xs text-muted mt-1 d-block">Active SKUs</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. Low Stock -->
+        <div class="col-xl-3 col-md-6">
+            <div class="card glass-card h-100 border-0">
+                <div class="card-body p-4">
+                    <div class="d-flex align-items-center">
+                        <div class="icon-box bg-warning bg-opacity-10 text-warning me-3">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                        </div>
+                        <div>
+                            <p class="text-uppercase text-muted fw-bold small mb-1">Low Stock Items</p>
+                            <h4 class="fw-bold mb-0 text-dark">{{ stats.low_stock }}</h4>
+                            <small class="text-xs text-muted mt-1 d-block">Restock Needed</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. Out of Stock (Added back) -->
+        <div class="col-xl-3 col-md-6">
+            <div class="card glass-card h-100 border-0">
+                <div class="card-body p-4">
+                    <div class="d-flex align-items-center">
+                        <div class="icon-box bg-danger bg-opacity-10 text-danger me-3">
+                            <i class="fa-solid fa-ban"></i>
+                        </div>
+                        <div>
+                            <p class="text-uppercase text-muted fw-bold small mb-1">Out of Stock</p>
+                            <h4 class="fw-bold mb-0 text-dark">{{ out_of_stock_count }}</h4>
+                            <small class="text-xs text-muted mt-1 d-block">Immediate Action</small>
                         </div>
                     </div>
                 </div>
@@ -283,19 +309,19 @@
         </div>
     </div>
 
-    <!-- Inventory Table -->
+    <!-- Inventory Table (Restored Structure) -->
     <div class="card glass-card border-0 overflow-hidden">
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0" id="inventoryTable">
                 <thead>
                     <tr>
-                        <th class="ps-4">Product Details</th>
+                        <th class="ps-4">Product Name</th>
                         <th>Category</th>
-                        <th class="text-center bg-white border-start border-end">Warehouse</th>
-                        <th class="text-center bg-white border-end">Allocated</th>
+                        <th class="text-center" style="background: #fdfdfe;">Warehouse</th>
+                        <th class="text-center" style="background: #f0f9ff;">Allocated</th>
                         <th class="text-center">Total Health</th>
                         <th class="text-end">Price</th>
-                        <th class="text-end pe-4">Actions</th>
+                        <th class="text-end pe-4">Action</th>
                     </tr>
                 </thead>
                 <tbody id="productTableBody">
@@ -304,7 +330,11 @@
                     <!-- Fix: Handle 0 or None threshold properly -->
                     {% set threshold = p.low_stock_threshold if p.low_stock_threshold is not none else 10 %}
                     
-                    <tr class="product-row transition-base" data-category="{{ p.category_name }}">
+                    <!-- ADDED data-name and data-category for search script -->
+                    <tr class="product-row transition-base" 
+                        data-name="{{ p.name.lower() }}" 
+                        data-category="{{ p.category_name or 'Uncategorized' }}">
+                        
                         <td class="ps-4">
                             <div class="d-flex align-items-center">
                                 <div class="product-img-wrapper shadow-sm me-3">
@@ -322,6 +352,7 @@
                                 </div>
                             </div>
                         </td>
+                        
                         <td>
                             <span class="badge badge-soft-secondary fw-normal border">
                                 {{ p.category_name or 'Uncategorized' }}
@@ -329,18 +360,18 @@
                         </td>
                         
                         <!-- Warehouse Stock -->
-                        <td class="text-center border-start border-end bg-light bg-opacity-25">
+                        <td class="text-center" style="background: #fdfdfe;">
                             <div class="d-flex flex-column align-items-center">
                                 <span class="fw-bold text-dark fs-6">{{ p.warehouse_stock }}</span>
-                                <span class="text-muted text-uppercase" style="font-size: 0.65rem; letter-spacing: 0.5px;">Office</span>
+                                <span class="text-muted text-uppercase" style="font-size: 0.65rem; letter-spacing: 0.5px;">IN OFFICE</span>
                             </div>
                         </td>
 
                         <!-- Allocated Stock -->
-                        <td class="text-center border-end bg-light bg-opacity-25">
+                        <td class="text-center" style="background: #f0f9ff;">
                             <div class="d-flex flex-column align-items-center">
                                 <span class="fw-bold text-primary fs-6">{{ p.allocated_stock }}</span>
-                                <span class="text-primary text-opacity-75 text-uppercase" style="font-size: 0.65rem; letter-spacing: 0.5px;">Field</span>
+                                <span class="text-primary text-opacity-75 text-uppercase" style="font-size: 0.65rem; letter-spacing: 0.5px;">IN FIELD</span>
                             </div>
                         </td>
 
@@ -466,7 +497,8 @@
         const category = categoryFilter.value;
 
         rows.forEach(row => {
-            const name = row.innerText.toLowerCase();
+            // Get data-name and data-category attributes which are safer than innerText
+            const name = row.getAttribute('data-name');
             const rowCat = row.getAttribute('data-category');
             
             const matchesSearch = name.includes(term);
