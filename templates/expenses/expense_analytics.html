@@ -1,52 +1,40 @@
 {% extends 'admin_master.html' %}
-
 {% block page_content %}
 <div class="container-fluid py-4 fade-in-up">
     
-    <div class="d-flex justify-content-between align-items-center mb-5">
+    <div class="d-flex justify-content-between mb-5">
         <div>
-            <h2 class="fw-bold text-dark mb-0">Deep Analytics</h2>
-            <p class="text-muted small">AI Forecast & Spending Habits</p>
+            <h3 class="fw-bold">Deep Dive Analytics</h3>
+            <p class="text-muted small">Forecasts & Trends</p>
         </div>
-        <a href="{{ url_for('expense_dash') }}" class="btn btn-light border shadow-sm rounded-pill px-4">
-            <i class="fas fa-arrow-left me-2"></i> Back to Dashboard
-        </a>
+        <a href="{{ url_for('expense_dash') }}" class="btn btn-light rounded-pill border px-4">Back</a>
     </div>
 
-    <!-- AI Forecast Card -->
-    <div class="row mb-5">
-        <div class="col-12">
-            <div class="card border-0 shadow-lg rounded-4 overflow-hidden text-white" style="background: linear-gradient(135deg, #1e1b4b, #4f46e5);">
-                <div class="card-body p-5 position-relative">
-                    <div class="position-relative z-1">
-                        <h6 class="text-white-50 text-uppercase fw-bold ls-1">AI Predicted Spend (Next Month)</h6>
-                        <h1 class="display-3 fw-bold mb-2">₹ {{ "{:,.0f}".format(predicted_spend) }}</h1>
-                        <p class="mb-0 opacity-75"><i class="fas fa-info-circle me-1"></i> Based on 3-month moving average.</p>
-                    </div>
-                    <i class="fas fa-robot position-absolute end-0 top-50 translate-middle-y display-1 opacity-10 me-5"></i>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Charts -->
     <div class="row g-4">
-        <!-- Radar: Day of Week -->
-        <div class="col-md-6">
-            <div class="card glass-card border-0 shadow-sm h-100 p-4">
-                <h5 class="fw-bold mb-4">Spending Heatmap (Day)</h5>
-                <div style="height: 300px;">
-                    <canvas id="dowChart"></canvas>
+        <!-- Forecast Card -->
+        <div class="col-12">
+            <div class="card border-0 shadow-lg rounded-4 text-white" style="background: linear-gradient(135deg, #6366f1, #a855f7);">
+                <div class="card-body p-5">
+                    <h6 class="text-white-50 text-uppercase ls-1 mb-2">AI Projection (Next Month)</h6>
+                    <h1 class="display-3 fw-bold mb-0">₹ {{ "{:,.0f}".format(forecast) }}</h1>
+                    <p class="mb-0 mt-2 text-white-50">Based on 3-month moving average.</p>
                 </div>
             </div>
         </div>
-        <!-- Bar: Payment Methods -->
+
+        <!-- Heatmap -->
         <div class="col-md-6">
-            <div class="card glass-card border-0 shadow-sm h-100 p-4">
+            <div class="card border-0 shadow-sm rounded-4 h-100 p-4">
+                <h5 class="fw-bold mb-4">Spending Heatmap (Day)</h5>
+                <div style="height:300px"><canvas id="dowChart"></canvas></div>
+            </div>
+        </div>
+
+        <!-- Modes -->
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm rounded-4 h-100 p-4">
                 <h5 class="fw-bold mb-4">Payment Methods</h5>
-                <div style="height: 300px;">
-                    <canvas id="modeChart"></canvas>
-                </div>
+                <div style="height:300px"><canvas id="modeChart"></canvas></div>
             </div>
         </div>
     </div>
@@ -54,44 +42,23 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    // Data
-    const dowData = {{ dow_data | tojson }};
-    const modeData = {{ payment_mode_data | tojson }};
+    const dow = {{ dow | tojson }};
+    const modes = {{ modes | tojson }};
 
-    // Radar Chart
     new Chart(document.getElementById('dowChart'), {
         type: 'radar',
         data: {
-            labels: dowData.map(d => d.day_name),
-            datasets: [{
-                label: 'Spending',
-                data: dowData.map(d => d.total),
-                backgroundColor: 'rgba(99, 102, 241, 0.2)',
-                borderColor: '#6366f1',
-                pointBackgroundColor: '#6366f1'
-            }]
-        },
-        options: { responsive: true, maintainAspectRatio: false }
+            labels: dow.map(d=>d.d),
+            datasets: [{ label: 'Spend', data: dow.map(d=>d.t), backgroundColor: 'rgba(99,102,241,0.2)', borderColor: '#6366f1' }]
+        }
     });
 
-    // Bar Chart
     new Chart(document.getElementById('modeChart'), {
         type: 'bar',
         data: {
-            labels: modeData.map(m => m.payment_method),
-            datasets: [{
-                label: 'Total Amount',
-                data: modeData.map(m => m.total),
-                backgroundColor: ['#10b981', '#3b82f6', '#f59e0b'],
-                borderRadius: 5
-            }]
-        },
-        options: { 
-            responsive: true, 
-            maintainAspectRatio: false,
-            scales: { y: { beginAtZero: true }, x: { grid: { display: false } } } 
+            labels: modes.map(m=>m.m),
+            datasets: [{ label: 'Amount', data: modes.map(m=>m.t), backgroundColor: ['#10b981', '#3b82f6', '#f59e0b'] }]
         }
     });
 </script>
-<style>.bg-gradient-primary { background: linear-gradient(135deg, #1e1b4b, #4f46e5); }</style>
 {% endblock %}
