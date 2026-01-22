@@ -1,4 +1,5 @@
 {% extends 'admin_master.html' %}
+
 {% block title %}Expense Dashboard{% endblock %}
 
 {% block page_content %}
@@ -6,6 +7,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <div class="container-fluid py-4 fade-in-up">
+    
     <!-- Header -->
     <div class="d-flex justify-content-between align-items-center mb-5">
         <div>
@@ -13,71 +15,121 @@
             <p class="text-muted small">Real-time expense analytics.</p>
         </div>
         <div class="d-flex gap-2">
+            <!-- New Button for Advanced Analytics -->
             <a href="{{ url_for('expense_analytics') }}" class="btn btn-outline-primary rounded-pill px-4 shadow-sm fw-bold">
                 <i class="fas fa-magic me-2"></i> AI Forecast
+            </a>
+            <a href="{{ url_for('expenses_list') }}" class="btn btn-primary rounded-pill px-4 shadow-sm fw-bold">
+                <i class="fas fa-list me-2"></i> All Expenses
             </a>
         </div>
     </div>
 
-    <!-- KPI Cards -->
+    <!-- 1. KPI Cards (Glassmorphism) -->
     <div class="row g-4 mb-5">
-        <div class="col-md-4">
+        <div class="col-md-3">
             <div class="glass-card p-4 position-relative overflow-hidden bg-primary bg-opacity-10 h-100">
                 <h6 class="text-uppercase text-primary fw-bold small">This Month</h6>
-                <h2 class="fw-bold mb-0 text-dark">₹ {{ "{:,.0f}".format(this_month) }}</h2>
+                <h2 class="fw-bold mb-0 text-dark">₹ {{ "{:,.0f}".format(kpi_data.this_month) }}</h2>
+                <i class="fas fa-calendar-alt position-absolute end-0 bottom-0 display-1 text-primary opacity-10 me-n3 mb-n3"></i>
             </div>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-3">
+            <div class="glass-card p-4 position-relative overflow-hidden bg-secondary bg-opacity-10 h-100">
+                <h6 class="text-uppercase text-secondary fw-bold small">Last Month</h6>
+                <h2 class="fw-bold mb-0 text-dark">₹ {{ "{:,.0f}".format(kpi_data.last_month) }}</h2>
+                <i class="fas fa-history position-absolute end-0 bottom-0 display-1 text-secondary opacity-10 me-n3 mb-n3"></i>
+            </div>
+        </div>
+        <div class="col-md-3">
             <div class="glass-card p-4 position-relative overflow-hidden bg-success bg-opacity-10 h-100">
-                <h6 class="text-uppercase text-success fw-bold small">Cash Hand</h6>
-                <h2 class="fw-bold mb-0 text-dark">₹ {{ "{:,.0f}".format(fin_status.cash_balance) }}</h2>
+                <h6 class="text-uppercase text-success fw-bold small">YTD Spend</h6>
+                <h2 class="fw-bold mb-0 text-dark">₹ {{ "{:,.0f}".format(kpi_data.ytd_spend) }}</h2>
+                <i class="fas fa-calendar-check position-absolute end-0 bottom-0 display-1 text-success opacity-10 me-n3 mb-n3"></i>
             </div>
         </div>
-        <div class="col-md-4">
-            <div class="glass-card p-4 position-relative overflow-hidden bg-info bg-opacity-10 h-100">
-                <h6 class="text-uppercase text-info fw-bold small">Bank Balance</h6>
-                <h2 class="fw-bold mb-0 text-dark">₹ {{ "{:,.0f}".format(fin_status.bank_balance) }}</h2>
+        <div class="col-md-3">
+            <div class="glass-card p-4 position-relative overflow-hidden bg-danger bg-opacity-10 h-100">
+                <h6 class="text-uppercase text-danger fw-bold small">Top Category</h6>
+                <h5 class="fw-bold mb-0 text-dark">{{ kpi_data.top_category_name }}</h5>
+                <small class="text-muted">₹ {{ "{:,.0f}".format(kpi_data.top_category_amount) }}</small>
+                <i class="fas fa-exclamation-triangle position-absolute end-0 bottom-0 display-1 text-danger opacity-10 me-n3 mb-n3"></i>
             </div>
         </div>
     </div>
 
-    <!-- Charts -->
+    <!-- 2. Charts Row -->
     <div class="row g-4">
+        <!-- Monthly Trend (Line/Bar) -->
         <div class="col-lg-8">
-            <div class="glass-card border-0 shadow-lg h-100 p-4">
-                <h5 class="fw-bold mb-4">Spending Trend</h5>
-                <div style="height: 350px;"><canvas id="trendChart"></canvas></div>
+            <div class="card glass-card border-0 shadow-lg h-100">
+                <div class="card-header bg-white border-0 pt-4 px-4">
+                    <h5 class="fw-bold mb-0">Monthly Spending Trend</h5>
+                </div>
+                <div class="card-body">
+                    <div style="height: 350px;">
+                        <canvas id="trendChart"></canvas>
+                    </div>
+                </div>
             </div>
         </div>
+
+        <!-- Category Distribution (Doughnut) -->
         <div class="col-lg-4">
-            <div class="glass-card border-0 shadow-lg h-100 p-4">
-                <h5 class="fw-bold mb-4">Categories</h5>
-                <div style="height: 300px;"><canvas id="catChart"></canvas></div>
+            <div class="card glass-card border-0 shadow-lg h-100">
+                <div class="card-header bg-white border-0 pt-4 px-4">
+                    <h5 class="fw-bold mb-0">Top Categories</h5>
+                </div>
+                <div class="card-body d-flex align-items-center justify-content-center">
+                    <div style="height: 300px; width: 100%;">
+                        <canvas id="catChart"></canvas>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
+
 </div>
 
 <script>
+    // Data from Flask
     const trendData = {{ monthly_data | tojson }};
     const catData = {{ category_data | tojson }};
 
+    // Trend Chart
     new Chart(document.getElementById('trendChart'), {
         type: 'line',
         data: {
             labels: trendData.labels,
-            datasets: [{ label: 'Expense', data: trendData.data, borderColor: '#4f46e5', backgroundColor: 'rgba(79, 70, 229, 0.1)', fill: true, tension: 0.4 }]
+            datasets: [{
+                label: 'Expense Amount',
+                data: trendData.data,
+                borderColor: '#4f46e5',
+                backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                fill: true,
+                tension: 0.4
+            }]
         },
         options: { responsive: true, maintainAspectRatio: false }
     });
 
+    // Category Chart
     new Chart(document.getElementById('catChart'), {
         type: 'doughnut',
         data: {
             labels: catData.labels,
-            datasets: [{ data: catData.data, backgroundColor: ['#4f46e5', '#ec4899', '#f59e0b', '#10b981', '#3b82f6'], borderWidth: 0 }]
+            datasets: [{
+                data: catData.data,
+                backgroundColor: ['#6366f1', '#ec4899', '#f59e0b', '#10b981', '#3b82f6'],
+                borderWidth: 0
+            }]
         },
-        options: { responsive: true, maintainAspectRatio: false, cutout: '65%' }
+        options: { 
+            responsive: true, 
+            maintainAspectRatio: false,
+            plugins: { legend: { position: 'bottom' } },
+            cutout: '65%'
+        }
     });
 </script>
 {% endblock %}
