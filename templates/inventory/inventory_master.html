@@ -114,6 +114,10 @@
         font-weight: 600;
         border-radius: 6px;
     }
+    .badge-soft-success { background-color: rgba(28, 200, 138, 0.15); color: var(--success-color); }
+    .badge-soft-danger { background-color: rgba(231, 74, 59, 0.15); color: var(--danger-color); }
+    .badge-soft-warning { background-color: rgba(246, 194, 62, 0.15); color: #b78d05; }
+    .badge-soft-primary { background-color: rgba(78, 115, 223, 0.15); color: var(--primary-color); }
     .badge-soft-secondary { background-color: rgba(133, 135, 150, 0.15); color: var(--secondary-color); }
 
     /* Buttons */
@@ -200,7 +204,7 @@
         </div>
     </div>
 
-    <!-- Stats Row -->
+    <!-- Stats Row (4 Cards) -->
     <div class="row g-3 mb-4">
         <!-- 1. Total Value -->
         <div class="col-xl-3 col-md-6">
@@ -369,7 +373,6 @@
                         </td>
 
                         <!-- TOTAL HEALTH COLUMN (Boxed Logic) -->
-                        <!-- If low stock: Red Box, White Bold Text. If good: Green Box, White Bold Text. -->
                         {% if p.total_stock <= threshold %}
                             <td class="text-center bg-danger text-white fw-bold">
                                 Low: {{ p.total_stock }}
@@ -396,8 +399,8 @@
                                     <i class="fa-solid fa-sliders"></i>
                                 </button>
 
-                                <!-- History -->
-                                <a href="{{ url_for('product_history', id=p.id) }}" class="btn btn-icon text-info" data-bs-toggle="tooltip" title="View History">
+                                <!-- History (FIXED: product_id parameter) -->
+                                <a href="{{ url_for('product_history', product_id=p.id) }}" class="btn btn-icon text-info" data-bs-toggle="tooltip" title="View History">
                                     <i class="fa-solid fa-clock-rotate-left"></i>
                                 </a>
 
@@ -426,7 +429,7 @@
     </div>
 </div>
 
-<!-- MODALS SECTION (Moved outside the table to fix Z-Index issues) -->
+<!-- MODALS SECTION (Outside table to fix layering) -->
 {% for p in products %}
 <div class="modal fade" id="adjustStockModal{{p.id}}" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
