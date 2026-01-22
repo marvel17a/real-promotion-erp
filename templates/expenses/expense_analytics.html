@@ -2,111 +2,55 @@
 
 {% block page_content %}
 <div class="container-fluid py-4 fade-in-up">
-    
-    <div class="d-flex justify-content-between align-items-center mb-5">
-        <div>
-            <h2 class="fw-bold text-dark mb-0">AI Forecast & Analytics</h2>
-            <p class="text-muted small">Predictive insights to optimize spending.</p>
-        </div>
-        <a href="{{ url_for('expense_dash') }}" class="btn btn-light border shadow-sm rounded-pill px-4">
-            <i class="fas fa-arrow-left me-2"></i> Back to Dashboard
-        </a>
+    <div class="d-flex justify-content-between mb-5">
+        <h2 class="fw-bold">Analytics & Forecast</h2>
+        <a href="{{ url_for('expense_dash') }}" class="btn btn-light rounded-pill">Back</a>
     </div>
 
-    <!-- 1. AI PREDICTION CARD -->
-    <div class="row g-4 mb-5">
-        <div class="col-md-12">
-            <div class="card border-0 shadow-lg rounded-4 overflow-hidden" style="background: linear-gradient(135deg, #1e1b4b, #312e81);">
-                <div class="card-body p-5 text-white position-relative">
-                    <div class="row align-items-center position-relative z-1">
-                        <div class="col-md-8">
-                            <h5 class="text-white-50 text-uppercase fw-bold ls-1 mb-2">Predicted Spend (Next Month)</h5>
-                            <h1 class="display-3 fw-bold mb-2">₹ {{ "{:,.0f}".format(predicted_spend) }}</h1>
-                            <p class="mb-0 text-white-50">
-                                This forecast is based on a moving average of your last 3 months.
-                                <span class="text-warning fw-bold ms-2"><i class="fa-solid fa-triangle-exclamation"></i> Budget Accordingly</span>
-                            </p>
-                        </div>
-                        <div class="col-md-4 text-end d-none d-md-block">
-                            <i class="fa-solid fa-robot display-1 opacity-25"></i>
-                        </div>
-                    </div>
-                    <!-- Decor -->
-                    <div class="position-absolute top-0 end-0 bg-white opacity-10 rounded-circle" style="width: 300px; height: 300px; transform: translate(30%, -30%);"></div>
-                </div>
-            </div>
+    <div class="card bg-gradient-primary text-white border-0 shadow-lg rounded-4 mb-5">
+        <div class="card-body p-5 position-relative overflow-hidden">
+            <h5 class="text-white-50 text-uppercase fw-bold ls-1">AI Predicted Spend (Next Month)</h5>
+            <h1 class="display-3 fw-bold mb-0">₹ {{ "{:,.0f}".format(predicted_spend) }}</h1>
+            <i class="fas fa-robot position-absolute end-0 top-50 translate-middle-y display-1 opacity-10 me-5"></i>
         </div>
     </div>
 
-    <!-- 2. ANALYTICS ROW -->
     <div class="row g-4">
-        
-        <!-- Day of Week Analysis -->
         <div class="col-md-6">
-            <div class="glass-card p-4 h-100 shadow-sm border-0 rounded-4">
-                <h5 class="fw-bold mb-1">Spending Heatmap</h5>
-                <p class="text-muted small mb-4">Which days are most expensive?</p>
-                <div style="height: 300px;">
-                    <canvas id="dowChart"></canvas>
-                </div>
+            <div class="card border-0 shadow-sm p-4 h-100">
+                <h5 class="fw-bold mb-4">Spending Heatmap (Day)</h5>
+                <div style="height:300px"><canvas id="dowChart"></canvas></div>
             </div>
         </div>
-
-        <!-- Payment Mode Analysis -->
         <div class="col-md-6">
-             <div class="glass-card p-4 h-100 shadow-sm border-0 rounded-4">
-                <h5 class="fw-bold mb-1">Payment Modes</h5>
-                <p class="text-muted small mb-4">Cash vs Digital Usage</p>
-                <div style="height: 300px;">
-                    <canvas id="payModeChart"></canvas>
-                </div>
+            <div class="card border-0 shadow-sm p-4 h-100">
+                <h5 class="fw-bold mb-4">Payment Modes</h5>
+                <div style="height:300px"><canvas id="modeChart"></canvas></div>
             </div>
         </div>
-
     </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    // Day of Week Data
-    const dowLabels = {{ dow_data | map(attribute='day_name') | list | tojson }};
-    const dowValues = {{ dow_data | map(attribute='total') | list | tojson }};
+    const dow = {{ dow_data | tojson }};
+    const mode = {{ mode_data | tojson }};
 
     new Chart(document.getElementById('dowChart'), {
         type: 'radar',
         data: {
-            labels: dowLabels,
-            datasets: [{
-                label: 'Spending Intensity',
-                data: dowValues,
-                backgroundColor: 'rgba(79, 70, 229, 0.2)',
-                borderColor: '#4f46e5',
-                pointBackgroundColor: '#4f46e5'
-            }]
-        },
-        options: { responsive: true, maintainAspectRatio: false }
+            labels: dow.map(d=>d.day),
+            datasets: [{ label: 'Spend', data: dow.map(d=>d.total), backgroundColor: 'rgba(99,102,241,0.2)', borderColor: '#6366f1' }]
+        }
     });
 
-    // Payment Mode Data
-    const payLabels = {{ payment_mode_data | map(attribute='payment_method') | list | tojson }};
-    const payValues = {{ payment_mode_data | map(attribute='total') | list | tojson }};
-
-    new Chart(document.getElementById('payModeChart'), {
+    new Chart(document.getElementById('modeChart'), {
         type: 'bar',
         data: {
-            labels: payLabels,
-            datasets: [{
-                label: 'Total Amount',
-                data: payValues,
-                backgroundColor: ['#10b981', '#3b82f6', '#f59e0b'],
-                borderRadius: 4
-            }]
-        },
-        options: { 
-            responsive: true, 
-            maintainAspectRatio: false,
-            scales: { y: { beginAtZero: true }, x: { grid: { display: false } } }
+            labels: mode.map(m=>m.payment_method),
+            datasets: [{ label: 'Amount', data: mode.map(m=>m.total), backgroundColor: ['#10b981', '#3b82f6', '#f59e0b'] }]
         }
     });
 </script>
+<style>.bg-gradient-primary { background: linear-gradient(135deg, #1e1b4b, #4f46e5); }</style>
 {% endblock %}
