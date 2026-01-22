@@ -105,31 +105,6 @@ def parse_date_input(date_str):
 
 
 
-# ==========================================
-# SOFT DELETE PRODUCT (Safe Delete)
-# ==========================================
-
-@app.route('/delete_product_soft/<int:id>', methods=['POST'])
-def delete_product_soft(id):
-    if "loggedin" not in session:
-        return redirect(url_for("login"))
-
-    try:
-        cur = mysql.connection.cursor()
-        
-        # 1. Update status to Inactive instead of DELETE
-        cur.execute("UPDATE products SET status = 'Inactive' WHERE id = %s", (id,))
-        
-        mysql.connection.commit()
-        cur.close()
-        
-        flash('Product archived successfully! It is now hidden from lists.', 'success')
-        
-    except Exception as e:
-        flash(f'Error archiving product: {str(e)}', 'danger')
-        
-    # Redirect back to where the user came from (Master or Main Inventory)
-    return redirect(request.referrer or url_for('inventory_master'))
 
 
 
@@ -7283,6 +7258,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
