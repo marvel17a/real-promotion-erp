@@ -1,135 +1,118 @@
 {% extends 'admin_master.html' %}
-
-{% block title %}Expense Dashboard{% endblock %}
-
 {% block page_content %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/expenses.css') }}">
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
 <div class="container-fluid py-4 fade-in-up">
-    
     <!-- Header -->
     <div class="d-flex justify-content-between align-items-center mb-5">
         <div>
-            <h2 class="fw-bold text-dark mb-0">Financial Overview</h2>
-            <p class="text-muted small">Real-time expense analytics.</p>
+            <h2 class="fw-bold text-dark mb-0">Financial Command Center</h2>
+            <p class="text-muted small">Real-time expense oversight</p>
         </div>
         <div class="d-flex gap-2">
-            <!-- New Button for Advanced Analytics -->
-            <a href="{{ url_for('expense_analytics') }}" class="btn btn-outline-primary rounded-pill px-4 shadow-sm fw-bold">
-                <i class="fas fa-magic me-2"></i> AI Forecast
+            <a href="{{ url_for('expense_analytics') }}" class="btn btn-dark rounded-pill px-4">
+                <i class="fas fa-chart-line me-2"></i> Forecast AI
             </a>
-            <a href="{{ url_for('expenses_list') }}" class="btn btn-primary rounded-pill px-4 shadow-sm fw-bold">
-                <i class="fas fa-list me-2"></i> All Expenses
+            <a href="{{ url_for('add_expense') }}" class="btn btn-primary rounded-pill px-4 shadow-sm">
+                <i class="fas fa-plus me-2"></i> New Voucher
             </a>
         </div>
     </div>
 
-    <!-- 1. KPI Cards (Glassmorphism) -->
+    <!-- Live Balance Row -->
     <div class="row g-4 mb-5">
-        <div class="col-md-3">
-            <div class="glass-card p-4 position-relative overflow-hidden bg-primary bg-opacity-10 h-100">
-                <h6 class="text-uppercase text-primary fw-bold small">This Month</h6>
-                <h2 class="fw-bold mb-0 text-dark">₹ {{ "{:,.0f}".format(kpi_data.this_month) }}</h2>
-                <i class="fas fa-calendar-alt position-absolute end-0 bottom-0 display-1 text-primary opacity-10 me-n3 mb-n3"></i>
+        <div class="col-md-6">
+            <div class="card border-0 shadow-lg rounded-4 overflow-hidden text-white" style="background: linear-gradient(135deg, #0f172a 0%, #334155 100%);">
+                <div class="card-body p-5 position-relative">
+                    <h6 class="text-white-50 text-uppercase fw-bold ls-1 mb-2">Net Cash Hand</h6>
+                    <h1 class="display-3 fw-bold mb-0">₹ {{ "{:,.0f}".format(fin.cash_balance) }}</h1>
+                    <i class="fas fa-wallet position-absolute end-0 top-50 translate-middle-y display-1 opacity-10 me-5"></i>
+                </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="glass-card p-4 position-relative overflow-hidden bg-secondary bg-opacity-10 h-100">
-                <h6 class="text-uppercase text-secondary fw-bold small">Last Month</h6>
-                <h2 class="fw-bold mb-0 text-dark">₹ {{ "{:,.0f}".format(kpi_data.last_month) }}</h2>
-                <i class="fas fa-history position-absolute end-0 bottom-0 display-1 text-secondary opacity-10 me-n3 mb-n3"></i>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="glass-card p-4 position-relative overflow-hidden bg-success bg-opacity-10 h-100">
-                <h6 class="text-uppercase text-success fw-bold small">YTD Spend</h6>
-                <h2 class="fw-bold mb-0 text-dark">₹ {{ "{:,.0f}".format(kpi_data.ytd_spend) }}</h2>
-                <i class="fas fa-calendar-check position-absolute end-0 bottom-0 display-1 text-success opacity-10 me-n3 mb-n3"></i>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="glass-card p-4 position-relative overflow-hidden bg-danger bg-opacity-10 h-100">
-                <h6 class="text-uppercase text-danger fw-bold small">Top Category</h6>
-                <h5 class="fw-bold mb-0 text-dark">{{ kpi_data.top_category_name }}</h5>
-                <small class="text-muted">₹ {{ "{:,.0f}".format(kpi_data.top_category_amount) }}</small>
-                <i class="fas fa-exclamation-triangle position-absolute end-0 bottom-0 display-1 text-danger opacity-10 me-n3 mb-n3"></i>
+        <div class="col-md-6">
+            <div class="card border-0 shadow-lg rounded-4 overflow-hidden bg-white">
+                <div class="card-body p-5 position-relative">
+                    <h6 class="text-muted text-uppercase fw-bold ls-1 mb-2">Bank Liquidity</h6>
+                    <h1 class="display-3 fw-bold mb-0 text-primary">₹ {{ "{:,.0f}".format(fin.bank_balance) }}</h1>
+                    <i class="fas fa-building-columns position-absolute end-0 top-50 translate-middle-y display-1 text-primary opacity-10 me-5"></i>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- 2. Charts Row -->
+    <!-- Main Content Grid -->
     <div class="row g-4">
-        <!-- Monthly Trend (Line/Bar) -->
+        <!-- Left: Stats & Trend -->
         <div class="col-lg-8">
-            <div class="card glass-card border-0 shadow-lg h-100">
-                <div class="card-header bg-white border-0 pt-4 px-4">
-                    <h5 class="fw-bold mb-0">Monthly Spending Trend</h5>
+            <div class="row g-4 mb-4">
+                <div class="col-md-4">
+                    <div class="card border-0 shadow-sm p-4 h-100 rounded-4 bg-primary bg-opacity-10">
+                        <small class="text-primary fw-bold text-uppercase">This Month</small>
+                        <h3 class="fw-bold mb-0 mt-2">₹ {{ "{:,.0f}".format(stats.this_month or 0) }}</h3>
+                    </div>
                 </div>
-                <div class="card-body">
-                    <div style="height: 350px;">
-                        <canvas id="trendChart"></canvas>
+                <div class="col-md-4">
+                    <div class="card border-0 shadow-sm p-4 h-100 rounded-4 bg-secondary bg-opacity-10">
+                        <small class="text-secondary fw-bold text-uppercase">Last Month</small>
+                        <h3 class="fw-bold mb-0 mt-2">₹ {{ "{:,.0f}".format(stats.last_month or 0) }}</h3>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card border-0 shadow-sm p-4 h-100 rounded-4 bg-danger bg-opacity-10">
+                        <small class="text-danger fw-bold text-uppercase">Net Profit (Est)</small>
+                        <h3 class="fw-bold mb-0 mt-2">₹ {{ "{:,.0f}".format(fin.net_profit) }}</h3>
                     </div>
                 </div>
             </div>
+            
+            <div class="card border-0 shadow-sm rounded-4 p-4">
+                <h5 class="fw-bold mb-4">Spending Velocity</h5>
+                <div style="height: 300px;"><canvas id="mainChart"></canvas></div>
+            </div>
         </div>
 
-        <!-- Category Distribution (Doughnut) -->
+        <!-- Right: Recent Vouchers -->
         <div class="col-lg-4">
-            <div class="card glass-card border-0 shadow-lg h-100">
-                <div class="card-header bg-white border-0 pt-4 px-4">
-                    <h5 class="fw-bold mb-0">Top Categories</h5>
+            <div class="card border-0 shadow-sm rounded-4 h-100">
+                <div class="card-header bg-white border-0 pt-4 px-4 pb-0 d-flex justify-content-between">
+                    <h5 class="fw-bold mb-0">Recent Vouchers</h5>
+                    <a href="{{ url_for('expenses_list') }}" class="small text-decoration-none">View All</a>
                 </div>
-                <div class="card-body d-flex align-items-center justify-content-center">
-                    <div style="height: 300px; width: 100%;">
-                        <canvas id="catChart"></canvas>
+                <div class="card-body px-0">
+                    <div class="list-group list-group-flush">
+                        {% for e in recent %}
+                        <div class="list-group-item border-0 px-4 py-3">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <span class="fw-bold text-dark">₹ {{ "{:,.2f}".format(e.total_amount) }}</span>
+                                <small class="text-muted">{{ e.expense_date }}</small>
+                            </div>
+                            <div class="small text-muted text-truncate">{{ e.items }}</div>
+                            <span class="badge bg-light text-dark mt-2">{{ e.payment_method }}</span>
+                        </div>
+                        {% endfor %}
                     </div>
                 </div>
             </div>
         </div>
     </div>
-
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    // Data from Flask
-    const trendData = {{ monthly_data | tojson }};
-    const catData = {{ category_data | tojson }};
-
-    // Trend Chart
-    new Chart(document.getElementById('trendChart'), {
+    const ctx = document.getElementById('mainChart').getContext('2d');
+    new Chart(ctx, {
         type: 'line',
         data: {
-            labels: trendData.labels,
+            labels: {{ trend_labels | tojson }},
             datasets: [{
-                label: 'Expense Amount',
-                data: trendData.data,
-                borderColor: '#4f46e5',
-                backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                label: 'Expense Trend',
+                data: {{ trend_values | tojson }},
+                borderColor: '#1e293b',
+                backgroundColor: 'rgba(30, 41, 59, 0.05)',
                 fill: true,
                 tension: 0.4
             }]
         },
-        options: { responsive: true, maintainAspectRatio: false }
-    });
-
-    // Category Chart
-    new Chart(document.getElementById('catChart'), {
-        type: 'doughnut',
-        data: {
-            labels: catData.labels,
-            datasets: [{
-                data: catData.data,
-                backgroundColor: ['#6366f1', '#ec4899', '#f59e0b', '#10b981', '#3b82f6'],
-                borderWidth: 0
-            }]
-        },
-        options: { 
-            responsive: true, 
-            maintainAspectRatio: false,
-            plugins: { legend: { position: 'bottom' } },
-            cutout: '65%'
-        }
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
     });
 </script>
 {% endblock %}
