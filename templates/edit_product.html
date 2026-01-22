@@ -30,7 +30,7 @@
                         <option value="">-- Select Category --</option>
                         {% for cat in categories %}
                             <option value="{{ cat.id }}" {% if product.category_id == cat.id %}selected{% endif %}>
-                                {{ cat.category_name }}
+                                {{ cat.name }}
                             </option>
                         {% endfor %}
                     </select>
@@ -44,7 +44,7 @@
                            value="{{ product.price }}" required>
                 </div>
 
-                <!-- STOCK -->
+                <!-- STOCK (Existing Field Restored) -->
                 <div class="col-md-4">
                     <label class="form-label fw-bold">Stock</label>
                     <input type="number" name="stock" class="form-control"
