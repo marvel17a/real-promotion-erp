@@ -1,22 +1,24 @@
 {% extends 'admin_master.html' %}
+
 {% block page_content %}
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
 <div class="container-fluid py-4 fade-in-up">
+    
     <div class="row justify-content-center">
         <div class="col-lg-10">
-            <!-- Balance Check -->
+            <!-- Balances -->
             <div class="row mb-4 g-3">
-                <div class="col-6">
+                <div class="col-md-6">
                     <div class="card border-0 shadow-sm p-3 bg-gradient-primary text-white rounded-4">
-                        <small class="text-white-50 fw-bold">CASH HAND</small>
+                        <small class="text-white-50 fw-bold text-uppercase">Cash Hand</small>
                         <h3 class="fw-bold mb-0">₹ {{ "{:,.2f}".format(fin_status.cash_balance) }}</h3>
                     </div>
                 </div>
-                <div class="col-6">
+                <div class="col-md-6">
                     <div class="card border-0 shadow-sm p-3 bg-white text-dark rounded-4">
-                        <small class="text-muted fw-bold">BANK BALANCE</small>
+                        <small class="text-muted fw-bold text-uppercase">Bank Balance</small>
                         <h3 class="fw-bold mb-0 text-primary">₹ {{ "{:,.2f}".format(fin_status.bank_balance) }}</h3>
                     </div>
                 </div>
@@ -27,12 +29,20 @@
                     <div class="card-header bg-white border-0 p-4">
                         <h4 class="fw-bold mb-0">New Expense Voucher</h4>
                     </div>
+                    
                     <div class="card-body p-4 bg-light bg-opacity-25">
+                        <!-- Header -->
                         <div class="row g-3 mb-4">
-                            <div class="col-md-4"><label>Date</label><input type="text" name="expense_date" class="form-control flatpickr" value="{{ today }}" required></div>
-                            <div class="col-md-4"><label>Time</label><input type="time" name="expense_time" class="form-control" value="{{ time }}" required></div>
                             <div class="col-md-4">
-                                <label>Source</label>
+                                <label class="small fw-bold text-muted">Date</label>
+                                <input type="text" name="expense_date" class="form-control flatpickr" value="{{ today_date }}" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="small fw-bold text-muted">Time</label>
+                                <input type="time" name="expense_time" class="form-control" value="{{ now_time }}" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="small fw-bold text-muted">Pay From</label>
                                 <select name="payment_method" class="form-select" required>
                                     <option value="Cash">Cash</option>
                                     <option value="Online">Online / UPI</option>
@@ -41,14 +51,26 @@
                             </div>
                         </div>
 
+                        <!-- Items -->
                         <div class="table-responsive bg-white rounded-3 p-3 shadow-sm">
                             <table class="table align-middle" id="itemsTable">
-                                <thead class="small text-muted text-uppercase"><tr><th style="width:25%">Category</th><th style="width:25%">Item</th><th>Description</th><th style="width:15%">Amount</th><th></th></tr></thead>
+                                <thead class="small text-uppercase text-muted">
+                                    <tr>
+                                        <th style="width:25%">Category</th>
+                                        <th style="width:25%">Item</th>
+                                        <th style="width:30%">Description</th>
+                                        <th style="width:15%">Amount</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
                                 <tbody id="itemsBody"></tbody>
                             </table>
-                            <button type="button" class="btn btn-light w-100 fw-bold text-primary" onclick="addRow()"><i class="fas fa-plus me-1"></i> Add Item</button>
+                            <button type="button" class="btn btn-light w-100 fw-bold text-primary" onclick="addRow()">
+                                <i class="fas fa-plus me-1"></i> Add Item
+                            </button>
                         </div>
                     </div>
+
                     <div class="card-footer bg-white border-0 p-4 text-end">
                         <h5 class="d-inline-block me-4">Total: <span id="grandTotal" class="fw-bold">₹ 0.00</span></h5>
                         <button type="submit" class="btn btn-primary px-5 rounded-pill shadow-sm fw-bold">Save</button>
@@ -62,30 +84,43 @@
 <script>
     const categories = {{ categories | tojson }};
     const subcategories = {{ subcategories | tojson }};
+
     function addRow() {
         const rowId = Date.now();
         let catOpts = '<option value="" disabled selected>Select</option>';
         categories.forEach(c => catOpts += `<option value="${c.category_id}">${c.category_name}</option>`);
+
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td><select name="category_id[]" class="form-select border-0 bg-light" onchange="updSub(this, ${rowId})" required>${catOpts}</select></td>
+        tr.innerHTML = `
+            <td><select name="category_id[]" class="form-select border-0 bg-light" onchange="updSub(this, ${rowId})" required>${catOpts}</select></td>
             <td><select name="subcategory_id[]" id="sub_${rowId}" class="form-select border-0 bg-light" required><option disabled selected>--</option></select></td>
             <td><input type="text" name="description[]" class="form-control border-0 bg-light" placeholder="Note"></td>
             <td><input type="number" name="amount[]" class="form-control border-0 bg-light fw-bold text-end amt" step="0.01" oninput="calc()" required></td>
-            <td><button type="button" class="btn btn-sm text-danger" onclick="this.closest('tr').remove(); calc();"><i class="fas fa-times"></i></button></td>`;
+            <td><button type="button" class="btn btn-sm text-danger" onclick="this.closest('tr').remove(); calc();"><i class="fas fa-times"></i></button></td>
+        `;
         document.getElementById('itemsBody').appendChild(tr);
     }
+
     function updSub(el, id) {
         const subs = subcategories.filter(s => s.category_id == el.value);
         let h = '<option disabled selected>--</option>';
         subs.forEach(s => h += `<option value="${s.subcategory_id}">${s.subcategory_name}</option>`);
         document.getElementById(`sub_${id}`).innerHTML = h;
     }
+
     function calc() {
         let t = 0;
         document.querySelectorAll('.amt').forEach(i => t += parseFloat(i.value) || 0);
         document.getElementById('grandTotal').innerText = "₹ " + t.toFixed(2);
     }
-    document.addEventListener('DOMContentLoaded', () => { flatpickr(".flatpickr", {dateFormat: "Y-m-d"}); addRow(); });
+
+    document.addEventListener('DOMContentLoaded', () => {
+        flatpickr(".flatpickr", {dateFormat: "Y-m-d"});
+        addRow();
+    });
 </script>
-<style>.bg-gradient-primary { background: linear-gradient(135deg, #4f46e5, #3b82f6); } .glass-card { background: #fff; border-radius: 12px; }</style>
+<style>
+    .bg-gradient-primary { background: linear-gradient(135deg, #4f46e5, #3b82f6); }
+    .glass-card { background: #fff; border-radius: 12px; }
+</style>
 {% endblock %}
