@@ -2638,62 +2638,61 @@ def add_product():
 
     return render_template("add_product.html", categories=categories)
 
+# Paste this REPLACE your existing 'edit_product' function in app.py
+
 @app.route('/edit_product/<int:product_id>', methods=['GET', 'POST'])
 def edit_product(product_id):
-    if 'loggedin' not in session:
+    if 'user_id' not in session:
         return redirect(url_for('login'))
 
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
+    # 1. Fetch Existing Product
+    cursor.execute("SELECT * FROM products WHERE id = %s", (product_id,))
+    product = cursor.fetchone()
+
+    if not product:
+        flash("Product not found!", "danger")
+        return redirect(url_for('inventory'))
+
+    # 2. Handle Form Submission (POST)
     if request.method == 'POST':
-        name = request.form.get('name')
-        price = float(request.form.get('price') or 0)
-        stock = int(request.form.get('stock') or 0)
-        category_id = request.form.get('category_id') or None
-        if category_id == "":
-            category_id = None
-        low_stock_threshold = int(request.form.get('low_stock_threshold') or 10)
+        name = request.form['name']
+        category_id = request.form['category_id']
+        price = request.form['price']
+        
+        # --- CHANGES: Capture Stock and Low Stock Threshold ---
+        stock = request.form['stock'] 
+        low_stock = request.form['low_stock_threshold'] # Matches name="low_stock_threshold" in HTML
+        # ----------------------------------------------------
 
-        # Optional image replacement
-        if 'image' in request.files and request.files['image'].filename:
-            image = request.files['image']
-            upload_res = cloudinary.uploader.upload(image, folder="erp_products")
-            image_url = upload_res.get("secure_url") or upload_res.get("url")
+        # Handle Image Upload
+        image_url = product['image']
+        if 'image' in request.files:
+            file = request.files['image']
+            if file and file.filename != '':
+                upload_result = cloudinary.uploader.upload(file)
+                image_url = upload_result['secure_url']
 
-            cursor.execute("""
-                UPDATE products
-                SET name=%s, price=%s, stock=%s,
-                    category_id=%s, low_stock_threshold=%s, image=%s
-                WHERE id=%s
-            """, (name,price, stock, category_id, low_stock_threshold, image_url, product_id))
-        else:
-            cursor.execute("""
-                UPDATE products
-                SET name=%s, price=%s, stock=%s,
-                    category_id=%s, low_stock_threshold=%s
-                WHERE id=%s
-            """, (name, price, stock, category_id, low_stock_threshold, product_id))
-
+        # 3. Update Database (Added stock and low_stock_threshold to query)
+        cursor.execute("""
+            UPDATE products 
+            SET name=%s, category_id=%s, price=%s, stock=%s, low_stock_threshold=%s, image=%s 
+            WHERE id=%s
+        """, (name, category_id, price, stock, low_stock, image_url, product_id))
+        
         mysql.connection.commit()
         cursor.close()
 
         flash("Product updated successfully!", "success")
-        return redirect(url_for("inventory"))
+        return redirect(url_for('inventory'))
 
-    # GET: Product + categories
-    cursor.execute("SELECT * FROM products WHERE id=%s", (product_id,))
-    product = cursor.fetchone()
-
-    cursor.execute("SELECT id, category_name FROM product_categories ORDER BY category_name ASC")
+    # 3. Handle Page Load (GET)
+    cursor.execute("SELECT * FROM categories")
     categories = cursor.fetchall()
-
     cursor.close()
 
-    if not product:
-        flash("Product not found!", "danger")
-        return redirect(url_for("inventory"))
-
-    return render_template("edit_product.html", product=product, categories=categories)
+    return render_template('edit_product.html', product=product, categories=categories)
 
 # ==========================================
 # SOFT DELETE PRODUCT (Safe Delete)
@@ -7349,6 +7348,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
