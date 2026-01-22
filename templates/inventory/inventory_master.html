@@ -74,16 +74,19 @@
         border-collapse: separate;
         border-spacing: 0;
     }
+    
+    /* MODIFIED: Header Styling for BOLD TEXT */
     .table thead th {
         background-color: #f1f3f9;
-        color: #6e707e;
-        font-weight: 700;
+        color: #2c3e50; /* Darker Text */
+        font-weight: 800 !important; /* Extra Bold */
         text-transform: uppercase;
-        font-size: 0.75rem;
+        font-size: 0.8rem;
         letter-spacing: 0.05em;
-        border-bottom: 1px solid var(--border-color);
+        border-bottom: 2px solid #d1d3e2; /* Thicker border */
         padding: 1.2rem 1rem;
     }
+    
     .table tbody td {
         vertical-align: middle;
         padding: 1rem;
@@ -319,7 +322,6 @@
                         <th>Category</th>
                         <th class="text-center" style="background: #fdfdfe;">Warehouse</th>
                         <th class="text-center" style="background: #f0f9ff;">Allocated</th>
-                        <!-- Centered Header -->
                         <th class="text-center">Total Health</th>
                         <th class="text-end">Price</th>
                         <th class="text-end pe-4">Action</th>
@@ -330,8 +332,9 @@
                     
                     {% set threshold = p.low_stock_threshold if p.low_stock_threshold is not none else 10 %}
                     
+                    <!-- UPDATED: Use |lower filter for search attribute -->
                     <tr class="product-row transition-base" 
-                        data-name="{{ p.name.lower() }}" 
+                        data-name="{{ p.name|lower }}" 
                         data-category="{{ p.category_name or 'Uncategorized' }}">
                         
                         <td class="ps-4">
@@ -399,7 +402,7 @@
                                     <i class="fa-solid fa-sliders"></i>
                                 </button>
 
-                                <!-- History (FIXED: product_id parameter) -->
+                                <!-- History (Fixed URL parameter) -->
                                 <a href="{{ url_for('product_history', product_id=p.id) }}" class="btn btn-icon text-info" data-bs-toggle="tooltip" title="View History">
                                     <i class="fa-solid fa-clock-rotate-left"></i>
                                 </a>
@@ -429,7 +432,7 @@
     </div>
 </div>
 
-<!-- MODALS SECTION (Outside table to fix layering) -->
+<!-- MODALS SECTION -->
 {% for p in products %}
 <div class="modal fade" id="adjustStockModal{{p.id}}" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -476,6 +479,7 @@
 {% endfor %}
 
 <script>
+document.addEventListener("DOMContentLoaded", function() {
     // Initialize Tooltips
     var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
     var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
@@ -488,12 +492,17 @@
     const rows = document.querySelectorAll('.product-row');
 
     function filterProducts() {
+        if (!searchInput || !categoryFilter) return;
+
         const term = searchInput.value.toLowerCase().trim();
         const category = categoryFilter.value;
 
         rows.forEach(row => {
-            const name = row.getAttribute('data-name');
-            const rowCat = row.getAttribute('data-category');
+            const nameAttr = row.getAttribute('data-name');
+            const catAttr = row.getAttribute('data-category');
+            
+            const name = nameAttr ? nameAttr.toLowerCase() : '';
+            const rowCat = catAttr ? catAttr : '';
             
             const matchesSearch = name.includes(term);
             const matchesCategory = category === 'all' || rowCat === category;
@@ -506,8 +515,14 @@
         });
     }
 
-    if(searchInput) searchInput.addEventListener('keyup', filterProducts);
-    if(categoryFilter) categoryFilter.addEventListener('change', filterProducts);
+    if(searchInput) {
+        searchInput.addEventListener('keyup', filterProducts);
+        searchInput.addEventListener('input', filterProducts);
+    }
+    if(categoryFilter) {
+        categoryFilter.addEventListener('change', filterProducts);
+    }
+});
 </script>
 
 {% endblock %}
