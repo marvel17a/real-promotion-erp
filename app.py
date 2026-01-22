@@ -103,31 +103,46 @@ def parse_date_input(date_str):
         # Return as-is if it fails (might already be correct or None)
         return date_str
 
-
 # =================================================================================
-#  PREMIUM EXPENSE MANAGEMENT MODULE (Complete V2 - With Search & Filter)
+#  PREMIUM EXPENSE MANAGEMENT MODULE (Complete)
 # =================================================================================
 
 # --- Helper: Calculate Live Financial Balances ---
 def get_financial_balances(cursor):
     """
     Calculates Live Cash & Bank Balances based on Sales (Inflow) - Expenses (Outflow)
+    Sources:
+    1. Cash In: Evening Settle (Cash) + Office Sales (Cash)
+    2. Bank In: Evening Settle (Online) + Office Sales (Online)
+    3. Cash Out: Expenses (Cash)
+    4. Bank Out: Expenses (Online/UPI/Transfer)
     """
     # 1. Inflow (Sales)
-    cursor.execute("SELECT SUM(cash_money) as cash, SUM(online_money) as online FROM evening_settle WHERE status='final'")
+    cursor.execute("""
+        SELECT 
+            SUM(cash_money) as cash_evening, 
+            SUM(online_money) as online_evening 
+        FROM evening_settle WHERE status='final'
+    """)
     evening = cursor.fetchone()
     
-    cursor.execute("SELECT SUM(cash_amount) as cash, SUM(online_amount) as online FROM office_sales")
+    cursor.execute("""
+        SELECT 
+            SUM(cash_amount) as cash_office, 
+            SUM(online_amount) as online_office 
+        FROM office_sales
+    """)
     office = cursor.fetchone()
     
-    total_cash_in = (float(evening['cash'] or 0) + float(office['cash'] or 0))
-    total_bank_in = (float(evening['online'] or 0) + float(office['online'] or 0))
+    total_cash_in = (float(evening['cash_evening'] or 0) + float(office['cash_office'] or 0))
+    total_bank_in = (float(evening['online_evening'] or 0) + float(office['online_office'] or 0))
 
     # 2. Outflow (Expenses)
+    # Payment Methods: 'Cash' vs ('Online', 'UPI', 'Bank Transfer')
     cursor.execute("""
         SELECT 
             SUM(CASE WHEN payment_method = 'Cash' THEN amount ELSE 0 END) as cash_out,
-            SUM(CASE WHEN payment_method != 'Cash' THEN amount ELSE 0 END) as bank_out
+            SUM(CASE WHEN payment_method IN ('Online', 'UPI', 'Bank Transfer') THEN amount ELSE 0 END) as bank_out
         FROM expenses
     """)
     exp = cursor.fetchone()
@@ -137,101 +152,11 @@ def get_financial_balances(cursor):
 
     return {
         "cash_balance": total_cash_in - total_cash_out,
-        "bank_balance": total_bank_in - total_bank_out
+        "bank_balance": total_bank_in - total_bank_out,
+        "total_cash_in": total_cash_in,
+        "total_bank_in": total_bank_in
     }
 
-# 1. DASHBOARD (Main Overview)
-@app.route('/expense_dash')
-def expense_dash():
-    if 'loggedin' not in session: return redirect(url_for('login'))
-    
-    conn = mysql.connection
-    cursor = conn.cursor(MySQLdb.cursors.DictCursor)
-    
-    # A. KPIs (This Month, Last Month, YTD)
-    cursor.execute("SELECT SUM(amount) AS total FROM expenses WHERE MONTH(expense_date) = MONTH(CURDATE()) AND YEAR(expense_date) = YEAR(CURDATE())")
-    this_month_spend = float(cursor.fetchone()['total'] or 0)
-    
-    cursor.execute("SELECT SUM(amount) AS total FROM expenses WHERE MONTH(expense_date) = MONTH(CURDATE() - INTERVAL 1 MONTH)")
-    last_month_spend = float(cursor.fetchone()['total'] or 0)
-    
-    cursor.execute("SELECT SUM(amount) AS total FROM expenses WHERE YEAR(expense_date) = YEAR(CURDATE())")
-    ytd_spend = float(cursor.fetchone()['total'] or 0)
-    
-    # B. Top Category
-    cursor.execute("""
-        SELECT c.category_name, SUM(ei.amount) as total
-        FROM expense_items ei
-        JOIN expensecategories c ON ei.category_id = c.category_id
-        JOIN expenses e ON ei.expense_id = e.expense_id
-        WHERE MONTH(e.expense_date) = MONTH(CURDATE())
-        GROUP BY c.category_name ORDER BY total DESC LIMIT 5
-    """)
-    cat_rows = cursor.fetchall()
-    category_data = {
-        'labels': [r['category_name'] for r in cat_rows],
-        'data': [float(r['total']) for r in cat_rows]
-    }
-    
-    # C. Monthly Trend
-    cursor.execute("""
-        SELECT DATE_FORMAT(expense_date, '%b') as month, SUM(amount) as total
-        FROM expenses WHERE expense_date >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
-        GROUP BY DATE_FORMAT(expense_date, '%Y-%m') ORDER BY MIN(expense_date) ASC
-    """)
-    trend_rows = cursor.fetchall()
-    monthly_data = {
-        'labels': [r['month'] for r in trend_rows],
-        'data': [float(r['total']) for r in trend_rows]
-    }
-    
-    fin_status = get_financial_balances(cursor)
-    cursor.close()
-    
-    return render_template('expenses/expense_dash.html',
-                           this_month=this_month_spend,
-                           last_month=last_month_spend,
-                           ytd_spend=ytd_spend,
-                           category_data=category_data,
-                           monthly_data=monthly_data,
-                           fin_status=fin_status)
-
-# 2. ADVANCED ANALYTICS
-@app.route('/expense_analytics')
-def expense_analytics():
-    if 'loggedin' not in session: return redirect(url_for('login'))
-    conn = mysql.connection
-    cursor = conn.cursor(MySQLdb.cursors.DictCursor)
-    
-    # Forecast
-    cursor.execute("""
-        SELECT SUM(amount) as total FROM expenses 
-        WHERE expense_date >= DATE_SUB(CURDATE(), INTERVAL 3 MONTH) 
-        AND expense_date < DATE_FORMAT(NOW() ,'%Y-%m-01')
-    """)
-    past_total = float(cursor.fetchone()['total'] or 0)
-    predicted_spend = past_total / 3 
-    
-    # Heatmap
-    cursor.execute("""
-        SELECT DAYNAME(expense_date) as day, SUM(amount) as total
-        FROM expenses
-        GROUP BY DAYNAME(expense_date)
-        ORDER BY FIELD(day, 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday')
-    """)
-    dow_data = cursor.fetchall()
-    
-    # Payment Mode
-    cursor.execute("SELECT payment_method, SUM(amount) as total FROM expenses GROUP BY payment_method")
-    mode_data = cursor.fetchall()
-    
-    cursor.close()
-    return render_template('expenses/expense_analytics.html',
-                           predicted_spend=predicted_spend,
-                           dow_data=dow_data,
-                           mode_data=mode_data)
-
-# 3. ADD EXPENSE
 @app.route('/add_expense', methods=['GET', 'POST'])
 def add_expense():
     if 'loggedin' not in session: return redirect(url_for('login'))
@@ -241,60 +166,76 @@ def add_expense():
     
     if request.method == 'POST':
         try:
+            # Header Data
             exp_date = request.form['expense_date']
             exp_time = request.form['expense_time']
             pay_mode = request.form['payment_method']
             
+            # Arrays (Multiple Items)
             cat_ids = request.form.getlist('category_id[]')
             sub_ids = request.form.getlist('subcategory_id[]')
             amounts = request.form.getlist('amount[]')
             descs = request.form.getlist('description[]')
             
-            total_amount = sum(float(x) for x in amounts if x)
+            # Calculate Total
+            total_amount = sum(float(a) for a in amounts if a)
             
+            # Check Balance (Optional: Prevent negative cash)
             balances = get_financial_balances(cursor)
             if pay_mode == 'Cash' and total_amount > balances['cash_balance']:
-                flash(f"Warning: Low Cash! Available: ₹{balances['cash_balance']}", "warning")
+                flash(f"Warning: Insufficient Cash-in-Hand! Available: ₹{balances['cash_balance']}", "warning")
+                # We still allow it, but warn the user. Change to 'return' to block it.
 
+            # 1. Insert Header
             cursor.execute("""
                 INSERT INTO expenses (expense_date, expense_time, amount, payment_method, total_amount)
                 VALUES (%s, %s, %s, %s, %s)
             """, (exp_date, exp_time, total_amount, pay_mode, total_amount))
-            exp_id = cursor.lastrowid
+            expense_id = cursor.lastrowid
             
+            # 2. Insert Items
             for i in range(len(cat_ids)):
-                if amounts[i]:
+                if amounts[i] and float(amounts[i]) > 0:
                     cursor.execute("""
                         INSERT INTO expense_items (expense_id, category_id, subcategory_id, amount, description)
                         VALUES (%s, %s, %s, %s, %s)
-                    """, (exp_id, cat_ids[i], sub_ids[i], amounts[i], descs[i]))
+                    """, (expense_id, cat_ids[i], sub_ids[i], amounts[i], descs[i]))
             
             conn.commit()
-            flash("Expense Added!", "success")
+            flash('Expense Recorded Successfully!', 'success')
             return redirect(url_for('expenses_list'))
             
         except Exception as e:
             conn.rollback()
             flash(f"Error: {e}", "danger")
-    
+            return redirect(url_for('add_expense'))
+
+    # GET: Fetch Categories for Dropdown
     cursor.execute("SELECT * FROM expensecategories ORDER BY category_name")
-    cats = cursor.fetchall()
+    main_cats = cursor.fetchall()
+    
     cursor.execute("SELECT * FROM expensesubcategories ORDER BY subcategory_name")
-    subcats = cursor.fetchall()
-    bals = get_financial_balances(cursor)
+    sub_cats = cursor.fetchall()
+    
+    # Financial Status for Display
+    fin_status = get_financial_balances(cursor)
+    
     cursor.close()
     
+    # Pass Data to Template
     ist_now = datetime.utcnow() + timedelta(hours=5, minutes=30)
     return render_template('expenses/add_expense.html', 
-                           categories=cats, subcategories=subcats, 
-                           fin_status=bals, 
-                           today=ist_now.strftime('%Y-%m-%d'), time=ist_now.strftime('%H:%M'))
+                           categories=main_cats, 
+                           subcategories=sub_cats,
+                           today_date=ist_now.strftime('%Y-%m-%d'),
+                           now_time=ist_now.strftime('%H:%M'),
+                           fin_status=fin_status)
 
-# 4. LIST EXPENSES (Updated with Search & Filter)
 @app.route('/expenses_list')
 def expenses_list():
     if 'loggedin' not in session: return redirect(url_for('login'))
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    
+    cursor = conn = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
     # Get Search/Filter Params
     cat_filter = request.args.get('category_id')
@@ -302,24 +243,27 @@ def expenses_list():
     
     # Base Query
     sql = """
-        SELECT e.*, COUNT(ei.id) as item_count, 
-               GROUP_CONCAT(sc.subcategory_name SEPARATOR ', ') as details,
-               GROUP_CONCAT(ec.category_name SEPARATOR ', ') as cat_names
+        SELECT e.*, 
+               COUNT(ei.id) as item_count,
+               GROUP_CONCAT(sc.subcategory_name SEPARATOR ', ') as item_names
         FROM expenses e
         LEFT JOIN expense_items ei ON e.expense_id = ei.expense_id
         LEFT JOIN expensesubcategories sc ON ei.subcategory_id = sc.subcategory_id
         LEFT JOIN expensecategories ec ON ei.category_id = ec.category_id
         WHERE 1=1
     """
+    
     params = []
     
+    # Apply Filters
     if cat_filter and cat_filter != 'all':
         sql += " AND ei.category_id = %s"
         params.append(cat_filter)
         
     if search_query:
-        sql += " AND (sc.subcategory_name LIKE %s OR ei.description LIKE %s)"
-        params.extend([f"%{search_query}%", f"%{search_query}%"])
+        sql += " AND (sc.subcategory_name LIKE %s OR ei.description LIKE %s OR e.payment_method LIKE %s)"
+        search_term = f"%{search_query}%"
+        params.extend([search_term, search_term, search_term])
         
     sql += " GROUP BY e.expense_id ORDER BY e.expense_date DESC, e.expense_time DESC"
     
@@ -331,13 +275,160 @@ def expenses_list():
     categories = cursor.fetchall()
     
     cursor.close()
+    
     return render_template('expenses/expenses_list.html', 
                            expenses=expenses, 
                            categories=categories,
                            selected_cat=cat_filter,
                            search_query=search_query)
 
-# 5. EDIT EXPENSE
+# ==================================================
+#  PHASE 4: ADVANCED ANALYTICS DASHBOARD
+# ==================================================
+@app.route('/expense_dash')
+def expense_dash():
+    if 'loggedin' not in session: return redirect(url_for('login'))
+    
+    conn = mysql.connection
+    cursor = conn.cursor(MySQLdb.cursors.DictCursor)
+    
+    # 1. Forecasting Logic (Simple Moving Average of last 3 months)
+    current_month_start = date.today().replace(day=1)
+    
+    cursor.execute("""
+        SELECT MONTH(expense_date) as m, SUM(amount) as total
+        FROM expenses
+        WHERE expense_date >= DATE_SUB(CURDATE(), INTERVAL 3 MONTH) 
+          AND expense_date < %s
+        GROUP BY MONTH(expense_date)
+    """, (current_month_start,))
+    past_data = cursor.fetchall()
+    
+    predicted_spend = 0
+    if past_data:
+        total_past = sum(d['total'] for d in past_data)
+        predicted_spend = total_past / len(past_data) # Average
+    
+    # 2. Day-of-Week Analysis (Heatmap Data)
+    cursor.execute("""
+        SELECT DAYNAME(expense_date) as day_name, SUM(amount) as total, COUNT(*) as count
+        FROM expenses
+        GROUP BY DAYNAME(expense_date)
+        ORDER BY FIELD(day_name, 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday')
+    """)
+    dow_data = cursor.fetchall()
+    
+    # 3. Category Distribution (Current Month)
+    cursor.execute("""
+        SELECT c.category_name, SUM(ei.amount) as total
+        FROM expense_items ei
+        JOIN expensecategories c ON ei.category_id = c.category_id
+        JOIN expenses e ON ei.expense_id = e.expense_id
+        WHERE MONTH(e.expense_date) = MONTH(CURDATE()) AND YEAR(e.expense_date) = YEAR(CURDATE())
+        GROUP BY c.category_name
+    """)
+    cat_data = cursor.fetchall()
+    
+    # 4. Monthly Trend (Last 6 Months)
+    cursor.execute("""
+        SELECT DATE_FORMAT(expense_date, '%b') as month_name, SUM(amount) as total
+        FROM expenses
+        WHERE expense_date >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
+        GROUP BY DATE_FORMAT(expense_date, '%Y-%m')
+        ORDER BY expense_date ASC
+    """)
+    trend_data = cursor.fetchall()
+    
+    # 5. Financial Overview (Balances)
+    fin_status = get_financial_balances(cursor)
+    
+    # 6. KPI Data (for compatibility with your existing dashboard structure)
+    cursor.execute("SELECT SUM(amount) AS total FROM expenses WHERE MONTH(expense_date) = MONTH(CURDATE()) AND YEAR(expense_date) = YEAR(CURDATE())")
+    this_month_spend = float(cursor.fetchone()['total'] or 0)
+    
+    cursor.execute("SELECT SUM(amount) AS total FROM expenses WHERE MONTH(expense_date) = MONTH(CURDATE() - INTERVAL 1 MONTH)")
+    last_month_spend = float(cursor.fetchone()['total'] or 0)
+    
+    cursor.execute("SELECT SUM(amount) AS total FROM expenses WHERE YEAR(expense_date) = YEAR(CURDATE())")
+    ytd_spend = float(cursor.fetchone()['total'] or 0)
+
+    # Top Category KPI
+    cursor.execute("""
+        SELECT c.category_name, SUM(ei.amount) as total
+        FROM expense_items ei
+        JOIN expensecategories c ON ei.category_id = c.category_id
+        JOIN expenses e ON ei.expense_id = e.expense_id
+        WHERE MONTH(e.expense_date) = MONTH(CURDATE())
+        GROUP BY c.category_name ORDER BY total DESC LIMIT 1
+    """)
+    top_cat = cursor.fetchone()
+
+    kpi_data = {
+        'this_month': this_month_spend,
+        'last_month': last_month_spend,
+        'ytd_spend': ytd_spend,
+        'top_category_name': top_cat['category_name'] if top_cat else 'N/A',
+        'top_category_amount': float(top_cat['total'] or 0) if top_cat else 0
+    }
+
+    # Transform data for Chart.js
+    monthly_data = {
+        'labels': [row['month_name'] for row in trend_data],
+        'data': [float(row['total']) for row in trend_data]
+    }
+    category_data = {
+        'labels': [row['category_name'] for row in cat_data],
+        'data': [float(row['total']) for row in cat_data]
+    }
+
+    cursor.close()
+    
+    return render_template('expenses/expense_dash.html',
+                           kpi_data=kpi_data,
+                           monthly_data=monthly_data,
+                           category_data=category_data,
+                           predicted_spend=predicted_spend,
+                           dow_data=dow_data,
+                           fin_status=fin_status)
+
+# 2. ADVANCED ANALYTICS (New Page)
+@app.route('/expense_analytics')
+def expense_analytics():
+    if 'loggedin' not in session: return redirect(url_for('login'))
+    
+    conn = mysql.connection
+    cursor = conn.cursor(MySQLdb.cursors.DictCursor)
+    
+    # A. Forecast (Simple Moving Average of last 3 months)
+    cursor.execute("""
+        SELECT SUM(amount) as total FROM expenses 
+        WHERE expense_date >= DATE_SUB(CURDATE(), INTERVAL 3 MONTH) 
+        AND expense_date < DATE_FORMAT(NOW() ,'%Y-%m-01')
+    """)
+    past_total = float(cursor.fetchone()['total'] or 0)
+    predicted_spend = past_total / 3  # Approx average
+    
+    # B. Day of Week Analysis (Heatmap)
+    cursor.execute("""
+        SELECT DAYNAME(expense_date) as day_name, SUM(amount) as total
+        FROM expenses
+        GROUP BY DAYNAME(expense_date)
+        ORDER BY FIELD(day_name, 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday')
+    """)
+    dow_data = cursor.fetchall()
+    
+    # C. Payment Mode Analysis
+    cursor.execute("SELECT payment_method, SUM(amount) as total FROM expenses GROUP BY payment_method")
+    mode_data = cursor.fetchall()
+    
+    cursor.close()
+    
+    return render_template('expenses/expense_analytics.html',
+                           predicted_spend=predicted_spend,
+                           dow_data=dow_data,
+                           payment_mode_data=mode_data)
+
+# 4. EDIT EXPENSE (Updates Header & Items)
 @app.route('/edit_expense/<int:expense_id>', methods=['GET', 'POST'])
 def edit_expense(expense_id):
     if 'loggedin' not in session: return redirect(url_for('login'))
@@ -358,12 +449,14 @@ def edit_expense(expense_id):
             
             total_amount = sum(float(x) for x in amounts if x)
             
+            # Update Header
             cursor.execute("""
                 UPDATE expenses 
                 SET expense_date=%s, expense_time=%s, amount=%s, payment_method=%s, total_amount=%s
                 WHERE expense_id=%s
             """, (exp_date, exp_time, total_amount, pay_mode, total_amount, expense_id))
             
+            # Delete Old Items & Re-Insert
             cursor.execute("DELETE FROM expense_items WHERE expense_id=%s", (expense_id,))
             
             for i in range(len(cat_ids)):
@@ -374,13 +467,15 @@ def edit_expense(expense_id):
                     """, (expense_id, cat_ids[i], sub_ids[i], amounts[i], descs[i]))
             
             conn.commit()
-            flash("Updated!", "success")
+            flash("Expense Updated!", "success")
             return redirect(url_for('expenses_list'))
+            
         except Exception as e:
             conn.rollback()
             flash(f"Error: {e}", "danger")
             return redirect(url_for('expenses_list'))
 
+    # GET
     cursor.execute("SELECT * FROM expenses WHERE expense_id=%s", (expense_id,))
     expense = cursor.fetchone()
     if not expense: return redirect(url_for('expenses_list'))
@@ -398,7 +493,7 @@ def edit_expense(expense_id):
                            expense=expense, items=items, 
                            categories=cats, subcategories=subcats)
 
-# 6. CATEGORY MANAGEMENT
+# 5. CATEGORY MANAGEMENT (CRUD)
 @app.route('/category_man', methods=['GET', 'POST'])
 def category_man():
     if 'loggedin' not in session: return redirect(url_for('login'))
@@ -413,6 +508,7 @@ def category_man():
             cursor.execute("INSERT INTO expensesubcategories (category_id, subcategory_name) VALUES (%s, %s)", 
                           (request.form['parent_id'], request.form['name']))
         conn.commit()
+        flash('Saved!', 'success')
         return redirect(url_for('category_man'))
 
     cursor.execute("SELECT * FROM expensecategories")
@@ -420,6 +516,7 @@ def category_man():
     cursor.execute("SELECT * FROM expensesubcategories")
     subs = cursor.fetchall()
     
+    # Organize for template
     tree = []
     for c in cats:
         c_dict = dict(c)
@@ -429,7 +526,7 @@ def category_man():
     cursor.close()
     return render_template('expenses/category_man.html', categories=tree)
 
-# 7. DELETE ROUTES
+# 6. DELETE LOGIC
 @app.route('/delete_expense/<int:expense_id>', methods=['POST'])
 def delete_expense(expense_id):
     if 'loggedin' not in session: return redirect(url_for('login'))
@@ -7145,6 +7242,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
