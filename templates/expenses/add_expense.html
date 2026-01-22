@@ -6,86 +6,79 @@
 
 <div class="container-fluid py-4 fade-in-up">
     
-    <!-- FINANCIAL HEALTH HEADER -->
-    <div class="row mb-4">
-        <div class="col-md-6">
-            <div class="glass-card bg-gradient-primary text-white p-4 rounded-4 position-relative overflow-hidden border-0 shadow-sm">
-                <div class="position-relative z-1">
-                    <p class="text-white-50 text-uppercase fw-bold small mb-1">CEO Cash Hand</p>
-                    <h2 class="fw-bold mb-0">₹ {{ "{:,.2f}".format(fin_status.cash_balance) }}</h2>
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <!-- Balances -->
+            <div class="row mb-4 g-3">
+                <div class="col-md-6">
+                    <div class="card border-0 shadow-sm p-3 bg-gradient-primary text-white rounded-4">
+                        <small class="text-white-50 fw-bold text-uppercase">Cash Hand</small>
+                        <h3 class="fw-bold mb-0">₹ {{ "{:,.2f}".format(fin_status.cash_balance) }}</h3>
+                    </div>
                 </div>
-                <i class="fas fa-wallet position-absolute end-0 bottom-0 display-1 opacity-10 me-n3 mb-n3"></i>
-            </div>
-        </div>
-        <div class="col-md-6">
-            <div class="glass-card bg-white text-dark p-4 rounded-4 position-relative overflow-hidden border-0 shadow-sm">
-                <div class="position-relative z-1">
-                    <p class="text-muted text-uppercase fw-bold small mb-1">Bank Balance</p>
-                    <h2 class="fw-bold mb-0 text-primary">₹ {{ "{:,.2f}".format(fin_status.bank_balance) }}</h2>
+                <div class="col-md-6">
+                    <div class="card border-0 shadow-sm p-3 bg-white text-dark rounded-4">
+                        <small class="text-muted fw-bold text-uppercase">Bank Balance</small>
+                        <h3 class="fw-bold mb-0 text-primary">₹ {{ "{:,.2f}".format(fin_status.bank_balance) }}</h3>
+                    </div>
                 </div>
-                <i class="fas fa-university position-absolute end-0 bottom-0 display-1 text-primary opacity-10 me-n3 mb-n3"></i>
             </div>
+
+            <form action="{{ url_for('add_expense') }}" method="POST">
+                <div class="card glass-card border-0 shadow-lg rounded-4 overflow-hidden">
+                    <div class="card-header bg-white border-0 p-4">
+                        <h4 class="fw-bold mb-0">New Expense Voucher</h4>
+                    </div>
+                    
+                    <div class="card-body p-4 bg-light bg-opacity-25">
+                        <!-- Header -->
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-4">
+                                <label class="small fw-bold text-muted">Date</label>
+                                <input type="text" name="expense_date" class="form-control flatpickr" value="{{ today }}" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="small fw-bold text-muted">Time</label>
+                                <input type="time" name="expense_time" class="form-control" value="{{ time }}" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="small fw-bold text-muted">Pay From</label>
+                                <select name="payment_method" class="form-select" required>
+                                    <option value="Cash">Cash</option>
+                                    <option value="Online">Online / UPI</option>
+                                    <option value="Bank Transfer">Bank Transfer</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Items -->
+                        <div class="table-responsive bg-white rounded-3 p-3 shadow-sm">
+                            <table class="table align-middle" id="itemsTable">
+                                <thead class="small text-uppercase text-muted">
+                                    <tr>
+                                        <th style="width:25%">Category</th>
+                                        <th style="width:25%">Item</th>
+                                        <th style="width:30%">Description</th>
+                                        <th style="width:15%">Amount</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="itemsBody"></tbody>
+                            </table>
+                            <button type="button" class="btn btn-light w-100 fw-bold text-primary" onclick="addRow()">
+                                <i class="fas fa-plus me-1"></i> Add Item
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="card-footer bg-white border-0 p-4 text-end">
+                        <h5 class="d-inline-block me-4">Total: <span id="grandTotal" class="fw-bold">₹ 0.00</span></h5>
+                        <button type="submit" class="btn btn-primary px-5 rounded-pill shadow-sm fw-bold">Save</button>
+                    </div>
+                </div>
+            </form>
         </div>
     </div>
-
-    <!-- Main Form -->
-    <form action="{{ url_for('add_expense') }}" method="POST" id="expenseForm">
-        <div class="card glass-card border-0 shadow-lg rounded-4 overflow-hidden">
-            <div class="card-header bg-white border-0 p-4 d-flex justify-content-between align-items-center">
-                <h4 class="fw-bold mb-0"><i class="fa-solid fa-file-invoice-dollar me-2 text-primary"></i>New Expense Entry</h4>
-                <div class="text-end">
-                    <h5 class="mb-0 text-muted">Total: <span class="text-dark fw-bold" id="grandTotal">₹ 0.00</span></h5>
-                </div>
-            </div>
-            
-            <div class="card-body p-4 bg-light bg-opacity-25">
-                
-                <!-- 1. Header Details -->
-                <div class="row g-3 mb-4">
-                    <div class="col-md-3">
-                        <label class="form-label fw-bold small text-muted">Date</label>
-                        <input type="text" name="expense_date" class="form-control shadow-sm flatpickr-date" value="{{ today_date }}" required>
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label fw-bold small text-muted">Time</label>
-                        <input type="time" name="expense_time" class="form-control shadow-sm" value="{{ now_time }}" required>
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label fw-bold small text-muted">Source</label>
-                        <select name="payment_method" class="form-select shadow-sm" required>
-                            <option value="Cash">Cash (CEO Hand)</option>
-                            <option value="Online">Online / UPI</option>
-                            <option value="Bank Transfer">Bank Transfer</option>
-                        </select>
-                    </div>
-                </div>
-
-                <!-- 2. Multiple Items Table -->
-                <div class="table-responsive bg-white rounded-3 shadow-sm p-3 mb-3">
-                    <table class="table align-middle" id="itemsTable">
-                        <thead class="text-secondary small text-uppercase bg-light">
-                            <tr>
-                                <th style="width: 20%">Category</th>
-                                <th style="width: 25%">Sub-Category</th>
-                                <th style="width: 30%">Description / Note</th>
-                                <th style="width: 15%">Amount (₹)</th>
-                                <th style="width: 5%"></th>
-                            </tr>
-                        </thead>
-                        <tbody id="itemsBody"></tbody>
-                    </table>
-                    <button type="button" class="btn btn-light border w-100 py-2 fw-bold text-primary dashed-border" onclick="addRow()">
-                        <i class="fa-solid fa-plus me-1"></i> Add Another Item
-                    </button>
-                </div>
-
-            </div>
-            <div class="card-footer bg-white border-0 p-4 text-end">
-                <a href="{{ url_for('expenses_list') }}" class="btn btn-light rounded-pill px-4 me-2">Cancel</a>
-                <button type="submit" class="btn btn-primary rounded-pill px-5 fw-bold shadow-sm">Save Expense</button>
-            </div>
-        </div>
-    </form>
 </div>
 
 <script>
@@ -93,58 +86,40 @@
     const subcategories = {{ subcategories | tojson }};
 
     function addRow() {
-        const tbody = document.getElementById('itemsBody');
         const rowId = Date.now();
-        
-        let catOptions = '<option value="" selected disabled>Select...</option>';
-        categories.forEach(c => {
-            catOptions += `<option value="${c.category_id}">${c.category_name}</option>`;
-        });
+        let catOpts = '<option value="" disabled selected>Select</option>';
+        categories.forEach(c => catOpts += `<option value="${c.category_id}">${c.category_name}</option>`);
 
         const tr = document.createElement('tr');
         tr.innerHTML = `
-            <td>
-                <select name="category_id[]" class="form-select border-0 bg-light" onchange="updateSubcats(this, ${rowId})" required>${catOptions}</select>
-            </td>
-            <td>
-                <select name="subcategory_id[]" id="sub_${rowId}" class="form-select border-0 bg-light" required><option value="" disabled selected>--</option></select>
-            </td>
-            <td>
-                <input type="text" name="description[]" class="form-control border-0 bg-light" placeholder="Desc">
-            </td>
-            <td>
-                <input type="number" name="amount[]" class="form-control border-0 bg-light fw-bold text-end amount-input" step="0.01" min="0" oninput="calcTotal()" required>
-            </td>
-            <td class="text-center">
-                <button type="button" class="btn btn-sm btn-icon text-danger" onclick="this.closest('tr').remove(); calcTotal();"><i class="fa-solid fa-times"></i></button>
-            </td>
+            <td><select name="category_id[]" class="form-select border-0 bg-light" onchange="updSub(this, ${rowId})" required>${catOpts}</select></td>
+            <td><select name="subcategory_id[]" id="sub_${rowId}" class="form-select border-0 bg-light" required><option disabled selected>--</option></select></td>
+            <td><input type="text" name="description[]" class="form-control border-0 bg-light" placeholder="Note"></td>
+            <td><input type="number" name="amount[]" class="form-control border-0 bg-light fw-bold text-end amt" step="0.01" oninput="calc()" required></td>
+            <td><button type="button" class="btn btn-sm text-danger" onclick="this.closest('tr').remove(); calc();"><i class="fas fa-times"></i></button></td>
         `;
-        tbody.appendChild(tr);
+        document.getElementById('itemsBody').appendChild(tr);
     }
 
-    function updateSubcats(selectElem, rowId) {
-        const catId = selectElem.value;
-        const subSelect = document.getElementById(`sub_${rowId}`);
-        const filtered = subcategories.filter(s => s.category_id == catId);
-        let html = '<option value="" disabled selected>--</option>';
-        filtered.forEach(s => { html += `<option value="${s.subcategory_id}">${s.subcategory_name}</option>`; });
-        subSelect.innerHTML = html;
+    function updSub(el, id) {
+        const subs = subcategories.filter(s => s.category_id == el.value);
+        let h = '<option disabled selected>--</option>';
+        subs.forEach(s => h += `<option value="${s.subcategory_id}">${s.subcategory_name}</option>`);
+        document.getElementById(`sub_${id}`).innerHTML = h;
     }
 
-    function calcTotal() {
-        let total = 0;
-        document.querySelectorAll('.amount-input').forEach(input => { total += parseFloat(input.value) || 0; });
-        document.getElementById('grandTotal').innerText = "₹ " + total.toFixed(2);
+    function calc() {
+        let t = 0;
+        document.querySelectorAll('.amt').forEach(i => t += parseFloat(i.value) || 0);
+        document.getElementById('grandTotal').innerText = "₹ " + t.toFixed(2);
     }
 
     document.addEventListener('DOMContentLoaded', () => {
-        flatpickr(".flatpickr-date", { dateFormat: "Y-m-d" });
+        flatpickr(".flatpickr", {dateFormat: "Y-m-d"});
         addRow();
     });
 </script>
-
 <style>
-    .dashed-border { border-style: dashed !important; border-color: #cbd5e1 !important; }
     .bg-gradient-primary { background: linear-gradient(135deg, #4f46e5, #3b82f6); }
     .glass-card { background: #fff; border-radius: 12px; }
 </style>
