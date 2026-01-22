@@ -200,7 +200,7 @@
                         
                         <tr class="product-row" 
                             data-name="{{ product.name.lower() }}" 
-                            data-category="{{ categories_map.get(product.category_id, 'Uncategorized') }}">
+                            data-category="{{ product.category_name or 'Uncategorized' }}">
                             
                             <!-- Name & Image -->
                             <td class="ps-4">
@@ -228,7 +228,7 @@
                             <!-- Category -->
                             <td>
                                 <span class="badge bg-light text-secondary border fw-normal">
-                                    {{ categories_map.get(product.category_id, 'Uncategorized') }}
+                                    {{ product.category_name or 'Uncategorized' }}
                                 </span>
                             </td>
 
