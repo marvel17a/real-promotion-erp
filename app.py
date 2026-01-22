@@ -2552,7 +2552,7 @@ def add_product():
 
 @app.route('/edit_product/<int:product_id>', methods=['GET', 'POST'])
 def edit_product(product_id):
-    if 'loggedin' not in session:
+    if 'user_id' not in session:
         return redirect(url_for('login'))
 
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
@@ -2573,7 +2573,7 @@ def edit_product(product_id):
         
         # --- CHANGES: Capture Stock and Low Stock Threshold ---
         stock = request.form['stock'] 
-        low_stock = request.form['low_stock_threshold'] # Matches name="low_stock_threshold" in HTML
+        low_stock = request.form['low_stock_threshold'] 
         # ----------------------------------------------------
 
         # Handle Image Upload
@@ -2584,7 +2584,7 @@ def edit_product(product_id):
                 upload_result = cloudinary.uploader.upload(file)
                 image_url = upload_result['secure_url']
 
-        # 3. Update Database (Added stock and low_stock_threshold to query)
+        # 3. Update Database 
         cursor.execute("""
             UPDATE products 
             SET name=%s, category_id=%s, price=%s, stock=%s, low_stock_threshold=%s, image=%s 
@@ -2598,7 +2598,8 @@ def edit_product(product_id):
         return redirect(url_for('inventory'))
 
     # 3. Handle Page Load (GET)
-    cursor.execute("SELECT * FROM categories")
+    # --- FIX: Changed table name from 'categories' to 'product_categories' ---
+    cursor.execute("SELECT * FROM product_categories")
     categories = cursor.fetchall()
     cursor.close()
 
@@ -7258,6 +7259,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
