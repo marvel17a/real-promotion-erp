@@ -191,7 +191,7 @@
                 <div>
                     <h6 class="text-uppercase text-primary fw-bold small mb-1 ls-1">Real Promotion</h6>
                     <h3 class="fw-bold text-dark mb-0">Inventory Master</h3>
-                    <p class="text-muted small mb-0">Track complete stock details (Warehouse + Field).</p>
+                    <p class="text-muted small mb-0">Track complete stock details.</p>
                 </div>
             </div>
         </div>
@@ -220,7 +220,7 @@
                         <div>
                             <p class="text-uppercase text-muted fw-bold small mb-1">Total Asset Value</p>
                             <h4 class="fw-bold mb-0 text-dark">₹ {{ "%.0f"|format(stats.total_value) }}</h4>
-                            <small class="text-xs text-primary bg-primary bg-opacity-10 px-2 py-1 rounded-pill mt-1 d-inline-block">Warehouse + Field</small>
+                    
                         </div>
                     </div>
                 </div>
@@ -238,7 +238,7 @@
                         <div>
                             <p class="text-uppercase text-muted fw-bold small mb-1">Total Products</p>
                             <h4 class="fw-bold mb-0 text-dark">{{ stats.total_items }}</h4>
-                            <small class="text-xs text-muted mt-1 d-block">Active SKUs</small>
+                            
                         </div>
                     </div>
                 </div>
@@ -256,7 +256,7 @@
                         <div>
                             <p class="text-uppercase text-muted fw-bold small mb-1">Low Stock Items</p>
                             <h4 class="fw-bold mb-0 text-dark">{{ stats.low_stock }}</h4>
-                            <small class="text-xs text-muted mt-1 d-block">Restock Needed</small>
+                
                         </div>
                     </div>
                 </div>
@@ -274,7 +274,7 @@
                         <div>
                             <p class="text-uppercase text-muted fw-bold small mb-1">Out of Stock</p>
                             <h4 class="fw-bold mb-0 text-dark">{{ out_of_stock_count }}</h4>
-                            <small class="text-xs text-muted mt-1 d-block">Immediate Action</small>
+                        
                         </div>
                     </div>
                 </div>
@@ -322,7 +322,7 @@
                         <th>Category</th>
                         <th class="text-center" style="background: #fdfdfe;">Warehouse</th>
                         <th class="text-center" style="background: #f0f9ff;">Allocated</th>
-                        <th class="text-center">Total Health</th>
+                        <th class="text-center">Total Stock</th>
                         <th class="text-end">Price</th>
                         <th class="text-end pe-4">Action</th>
                     </tr>
@@ -526,3 +526,4 @@ document.addEventListener("DOMContentLoaded", function() {
 </script>
 
 {% endblock %}
+
