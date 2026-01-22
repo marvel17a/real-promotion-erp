@@ -1,108 +1,71 @@
 {% extends 'admin_master.html' %}
-{% block title %}Expenses{% endblock %}
-
 {% block page_content %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/expenses.css') }}">
-
 <div class="container-fluid py-4 fade-in-up">
     
-    <!-- Header with Actions -->
-    <div class="d-flex flex-column flex-md-row justify-content-between align-items-center mb-4 gap-3">
+    <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h3 class="fw-bold text-dark mb-1">Expense Management</h3>
-            <p class="text-muted small mb-0">Track company spending.</p>
+            <h3 class="fw-bold mb-0">Expense Ledger</h3>
+            <p class="text-muted small">Complete transaction history</p>
         </div>
         <div class="d-flex gap-2">
-            <a href="{{ url_for('category_man') }}" class="btn btn-light border shadow-sm rounded-pill px-3">
-                <i class="fas fa-tags me-2 text-secondary"></i> Categories
-            </a>
-            <a href="{{ url_for('expense_dash') }}" class="btn btn-light border shadow-sm rounded-pill px-3">
-                <i class="fas fa-chart-pie me-2 text-secondary"></i> Dashboard
-            </a>
-            <a href="{{ url_for('add_expense') }}" class="btn btn-primary shadow-sm rounded-pill px-4 fw-bold">
-                <i class="fas fa-plus me-2"></i> New Expense
-            </a>
+            <a href="{{ url_for('expense_dash') }}" class="btn btn-light border rounded-pill px-3">Back to Dash</a>
+            <a href="{{ url_for('add_expense') }}" class="btn btn-primary rounded-pill px-4">New Entry</a>
         </div>
     </div>
 
-    <!-- Filter & Search Bar -->
-    <div class="card glass-card border-0 shadow-sm mb-4">
+    <!-- Filter Bar -->
+    <div class="card border-0 shadow-sm mb-4 rounded-4">
         <div class="card-body p-3">
-            <form action="{{ url_for('expenses_list') }}" method="GET" class="row g-2 align-items-center">
+            <form action="{{ url_for('expenses_list') }}" method="GET" class="row g-2">
                 <div class="col-md-3">
-                    <select name="category_id" class="form-select border-0 bg-light" onchange="this.form.submit()">
-                        <option value="all" {% if not selected_cat or selected_cat == 'all' %}selected{% endif %}>All Categories</option>
+                    <select name="cat" class="form-select border-0 bg-light" onchange="this.form.submit()">
+                        <option value="all">All Categories</option>
                         {% for c in categories %}
-                        <option value="{{ c.category_id }}" {% if selected_cat|string == c.category_id|string %}selected{% endif %}>{{ c.category_name }}</option>
+                        <option value="{{ c.category_id }}" {% if sel_cat==c.category_id|string %}selected{% endif %}>{{ c.category_name }}</option>
                         {% endfor %}
                     </select>
                 </div>
                 <div class="col-md-6">
-                    <div class="input-group">
-                        <span class="input-group-text border-0 bg-light"><i class="fas fa-search text-muted"></i></span>
-                        <input type="text" name="search" class="form-control border-0 bg-light" placeholder="Search item description..." value="{{ search_query or '' }}">
-                        <button type="submit" class="btn btn-primary px-4">Search</button>
-                    </div>
+                    <input type="text" name="q" class="form-control border-0 bg-light" placeholder="Search description..." value="{{ search or '' }}">
                 </div>
-                <div class="col-md-3 text-end">
-                    <a href="{{ url_for('expenses_list') }}" class="btn btn-light btn-sm text-muted">Reset Filters</a>
+                <div class="col-md-3">
+                    <button class="btn btn-dark w-100 rounded-3">Search</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Expenses Table -->
-    <div class="card glass-card border-0 shadow-lg overflow-hidden">
+    <!-- Ledger Table -->
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
         <div class="table-responsive">
             <table class="table align-middle table-hover mb-0">
-                <thead class="bg-light text-secondary small text-uppercase">
+                <thead class="bg-light small text-uppercase text-muted">
                     <tr>
                         <th class="ps-4">Date</th>
                         <th>Summary</th>
-                        <th>Categories</th>
                         <th>Method</th>
-                        <th class="text-end pe-4">Amount</th>
-                        <th class="text-end pe-4">Actions</th>
+                        <th class="text-end pe-4">Total</th>
+                        <th></th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for e in expenses %}
                     <tr>
-                        <td class="ps-4">
-                            <div class="fw-bold text-dark">{{ e.expense_date }}</div>
-                            <small class="text-muted">{{ e.expense_time }}</small>
-                        </td>
+                        <td class="ps-4 fw-bold">{{ e.expense_date }}</td>
                         <td>
-                            <span class="badge bg-light text-dark border me-2">{{ e.item_count }} Items</span>
-                            <small class="text-muted">{{ e.details|truncate(30) }}</small>
+                            <span class="badge bg-light text-dark border">{{ e.item_count }} Items</span>
+                            <small class="text-muted ms-2">{{ e.summary|truncate(40) }}</small>
                         </td>
-                        <td>
-                            <small class="text-primary fw-bold">{{ e.cat_names }}</small>
-                        </td>
-                        <td>
-                            {% if e.payment_method == 'Cash' %}
-                                <span class="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25 rounded-pill px-3">Cash</span>
-                            {% else %}
-                                <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25 rounded-pill px-3">{{ e.payment_method }}</span>
-                            {% endif %}
-                        </td>
-                        <td class="text-end pe-4 fw-bold text-dark">
-                            ₹ {{ "{:,.2f}".format(e.total_amount) }}
-                        </td>
+                        <td><span class="badge bg-light text-dark border">{{ e.payment_method }}</span></td>
+                        <td class="text-end pe-4 fw-bold">₹ {{ "{:,.2f}".format(e.total_amount) }}</td>
                         <td class="text-end pe-4">
-                            <a href="{{ url_for('edit_expense', expense_id=e.expense_id) }}" class="btn btn-sm btn-icon text-primary"><i class="fas fa-edit"></i></a>
-                            <form action="{{ url_for('delete_expense', expense_id=e.expense_id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete?');">
-                                <button class="btn btn-sm btn-icon text-danger"><i class="fas fa-trash"></i></button>
+                            <form action="{{ url_for('delete_expense', id=e.expense_id) }}" method="POST" onsubmit="return confirm('Delete?')">
+                                <button class="btn btn-sm text-danger"><i class="fas fa-trash"></i></button>
                             </form>
                         </td>
                     </tr>
                     {% else %}
-                    <tr>
-                        <td colspan="6" class="text-center py-5 text-muted fst-italic">
-                            <i class="fas fa-file-invoice fa-2x mb-3 d-block opacity-25"></i>
-                            No expenses found matching your criteria.
-                        </td>
-                    </tr>
+                    <tr><td colspan="5" class="text-center py-5 text-muted">No records found.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
