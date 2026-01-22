@@ -168,7 +168,7 @@
             <div class="col-md-4">
                 <select id="filterCategory" class="form-select form-select-lg border-0 bg-light" style="border-radius: 12px;">
                     <option value="all">All Categories</option>
-                    {% for cat in filters.categories %}
+                    {% for cat in categories %}
                         <option value="{{ cat.category_name }}">{{ cat.category_name }}</option>
                     {% endfor %}
                 </select>
