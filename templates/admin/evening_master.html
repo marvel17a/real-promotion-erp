@@ -156,7 +156,7 @@
 
                         <td class="text-end pe-4">
                             <div class="btn-group">
-                                <a href="{{ url_for('view_evening', settle_id=s.id) }}" class="btn btn-sm btn-info text-white shadow-sm" title="View"><i class="fa-solid fa-eye"></i></a>
+                                <a href="{{ url_for('view_evening_settlement', settle_id=s.id) }}" class="btn btn-sm btn-info text-white shadow-sm" title="View"><i class="fa-solid fa-eye"></i></a>
                                 <a href="{{ url_for('download_evening_pdf', settle_id=s.id) }}" class="btn btn-sm btn-outline-danger shadow-sm" title="PDF"><i class="fa-solid fa-file-pdf"></i></a>
                                 <a href="{{ url_for('admin_edit_evening', settle_id=s.id) }}" class="btn btn-sm btn-primary shadow-sm" title="Edit"><i class="fa-solid fa-pen"></i></a>
                                 <form action="{{ url_for('admin_delete_evening', settle_id=s.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete? Stock will revert.');">
