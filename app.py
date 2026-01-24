@@ -3661,73 +3661,111 @@ def api_check_employee():
     cur.close()
 
     return {'ok': True, 'exists': bool(row)}
+
+
+# REPLACE your existing 'delete_employee' route with this Smart Logic:
+
 @app.route("/delete_employee/<int:id>", methods=["POST"])
 def delete_employee(id):
     if "loggedin" not in session:
         return redirect(url_for("login"))
 
-    cursor = None
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     try:
-        # We need a cursor. Since your app uses DictCursor globally, we handle results as dicts.
-        cursor = mysql.connection.cursor()
-
         # =========================================================
-        # STEP 1: Delete Blocking 'Evening Settle' Records
+        # STEP 1: SAFETY CHECKS (Stop if Stock or Money is Pending)
         # =========================================================
-        # Evening settlements are linked to Morning Allocations AND Employees.
-        # We must find all Allocations belonging to this employee first.
         
-        cursor.execute("SELECT id FROM morning_allocations WHERE employee_id = %s", (id,))
-        allocations = cursor.fetchall()
-        allocation_ids = [row['id'] for row in allocations]
+        # A. Check Pending Stock
+        # Logic: Get Last Settlement Date -> Check allocations after that date
+        cursor.execute("SELECT id, date FROM evening_settle WHERE employee_id=%s AND status='final' ORDER BY date DESC LIMIT 1", (id,))
+        last_settle = cursor.fetchone()
+        
+        has_stock = False
+        last_date = last_settle['date'] if last_settle else '2000-01-01'
 
-        # A. Delete Settlements linked to this Employee's Allocations
-        if allocation_ids:
-            # Convert list to string for SQL IN clause (safe way)
-            placeholders = ', '.join(['%s'] * len(allocation_ids))
-            sql = f"DELETE FROM evening_settle WHERE allocation_id IN ({placeholders})"
-            cursor.execute(sql, tuple(allocation_ids))
+        # Check if items remained in last settlement
+        if last_settle:
+            cursor.execute("SELECT SUM(remaining_qty) as rem FROM evening_item WHERE settle_id=%s", (last_settle['id'],))
+            rem_row = cursor.fetchone()
+            if rem_row and rem_row['rem'] and float(rem_row['rem']) > 0:
+                has_stock = True
 
-        # B. Delete Settlements linked directly to the Employee ID
-        # (This catches any settlements that might not have a matching allocation link)
-        cursor.execute("DELETE FROM evening_settle WHERE employee_id = %s", (id,))
+        # Check allocations given AFTER the last settlement
+        if not has_stock:
+            cursor.execute("""
+                SELECT SUM(mai.given_qty) as total_given
+                FROM morning_allocations ma
+                JOIN morning_allocation_items mai ON ma.id = mai.allocation_id
+                WHERE ma.employee_id=%s AND ma.date > %s
+            """, (id, last_date))
+            alloc_row = cursor.fetchone()
+            if alloc_row and alloc_row['total_given'] and float(alloc_row['total_given']) > 0:
+                has_stock = True
+
+        if has_stock:
+            flash("Cannot delete/deactivate: Employee still holds STOCK. Please perform Evening Settlement to return stock first.", "danger")
+            return redirect(url_for("employee_master"))
+
+        # B. Check Ledger Balance (Money Due)
+        cursor.execute("""
+            SELECT 
+                SUM(CASE WHEN type='debit' THEN amount ELSE 0 END) as total_debit,
+                SUM(CASE WHEN type='credit' THEN amount ELSE 0 END) as total_credit
+            FROM employee_transactions WHERE employee_id=%s
+        """, (id,))
+        bal_row = cursor.fetchone()
+        
+        debit = float(bal_row['total_debit'] or 0)
+        credit = float(bal_row['total_credit'] or 0)
+        balance = debit - credit
+
+        # Allow small floating point difference (e.g., 0.01)
+        if abs(balance) > 1.0: 
+            flash(f"Cannot delete/deactivate: Employee ledger is not zero (Balance: {balance}). Please clear dues first.", "danger")
+            return redirect(url_for("employee_master"))
 
         # =========================================================
-        # STEP 2: Delete Morning Allocations
+        # STEP 2: DETERMINE DELETE TYPE (Soft vs Hard)
         # =========================================================
-        # Now that evening settlements are gone, we can delete allocations.
-        # (This will auto-delete morning_allocation_items if you have CASCADE, but we do it manually to be safe)
-        cursor.execute("DELETE FROM morning_allocations WHERE employee_id = %s", (id,))
+        
+        # Check if History Exists
+        cursor.execute("SELECT id FROM evening_settle WHERE employee_id=%s LIMIT 1", (id,))
+        has_evening = cursor.fetchone()
+        
+        cursor.execute("SELECT id FROM morning_allocations WHERE employee_id=%s LIMIT 1", (id,))
+        has_morning = cursor.fetchone()
+        
+        cursor.execute("SELECT id FROM employee_transactions WHERE employee_id=%s LIMIT 1", (id,))
+        has_trans = cursor.fetchone()
 
-        # =========================================================
-        # STEP 3: Delete Other Dependencies
-        # =========================================================
-        cursor.execute("DELETE FROM product_returns WHERE employee_id = %s", (id,))
-        cursor.execute("DELETE FROM employee_transactions WHERE employee_id = %s", (id,))
-        cursor.execute("DELETE FROM employee_attendance WHERE employee_id = %s", (id,))
+        has_history = has_evening or has_morning or has_trans
 
-        # =========================================================
-        # STEP 4: Delete the Employee
-        # =========================================================
-        cursor.execute("DELETE FROM employees WHERE id = %s", (id,))
-
-        mysql.connection.commit()
-        flash("Employee and all associated records deleted successfully!", "success")
+        if has_history:
+            # --- SOFT DELETE (Mark Inactive) ---
+            # This preserves all reports, sales, and ledger history
+            cursor.execute("UPDATE employees SET status='inactive' WHERE id=%s", (id,))
+            mysql.connection.commit()
+            flash("Employee marked as INACTIVE (Resigned). Historical data preserved.", "warning")
+            
+        else:
+            # --- HARD DELETE (New/Empty Record) ---
+            # Safe to delete because no business data links to this ID
+            cursor.execute("DELETE FROM product_returns WHERE employee_id = %s", (id,))
+            cursor.execute("DELETE FROM employee_transactions WHERE employee_id = %s", (id,))
+            cursor.execute("DELETE FROM employee_attendance WHERE employee_id = %s", (id,))
+            cursor.execute("DELETE FROM employees WHERE id = %s", (id,))
+            
+            mysql.connection.commit()
+            flash("Employee record permanently deleted (No history found).", "success")
 
     except Exception as e:
         mysql.connection.rollback()
-        # Log the specific error to help debugging
         app.logger.error(f"Delete Employee Failed: {e}")
-        
-        # User friendly error message
-        if "foreign key" in str(e).lower():
-            flash("Cannot delete employee: There are still linked records (like Settlements) preventing deletion.", "danger")
-        else:
-            flash(f"An error occurred: {e}", "danger")
+        flash(f"An error occurred: {str(e)}", "danger")
 
     finally:
-        if cursor:
-            cursor.close()
+        cursor.close()
 
     return redirect(url_for("employee_master"))
 
@@ -7149,6 +7187,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
