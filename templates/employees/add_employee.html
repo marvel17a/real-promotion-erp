@@ -1,7 +1,7 @@
 {% extends "admin_master.html" %}
 {% block page_content %}
 
-<!-- Link to Glass Theme (Same as Edit Page) -->
+<!-- Link to new Glass Theme -->
 <link rel="stylesheet" href="{{ url_for('static', filename='css/employee.css') }}">
 <!-- Flatpickr CSS -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
@@ -59,11 +59,16 @@
                                 <input type="text" name="dob" class="form-control form-control-lg border-start-0 date-picker" placeholder="Select Date">
                             </div>
                         </div>
-                        
+
                         <div class="col-md-4">
-                            <label class="form-label fw-bold small text-muted text-uppercase">Aadhar Number</label>
-                            <input type="text" name="aadhar_no" class="form-control form-control-lg" placeholder="12-digit UID">
+                            <label class="form-label fw-bold small text-muted text-uppercase">Joining Date</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white border-end-0"><i class="far fa-calendar-check text-muted"></i></span>
+                                <input type="text" name="join_date" class="form-control form-control-lg border-start-0 date-picker" placeholder="Select Date">
+                            </div>
                         </div>
+                        
+                        <!-- Aadhar Number Removed as per request to match edit page -->
                     </div>
 
                     <!-- Section 2: Role & Organization -->
@@ -108,7 +113,7 @@
                         </div>
                     </div>
 
-                    <!-- Section 4: Address (Using Pincode API) -->
+                    <!-- Section 4: Address Details -->
                     <h6 class="text-uppercase text-info fw-bold small mb-3 ls-1 border-bottom pb-2 mt-4">
                         <i class="fas fa-map-marker-alt me-2"></i>Address Details
                     </h6>
@@ -127,11 +132,8 @@
                     <div class="row g-3 mb-4">
                         <div class="col-md-3">
                             <label class="form-label fw-bold small text-muted text-uppercase">Pincode <span class="text-danger">*</span></label>
-                            <div class="input-group">
-                                <input type="text" name="pincode" id="pincode" class="form-control" placeholder="6 digits" maxlength="6" required>
-                                <button type="button" class="btn btn-secondary" id="fetchPincodeBtn"><i class="fas fa-search"></i></button>
-                            </div>
-                            <small id="pincodeMsg" class="text-muted d-block mt-1"></small>
+                            <input type="text" name="pincode" id="pincode" class="form-control" placeholder="6 digits" maxlength="6" required>
+                            <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">Enter pincode to auto-fill details</small>
                         </div>
                         <div class="col-md-3">
                             <label class="form-label fw-bold small text-muted text-uppercase">City</label>
@@ -154,14 +156,14 @@
 
                     <div class="row g-4 mb-4">
                         <div class="col-md-6">
-                            <div class="p-3 border rounded bg-light">
+                            <div class="p-3 border rounded bg-light h-100">
                                 <label class="form-label fw-bold small text-muted text-uppercase mb-2">Profile Photo</label>
                                 <input type="file" name="image" class="form-control" accept="image/*">
                                 <div class="form-text small">Upload a clear passport size photo.</div>
                             </div>
                         </div>
                         <div class="col-md-6">
-                            <div class="p-3 border rounded bg-light">
+                            <div class="p-3 border rounded bg-light h-100">
                                 <label class="form-label fw-bold small text-muted text-uppercase mb-2">Documents (PDF)</label>
                                 <input type="file" name="document" class="form-control" accept=".pdf">
                                 <div class="form-text small">Resume, ID Proof, etc.</div>
@@ -195,7 +197,7 @@
     });
 </script>
 
-<!-- Pincode Script (Reused) -->
+<!-- Pincode Script -->
 <script src="{{ url_for('static', filename='js/pincode.js') }}"></script>
 
 {% endblock %}
