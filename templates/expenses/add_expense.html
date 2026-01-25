@@ -128,7 +128,7 @@
                         <div class="col-md-4">
                             <label class="form-label small fw-bold text-muted">PAYMENT MODE</label>
                             <select name="payment_method" id="payMode" class="form-select" onchange="syncUI()">
-                                <option value="Cash" selected>Cash (CEO Pocket)</option>
+                                <option value="Cash" selected>Cash (Office)</option>
                                 <option value="Online">Online / Bank Account</option>
                             </select>
                         </div>
@@ -249,7 +249,7 @@
 
     // UI Initializer
     document.addEventListener('DOMContentLoaded', () => {
-        flatpickr("#flatDate", { defaultDate: "today", dateFormat: "Y-m-d" });
+        flatpickr("#flatDate", { defaultDate: "today", dateFormat: "d-m-Y" });
         setInterval(() => { document.getElementById('clock').innerText = new Date().toLocaleTimeString(); }, 1000);
     });
 
@@ -371,3 +371,4 @@
     }
 </script>
 {% endblock %}
+
