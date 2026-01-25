@@ -1,6 +1,6 @@
 {% extends 'admin_master.html' %}
 {% block page_content %}
-<!-- Dependencies -->
+<!-- Zaruri Libraries -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -17,119 +17,125 @@
 
     body {
         font-family: 'Poppins', sans-serif;
-        background-color: #f8fafc;
+        background-color: #f1f5f9;
     }
 
     .premium-card {
         background: var(--glass);
-        backdrop-filter: blur(12px);
-        border: 1px solid rgba(226, 232, 240, 0.8);
-        border-radius: 24px;
-        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.5);
+        border-radius: 20px;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
     }
 
     .balance-widget {
-        padding: 1.25rem;
-        border-radius: 20px;
-        transition: all 0.4s ease;
-        border: 2.5px solid transparent;
+        padding: 1rem 1.5rem;
+        border-radius: 18px;
+        transition: all 0.3s ease;
         display: flex;
         align-items: center;
         gap: 15px;
     }
 
-    .cash-active { background: #ecfdf5; color: #065f46; border-color: #10b981; }
-    .bank-active { background: #eff6ff; color: #1e40af; border-color: #3b82f6; }
+    .cash-active { background: #ecfdf5; border: 2px solid #10b981; color: #065f46; }
+    .bank-active { background: #eff6ff; border: 2px solid #3b82f6; color: #1e40af; }
 
-    .live-clock-pill {
-        background: var(--dark);
+    .live-clock {
+        background: #1e293b;
         color: #38bdf8;
-        padding: 6px 18px;
+        padding: 4px 14px;
         border-radius: 50px;
-        font-family: 'Courier New', Courier, monospace;
-        font-weight: 700;
-        letter-spacing: 1px;
+        font-family: 'Courier New', monospace;
+        font-weight: bold;
     }
 
     .form-control, .form-select {
-        border-radius: 12px;
-        padding: 12px 16px;
+        border-radius: 10px;
+        padding: 10px 15px;
         border: 1.5px solid #e2e8f0;
     }
 
     .btn-premium {
         background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
-        color: white;
-        border: none;
-        border-radius: 15px;
-        padding: 14px 24px;
-        font-weight: 600;
-        box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.3);
+        color: white; border: none; border-radius: 12px;
+        padding: 12px 20px; font-weight: 600;
+        transition: all 0.2s;
     }
 
-    .btn-premium:disabled { background: #cbd5e1; box-shadow: none; cursor: not-allowed; }
+    .btn-premium:disabled { background: #94a3b8; cursor: not-allowed; transform: none; box-shadow: none; }
 
-    .upload-area {
+    /* Modern Bill Upload Section */
+    .bill-upload-box {
         border: 2px dashed #cbd5e1;
         border-radius: 20px;
-        padding: 25px;
+        padding: 2rem;
         text-align: center;
         cursor: pointer;
-        background: #f1f5f9;
+        background: #f8fafc;
+        transition: all 0.3s;
+    }
+    .bill-upload-box:hover { border-color: var(--primary); background: #fff; }
+    .file-badge {
+        display: inline-block;
+        padding: 2px 8px;
+        background: #e2e8f0;
+        border-radius: 4px;
+        font-size: 0.7rem;
+        font-weight: bold;
+        color: #475569;
+        margin: 0 2px;
     }
 
-    .item-row { animation: slideIn 0.3s ease-out; border-bottom: 1px solid #f1f5f9; }
-    @keyframes slideIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
+    .item-row { border-bottom: 1px solid #f1f5f9; animation: fadeIn 0.3s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
-    .error-balance { color: var(--danger) !important; animation: shake 0.5s; }
-    @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+    .limit-exceeded { color: var(--danger) !important; animation: shake 0.4s ease; }
+    @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
 </style>
 
 <div class="container-fluid py-4">
-    <!-- Header Section -->
-    <div class="row align-items-center mb-5">
+    <!-- Header aur Live Balance -->
+    <div class="row mb-4 align-items-center">
         <div class="col-md-7">
-            <h2 class="fw-bold text-dark m-0">Create Expense Voucher</h2>
+            <h2 class="fw-bold text-dark m-0">Voucher Entry</h2>
             <div class="d-flex align-items-center gap-3 mt-2">
-                <span id="liveClock" class="live-clock-pill">00:00:00</span>
-                <span class="text-muted small"><i class="fas fa-calendar-check me-1"></i> {{ today }}</span>
+                <span id="clock" class="live-clock">00:00:00</span>
+                <span class="text-muted small"><i class="fas fa-calendar-alt me-1"></i> Today: {{ today }}</span>
             </div>
         </div>
         <div class="col-md-5 d-flex justify-content-end">
             <div id="balanceDisplay" class="balance-widget cash-active shadow-sm">
-                <div class="bg-white rounded-circle p-3 shadow-sm">
-                    <i class="fas fa-wallet fa-lg"></i>
-                </div>
+                <i class="fas fa-university fa-2x opacity-50"></i>
                 <div>
-                    <small class="d-block text-uppercase fw-bold opacity-75">Available Fund</small>
-                    <h3 class="m-0 fw-bold" id="currentBalanceText">₹ {{ "{:,.2f}".format(cash_balance) }}</h3>
-                    <span id="fundSourceName" class="small fw-medium">Cash in Hand (CEO)</span>
+                    <small class="d-block text-uppercase fw-bold opacity-75" style="font-size: 0.7rem;">Live Fund Availability</small>
+                    <h4 class="m-0 fw-bold" id="balanceVal">₹ {{ "{:,.2f}".format(cash_balance) }}</h4>
+                    <span id="fundName" class="small">Office Cash Account</span>
                 </div>
             </div>
         </div>
     </div>
 
-    <form id="expenseForm" action="{{ url_for('add_expense') }}" method="POST" enctype="multipart/form-data">
+    <form id="voucherForm" action="{{ url_for('add_expense') }}" method="POST" enctype="multipart/form-data">
         <div class="row g-4">
-            <!-- Left Side -->
+            <!-- Left Panel -->
             <div class="col-lg-8">
                 <div class="card premium-card p-4 mb-4">
                     <div class="row g-3 mb-4">
                         <div class="col-md-4">
-                            <label class="form-label fw-bold small text-muted">VOUCHER DATE</label>
-                            <input type="text" name="expense_date" id="datePicker" class="form-control" required>
+                            <label class="form-label small fw-bold text-muted">EXPENSE DATE</label>
+                            <input type="text" name="expense_date" id="flatDate" class="form-control" required>
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label fw-bold small text-muted">PAYMENT MODE</label>
-                            <select name="payment_method" id="payMode" class="form-select" onchange="syncBalanceUI()">
-                                <option value="Cash" selected>Cash (Office/CEO)</option>
+                            <label class="form-label small fw-bold text-muted">PAYMENT MODE</label>
+                            <select name="payment_method" id="payMode" class="form-select" onchange="syncUI()">
+                                <option value="Cash" selected>Cash (CEO Pocket)</option>
                                 <option value="Online">Online / Bank Account</option>
                             </select>
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label fw-bold small text-muted">MAIN CATEGORY</label>
-                            <select name="main_category_id" id="mainCat" class="form-select" onchange="startAllocation()" required>
-                                <option value="" disabled selected>Choose Category</option>
+                            <label class="form-label small fw-bold text-muted">MAIN CATEGORY</label>
+                            <select name="main_category_id" id="mainCat" class="form-select" onchange="initRows()" required>
+                                <option value="" disabled selected>Select Category...</option>
                                 {% for cat in categories %}
                                 <option value="{{ cat.category_id }}">{{ cat.category_name }}</option>
                                 {% endfor %}
@@ -137,10 +143,10 @@
                         </div>
                     </div>
 
-                    <div id="itemsWrapper" style="display: none;">
+                    <div id="itemsSection" style="display: none;">
                         <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h6 class="fw-bold text-primary m-0"><i class="fas fa-list-ul me-2"></i>Item Allocation</h6>
-                            <button type="button" class="btn btn-sm btn-outline-success rounded-pill px-4 shadow-sm fw-bold" onclick="addNewLine()">
+                            <h6 class="fw-bold text-primary m-0">Line Item Details</h6>
+                            <button type="button" class="btn btn-sm btn-outline-success rounded-pill px-4 fw-bold shadow-sm" onclick="addRow()">
                                 <i class="fas fa-plus-circle me-1"></i> Add New Item
                             </button>
                         </div>
@@ -149,75 +155,86 @@
                             <table class="table table-borderless align-middle">
                                 <thead>
                                     <tr class="small text-muted border-bottom">
-                                        <th style="width: 45%;">Sub-Category Item</th>
+                                        <th style="width: 45%;">Sub-Category / Item</th>
                                         <th style="width: 25%;">Amount (₹)</th>
                                         <th style="width: 20%;" class="text-center">Details</th>
                                         <th style="width: 10%;"></th>
                                     </tr>
                                 </thead>
-                                <tbody id="itemTableBody"></tbody>
+                                <tbody id="tableBody"></tbody>
                             </table>
                         </div>
                     </div>
 
-                    <div id="noCatState" class="text-center py-5">
-                        <img src="https://cdn-icons-png.flaticon.com/512/9638/9638640.png" style="width: 80px; opacity: 0.2;" alt="">
-                        <p class="text-muted mt-3">Select a category to start recording expenses.</p>
+                    <div id="emptyState" class="text-center py-5">
+                        <i class="fas fa-folder-open fa-3x text-light mb-3"></i>
+                        <p class="text-muted">Please select a Main Category to start adding items.</p>
                     </div>
                 </div>
 
+                <!-- Modern Bill Upload Section -->
                 <div class="card premium-card p-4">
-                    <h6 class="fw-bold mb-3"><i class="fas fa-paperclip me-2"></i>Upload Bill / Receipt</h6>
-                    <div class="upload-area" onclick="document.getElementById('receiptFile').click()">
-                        <i class="fas fa-camera fa-2x text-muted mb-2"></i>
-                        <h6 class="m-0 text-dark">Click to upload photo</h6>
-                        <input type="file" name="receipt" id="receiptFile" hidden accept="image/*" onchange="handleFile(this)">
-                        <div id="fileSelectedInfo" class="mt-2 fw-bold text-success"></div>
+                    <h6 class="fw-bold mb-3"><i class="fas fa-file-invoice me-2"></i>Supporting Documents</h6>
+                    <div class="bill-upload-box" onclick="document.getElementById('fileInp').click()">
+                        <div class="mb-3">
+                            <i class="fas fa-cloud-upload-alt fa-3x text-primary opacity-50"></i>
+                        </div>
+                        <h6 class="fw-bold mb-1">Click to Upload Bill Photo</h6>
+                        <p class="text-muted small mb-2">Drag and drop or browse from your device</p>
+                        <div class="d-flex justify-content-center">
+                            <span class="file-badge">JPG</span>
+                            <span class="file-badge">PNG</span>
+                            <span class="file-badge">PDF</span>
+                        </div>
+                        <input type="file" name="receipt" id="fileInp" hidden accept="image/*,application/pdf" onchange="previewFile(this)">
+                        <div id="fileInfo" class="mt-3 fw-bold text-success" style="display: none;"></div>
                     </div>
                 </div>
             </div>
 
-            <!-- Right Side Summary -->
+            <!-- Sidebar Summary -->
             <div class="col-lg-4">
                 <div class="card premium-card p-4 sticky-top" style="top: 20px;">
                     <h5 class="fw-bold mb-4">Final Summary</h5>
                     <div class="d-flex justify-content-between mb-2">
-                        <span class="text-muted">Total Line Items</span>
-                        <span class="fw-bold" id="countDisplay">0</span>
+                        <span class="text-muted">Item Count</span>
+                        <span class="fw-bold" id="itemCount">0</span>
                     </div>
 
                     <div id="totalBox" class="bg-dark text-white rounded-4 p-4 text-center my-4 shadow-lg">
-                        <small class="text-uppercase opacity-50 fw-bold">Total Voucher Amount</small>
-                        <h1 class="fw-bold m-0" id="totalDisplay">₹ 0.00</h1>
+                        <small class="text-uppercase opacity-50 fw-bold" style="font-size: 0.7rem; letter-spacing: 1px;">Voucher Total</small>
+                        <h1 class="fw-bold m-0" id="grandTotal">₹ 0.00</h1>
                     </div>
 
-                    <div id="balanceWarning" class="alert alert-danger py-2 small mb-3" style="display: none;">
-                        <i class="fas fa-exclamation-triangle me-2"></i> Insufficient funds in this mode!
+                    <!-- Validation Alert -->
+                    <div id="alertBox" class="alert alert-danger border-0 py-2 small mb-3" style="display: none; border-radius: 12px;">
+                        <i class="fas fa-exclamation-circle me-2"></i> Amount exceeds available fund!
                     </div>
 
-                    <button type="submit" id="submitBtn" class="btn btn-premium w-100 py-3 mb-3 shadow">
-                        <i class="fas fa-check-double me-2"></i> Post Expense
+                    <button type="submit" id="postBtn" class="btn btn-premium w-100 py-3 mb-3 shadow">
+                        <i class="fas fa-check-double me-2"></i> Confirm & Post Voucher
                     </button>
-                    <a href="{{ url_for('expense_dash') }}" class="btn btn-link text-muted w-100 text-decoration-none">Cancel</a>
+                    
+                    <a href="{{ url_for('expense_dash') }}" class="btn btn-link text-muted w-100 text-decoration-none small">Discard Voucher</a>
                 </div>
             </div>
         </div>
     </form>
 </div>
 
-<!-- Fixed Note Modal -->
+<!-- Modal for Description -->
 <div class="modal fade" id="noteModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg" style="border-radius: 25px;">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
             <div class="modal-header border-0 pb-0">
-                <h5 class="fw-bold">Item Description</h5>
+                <h5 class="fw-bold ms-2 mt-2">Item Description</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body p-4">
-                <textarea id="modalText" class="form-control" rows="5" placeholder="Enter details..."></textarea>
+                <textarea id="modalArea" class="form-control" rows="5" placeholder="Add specific details for this entry..."></textarea>
             </div>
-            <div class="modal-footer border-0">
-                <button type="button" class="btn btn-primary rounded-pill px-4" onclick="saveNote()">Save Detail</button>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-primary rounded-pill px-4 shadow-sm" onclick="saveNote()">Save Detail</button>
             </div>
         </div>
     </div>
@@ -228,110 +245,129 @@
     const subcats = {{ subcategories | tojson }};
     const cBal = {{ cash_balance }};
     const bBal = {{ bank_balance }};
-    let activeNoteInput = null;
+    let currentNoteTarget = null;
 
+    // UI Initializer
     document.addEventListener('DOMContentLoaded', () => {
-        flatpickr("#datePicker", { defaultDate: "today", dateFormat: "Y-m-d" });
-        setInterval(() => { document.getElementById('liveClock').innerText = new Date().toLocaleTimeString(); }, 1000);
+        flatpickr("#flatDate", { defaultDate: "today", dateFormat: "Y-m-d" });
+        setInterval(() => { document.getElementById('clock').innerText = new Date().toLocaleTimeString(); }, 1000);
     });
 
-    function syncBalanceUI() {
+    // Balance Sync
+    function syncUI() {
         const mode = document.getElementById('payMode').value;
         const box = document.getElementById('balanceDisplay');
-        const val = document.getElementById('currentBalanceText');
-        const lbl = document.getElementById('fundSourceName');
+        const text = document.getElementById('balanceVal');
+        const name = document.getElementById('fundName');
 
         if(mode === 'Cash') {
             box.className = 'balance-widget cash-active shadow-sm';
-            val.innerText = "₹ " + cBal.toLocaleString('en-IN', {minimumFractionDigits:2});
-            lbl.innerText = "Cash in Hand (CEO)";
+            text.innerText = "₹ " + cBal.toLocaleString('en-IN', {minimumFractionDigits: 2});
+            name.innerText = "Office Cash Account";
         } else {
             box.className = 'balance-widget bank-active shadow-sm';
-            val.innerText = "₹ " + bBal.toLocaleString('en-IN', {minimumFractionDigits:2});
-            lbl.innerText = "Digital Fund (Bank Account)";
+            text.innerText = "₹ " + bBal.toLocaleString('en-IN', {minimumFractionDigits: 2});
+            name.innerText = "Digital Bank Account";
         }
-        recalc(); // Run validation on mode change
+        recalc();
     }
 
-    function startAllocation() {
-        document.getElementById('noCatState').style.display = 'none';
-        document.getElementById('itemsWrapper').style.display = 'block';
-        document.getElementById('itemTableBody').innerHTML = '';
-        addNewLine();
+    // Dynamic Items Logic
+    function initRows() {
+        document.getElementById('emptyState').style.display = 'none';
+        document.getElementById('itemsSection').style.display = 'block';
+        document.getElementById('tableBody').innerHTML = '';
+        addRow();
     }
 
-    function addNewLine() {
+    function addRow() {
         const catId = document.getElementById('mainCat').value;
         const filtered = subcats.filter(s => s.category_id == catId);
-        let opts = '<option value="" disabled selected>Select Item</option>';
+        let opts = '<option value="" disabled selected>Select Sub-Category</option>';
         filtered.forEach(s => opts += `<option value="${s.subcategory_id}">${s.subcategory_name}</option>`);
 
         const tr = document.createElement('tr');
         tr.className = 'item-row';
         tr.innerHTML = `
             <td><select name="subcategory_id[]" class="form-select border-0 bg-light" required>${opts}</select></td>
-            <td><input type="number" name="amount[]" class="form-control border-0 bg-light fw-bold text-end amt-trigger" placeholder="0.00" oninput="recalc()" step="0.01" required></td>
+            <td><input type="number" name="amount[]" class="form-control border-0 bg-light fw-bold text-end val-inp" placeholder="0.00" step="0.01" oninput="recalc()" required></td>
             <td class="text-center">
-                <button type="button" class="btn btn-light btn-sm rounded-circle shadow-sm" onclick="openNote(this)"><i class="far fa-comment-alt"></i></button>
-                <input type="hidden" name="description[]" class="note-storage">
+                <button type="button" class="btn btn-light btn-sm rounded-circle border shadow-sm" onclick="openModal(this)">
+                    <i class="far fa-comment-alt"></i>
+                </button>
+                <input type="hidden" name="description[]" class="note-inp">
             </td>
             <td class="text-end">
-                <button type="button" class="btn btn-sm text-danger" onclick="removeLine(this)"><i class="fas fa-trash-alt"></i></button>
+                <button type="button" class="btn btn-link text-danger p-0" onclick="removeRow(this)">
+                    <i class="fas fa-trash-alt"></i>
+                </button>
             </td>
         `;
-        document.getElementById('itemTableBody').appendChild(tr);
+        document.getElementById('tableBody').appendChild(tr);
         recalc();
     }
 
-    function removeLine(btn) {
-        if(confirm("Are you sure you want to delete this line item?")) {
+    function removeRow(btn) {
+        if(confirm("Dhyan dein! Kya aap waqai is item ko delete karna chahte hain?")) {
             btn.closest('tr').remove();
             recalc();
         }
     }
 
+    // Validation & Total Calculation
     function recalc() {
         let total = 0;
-        document.querySelectorAll('.amt-trigger').forEach(inp => total += parseFloat(inp.value) || 0);
+        document.querySelectorAll('.val-inp').forEach(i => total += parseFloat(i.value) || 0);
         
         const mode = document.getElementById('payMode').value;
         const available = mode === 'Cash' ? cBal : bBal;
-        const display = document.getElementById('totalDisplay');
-        const submitBtn = document.getElementById('submitBtn');
-        const warning = document.getElementById('balanceWarning');
+        
+        const grandTotalDisplay = document.getElementById('grandTotal');
+        const postBtn = document.getElementById('postBtn');
+        const alertBox = document.getElementById('alertBox');
 
-        display.innerText = "₹ " + total.toLocaleString('en-IN', {minimumFractionDigits: 2});
-        document.getElementById('countDisplay').innerText = document.querySelectorAll('.item-row').length;
+        grandTotalDisplay.innerText = "₹ " + total.toLocaleString('en-IN', {minimumFractionDigits: 2});
+        document.getElementById('itemCount').innerText = document.querySelectorAll('.item-row').length;
 
-        // Validation Logic
+        // Strict Balance Check
         if(total > available) {
-            display.classList.add('error-balance');
-            submitBtn.disabled = true;
-            warning.style.display = 'block';
+            grandTotalDisplay.classList.add('limit-exceeded');
+            postBtn.disabled = true;
+            alertBox.style.display = 'block';
         } else {
-            display.classList.remove('error-balance');
-            submitBtn.disabled = false;
-            warning.style.display = 'none';
+            grandTotalDisplay.classList.remove('limit-exceeded');
+            postBtn.disabled = false;
+            alertBox.style.display = 'none';
         }
     }
 
-    const nModal = new bootstrap.Modal(document.getElementById('noteModal'));
-    function openNote(btn) {
-        activeNoteInput = btn.nextElementSibling;
-        document.getElementById('modalText').value = activeNoteInput.value;
-        nModal.show();
+    // Working Modal Logic
+    const myModal = new bootstrap.Modal(document.getElementById('noteModal'));
+    function openModal(btn) {
+        currentNoteTarget = btn.nextElementSibling;
+        document.getElementById('modalArea').value = currentNoteTarget.value;
+        myModal.show();
     }
 
     function saveNote() {
-        const val = document.getElementById('modalText').value;
-        activeNoteInput.value = val;
-        if(val) activeNoteInput.previousElementSibling.classList.replace('btn-light', 'btn-primary');
-        else activeNoteInput.previousElementSibling.classList.replace('btn-primary', 'btn-light');
-        nModal.hide();
+        const text = document.getElementById('modalArea').value;
+        currentNoteTarget.value = text;
+        if(text) {
+            currentNoteTarget.previousElementSibling.classList.replace('btn-light', 'btn-primary');
+            currentNoteTarget.previousElementSibling.classList.add('text-white');
+        } else {
+            currentNoteTarget.previousElementSibling.classList.replace('btn-primary', 'btn-light');
+            currentNoteTarget.previousElementSibling.classList.remove('text-white');
+        }
+        myModal.hide();
     }
 
-    function handleFile(input) {
-        if(input.files[0]) document.getElementById('fileSelectedInfo').innerText = "✓ Attached: " + input.files[0].name;
+    function previewFile(input) {
+        if(input.files && input.files[0]) {
+            const info = document.getElementById('fileInfo');
+            info.innerHTML = `<i class="fas fa-check-circle me-1"></i> Ready: ${input.files[0].name}`;
+            info.style.display = 'block';
+        }
     }
 </script>
 {% endblock %}
