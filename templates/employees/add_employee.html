@@ -1,352 +1,142 @@
-{% extends 'admin_master.html' %}
+{% extends "admin_master.html" %}
 {% block page_content %}
-<!-- Dependencies -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-<style>
-    :root {
-        --primary: #4f46e5;
-        --secondary: #7c3aed;
-        --success: #10b981;
-        --info: #3b82f6;
-        --dark: #1e293b;
-        --glass: rgba(255, 255, 255, 0.95);
-    }
+<div class="container mt-4">
+    <h2 class="fw-bold mb-4">Add Employee</h2>
 
-    body {
-        font-family: 'Poppins', sans-serif;
-        background-color: #f8fafc;
-    }
+    <form action="{{ url_for('add_employee') }}" method="POST" enctype="multipart/form-data" class="glass-card p-4">
 
-    .premium-card {
-        background: var(--glass);
-        backdrop-filter: blur(12px);
-        border: 1px solid rgba(226, 232, 240, 0.8);
-        border-radius: 24px;
-        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05);
-        transition: all 0.3s ease;
-    }
+        <div class="row mb-3">
+            <div class="col-md-4">
+                <label class="form-label">Full Name</label>
+                <input type="text" name="name" class="form-control" required>
+            </div>
 
-    .balance-widget {
-        padding: 1.25rem;
-        border-radius: 20px;
-        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-        border: 2.5px solid transparent;
-        display: flex;
-        align-items: center;
-        gap: 15px;
-    }
+            <div class="col-md-4">
+                <label class="form-label">Email</label>
+                <input type="email" name="email" class="form-control">
+            </div>
 
-    .cash-active { background: #ecfdf5; color: #065f46; border-color: #10b981; }
-    .bank-active { background: #eff6ff; color: #1e40af; border-color: #3b82f6; }
-
-    .live-clock-pill {
-        background: var(--dark);
-        color: #38bdf8;
-        padding: 6px 18px;
-        border-radius: 50px;
-        font-family: 'Courier New', Courier, monospace;
-        font-weight: 700;
-        letter-spacing: 1px;
-        box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
-    }
-
-    .form-control, .form-select {
-        border-radius: 12px;
-        padding: 12px 16px;
-        border: 1.5px solid #e2e8f0;
-        font-size: 0.9rem;
-    }
-
-    .form-control:focus {
-        border-color: var(--primary);
-        box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
-    }
-
-    .btn-premium {
-        background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
-        color: white;
-        border: none;
-        border-radius: 15px;
-        padding: 14px 24px;
-        font-weight: 600;
-        box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.3);
-    }
-
-    .btn-premium:hover { transform: translateY(-2px); color: white; opacity: 0.9; }
-
-    .upload-area {
-        border: 2px dashed #cbd5e1;
-        border-radius: 20px;
-        padding: 30px;
-        text-align: center;
-        cursor: pointer;
-        background: #f1f5f9;
-        transition: all 0.2s;
-    }
-
-    .upload-area:hover { border-color: var(--primary); background: #fff; }
-
-    .item-row { animation: slideIn 0.3s ease-out; border-bottom: 1px solid #f1f5f9; }
-    @keyframes slideIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
-
-    .sticky-summary { position: sticky; top: 20px; }
-</style>
-
-<div class="container-fluid py-4">
-    <!-- Header Section -->
-    <div class="row align-items-center mb-5">
-        <div class="col-md-7">
-            <h2 class="fw-bold text-dark m-0">Expense Voucher Requisition</h2>
-            <div class="d-flex align-items-center gap-3 mt-2">
-                <span id="liveClock" class="live-clock-pill">00:00:00</span>
-                <span class="text-muted small"><i class="fas fa-calendar-check me-1"></i> System Date: {{ today }}</span>
+            <div class="col-md-4">
+                <label class="form-label">Phone</label>
+                <input type="text" name="phone" maxlength="10" pattern="\d{10}" class="form-control">
             </div>
         </div>
-        <div class="col-md-5 d-flex justify-content-end">
-            <div id="balanceDisplay" class="balance-widget cash-active shadow-sm">
-                <div class="bg-white rounded-circle p-3 shadow-sm">
-                    <i class="fas fa-wallet fa-lg"></i>
-                </div>
-                <div>
-                    <small class="d-block text-uppercase fw-bold opacity-75">Available Fund</small>
-                    <h3 class="m-0 fw-bold" id="currentBalanceText">₹ {{ "{:,.2f}".format(cash_balance) }}</h3>
-                    <span id="fundSourceName" class="small fw-medium">Cash in Hand (CEO)</span>
-                </div>
+
+        <div class="row mb-3">
+            <div class="col-md-4">
+                <label class="form-label">Date of Birth</label>
+                <input type="date" name="dob" class="form-control">
+            </div>
+
+            <div class="col-md-4">
+                <label class="form-label">Join Date</label>
+                <input type="date" name="join_date" class="form-control">
+            </div>
+
+            <div class="col-md-4">
+                <label class="form-label">Status</label>
+                <select name="status" class="form-control">
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                </select>
             </div>
         </div>
-    </div>
 
-    <form id="expenseForm" action="{{ url_for('add_expense') }}" method="POST" enctype="multipart/form-data">
-        <div class="row g-4">
-            <!-- Left Side: Main Form -->
-            <div class="col-lg-8">
-                <div class="card premium-card p-4 mb-4">
-                    <div class="row g-3 mb-4">
-                        <div class="col-md-4">
-                            <label class="form-label fw-bold small text-muted">VOUCHER DATE</label>
-                            <input type="text" name="expense_date" id="datePicker" class="form-control" required>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label fw-bold small text-muted">PAYMENT MODE</label>
-                            <select name="payment_method" id="payMode" class="form-select" onchange="syncBalanceUI()">
-                                <option value="Cash" selected>Cash (Physical)</option>
-                                <option value="Online">Online / Bank Transfer</option>
-                                <option value="UPI">UPI / GPay / PhonePe</option>
-                            </select>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label fw-bold small text-muted">MAIN CATEGORY</label>
-                            <select name="main_category_id" id="mainCat" class="form-select" onchange="startAllocation()" required>
-                                <option value="" disabled selected>Choose Category</option>
-                                {% for cat in categories %}
-                                <option value="{{ cat.category_id }}">{{ cat.category_name }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                    </div>
-
-                    <!-- Items Table -->
-                    <div id="itemsWrapper" style="display: none;">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h6 class="fw-bold text-primary m-0"><i class="fas fa-list-ul me-2"></i>Line Item Allocation</h6>
-                            <button type="button" class="btn btn-sm btn-light border rounded-pill px-3" onclick="addNewLine()">
-                                <i class="fas fa-plus me-1 text-success"></i> Add Item
-                            </button>
-                        </div>
-                        
-                        <div class="table-responsive">
-                            <table class="table table-borderless align-middle">
-                                <thead>
-                                    <tr class="small text-muted border-bottom">
-                                        <th style="width: 45%;">Sub-Category / Service</th>
-                                        <th style="width: 25%;">Amount (₹)</th>
-                                        <th style="width: 20%;" class="text-center">Note</th>
-                                        <th style="width: 10%;"></th>
-                                    </tr>
-                                </thead>
-                                <tbody id="itemTableBody"></tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <!-- Empty State -->
-                    <div id="noCatState" class="text-center py-5">
-                        <img src="https://cdn-icons-png.flaticon.com/512/9638/9638640.png" style="width: 100px; opacity: 0.2;" alt="">
-                        <p class="text-muted mt-3">Select a Main Category above to generate itemized rows.</p>
-                    </div>
-                </div>
-
-                <!-- Attachment Area -->
-                <div class="card premium-card p-4">
-                    <h6 class="fw-bold mb-3"><i class="fas fa-paperclip me-2"></i>Supporting Document</h6>
-                    <div class="upload-area" onclick="document.getElementById('receiptFile').click()">
-                        <i class="fas fa-camera fa-2x text-muted mb-2"></i>
-                        <h6 class="m-0 text-dark">Upload Bill or Store Receipt</h6>
-                        <p class="text-muted small mb-0">Max size 5MB (JPG, PNG)</p>
-                        <input type="file" name="receipt" id="receiptFile" hidden accept="image/*" onchange="handleFile(this)">
-                        <div id="fileSelectedInfo" class="mt-2 fw-bold text-success"></div>
-                    </div>
-                </div>
+        <div class="row mb-3">
+            <div class="col-md-4">
+                <label class="form-label">Emergency Contact</label>
+                <input type="text" name="emergency_contact" maxlength="10" pattern="\d{10}" class="form-control">
             </div>
 
-            <!-- Right Side: Sticky Summary -->
-            <div class="col-lg-4">
-                <div class="card premium-card p-4 sticky-summary">
-                    <h5 class="fw-bold mb-4">Voucher Summary</h5>
-                    
-                    <div class="d-flex justify-content-between mb-2">
-                        <span class="text-muted">Total Items</span>
-                        <span class="fw-bold" id="countDisplay">0</span>
-                    </div>
+            <div class="col-md-4">
+                <label class="form-label">Aadhar Number</label>
+                <input type="text" name="aadhar_no" maxlength="12" class="form-control">
+            </div>
 
-                    <div class="bg-dark text-white rounded-4 p-4 text-center my-4 shadow-lg">
-                        <small class="text-uppercase opacity-50 fw-bold" style="letter-spacing: 1px;">Grand Total Payable</small>
-                        <h1 class="fw-bold m-0" id="totalDisplay">₹ 0.00</h1>
-                    </div>
-
-                    <button type="submit" class="btn btn-premium w-100 py-3 mb-3">
-                        <i class="fas fa-check-double me-2"></i> Confirm & Post Voucher
-                    </button>
-                    
-                    <a href="{{ url_for('expense_dash') }}" class="btn btn-link text-muted w-100 text-decoration-none">
-                        Discard Changes
-                    </a>
-                </div>
+            <div class="col-md-4">
+                <label class="form-label">Position Title (optional)</label>
+                <input type="text" name="position" class="form-control">
             </div>
         </div>
+
+        <!-- PINCODE AREA FIXED -->
+        <div class="row mb-3">
+            <div class="col-md-3">
+                <label class="form-label">Pincode</label>
+                <input type="text" id="pincode" name="pincode" maxlength="6" pattern="\d{6}" class="form-control">
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label">City / Area</label>
+                <select id="city" name="city" class="form-control">
+                    <option value="">Select City/Area</option>
+                </select>
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label">District</label>
+                <input type="text" id="district" name="district" class="form-control" readonly>
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label">State</label>
+                <input type="text" id="state" name="state" class="form-control" readonly>
+            </div>
+        </div>
+
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <label class="form-label">Address Line 1</label>
+                <input type="text" name="address_line1" class="form-control">
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">Address Line 2</label>
+                <input type="text" name="address_line2" class="form-control">
+            </div>
+        </div>
+
+        <!-- DEPARTMENT+POSITION CORRECTED -->
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <label class="form-label">Department</label>
+                <select name="department_id" class="form-control">
+                    <option value="">Select Department</option>
+                    {% for d in departments %}
+                        <option value="{{ d.id }}">{{ d.department_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">Position (Master)</label>
+                <select name="position_id" class="form-control">
+                    <option value="">Select Position</option>
+                    {% for p in positions %}
+                        <option value="{{ p.id }}">{{ p.position_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <!-- FILE UPLOADS -->
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <label class="form-label">Employee Photo</label>
+                <input type="file" name="image" class="form-control">
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">Document</label>
+                <input type="file" name="document" class="form-control">
+            </div>
+        </div>
+
+        <button class="btn btn-primary mt-3">Save Employee</button>
     </form>
 </div>
 
-<!-- Modal for Item Descriptions -->
-<div class="modal fade" id="noteModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg" style="border-radius: 25px;">
-            <div class="modal-header border-0 pb-0">
-                <h5 class="fw-bold mt-2 ms-2">Detailed Remark</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body p-4">
-                <p class="text-muted small mb-3">Add specific details about this expense item for audit clarity.</p>
-                <textarea id="modalText" class="form-control" rows="5" placeholder="e.g. Fuel for Vehicle GJ01-XXXX, Office Stationery for Jan..."></textarea>
-            </div>
-            <div class="modal-footer border-0">
-                <button type="button" class="btn btn-primary rounded-pill px-4" onclick="saveNote()">Save Detail</button>
-            </div>
-        </div>
-    </div>
-</div>
+<script src="{{ url_for('static', filename='js/pincode.js') }}"></script>
 
-<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-<script>
-    const subcats = {{ subcategories | tojson }};
-    const cBal = {{ cash_balance }};
-    const bBal = {{ bank_balance }};
-    let activeNoteInput = null;
-
-    // 1. Setup UI
-    document.addEventListener('DOMContentLoaded', () => {
-        flatpickr("#datePicker", { defaultDate: "today", dateFormat: "Y-m-d" });
-        setInterval(updateTime, 1000);
-    });
-
-    function updateTime() {
-        document.getElementById('liveClock').innerText = new Date().toLocaleTimeString();
-    }
-
-    // 2. Balance Logic
-    function syncBalanceUI() {
-        const mode = document.getElementById('payMode').value;
-        const box = document.getElementById('balanceDisplay');
-        const val = document.getElementById('currentBalanceText');
-        const lbl = document.getElementById('fundSourceName');
-
-        if(mode === 'Cash') {
-            box.className = 'balance-widget cash-active shadow-sm';
-            val.innerText = "₹ " + cBal.toLocaleString('en-IN', {minimumFractionDigits:2});
-            lbl.innerText = "Cash in Hand (CEO)";
-        } else {
-            box.className = 'balance-widget bank-active shadow-sm';
-            val.innerText = "₹ " + bBal.toLocaleString('en-IN', {minimumFractionDigits:2});
-            lbl.innerText = "Digital Fund (Bank Account)";
-        }
-    }
-
-    // 3. Dynamic Items Flow
-    function startAllocation() {
-        document.getElementById('noCatState').style.display = 'none';
-        document.getElementById('itemsWrapper').style.display = 'block';
-        document.getElementById('itemTableBody').innerHTML = '';
-        addNewLine();
-    }
-
-    function addNewLine() {
-        const catId = document.getElementById('mainCat').value;
-        const filtered = subcats.filter(s => s.category_id == catId);
-        
-        let subOptions = '<option value="" disabled selected>Select Sub-Category</option>';
-        filtered.forEach(s => {
-            subOptions += `<option value="${s.subcategory_id}">${s.subcategory_name}</option>`;
-        });
-
-        const tr = document.createElement('tr');
-        tr.className = 'item-row';
-        tr.innerHTML = `
-            <td><select name="subcategory_id[]" class="form-select border-0 bg-light" required>${subOptions}</select></td>
-            <td><input type="number" name="amount[]" class="form-control border-0 bg-light fw-bold text-end amt-trigger" placeholder="0.00" oninput="recalc()" step="0.01" required></td>
-            <td class="text-center">
-                <button type="button" class="btn btn-light btn-sm rounded-circle shadow-sm" onclick="openNote(this)">
-                    <i class="far fa-edit"></i>
-                </button>
-                <input type="hidden" name="description[]" class="note-storage">
-            </td>
-            <td class="text-end">
-                <button type="button" class="btn btn-link text-danger p-0" onclick="removeLine(this)">
-                    <i class="fas fa-times-circle"></i>
-                </button>
-            </td>
-        `;
-        document.getElementById('itemTableBody').appendChild(tr);
-        recalc();
-    }
-
-    function removeLine(btn) {
-        btn.closest('tr').remove();
-        recalc();
-    }
-
-    function recalc() {
-        let total = 0;
-        const rows = document.querySelectorAll('.item-row');
-        document.querySelectorAll('.amt-trigger').forEach(inp => total += parseFloat(inp.value) || 0);
-        
-        document.getElementById('totalDisplay').innerText = "₹ " + total.toLocaleString('en-IN', {minimumFractionDigits: 2});
-        document.getElementById('countDisplay').innerText = rows.length;
-    }
-
-    // 4. Modal Description Logic
-    const nModal = new bootstrap.Modal(document.getElementById('noteModal'));
-    function openNote(btn) {
-        activeNoteInput = btn.nextElementSibling;
-        document.getElementById('modalText').value = activeNoteInput.value;
-        nModal.show();
-    }
-
-    function saveNote() {
-        const val = document.getElementById('modalText').value;
-        activeNoteInput.value = val;
-        // Highlight button if note exists
-        if(val) activeNoteInput.previousElementSibling.classList.add('btn-primary');
-        else activeNoteInput.previousElementSibling.classList.remove('btn-primary');
-        nModal.hide();
-    }
-
-    function handleFile(input) {
-        if(input.files[0]) {
-            document.getElementById('fileSelectedInfo').innerText = "✓ Attached: " + input.files[0].name;
-        }
-    }
-</script>
 {% endblock %}
