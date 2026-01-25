@@ -7,7 +7,7 @@
 <div class="container-fluid py-4 fade-in-up">
     
     <!-- Page Header -->
-    <div class="d-flex justify-content-between align-items-center mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h3 class="fw-bold text-dark mb-1">Employee Master</h3>
             <p class="text-muted small mb-0">Central hub for workforce management.</p>
@@ -17,102 +17,76 @@
         </a>
     </div>
 
-    <!-- SECTION 1: DEPARTMENTS -->
+    <!-- FILTER TABS (Active / Inactive) -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="glass-card p-2 d-inline-flex rounded-pill bg-white shadow-sm">
+                <a href="{{ url_for('employee_master', status='active') }}" 
+                   class="btn rounded-pill px-4 fw-bold {{ 'btn-primary' if current_status == 'active' else 'btn-light text-muted' }}">
+                    <i class="fas fa-user-check me-2"></i> Active Employees
+                </a>
+                <a href="{{ url_for('employee_master', status='inactive') }}" 
+                   class="btn rounded-pill px-4 fw-bold ms-2 {{ 'btn-danger' if current_status == 'inactive' else 'btn-light text-muted' }}">
+                    <i class="fas fa-user-slash me-2"></i> Former / Resigned
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- SECTION 1: DEPARTMENTS (Collapsible) -->
+    <!-- (Your existing department code kept exactly same) -->
     <div class="row mb-4">
         <div class="col-12">
             <div class="glass-card">
                 <div class="p-1">
                     <button class="btn btn-white w-100 d-flex justify-content-between align-items-center p-3 border-0 bg-transparent" type="button" data-bs-toggle="collapse" data-bs-target="#deptSection" aria-expanded="true">
                         <div class="d-flex align-items-center">
-                            <div class="bg-primary bg-opacity-10 p-2 rounded-circle text-primary me-3">
-                                <i class="fas fa-building"></i>
+                            <div class="bg-primary bg-opacity-10 p-2 rounded-circle me-3 text-primary">
+                                <i class="fas fa-sitemap"></i>
                             </div>
-                            <div>
-                                <h6 class="fw-bold text-dark mb-0">Departments</h6>
-                                <small class="text-muted">Manage company structure</small>
-                            </div>
+                            <h6 class="mb-0 fw-bold text-dark">Manage Departments & Positions</h6>
                         </div>
                         <i class="fas fa-chevron-down text-muted"></i>
                     </button>
                 </div>
-                
-                <div class="collapse show" id="deptSection">
-                    <div class="p-4 pt-0 border-top border-light mt-2">
-                        <div class="row align-items-end g-3">
-                            <div class="col-md-4">
-                                <form action="{{ url_for('employee_department_add') }}" method="POST">
-                                    <label class="form-label small text-muted text-uppercase fw-bold">Add New Department</label>
-                                    <div class="input-group">
-                                        <input name="department_name" class="form-control border-end-0 bg-light" placeholder="e.g. HR, IT..." required>
-                                        <button class="btn btn-primary border-start-0"><i class="fas fa-plus"></i></button>
-                                    </div>
-                                </form>
-                            </div>
-                            <div class="col-md-8">
-                                <label class="form-label small text-muted text-uppercase fw-bold d-block">Existing Departments</label>
+                <div class="collapse" id="deptSection">
+                    <div class="card-body border-top p-4">
+                        <div class="row g-4">
+                            <!-- Departments -->
+                            <div class="col-md-6 border-end">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <h6 class="fw-bold text-secondary mb-0">Departments</h6>
+                                    <button class="btn btn-sm btn-outline-primary rounded-pill" data-bs-toggle="modal" data-bs-target="#addDeptModal">
+                                        <i class="fas fa-plus"></i> Add
+                                    </button>
+                                </div>
                                 <div class="d-flex flex-wrap gap-2">
                                     {% for dept in departments %}
-                                    <div class="badge bg-white text-dark border shadow-sm rounded-pill p-2 px-3 d-flex align-items-center">
-                                        <span class="me-2">{{ dept.department_name }}</span>
-                                        <form action="{{ url_for('employee_department_delete', id=dept.id) }}" method="POST" onsubmit="return confirm('Delete Department?');">
-                                            <button class="btn btn-sm p-0 text-muted hover-danger border-0"><i class="fas fa-times"></i></button>
-                                        </form>
+                                    <div class="badge bg-light text-dark border p-2 d-flex align-items-center rounded-3">
+                                        {{ dept.department_name }}
+                                        <a href="{{ url_for('employee_department_delete', id=dept.id) }}" class="ms-2 text-danger hover-danger" onclick="return confirm('Delete this department?')">
+                                            <i class="fas fa-times-circle"></i>
+                                        </a>
                                     </div>
-                                    {% else %}
-                                    <span class="text-muted small fst-italic">No departments added yet.</span>
                                     {% endfor %}
                                 </div>
                             </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- SECTION 2: POSITIONS (DESIGNATIONS) -->
-    <div class="row mb-5">
-        <div class="col-12">
-            <div class="glass-card">
-                <div class="p-1">
-                    <button class="btn btn-white w-100 d-flex justify-content-between align-items-center p-3 border-0 bg-transparent" type="button" data-bs-toggle="collapse" data-bs-target="#posSection" aria-expanded="false">
-                        <div class="d-flex align-items-center">
-                            <div class="bg-success bg-opacity-10 p-2 rounded-circle text-success me-3">
-                                <i class="fas fa-briefcase"></i>
-                            </div>
-                            <div>
-                                <h6 class="fw-bold text-dark mb-0">Designations</h6>
-                                <small class="text-muted">Manage job roles</small>
-                            </div>
-                        </div>
-                        <i class="fas fa-chevron-down text-muted"></i>
-                    </button>
-                </div>
-                
-                <div class="collapse" id="posSection">
-                    <div class="p-4 pt-0 border-top border-light mt-2">
-                        <div class="row align-items-end g-3">
-                            <div class="col-md-4">
-                                <form action="{{ url_for('employee_position_add') }}" method="POST">
-                                    <label class="form-label small text-muted text-uppercase fw-bold">Add New Position</label>
-                                    <div class="input-group">
-                                        <input name="position_name" class="form-control border-end-0 bg-light" placeholder="e.g. Manager..." required>
-                                        <button class="btn btn-success border-start-0"><i class="fas fa-plus"></i></button>
-                                    </div>
-                                </form>
-                            </div>
-                            <div class="col-md-8">
-                                <label class="form-label small text-muted text-uppercase fw-bold d-block">Existing Roles</label>
+                            <!-- Positions -->
+                            <div class="col-md-6 ps-md-4">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <h6 class="fw-bold text-secondary mb-0">Positions</h6>
+                                    <button class="btn btn-sm btn-outline-primary rounded-pill" data-bs-toggle="modal" data-bs-target="#addPosModal">
+                                        <i class="fas fa-plus"></i> Add
+                                    </button>
+                                </div>
                                 <div class="d-flex flex-wrap gap-2">
                                     {% for pos in positions %}
-                                    <div class="badge bg-white text-dark border shadow-sm rounded-pill p-2 px-3 d-flex align-items-center">
-                                        <span class="me-2">{{ pos.position_name }}</span>
-                                        <form action="{{ url_for('employee_position_delete', id=pos.id) }}" method="POST" onsubmit="return confirm('Delete Position?');">
-                                            <button class="btn btn-sm p-0 text-muted hover-danger border-0"><i class="fas fa-times"></i></button>
-                                        </form>
+                                    <div class="badge bg-light text-dark border p-2 d-flex align-items-center rounded-3">
+                                        {{ pos.position_name }}
+                                        <a href="{{ url_for('employee_position_delete', id=pos.id) }}" class="ms-2 text-danger hover-danger" onclick="return confirm('Delete this position?')">
+                                            <i class="fas fa-times-circle"></i>
+                                        </a>
                                     </div>
-                                    {% else %}
-                                    <span class="text-muted small fst-italic">No positions added yet.</span>
                                     {% endfor %}
                                 </div>
                             </div>
@@ -123,76 +97,127 @@
         </div>
     </div>
 
-    <!-- SECTION 3: EMPLOYEE LIST -->
-    <div class="glass-card overflow-hidden">
-        <div class="glass-header d-flex justify-content-between align-items-center bg-white border-bottom p-4">
-            <h5 class="fw-bold text-dark mb-0">All Employees</h5>
-            <span class="badge bg-light text-dark border rounded-pill">{{ employees|length }} Active</span>
+    <!-- Modals for Dept/Pos -->
+    <div class="modal fade" id="addDeptModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <form action="{{ url_for('employee_department_add') }}" method="POST">
+                <div class="modal-content glass-card border-0">
+                    <div class="modal-header border-0">
+                        <h6 class="modal-title fw-bold">Add Department</h6>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="text" name="department_name" class="form-control" placeholder="e.g. Sales, HR" required>
+                    </div>
+                    <div class="modal-footer border-0">
+                        <button type="submit" class="btn btn-primary rounded-pill px-4">Save</button>
+                    </div>
+                </div>
+            </form>
         </div>
+    </div>
 
+    <div class="modal fade" id="addPosModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <form action="{{ url_for('employee_position_add') }}" method="POST">
+                <div class="modal-content glass-card border-0">
+                    <div class="modal-header border-0">
+                        <h6 class="modal-title fw-bold">Add Position</h6>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="text" name="position_name" class="form-control" placeholder="e.g. Manager, Intern" required>
+                    </div>
+                    <div class="modal-footer border-0">
+                        <button type="submit" class="btn btn-primary rounded-pill px-4">Save</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- SECTION 2: EMPLOYEE LIST -->
+    <div class="glass-card overflow-hidden">
         <div class="table-responsive">
-            <table class="table align-middle table-hover mb-0">
+            <table class="table table-hover align-middle mb-0">
                 <thead class="bg-light">
                     <tr>
-                        <th class="ps-4 py-3 text-uppercase text-muted small fw-bold">Employee</th>
-                        <th class="py-3 text-uppercase text-muted small fw-bold">Role</th>
-                        <th class="py-3 text-uppercase text-muted small fw-bold">Contact</th>
-                        <th class="py-3 text-uppercase text-muted small fw-bold">Status</th>
-                        <th class="text-end pe-4 py-3 text-uppercase text-muted small fw-bold">Actions</th>
+                        <th class="ps-4 py-3 text-secondary small text-uppercase">Employee</th>
+                        <th class="py-3 text-secondary small text-uppercase">Contact Info</th>
+                        <th class="py-3 text-secondary small text-uppercase">Role & Dept</th>
+                        <th class="py-3 text-secondary small text-uppercase text-center">Status</th>
+                        <th class="pe-4 py-3 text-secondary small text-uppercase text-end">Action</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for emp in employees %}
                     <tr>
-                        <td class="ps-4">
-                            <div class="d-flex align-items-center gap-3">
-                                <div class="position-relative">
-                                    {% if emp.image %}
-                                        <img src="{{ cloudinary_url(emp.image)[0] }}" class="rounded-circle border shadow-sm" width="45" height="45" style="object-fit: cover;">
-                                    {% else %}
-                                        <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center text-white border shadow-sm" style="width: 45px; height: 45px;">
-                                            <i class="fas fa-user"></i>
-                                        </div>
-                                    {% endif %}
-                                    {% if emp.status and emp.status|lower == 'active' %}
-                                        <span class="position-absolute bottom-0 end-0 p-1 bg-success border border-white rounded-circle"></span>
-                                    {% else %}
-                                        <span class="position-absolute bottom-0 end-0 p-1 bg-secondary border border-white rounded-circle"></span>
-                                    {% endif %}
-                                </div>
+                        <!-- Name & Image -->
+                        <td class="ps-4 py-3">
+                            <div class="d-flex align-items-center">
+                                {% if emp.image %}
+                                    <img src="{{ emp.image|fix_image }}" class="rounded-circle border border-2 border-white shadow-sm me-3" width="45" height="45" style="object-fit: cover;">
+                                {% else %}
+                                    <div class="rounded-circle bg-light d-flex align-items-center justify-content-center me-3 border" style="width: 45px; height: 45px;">
+                                        <i class="fas fa-user text-secondary"></i>
+                                    </div>
+                                {% endif %}
                                 <div>
-                                    <h6 class="mb-0 fw-bold text-dark">{{ emp.name }}</h6>
+                                    <div class="fw-bold text-dark">{{ emp.name }}</div>
                                     <small class="text-muted">ID: {{ emp.id }}</small>
                                 </div>
                             </div>
                         </td>
-                        <td>
-                            <span class="badge bg-light text-dark border fw-normal">{{ emp.position_name or '—' }}</span>
+
+                        <!-- Contact -->
+                        <td class="py-3">
+                            <div class="d-flex flex-column text-muted small">
+                                <span><i class="fas fa-phone me-2 text-primary"></i>{{ emp.phone }}</span>
+                                {% if emp.email %}
+                                <span><i class="fas fa-envelope me-2 text-info"></i>{{ emp.email }}</span>
+                                {% endif %}
+                            </div>
                         </td>
-                        <td>
-                            <div class="small fw-bold text-dark">{{ emp.phone }}</div>
-                            <small class="text-muted">{{ emp.city }}</small>
+
+                        <!-- Role -->
+                        <td class="py-3">
+                            <span class="badge bg-primary bg-opacity-10 text-primary mb-1">{{ emp.position_name }}</span><br>
+                            <span class="text-muted small">{{ emp.department_name }}</span>
                         </td>
-                        <td>
-                            {% if emp.status and emp.status|lower == 'active' %}
-                                <span class="badge rounded-pill bg-success bg-opacity-10 text-success fw-bold">Active</span>
+
+                        <!-- Status -->
+                        <td class="py-3 text-center">
+                            {% if emp.status == 'active' %}
+                                <span class="badge bg-success bg-opacity-10 text-success rounded-pill px-3">Active</span>
                             {% else %}
-                                <span class="badge rounded-pill bg-danger bg-opacity-10 text-danger fw-bold">Inactive</span>
+                                <span class="badge bg-secondary bg-opacity-10 text-secondary rounded-pill px-3">Inactive</span>
                             {% endif %}
                         </td>
-                        <td class="text-end pe-4">
+
+                        <!-- Actions (Dynamic based on Status) -->
+                        <td class="pe-4 py-3 text-end">
                             <div class="d-flex justify-content-end gap-2">
-                                <a href="{{ url_for('employee_details', id=emp.id) }}" class="btn btn-sm btn-light border shadow-sm rounded-circle text-info" title="View Profile" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;">
-                                    <i class="fas fa-eye"></i>
-                                </a>
-                                <a href="{{ url_for('edit_employee', id=emp.id) }}" class="btn btn-sm btn-light border shadow-sm rounded-circle text-warning" title="Edit" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;">
-                                    <i class="fas fa-pen"></i>
-                                </a>
-                                <form action="{{ url_for('delete_employee', id=emp.id) }}" method="POST" onsubmit="return confirm('Are you sure? This will delete all financial records too.');">
-                                    <button class="btn btn-sm btn-light border shadow-sm rounded-circle text-danger" title="Delete" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                </form>
+                                
+                                {% if current_status == 'inactive' %}
+                                    <!-- RESTORE BUTTON (Only for Inactive) -->
+                                    <form action="{{ url_for('reactivate_employee', id=emp.id) }}" method="POST" onsubmit="return confirm('Reactivate this employee? They will appear in lists again.');">
+                                        <button class="btn btn-sm btn-success rounded-pill px-3 shadow-sm d-flex align-items-center">
+                                            <i class="fas fa-undo me-2"></i> Restore
+                                        </button>
+                                    </form>
+                                {% else %}
+                                    <!-- EDIT & DELETE (For Active) -->
+                                    <a href="{{ url_for('edit_employee', id=emp.id) }}" class="btn btn-sm btn-light border shadow-sm rounded-circle text-primary" title="Edit" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;">
+                                        <i class="fas fa-pen"></i>
+                                    </a>
+                                    
+                                    <form action="{{ url_for('delete_employee', id=emp.id) }}" method="POST" onsubmit="return confirm('Are you sure? \n\nIf the employee has history, they will be marked INACTIVE.\nIf new, they will be DELETED permanently.');">
+                                        <button class="btn btn-sm btn-light border shadow-sm rounded-circle text-danger" title="Delete / Deactivate" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                {% endif %}
+
                             </div>
                         </td>
                     </tr>
@@ -201,7 +226,7 @@
                         <td colspan="5" class="text-center py-5">
                             <div class="text-muted opacity-50">
                                 <i class="fas fa-users fa-3x mb-3"></i>
-                                <p>No employees found.</p>
+                                <p>No {{ current_status }} employees found.</p>
                             </div>
                         </td>
                     </tr>
@@ -215,7 +240,11 @@
 <style>
     .hover-danger:hover { color: #dc3545 !important; }
     .collapse { transition: all 0.3s ease; }
+    .glass-card {
+        background: #ffffff;
+        border-radius: 16px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+    }
 </style>
 
 {% endblock %}
-
