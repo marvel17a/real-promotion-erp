@@ -55,6 +55,11 @@
         box-shadow: 0 4px 20px rgba(0,0,0,0.03);
         border: 1px solid rgba(0,0,0,0.02);
     }
+    
+    /* Fix Modal Input Text Color */
+    .form-control {
+        color: #212529 !important; /* Ensure text is visible */
+    }
 </style>
 
 <div class="container-fluid py-4 fade-in-up">
@@ -126,9 +131,10 @@
                                             {% for dept in departments %}
                                             <div class="config-tag">
                                                 <span>{{ dept.department_name }}</span>
+                                                <!-- FORCE DELETE: Removed check condition -->
                                                 <a href="{{ url_for('employee_department_delete', id=dept.id) }}" 
                                                    class="delete-btn" 
-                                                   onclick="return confirm('Delete department: {{ dept.department_name }}?')">
+                                                   onclick="return confirm('Delete department: {{ dept.department_name }}? This will remove it from all assigned employees.')">
                                                     <i class="fas fa-times-circle"></i>
                                                 </a>
                                             </div>
@@ -157,9 +163,10 @@
                                             {% for pos in positions %}
                                             <div class="config-tag">
                                                 <span>{{ pos.position_name }}</span>
+                                                <!-- FORCE DELETE: Removed check condition -->
                                                 <a href="{{ url_for('employee_position_delete', id=pos.id) }}" 
                                                    class="delete-btn" 
-                                                   onclick="return confirm('Delete position: {{ pos.position_name }}?')">
+                                                   onclick="return confirm('Delete position: {{ pos.position_name }}? This will remove it from all assigned employees.')">
                                                     <i class="fas fa-times-circle"></i>
                                                 </a>
                                             </div>
@@ -240,6 +247,11 @@
                         <td class="pe-4 py-3 text-end">
                             <div class="d-flex justify-content-end gap-2">
                                 
+                                <!-- NEW: View Button (Eye Icon) -->
+                                <a href="{{ url_for('employee_details', id=emp.id) }}" class="btn btn-sm btn-light border shadow-sm rounded-circle text-info" title="View Details" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+
                                 {% if current_status == 'inactive' %}
                                     <!-- RESTORE BUTTON (Only for Inactive) -->
                                     <form action="{{ url_for('reactivate_employee', id=emp.id) }}" method="POST" onsubmit="return confirm('Reactivate this employee? They will appear in lists again.');">
@@ -291,7 +303,8 @@
             <form action="{{ url_for('employee_department_add') }}" method="POST">
                 <div class="modal-body py-4">
                     <div class="form-floating">
-                        <input type="text" name="department_name" class="form-control rounded-3" id="deptInput" placeholder="e.g. Sales, HR" required>
+                        <!-- Ensure Text Color is Black -->
+                        <input type="text" name="department_name" class="form-control rounded-3 text-dark" id="deptInput" placeholder="e.g. Sales, HR" required>
                         <label for="deptInput">Department Name</label>
                     </div>
                 </div>
@@ -315,7 +328,8 @@
             <form action="{{ url_for('employee_position_add') }}" method="POST">
                 <div class="modal-body py-4">
                     <div class="form-floating">
-                        <input type="text" name="position_name" class="form-control rounded-3" id="posInput" placeholder="e.g. Manager" required>
+                        <!-- Ensure Text Color is Black -->
+                        <input type="text" name="position_name" class="form-control rounded-3 text-dark" id="posInput" placeholder="e.g. Manager" required>
                         <label for="posInput">Position Title</label>
                     </div>
                 </div>
