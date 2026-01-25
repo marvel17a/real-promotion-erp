@@ -1,17 +1,15 @@
 {% extends "admin_master.html" %}
 {% block page_content %}
 
-<!-- Link to new Glass Theme -->
+<!-- Use same CSS as Edit Page -->
 <link rel="stylesheet" href="{{ url_for('static', filename='css/employee.css') }}">
-<!-- Flatpickr CSS -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <link rel="stylesheet" type="text/css" href="https://npmcdn.com/flatpickr/dist/themes/material_blue.css">
 
 <div class="container mt-5 mb-5 fade-in-up">
-    
     <div class="row justify-content-center">
         <div class="col-lg-10">
-            <!-- Glass Card -->
+            
             <div class="glass-card">
                 
                 <!-- Header -->
@@ -22,7 +20,7 @@
                         </div>
                         <div>
                             <h4 class="fw-bold mb-0 text-dark">Add New Employee</h4>
-                            <small class="text-muted">Enter details to onboard a new team member.</small>
+                            <small class="text-muted">Create a new employee record</small>
                         </div>
                     </div>
                     <a href="{{ url_for('employees') }}" class="btn btn-light rounded-pill px-4 shadow-sm fw-bold">
@@ -30,56 +28,100 @@
                     </a>
                 </div>
 
-                <!-- Form Body -->
                 <form action="{{ url_for('add_employee') }}" method="POST" enctype="multipart/form-data" class="p-4">
                     
-                    <!-- Section 1: Personal Information -->
+                    <!-- 1) Basic Information -->
                     <h6 class="text-uppercase text-primary fw-bold small mb-3 ls-1 border-bottom pb-2">
-                        <i class="fas fa-id-card me-2"></i>Personal Details
+                        <i class="fas fa-user-circle me-2"></i>Basic Information
                     </h6>
-
                     <div class="row g-4 mb-4">
                         <div class="col-md-4">
-                            <label class="form-label fw-bold small text-muted text-uppercase">Full Name <span class="text-danger">*</span></label>
+                            <label class="form-label fw-bold small text-muted">Full Name <span class="text-danger">*</span></label>
                             <input type="text" name="name" class="form-control form-control-lg" placeholder="e.g. Rahul Kumar" required>
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label fw-bold small text-muted text-uppercase">Email</label>
-                            <input type="email" name="email" class="form-control form-control-lg" placeholder="john@example.com">
+                            <label class="form-label fw-bold small text-muted">Email</label>
+                            <input type="email" name="email" class="form-control form-control-lg" placeholder="email@example.com">
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label fw-bold small text-muted text-uppercase">Phone <span class="text-danger">*</span></label>
-                            <input type="tel" name="phone" class="form-control form-control-lg" placeholder="10-digit mobile" pattern="[0-9]{10}" required>
+                            <label class="form-label fw-bold small text-muted">Phone <span class="text-danger">*</span></label>
+                            <input type="tel" name="phone" class="form-control form-control-lg" placeholder="10-digit number" pattern="[0-9]{10}" required>
                         </div>
-                        
-                        <div class="col-md-4">
-                            <label class="form-label fw-bold small text-muted text-uppercase">Date of Birth</label>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small text-muted">Date of Birth</label>
                             <div class="input-group">
-                                <span class="input-group-text bg-white border-end-0"><i class="far fa-calendar-alt text-muted"></i></span>
-                                <input type="text" name="dob" class="form-control form-control-lg border-start-0 date-picker" placeholder="Select Date">
+                                <span class="input-group-text bg-white"><i class="far fa-calendar-alt"></i></span>
+                                <input type="text" name="dob" class="form-control date-picker" placeholder="Select DOB">
                             </div>
                         </div>
-
-                        <div class="col-md-4">
-                            <label class="form-label fw-bold small text-muted text-uppercase">Joining Date</label>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small text-muted">Joining Date</label>
                             <div class="input-group">
-                                <span class="input-group-text bg-white border-end-0"><i class="far fa-calendar-check text-muted"></i></span>
-                                <input type="text" name="join_date" class="form-control form-control-lg border-start-0 date-picker" placeholder="Select Date">
+                                <span class="input-group-text bg-white"><i class="far fa-calendar-check"></i></span>
+                                <input type="text" name="join_date" class="form-control date-picker" placeholder="Select Joining Date">
                             </div>
                         </div>
-                        
-                        <!-- Aadhar Number Removed as per request to match edit page -->
                     </div>
 
-                    <!-- Section 2: Role & Organization -->
-                    <h6 class="text-uppercase text-success fw-bold small mb-3 ls-1 border-bottom pb-2 mt-4">
-                        <i class="fas fa-briefcase me-2"></i>Job Role
+                    <!-- 2) Emergency & Identity -->
+                    <h6 class="text-uppercase text-danger fw-bold small mb-3 ls-1 border-bottom pb-2 mt-4">
+                        <i class="fas fa-shield-alt me-2"></i>Emergency & Identity
                     </h6>
-
                     <div class="row g-4 mb-4">
                         <div class="col-md-6">
-                            <label class="form-label fw-bold small text-muted text-uppercase">Department <span class="text-danger">*</span></label>
-                            <select name="department_id" class="form-select form-select-lg" required>
+                            <label class="form-label fw-bold small text-muted">Contact Person</label>
+                            <input type="text" name="emergency_contact_person" class="form-control" placeholder="Relative Name">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small text-muted">Emergency Phone</label>
+                            <input type="tel" name="emergency_contact" class="form-control" placeholder="Emergency Number">
+                        </div>
+                    </div>
+
+                    <!-- 3) Address Details -->
+                    <h6 class="text-uppercase text-info fw-bold small mb-3 ls-1 border-bottom pb-2 mt-4">
+                        <i class="fas fa-map-marker-alt me-2"></i>Address Details
+                    </h6>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small text-muted">Address Line 1</label>
+                            <input type="text" name="address_line1" class="form-control" placeholder="House/Flat No, Building">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small text-muted">Address Line 2</label>
+                            <input type="text" name="address_line2" class="form-control" placeholder="Street, Area">
+                        </div>
+                    </div>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold small text-muted">Pincode <span class="text-danger">*</span></label>
+                            <input type="text" name="pincode" id="pincode" class="form-control" placeholder="6 digits" maxlength="6" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold small text-muted">City / Area</label>
+                            <!-- CHANGED TO SELECT FOR PINCODE JS COMPATIBILITY -->
+                            <select name="city" id="city" class="form-select">
+                                <option value="">Select Area</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold small text-muted">District</label>
+                            <input type="text" name="district" id="district" class="form-control" readonly>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold small text-muted">State</label>
+                            <input type="text" name="state" id="state" class="form-control" readonly>
+                        </div>
+                    </div>
+
+                    <!-- 4) Organization Details -->
+                    <h6 class="text-uppercase text-success fw-bold small mb-3 ls-1 border-bottom pb-2 mt-4">
+                        <i class="fas fa-sitemap me-2"></i>Organization Details
+                    </h6>
+                    <div class="row g-4 mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small text-muted">Department <span class="text-danger">*</span></label>
+                            <select name="department_id" class="form-select" required>
                                 <option value="" selected disabled>Select Department</option>
                                 {% for d in departments %}
                                     <option value="{{ d.id }}">{{ d.department_name }}</option>
@@ -87,93 +129,28 @@
                             </select>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label fw-bold small text-muted text-uppercase">Position <span class="text-danger">*</span></label>
-                            <select name="position_id" class="form-select form-select-lg" required>
+                            <label class="form-label fw-bold small text-muted">Position <span class="text-danger">*</span></label>
+                            <select name="position_id" class="form-select" required>
                                 <option value="" selected disabled>Select Position</option>
                                 {% for p in positions %}
                                     <option value="{{ p.id }}">{{ p.position_name }}</option>
                                 {% endfor %}
                             </select>
                         </div>
-                    </div>
-
-                    <!-- Section 3: Emergency Contact -->
-                    <h6 class="text-uppercase text-danger fw-bold small mb-3 ls-1 border-bottom pb-2 mt-4">
-                        <i class="fas fa-phone-volume me-2"></i>Emergency Contact
-                    </h6>
-
-                    <div class="row g-4 mb-4">
+                        
                         <div class="col-md-6">
-                            <label class="form-label fw-bold small text-muted text-uppercase">Contact Person</label>
-                            <input type="text" name="emergency_contact_person" class="form-control" placeholder="e.g. Father/Spouse Name">
+                            <label class="form-label fw-bold small text-muted">Profile Photo</label>
+                            <input type="file" name="image" class="form-control" accept="image/*">
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label fw-bold small text-muted text-uppercase">Emergency Phone</label>
-                            <input type="tel" name="emergency_contact" class="form-control" placeholder="Emergency Number">
+                            <label class="form-label fw-bold small text-muted">Documents (PDF)</label>
+                            <input type="file" name="document" class="form-control" accept=".pdf">
                         </div>
                     </div>
 
-                    <!-- Section 4: Address Details -->
-                    <h6 class="text-uppercase text-info fw-bold small mb-3 ls-1 border-bottom pb-2 mt-4">
-                        <i class="fas fa-map-marker-alt me-2"></i>Address Details
-                    </h6>
-
-                    <div class="row g-3 mb-3">
-                        <div class="col-md-12">
-                            <label class="form-label fw-bold small text-muted text-uppercase">Address Line 1</label>
-                            <input type="text" name="address_line1" class="form-control" placeholder="House No, Street, Landmark">
-                        </div>
-                        <div class="col-md-12">
-                            <label class="form-label fw-bold small text-muted text-uppercase">Address Line 2</label>
-                            <input type="text" name="address_line2" class="form-control" placeholder="Area, Colony">
-                        </div>
-                    </div>
-
-                    <div class="row g-3 mb-4">
-                        <div class="col-md-3">
-                            <label class="form-label fw-bold small text-muted text-uppercase">Pincode <span class="text-danger">*</span></label>
-                            <input type="text" name="pincode" id="pincode" class="form-control" placeholder="6 digits" maxlength="6" required>
-                            <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">Enter pincode to auto-fill details</small>
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label fw-bold small text-muted text-uppercase">City</label>
-                            <input type="text" name="city" id="city" class="form-control" readonly>
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label fw-bold small text-muted text-uppercase">District</label>
-                            <input type="text" name="district" id="district" class="form-control" readonly>
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label fw-bold small text-muted text-uppercase">State</label>
-                            <input type="text" name="state" id="state" class="form-control" readonly>
-                        </div>
-                    </div>
-
-                    <!-- Section 5: Documents -->
-                    <h6 class="text-uppercase text-secondary fw-bold small mb-3 ls-1 border-bottom pb-2 mt-4">
-                        <i class="fas fa-file-upload me-2"></i>Attachments
-                    </h6>
-
-                    <div class="row g-4 mb-4">
-                        <div class="col-md-6">
-                            <div class="p-3 border rounded bg-light h-100">
-                                <label class="form-label fw-bold small text-muted text-uppercase mb-2">Profile Photo</label>
-                                <input type="file" name="image" class="form-control" accept="image/*">
-                                <div class="form-text small">Upload a clear passport size photo.</div>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="p-3 border rounded bg-light h-100">
-                                <label class="form-label fw-bold small text-muted text-uppercase mb-2">Documents (PDF)</label>
-                                <input type="file" name="document" class="form-control" accept=".pdf">
-                                <div class="form-text small">Resume, ID Proof, etc.</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Submit Button -->
-                    <div class="text-end mt-5">
-                        <button type="submit" class="btn btn-primary btn-lg rounded-pill px-5 shadow hover-scale">
+                    <!-- Submit -->
+                    <div class="text-end mt-4">
+                        <button type="submit" class="btn btn-primary btn-lg rounded-pill px-5 shadow">
                             <i class="fas fa-check-circle me-2"></i> Save Employee
                         </button>
                     </div>
@@ -184,14 +161,13 @@
     </div>
 </div>
 
-<!-- Flatpickr JS -->
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script>
     document.addEventListener("DOMContentLoaded", function() {
         flatpickr(".date-picker", {
-            dateFormat: "d-m-Y", 
+            dateFormat: "Y-m-d", 
             altInput: true,
-            altFormat: "j F, Y",
+            altFormat: "F j, Y",
             allowInput: true
         });
     });
