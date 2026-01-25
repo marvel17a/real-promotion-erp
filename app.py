@@ -3282,22 +3282,31 @@ def employee_details(id):
 
 
 # ---------- ADMIN SIDE: EMPLOYEE MASTER (admin_master.html) ----------#
+# REPLACE any existing 'employee_master' functions with ONLY this one:
+
 @app.route("/employee_master")
 def employee_master():
     if "loggedin" not in session:
         return redirect(url_for("login"))
 
+    # 1. Get Filter from URL (Default is 'active')
+    # This allows switching between Active and Inactive tabs
+    status_filter = request.args.get('status', 'active')
+
     cur = mysql.connection.cursor(DictCursor)
     try:
-        cur.execute("""
+        # 2. Dynamic Query based on status (Active vs Inactive)
+        query = """
             SELECT e.id, e.name, e.email, e.phone, e.city, e.state, e.pincode,
                    e.address_line1, e.address_line2, e.status, e.image,
                    p.position_name, d.department_name
             FROM employees e
             LEFT JOIN employee_positions p ON e.position_id = p.id
             LEFT JOIN employee_departments d ON e.department_id = d.id
+            WHERE e.status = %s
             ORDER BY e.id DESC
-        """)
+        """
+        cur.execute(query, (status_filter,))
         employees = cur.fetchall()
 
         cur.execute("SELECT * FROM employee_positions ORDER BY id DESC")
@@ -3308,8 +3317,36 @@ def employee_master():
     finally:
         cur.close()
 
+    # 3. Pass 'current_status' so the frontend knows which Tab to highlight
     return render_template("employees/employee_master.html",
-                            employees=employees, positions=positions, departments=departments)
+                             employees=employees, 
+                             positions=positions, 
+                             departments=departments,
+                             current_status=status_filter)
+
+
+
+
+# ADD THIS NEW ROUTE (To Restore/Reactivate Employee)
+@app.route("/reactivate_employee/<int:id>", methods=["POST"])
+def reactivate_employee(id):
+    if "loggedin" not in session:
+        return redirect(url_for("login"))
+    
+    cur = mysql.connection.cursor()
+    try:
+        # Simple Status Update
+        cur.execute("UPDATE employees SET status='active' WHERE id=%s", (id,))
+        mysql.connection.commit()
+        flash("Employee Reactivated Successfully! They are now back in the active list.", "success")
+    except Exception as e:
+        mysql.connection.rollback()
+        flash(f"Error reactivating: {e}", "danger")
+    finally:
+        cur.close()
+        
+    # Go back to the Inactive list so user can see others
+    return redirect(url_for("employee_master", status='inactive'))
 
 # ---------- ADMIN SIDE: POSITION MASTER ----------
 
@@ -7187,6 +7224,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
