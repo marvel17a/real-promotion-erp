@@ -56,9 +56,14 @@
         border: 1px solid rgba(0,0,0,0.02);
     }
     
-    /* Fix Modal Input Text Color */
-    .form-control {
-        color: #212529 !important; /* Ensure text is visible */
+    /* Fix Modal Input Text Color - Force Black Text */
+    .modal-body input.form-control {
+        color: #000000 !important; 
+        background-color: #ffffff !important;
+    }
+    
+    .modal-body .form-floating > label {
+        color: #6c757d !important;
     }
 </style>
 
@@ -131,10 +136,10 @@
                                             {% for dept in departments %}
                                             <div class="config-tag">
                                                 <span>{{ dept.department_name }}</span>
-                                                <!-- FORCE DELETE: Removed check condition -->
+                                                <!-- FORCE DELETE: Removed check condition warning from text -->
                                                 <a href="{{ url_for('employee_department_delete', id=dept.id) }}" 
                                                    class="delete-btn" 
-                                                   onclick="return confirm('Delete department: {{ dept.department_name }}? This will remove it from all assigned employees.')">
+                                                   onclick="return confirm('Delete department: {{ dept.department_name }}?')">
                                                     <i class="fas fa-times-circle"></i>
                                                 </a>
                                             </div>
@@ -163,10 +168,10 @@
                                             {% for pos in positions %}
                                             <div class="config-tag">
                                                 <span>{{ pos.position_name }}</span>
-                                                <!-- FORCE DELETE: Removed check condition -->
+                                                <!-- FORCE DELETE: Removed check condition warning from text -->
                                                 <a href="{{ url_for('employee_position_delete', id=pos.id) }}" 
                                                    class="delete-btn" 
-                                                   onclick="return confirm('Delete position: {{ pos.position_name }}? This will remove it from all assigned employees.')">
+                                                   onclick="return confirm('Delete position: {{ pos.position_name }}?')">
                                                     <i class="fas fa-times-circle"></i>
                                                 </a>
                                             </div>
@@ -304,7 +309,7 @@
                 <div class="modal-body py-4">
                     <div class="form-floating">
                         <!-- Ensure Text Color is Black -->
-                        <input type="text" name="department_name" class="form-control rounded-3 text-dark" id="deptInput" placeholder="e.g. Sales, HR" required>
+                        <input type="text" name="department_name" class="form-control rounded-3" id="deptInput" placeholder="e.g. Sales, HR" required>
                         <label for="deptInput">Department Name</label>
                     </div>
                 </div>
@@ -329,7 +334,7 @@
                 <div class="modal-body py-4">
                     <div class="form-floating">
                         <!-- Ensure Text Color is Black -->
-                        <input type="text" name="position_name" class="form-control rounded-3 text-dark" id="posInput" placeholder="e.g. Manager" required>
+                        <input type="text" name="position_name" class="form-control rounded-3" id="posInput" placeholder="e.g. Manager" required>
                         <label for="posInput">Position Title</label>
                     </div>
                 </div>
