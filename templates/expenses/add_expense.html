@@ -2,13 +2,17 @@
 {% block page_content %}
 <!-- Dependencies -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css">
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
 <style>
     :root {
-        --primary-gradient: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
-        --glass-bg: rgba(255, 255, 255, 0.95);
+        --primary: #4f46e5;
+        --secondary: #7c3aed;
+        --success: #10b981;
+        --danger: #ef4444;
+        --dark: #1e293b;
+        --glass: rgba(255, 255, 255, 0.95);
     }
 
     body {
@@ -17,140 +21,115 @@
     }
 
     .premium-card {
-        background: var(--glass-bg);
+        background: var(--glass);
+        backdrop-filter: blur(12px);
         border: 1px solid rgba(226, 232, 240, 0.8);
         border-radius: 24px;
-        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.02);
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05);
     }
 
-    .balance-badge {
-        padding: 12px 20px;
-        border-radius: 15px;
-        font-weight: 600;
-        transition: all 0.3s ease;
+    .balance-widget {
+        padding: 1.25rem;
+        border-radius: 20px;
+        transition: all 0.4s ease;
+        border: 2.5px solid transparent;
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: 15px;
     }
 
-    .cash-bg { background: #ecfdf5; color: #059669; border: 1px solid #10b98133; }
-    .bank-bg { background: #eff6ff; color: #2563eb; border: 1px solid #3b82f633; }
+    .cash-active { background: #ecfdf5; color: #065f46; border-color: #10b981; }
+    .bank-active { background: #eff6ff; color: #1e40af; border-color: #3b82f6; }
 
-    .category-selector {
-        background: #f1f5f9;
-        border-radius: 16px;
-        padding: 20px;
-        border: 2px dashed #cbd5e1;
+    .live-clock-pill {
+        background: var(--dark);
+        color: #38bdf8;
+        padding: 6px 18px;
+        border-radius: 50px;
+        font-family: 'Courier New', Courier, monospace;
+        font-weight: 700;
+        letter-spacing: 1px;
     }
 
     .form-control, .form-select {
         border-radius: 12px;
         padding: 12px 16px;
-        border: 1px solid #e2e8f0;
-        font-size: 0.95rem;
-    }
-
-    .form-control:focus {
-        box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
-        border-color: #6366f1;
+        border: 1.5px solid #e2e8f0;
     }
 
     .btn-premium {
-        background: var(--primary-gradient);
+        background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
         color: white;
         border: none;
-        border-radius: 12px;
-        padding: 12px 28px;
+        border-radius: 15px;
+        padding: 14px 24px;
         font-weight: 600;
-        transition: transform 0.2s;
+        box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.3);
     }
 
-    .btn-premium:hover {
-        transform: translateY(-2px);
-        color: white;
-        box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.4);
-    }
-
-    .live-clock {
-        font-family: 'monospace';
-        font-weight: 600;
-        color: #64748b;
-        background: #fff;
-        padding: 5px 15px;
-        border-radius: 10px;
-        box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
-    }
+    .btn-premium:disabled { background: #cbd5e1; box-shadow: none; cursor: not-allowed; }
 
     .upload-area {
         border: 2px dashed #cbd5e1;
-        border-radius: 16px;
-        padding: 30px;
+        border-radius: 20px;
+        padding: 25px;
         text-align: center;
         cursor: pointer;
-        transition: all 0.2s;
-    }
-
-    .upload-area:hover {
         background: #f1f5f9;
-        border-color: #6366f1;
     }
 
-    /* Modal Styling */
-    .modal-content {
-        border-radius: 20px;
-        border: none;
-    }
+    .item-row { animation: slideIn 0.3s ease-out; border-bottom: 1px solid #f1f5f9; }
+    @keyframes slideIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
 
-    .item-row {
-        animation: fadeIn 0.3s ease-out;
-    }
-
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(10px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
+    .error-balance { color: var(--danger) !important; animation: shake 0.5s; }
+    @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
 </style>
 
 <div class="container-fluid py-4">
-    <!-- Header with Live Stats -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h2 class="fw-bold text-dark mb-1">New Expense Voucher</h2>
-            <div class="d-flex align-items-center gap-3">
-                <span class="live-clock" id="liveClock">00:00:00 AM</span>
-                <span class="text-muted small"><i class="fas fa-calendar-alt me-1"></i> Today is {{ today_date }}</span>
+    <!-- Header Section -->
+    <div class="row align-items-center mb-5">
+        <div class="col-md-7">
+            <h2 class="fw-bold text-dark m-0">Create Expense Voucher</h2>
+            <div class="d-flex align-items-center gap-3 mt-2">
+                <span id="liveClock" class="live-clock-pill">00:00:00</span>
+                <span class="text-muted small"><i class="fas fa-calendar-check me-1"></i> {{ today }}</span>
             </div>
         </div>
-        <div id="balanceDisplay" class="balance-badge cash-bg">
-            <i class="fas fa-wallet"></i>
-            <div>
-                <small class="d-block opacity-75">Current Cash Balance</small>
-                <span class="fs-5" id="currentBalanceText">₹ {{ "{:,.2f}".format(cash_balance) }}</span>
+        <div class="col-md-5 d-flex justify-content-end">
+            <div id="balanceDisplay" class="balance-widget cash-active shadow-sm">
+                <div class="bg-white rounded-circle p-3 shadow-sm">
+                    <i class="fas fa-wallet fa-lg"></i>
+                </div>
+                <div>
+                    <small class="d-block text-uppercase fw-bold opacity-75">Available Fund</small>
+                    <h3 class="m-0 fw-bold" id="currentBalanceText">₹ {{ "{:,.2f}".format(cash_balance) }}</h3>
+                    <span id="fundSourceName" class="small fw-medium">Cash in Hand (CEO)</span>
+                </div>
             </div>
         </div>
     </div>
 
     <form id="expenseForm" action="{{ url_for('add_expense') }}" method="POST" enctype="multipart/form-data">
         <div class="row g-4">
-            <!-- Left Column: Primary Details -->
+            <!-- Left Side -->
             <div class="col-lg-8">
                 <div class="card premium-card p-4 mb-4">
-                    <div class="row g-3">
+                    <div class="row g-3 mb-4">
                         <div class="col-md-4">
-                            <label class="form-label fw-semibold">Expense Date</label>
+                            <label class="form-label fw-bold small text-muted">VOUCHER DATE</label>
                             <input type="text" name="expense_date" id="datePicker" class="form-control" required>
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label fw-semibold">Payment Mode</label>
-                            <select name="payment_method" id="paymentMethod" class="form-select" onchange="updateBalanceView()">
+                            <label class="form-label fw-bold small text-muted">PAYMENT MODE</label>
+                            <select name="payment_method" id="payMode" class="form-select" onchange="syncBalanceUI()">
                                 <option value="Cash" selected>Cash (Office/CEO)</option>
-                                <option value="Bank" data-balance="{{ bank_balance }}">Bank Transfer / UPI</option>
+                                <option value="Online">Online / Bank Account</option>
                             </select>
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label fw-semibold">Main Category</label>
-                            <select id="mainCategory" name="main_category_id" class="form-select" onchange="handleCategoryChange()" required>
-                                <option value="" disabled selected>Select Category</option>
+                            <label class="form-label fw-bold small text-muted">MAIN CATEGORY</label>
+                            <select name="main_category_id" id="mainCat" class="form-select" onchange="startAllocation()" required>
+                                <option value="" disabled selected>Choose Category</option>
                                 {% for cat in categories %}
                                 <option value="{{ cat.category_id }}">{{ cat.category_name }}</option>
                                 {% endfor %}
@@ -158,229 +137,201 @@
                         </div>
                     </div>
 
-                    <hr class="my-4 opacity-50">
-
-                    <!-- Items Section -->
-                    <div id="itemsContainer" style="display: none;">
-                        <h6 class="fw-bold mb-3 text-primary text-uppercase small ls-1">Allocation Details</h6>
+                    <div id="itemsWrapper" style="display: none;">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="fw-bold text-primary m-0"><i class="fas fa-list-ul me-2"></i>Item Allocation</h6>
+                            <button type="button" class="btn btn-sm btn-outline-success rounded-pill px-4 shadow-sm fw-bold" onclick="addNewLine()">
+                                <i class="fas fa-plus-circle me-1"></i> Add New Item
+                            </button>
+                        </div>
+                        
                         <div class="table-responsive">
                             <table class="table table-borderless align-middle">
                                 <thead>
-                                    <tr class="text-muted small">
-                                        <th style="width: 40%;">Expense Item (Sub-Category)</th>
-                                        <th style="width: 30%;">Amount (₹)</th>
+                                    <tr class="small text-muted border-bottom">
+                                        <th style="width: 45%;">Sub-Category Item</th>
+                                        <th style="width: 25%;">Amount (₹)</th>
                                         <th style="width: 20%;" class="text-center">Details</th>
                                         <th style="width: 10%;"></th>
                                     </tr>
                                 </thead>
-                                <tbody id="tableBody">
-                                    <!-- Dynamic Rows Go Here -->
-                                </tbody>
+                                <tbody id="itemTableBody"></tbody>
                             </table>
                         </div>
-                        <button type="button" class="btn btn-light btn-sm rounded-pill px-3 mt-2" onclick="addRow()">
-                            <i class="fas fa-plus me-1 text-primary"></i> Add Line Item
-                        </button>
                     </div>
 
-                    <div id="emptyCategoryState" class="text-center py-5">
-                        <img src="https://cdn-icons-png.flaticon.com/512/6598/6598519.png" style="width: 80px; opacity: 0.3;" alt="">
-                        <p class="text-muted mt-3">Please select a Main Category to start adding items</p>
+                    <div id="noCatState" class="text-center py-5">
+                        <img src="https://cdn-icons-png.flaticon.com/512/9638/9638640.png" style="width: 80px; opacity: 0.2;" alt="">
+                        <p class="text-muted mt-3">Select a category to start recording expenses.</p>
                     </div>
                 </div>
 
-                <!-- Receipt Upload -->
                 <div class="card premium-card p-4">
-                    <h6 class="fw-bold mb-3">Supporting Document / Bill</h6>
-                    <div class="upload-area" onclick="document.getElementById('receiptInput').click()">
-                        <i class="fas fa-cloud-upload-alt fa-3x text-primary mb-3"></i>
-                        <h5>Click to upload bill photo</h5>
-                        <p class="text-muted small">Supports JPG, PNG, PDF (Max 5MB)</p>
-                        <input type="file" name="receipt" id="receiptInput" hidden accept="image/*,application/pdf" onchange="previewFile(this)">
-                        <div id="filePreview" class="mt-2 fw-bold text-success"></div>
+                    <h6 class="fw-bold mb-3"><i class="fas fa-paperclip me-2"></i>Upload Bill / Receipt</h6>
+                    <div class="upload-area" onclick="document.getElementById('receiptFile').click()">
+                        <i class="fas fa-camera fa-2x text-muted mb-2"></i>
+                        <h6 class="m-0 text-dark">Click to upload photo</h6>
+                        <input type="file" name="receipt" id="receiptFile" hidden accept="image/*" onchange="handleFile(this)">
+                        <div id="fileSelectedInfo" class="mt-2 fw-bold text-success"></div>
                     </div>
                 </div>
             </div>
 
-            <!-- Right Column: Summary & Actions -->
+            <!-- Right Side Summary -->
             <div class="col-lg-4">
                 <div class="card premium-card p-4 sticky-top" style="top: 20px;">
-                    <h5 class="fw-bold mb-4">Voucher Summary</h5>
-                    
+                    <h5 class="fw-bold mb-4">Final Summary</h5>
                     <div class="d-flex justify-content-between mb-2">
-                        <span class="text-muted">Subtotal</span>
-                        <span class="fw-semibold" id="summarySubtotal">₹ 0.00</span>
-                    </div>
-                    <div class="d-flex justify-content-between mb-4">
-                        <span class="text-muted">Items Count</span>
-                        <span class="badge bg-dark rounded-pill" id="itemCounter">0</span>
+                        <span class="text-muted">Total Line Items</span>
+                        <span class="fw-bold" id="countDisplay">0</span>
                     </div>
 
-                    <div class="bg-light rounded-4 p-4 text-center mb-4">
-                        <small class="text-uppercase fw-bold text-muted ls-1">Total Payable</small>
-                        <h2 class="fw-bold text-dark mt-1 mb-0" id="grandTotalDisplay">₹ 0.00</h2>
+                    <div id="totalBox" class="bg-dark text-white rounded-4 p-4 text-center my-4 shadow-lg">
+                        <small class="text-uppercase opacity-50 fw-bold">Total Voucher Amount</small>
+                        <h1 class="fw-bold m-0" id="totalDisplay">₹ 0.00</h1>
                     </div>
 
-                    <button type="submit" class="btn btn-premium w-100 py-3 mb-3">
-                        <i class="fas fa-check-circle me-2"></i> Post Expense Voucher
+                    <div id="balanceWarning" class="alert alert-danger py-2 small mb-3" style="display: none;">
+                        <i class="fas fa-exclamation-triangle me-2"></i> Insufficient funds in this mode!
+                    </div>
+
+                    <button type="submit" id="submitBtn" class="btn btn-premium w-100 py-3 mb-3 shadow">
+                        <i class="fas fa-check-double me-2"></i> Post Expense
                     </button>
-                    
-                    <a href="{{ url_for('expense_dash') }}" class="btn btn-outline-secondary w-100 rounded-pill">
-                        Cancel & Return
-                    </a>
+                    <a href="{{ url_for('expense_dash') }}" class="btn btn-link text-muted w-100 text-decoration-none">Cancel</a>
                 </div>
             </div>
         </div>
     </form>
 </div>
 
-<!-- Description Modal -->
-<div class="modal fade" id="descModal" tabindex="-1">
+<!-- Fixed Note Modal -->
+<div class="modal fade" id="noteModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content shadow-lg">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 25px;">
             <div class="modal-header border-0 pb-0">
                 <h5 class="fw-bold">Item Description</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body">
-                <textarea id="modalTextArea" class="form-control" rows="5" placeholder="Enter specific details about this expense..."></textarea>
+            <div class="modal-body p-4">
+                <textarea id="modalText" class="form-control" rows="5" placeholder="Enter details..."></textarea>
             </div>
-            <div class="modal-footer border-0 pt-0">
-                <button type="button" class="btn btn-primary rounded-pill px-4" onclick="saveDesc()">Save Note</button>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-primary rounded-pill px-4" onclick="saveNote()">Save Detail</button>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Scripts -->
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script>
-    const subcategories = {{ subcategories | tojson }};
-    const cashBalance = {{ cash_balance }};
-    const bankBalance = {{ bank_balance }};
-    let activeDescInput = null;
+    const subcats = {{ subcategories | tojson }};
+    const cBal = {{ cash_balance }};
+    const bBal = {{ bank_balance }};
+    let activeNoteInput = null;
 
-    // Initialize Flatpickr
-    flatpickr("#datePicker", {
-        defaultDate: "today",
-        altInput: true,
-        altFormat: "F j, Y",
-        dateFormat: "Y-m-d",
+    document.addEventListener('DOMContentLoaded', () => {
+        flatpickr("#datePicker", { defaultDate: "today", dateFormat: "Y-m-d" });
+        setInterval(() => { document.getElementById('liveClock').innerText = new Date().toLocaleTimeString(); }, 1000);
     });
 
-    // Live Clock
-    function updateClock() {
-        const now = new Date();
-        document.getElementById('liveClock').innerText = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    }
-    setInterval(updateClock, 1000);
-    updateClock();
+    function syncBalanceUI() {
+        const mode = document.getElementById('payMode').value;
+        const box = document.getElementById('balanceDisplay');
+        const val = document.getElementById('currentBalanceText');
+        const lbl = document.getElementById('fundSourceName');
 
-    // Balance View Toggle
-    function updateBalanceView() {
-        const method = document.getElementById('paymentMethod').value;
-        const display = document.getElementById('balanceDisplay');
-        const text = document.getElementById('currentBalanceText');
-        
-        if (method === 'Cash') {
-            display.className = 'balance-badge cash-bg';
-            text.innerText = "₹ " + cashBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+        if(mode === 'Cash') {
+            box.className = 'balance-widget cash-active shadow-sm';
+            val.innerText = "₹ " + cBal.toLocaleString('en-IN', {minimumFractionDigits:2});
+            lbl.innerText = "Cash in Hand (CEO)";
         } else {
-            display.className = 'balance-badge bank-bg';
-            text.innerText = "₹ " + bankBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+            box.className = 'balance-widget bank-active shadow-sm';
+            val.innerText = "₹ " + bBal.toLocaleString('en-IN', {minimumFractionDigits:2});
+            lbl.innerText = "Digital Fund (Bank Account)";
         }
+        recalc(); // Run validation on mode change
     }
 
-    // Category Logic
-    function handleCategoryChange() {
-        document.getElementById('emptyCategoryState').style.display = 'none';
-        document.getElementById('itemsContainer').style.display = 'block';
-        document.getElementById('tableBody').innerHTML = '';
-        addRow();
+    function startAllocation() {
+        document.getElementById('noCatState').style.display = 'none';
+        document.getElementById('itemsWrapper').style.display = 'block';
+        document.getElementById('itemTableBody').innerHTML = '';
+        addNewLine();
     }
 
-    function addRow() {
-        const catId = document.getElementById('mainCategory').value;
-        const filteredSubs = subcategories.filter(s => s.category_id == catId);
-        const rowId = Date.now();
-        
-        let subOptions = '<option disabled selected>Select Item</option>';
-        filteredSubs.forEach(s => {
-            subOptions += `<option value="${s.subcategory_id}">${s.subcategory_name}</option>`;
-        });
+    function addNewLine() {
+        const catId = document.getElementById('mainCat').value;
+        const filtered = subcats.filter(s => s.category_id == catId);
+        let opts = '<option value="" disabled selected>Select Item</option>';
+        filtered.forEach(s => opts += `<option value="${s.subcategory_id}">${s.subcategory_name}</option>`);
 
         const tr = document.createElement('tr');
         tr.className = 'item-row';
         tr.innerHTML = `
-            <td>
-                <select name="subcategory_id[]" class="form-select border-0 bg-light" required>
-                    ${subOptions}
-                </select>
-            </td>
-            <td>
-                <div class="input-group">
-                    <span class="input-group-text bg-transparent border-0 text-muted">₹</span>
-                    <input type="number" name="amount[]" class="form-control border-0 bg-light fw-bold text-end amt-input" step="0.01" oninput="calculateTotal()" required>
-                </div>
-            </td>
+            <td><select name="subcategory_id[]" class="form-select border-0 bg-light" required>${opts}</select></td>
+            <td><input type="number" name="amount[]" class="form-control border-0 bg-light fw-bold text-end amt-trigger" placeholder="0.00" oninput="recalc()" step="0.01" required></td>
             <td class="text-center">
-                <button type="button" class="btn btn-light btn-sm rounded-circle" onclick="openDescModal(this)">
-                    <i class="far fa-comment-alt"></i>
-                </button>
-                <input type="hidden" name="description[]" class="desc-hidden">
+                <button type="button" class="btn btn-light btn-sm rounded-circle shadow-sm" onclick="openNote(this)"><i class="far fa-comment-alt"></i></button>
+                <input type="hidden" name="description[]" class="note-storage">
             </td>
             <td class="text-end">
-                <button type="button" class="btn btn-link text-danger p-0" onclick="removeRow(this)">
-                    <i class="fas fa-times"></i>
-                </button>
+                <button type="button" class="btn btn-sm text-danger" onclick="removeLine(this)"><i class="fas fa-trash-alt"></i></button>
             </td>
         `;
-        document.getElementById('tableBody').appendChild(tr);
-        updateCounters();
+        document.getElementById('itemTableBody').appendChild(tr);
+        recalc();
     }
 
-    function removeRow(btn) {
-        btn.closest('tr').remove();
-        calculateTotal();
-        updateCounters();
+    function removeLine(btn) {
+        if(confirm("Are you sure you want to delete this line item?")) {
+            btn.closest('tr').remove();
+            recalc();
+        }
     }
 
-    function calculateTotal() {
+    function recalc() {
         let total = 0;
-        document.querySelectorAll('.amt-input').forEach(input => {
-            total += parseFloat(input.value) || 0;
-        });
-        const formatted = "₹ " + total.toLocaleString('en-IN', { minimumFractionDigits: 2 });
-        document.getElementById('grandTotalDisplay').innerText = formatted;
-        document.getElementById('summarySubtotal').innerText = formatted;
-    }
+        document.querySelectorAll('.amt-trigger').forEach(inp => total += parseFloat(inp.value) || 0);
+        
+        const mode = document.getElementById('payMode').value;
+        const available = mode === 'Cash' ? cBal : bBal;
+        const display = document.getElementById('totalDisplay');
+        const submitBtn = document.getElementById('submitBtn');
+        const warning = document.getElementById('balanceWarning');
 
-    function updateCounters() {
-        document.getElementById('itemCounter').innerText = document.querySelectorAll('#tableBody tr').length;
-    }
+        display.innerText = "₹ " + total.toLocaleString('en-IN', {minimumFractionDigits: 2});
+        document.getElementById('countDisplay').innerText = document.querySelectorAll('.item-row').length;
 
-    // Modal Logic
-    const descModal = new bootstrap.Modal(document.getElementById('descModal'));
-    function openDescModal(btn) {
-        activeDescInput = btn.nextElementSibling;
-        document.getElementById('modalTextArea').value = activeDescInput.value;
-        descModal.show();
-    }
-
-    function saveDesc() {
-        activeDescInput.value = document.getElementById('modalTextArea').value;
-        if(activeDescInput.value) {
-            activeDescInput.previousElementSibling.className = 'btn btn-primary btn-sm rounded-circle';
+        // Validation Logic
+        if(total > available) {
+            display.classList.add('error-balance');
+            submitBtn.disabled = true;
+            warning.style.display = 'block';
         } else {
-            activeDescInput.previousElementSibling.className = 'btn btn-light btn-sm rounded-circle';
+            display.classList.remove('error-balance');
+            submitBtn.disabled = false;
+            warning.style.display = 'none';
         }
-        descModal.hide();
     }
 
-    function previewFile(input) {
-        if (input.files && input.files[0]) {
-            document.getElementById('filePreview').innerText = "✓ " + input.files[0].name;
-        }
+    const nModal = new bootstrap.Modal(document.getElementById('noteModal'));
+    function openNote(btn) {
+        activeNoteInput = btn.nextElementSibling;
+        document.getElementById('modalText').value = activeNoteInput.value;
+        nModal.show();
+    }
+
+    function saveNote() {
+        const val = document.getElementById('modalText').value;
+        activeNoteInput.value = val;
+        if(val) activeNoteInput.previousElementSibling.classList.replace('btn-light', 'btn-primary');
+        else activeNoteInput.previousElementSibling.classList.replace('btn-primary', 'btn-light');
+        nModal.hide();
+    }
+
+    function handleFile(input) {
+        if(input.files[0]) document.getElementById('fileSelectedInfo').innerText = "✓ Attached: " + input.files[0].name;
     }
 </script>
 {% endblock %}
