@@ -265,30 +265,29 @@ def expense_dash():
                            trend_values=[float(r['total']) for r in trend_data])
 
 # REPLACE your existing @app.route('/add_expense') in app.py with this one.
-# This code integrates Live Balances and Cloudinary receipt uploads.
-
 @app.route('/add_expense', methods=['GET', 'POST'])
 def add_expense():
     if 'loggedin' not in session: return redirect(url_for('login'))
-    
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
     if request.method == 'POST':
         try:
-            exp_date = request.form['expense_date']
-            # Capturing time for the new expense_time column
-            exp_time = get_ist_now().strftime('%H:%M:%S') 
-            method = request.form['payment_method']
-            main_cat = request.form['main_category_id']
+            # 1. Get Form Data
+            # Note: parse_date_input converts dd-mm-yyyy to yyyy-mm-dd for MySQL
+            exp_date = parse_date_input(request.form.get('expense_date'))
+            exp_time = get_ist_now().strftime('%H:%M:%S')
+            method = request.form.get('payment_method')
+            main_cat = request.form.get('main_category_id')
+            voucher_note = request.form.get('voucher_description') # Universal Note
             
-            # Arrays from multi-item form
+            # Arrays for items
             subs = request.form.getlist('subcategory_id[]')
             amts = request.form.getlist('amount[]')
-            notes = request.form.getlist('description[]')
+            item_notes = request.form.getlist('description[]') # Line Item Notes
             
-            total_voucher_sum = sum(float(x) for x in amts if x)
+            total_sum = sum(float(x) for x in amts if x)
 
-            # 1. Handle Cloudinary Receipt Upload
+            # 2. Upload to Cloudinary
             receipt_url = None
             if 'receipt' in request.files:
                 file = request.files['receipt']
@@ -296,30 +295,28 @@ def add_expense():
                     upload_res = cloudinary.uploader.upload(file, folder="erp_expenses")
                     receipt_url = upload_res.get('secure_url')
 
-            # 2. Insert Parent Voucher
+            # 3. Insert Parent (Using 'voucher_note' for expenses.description)
             cur.execute("""
-                INSERT INTO expenses (expense_date, expense_time, amount, total_amount, payment_method, receipt_url)
-                VALUES (%s, %s, %s, %s, %s, %s)
-            """, (exp_date, exp_time, total_voucher_sum, total_voucher_sum, method, receipt_url))
+                INSERT INTO expenses (expense_date, expense_time, amount, total_amount, payment_method, receipt_url, description)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+            """, (exp_date, exp_time, total_sum, total_sum, method, receipt_url, voucher_note))
             eid = cur.lastrowid
             
-            # 3. Insert Line Items
+            # 4. Insert Child Items
             for i in range(len(subs)):
                 if amts[i] and float(amts[i]) > 0:
                     cur.execute("""
                         INSERT INTO expense_items (expense_id, category_id, subcategory_id, amount, description)
                         VALUES (%s, %s, %s, %s, %s)
-                    """, (eid, main_cat, subs[i], amts[i], notes[i]))
+                    """, (eid, main_cat, subs[i], amts[i], item_notes[i]))
             
             mysql.connection.commit()
-            flash(f"Voucher #{eid} Posted Successfully!", "success")
+            flash(f"Voucher #{eid} Saved!", "success")
             return redirect(url_for('expense_dash'))
-            
         except Exception as e:
             mysql.connection.rollback()
-            flash(f"Error posting voucher: {str(e)}", "danger")
-        finally:
-            cur.close()
+            flash(f"Error: {str(e)}", "danger")
+        finally: cur.close()
 
     # --- GET: CALCULATE LIVE BALANCES ---
     
@@ -7286,6 +7283,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
