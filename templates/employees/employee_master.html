@@ -21,28 +21,30 @@
     .config-tag {
         display: inline-flex;
         align-items: center;
-        padding: 8px 12px;
-        background: #fff;
+        padding: 10px 16px;
+        background: #ffffff;
         border: 1px solid #e9ecef;
-        border-radius: 8px;
-        font-size: 0.9rem;
+        border-radius: 50px; /* Pill shape */
+        font-size: 0.95rem;
         font-weight: 500;
         color: #495057;
-        transition: all 0.2s;
+        transition: all 0.2s ease-in-out;
         box-shadow: 0 2px 4px rgba(0,0,0,0.02);
     }
     
     .config-tag:hover {
         transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
         border-color: #dee2e6;
     }
 
     .config-tag .delete-btn {
-        margin-left: 10px;
+        margin-left: 12px;
         color: #adb5bd;
         cursor: pointer;
         transition: color 0.2s;
+        display: flex;
+        align-items: center;
     }
     
     .config-tag .delete-btn:hover {
@@ -64,6 +66,26 @@
     
     .modal-body .form-floating > label {
         color: #6c757d !important;
+    }
+
+    /* New Card Styles for Dept/Pos */
+    .config-card {
+        border: none;
+        border-radius: 16px;
+        height: 100%;
+        transition: transform 0.2s;
+    }
+    .config-card-header {
+        background: transparent;
+        border-bottom: 1px solid rgba(0,0,0,0.05);
+        padding: 1.5rem;
+    }
+    .config-card-body {
+        padding: 1.5rem;
+        background: #f8f9fc; /* Light background for contrast */
+        border-bottom-left-radius: 16px;
+        border-bottom-right-radius: 16px;
+        min-height: 150px;
     }
 </style>
 
@@ -96,98 +118,91 @@
         </div>
     </div>
 
-    <!-- SECTION 1: MANAGE CONFIGURATION (Redesigned) -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="glass-card">
-                <div class="p-1">
-                    <button class="btn btn-white w-100 d-flex justify-content-between align-items-center p-3 border-0 bg-transparent" type="button" data-bs-toggle="collapse" data-bs-target="#configSection" aria-expanded="false">
-                        <div class="d-flex align-items-center">
-                            <div class="bg-primary bg-opacity-10 p-2 rounded-circle me-3 text-primary">
-                                <i class="fas fa-cogs"></i>
-                            </div>
-                            <div>
-                                <h6 class="mb-0 fw-bold text-dark text-start">Organization Setup</h6>
-                                <small class="text-muted text-start d-block">Manage Departments & Job Roles</small>
-                            </div>
+    <!-- SECTION 1: MANAGE CONFIGURATION (Completely Redesigned) -->
+    <div class="row mb-5 g-4">
+        
+        <!-- Departments Column -->
+        <div class="col-md-6">
+            <div class="glass-card config-card shadow-sm">
+                <div class="config-card-header d-flex justify-content-between align-items-center bg-white rounded-top-4">
+                    <div class="d-flex align-items-center">
+                        <div class="bg-primary bg-opacity-10 p-2 rounded-circle me-3 text-primary">
+                            <i class="fas fa-building fa-lg"></i>
                         </div>
-                        <i class="fas fa-chevron-down text-muted"></i>
+                        <div>
+                            <h5 class="fw-bold text-dark mb-0">Departments</h5>
+                            <small class="text-muted">Manage organizational units</small>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary rounded-pill px-3 shadow-sm" data-bs-toggle="modal" data-bs-target="#addDeptModal">
+                        <i class="fas fa-plus me-1"></i> New
                     </button>
                 </div>
-                
-                <div class="collapse" id="configSection">
-                    <div class="card-body border-top p-4 bg-light bg-opacity-25">
-                        <div class="row g-4">
-                            
-                            <!-- Departments Panel -->
-                            <div class="col-md-6">
-                                <div class="bg-white p-4 rounded-4 border shadow-sm h-100">
-                                    <div class="d-flex justify-content-between align-items-center mb-3">
-                                        <div class="section-title mb-0 text-primary">
-                                            <i class="fas fa-building me-2"></i>Departments
-                                        </div>
-                                        <button class="btn btn-sm btn-primary rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#addDeptModal">
-                                            <i class="fas fa-plus me-1"></i> New
-                                        </button>
-                                    </div>
-                                    
-                                    <div class="d-flex flex-wrap gap-2">
-                                        {% if departments %}
-                                            {% for dept in departments %}
-                                            <div class="config-tag">
-                                                <span>{{ dept.department_name }}</span>
-                                                <!-- FORCE DELETE: Removed check condition warning from text -->
-                                                <a href="{{ url_for('employee_department_delete', id=dept.id) }}" 
-                                                   class="delete-btn" 
-                                                   onclick="return confirm('Delete department: {{ dept.department_name }}?')">
-                                                    <i class="fas fa-times-circle"></i>
-                                                </a>
-                                            </div>
-                                            {% endfor %}
-                                        {% else %}
-                                            <p class="text-muted small fst-italic">No departments added yet.</p>
-                                        {% endif %}
-                                    </div>
-                                </div>
+                <div class="config-card-body">
+                    <div class="d-flex flex-wrap gap-2">
+                        {% if departments %}
+                            {% for dept in departments %}
+                            <div class="config-tag">
+                                <span>{{ dept.department_name }}</span>
+                                <a href="{{ url_for('employee_department_delete', id=dept.id) }}" 
+                                   class="delete-btn" 
+                                   onclick="return confirm('Delete department: {{ dept.department_name }}? This will remove it from all assigned employees.')">
+                                    <i class="fas fa-times-circle"></i>
+                                </a>
                             </div>
-
-                            <!-- Positions Panel -->
-                            <div class="col-md-6">
-                                <div class="bg-white p-4 rounded-4 border shadow-sm h-100">
-                                    <div class="d-flex justify-content-between align-items-center mb-3">
-                                        <div class="section-title mb-0 text-success">
-                                            <i class="fas fa-briefcase me-2"></i>Job Positions
-                                        </div>
-                                        <button class="btn btn-sm btn-success rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#addPosModal">
-                                            <i class="fas fa-plus me-1"></i> New
-                                        </button>
-                                    </div>
-                                    
-                                    <div class="d-flex flex-wrap gap-2">
-                                        {% if positions %}
-                                            {% for pos in positions %}
-                                            <div class="config-tag">
-                                                <span>{{ pos.position_name }}</span>
-                                                <!-- FORCE DELETE: Removed check condition warning from text -->
-                                                <a href="{{ url_for('employee_position_delete', id=pos.id) }}" 
-                                                   class="delete-btn" 
-                                                   onclick="return confirm('Delete position: {{ pos.position_name }}?')">
-                                                    <i class="fas fa-times-circle"></i>
-                                                </a>
-                                            </div>
-                                            {% endfor %}
-                                        {% else %}
-                                            <p class="text-muted small fst-italic">No positions added yet.</p>
-                                        {% endif %}
-                                    </div>
-                                </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="text-center w-100 py-4 text-muted opacity-50">
+                                <i class="fas fa-folder-open fa-2x mb-2"></i>
+                                <p class="mb-0 small">No departments found.</p>
                             </div>
-
-                        </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>
         </div>
+
+        <!-- Positions Column -->
+        <div class="col-md-6">
+            <div class="glass-card config-card shadow-sm">
+                <div class="config-card-header d-flex justify-content-between align-items-center bg-white rounded-top-4">
+                    <div class="d-flex align-items-center">
+                        <div class="bg-success bg-opacity-10 p-2 rounded-circle me-3 text-success">
+                            <i class="fas fa-briefcase fa-lg"></i>
+                        </div>
+                        <div>
+                            <h5 class="fw-bold text-dark mb-0">Job Positions</h5>
+                            <small class="text-muted">Manage roles & designations</small>
+                        </div>
+                    </div>
+                    <button class="btn btn-success rounded-pill px-3 shadow-sm" data-bs-toggle="modal" data-bs-target="#addPosModal">
+                        <i class="fas fa-plus me-1"></i> New
+                    </button>
+                </div>
+                <div class="config-card-body">
+                    <div class="d-flex flex-wrap gap-2">
+                        {% if positions %}
+                            {% for pos in positions %}
+                            <div class="config-tag">
+                                <span>{{ pos.position_name }}</span>
+                                <a href="{{ url_for('employee_position_delete', id=pos.id) }}" 
+                                   class="delete-btn" 
+                                   onclick="return confirm('Delete position: {{ pos.position_name }}? This will remove it from all assigned employees.')">
+                                    <i class="fas fa-times-circle"></i>
+                                </a>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="text-center w-100 py-4 text-muted opacity-50">
+                                <i class="fas fa-id-badge fa-2x mb-2"></i>
+                                <p class="mb-0 small">No positions found.</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <!-- SECTION 2: EMPLOYEE LIST -->
@@ -252,7 +267,7 @@
                         <td class="pe-4 py-3 text-end">
                             <div class="d-flex justify-content-end gap-2">
                                 
-                                <!-- NEW: View Button (Eye Icon) -->
+                                <!-- View Button (Eye Icon) -->
                                 <a href="{{ url_for('employee_details', id=emp.id) }}" class="btn btn-sm btn-light border shadow-sm rounded-circle text-info" title="View Details" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;">
                                     <i class="fas fa-eye"></i>
                                 </a>
@@ -296,10 +311,10 @@
     </div>
 </div>
 
-<!-- MODALS MOVED OUTSIDE CONTAINERS TO PREVENT FREEZING -->
-<!-- Add Department Modal -->
+<!-- MODALS MOVED OUTSIDE CONTAINERS -->
+<!-- Add Department Modal (Standard Size) -->
 <div class="modal fade" id="addDeptModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered"> <!-- Standard Width -->
         <div class="modal-content border-0 shadow-lg rounded-4">
             <div class="modal-header border-0 pb-0">
                 <h5 class="modal-title fw-bold text-primary"><i class="fas fa-building me-2"></i>Add Department</h5>
@@ -309,7 +324,7 @@
                 <div class="modal-body py-4">
                     <div class="form-floating">
                         <!-- Ensure Text Color is Black -->
-                        <input type="text" name="department_name" class="form-control rounded-3" id="deptInput" placeholder="e.g. Sales, HR" required>
+                        <input type="text" name="department_name" class="form-control rounded-3 text-dark" id="deptInput" placeholder="e.g. Sales, HR" required>
                         <label for="deptInput">Department Name</label>
                     </div>
                 </div>
@@ -322,9 +337,9 @@
     </div>
 </div>
 
-<!-- Add Position Modal -->
+<!-- Add Position Modal (Standard Size) -->
 <div class="modal fade" id="addPosModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered"> <!-- Standard Width -->
         <div class="modal-content border-0 shadow-lg rounded-4">
             <div class="modal-header border-0 pb-0">
                 <h5 class="modal-title fw-bold text-success"><i class="fas fa-briefcase me-2"></i>Add Position</h5>
@@ -334,7 +349,7 @@
                 <div class="modal-body py-4">
                     <div class="form-floating">
                         <!-- Ensure Text Color is Black -->
-                        <input type="text" name="position_name" class="form-control rounded-3" id="posInput" placeholder="e.g. Manager" required>
+                        <input type="text" name="position_name" class="form-control rounded-3 text-dark" id="posInput" placeholder="e.g. Manager" required>
                         <label for="posInput">Position Title</label>
                     </div>
                 </div>
