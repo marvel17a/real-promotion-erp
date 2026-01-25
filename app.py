@@ -3503,16 +3503,11 @@ def employee_position_delete(id):
 
     return redirect(url_for("employee_master"))
 
-# REPLACE your existing 'add_employee' route with this one:
 
+# Add employee route#
 @app.route("/add_employee", methods=["GET", "POST"])
 def add_employee():
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    
-    # Calculate Financial Health for Header Stats
-    fin_stats = get_financial_health(cur)
-    cash_balance = fin_stats['cash_balance']
-
     if request.method == "POST":
         d = request.form
         
@@ -3537,7 +3532,7 @@ def add_employee():
             app.logger.error(f"Upload error: {e}")
             flash(f"Upload warning: {e}", "warning")
 
-        # 4. Insert
+        # 4. Insert (UPDATED QUERY)
         try:
             cur.execute("""
                 INSERT INTO employees (
@@ -3552,7 +3547,7 @@ def add_employee():
                 d.get("phone"), 
                 d.get("aadhar_no"), 
                 d.get("emergency_contact"),
-                d.get("emergency_contact_person"),
+                d.get("emergency_contact_person"), # NEW FIELD
                 d.get("dob") if d.get("dob") else None,
                 d.get("position_id"), 
                 d.get("department_id"), 
@@ -3575,19 +3570,12 @@ def add_employee():
         finally:
             cur.close()
 
-    # Get dropdown data
     cur.execute("SELECT * FROM employee_positions")
     pos = cur.fetchall()
     cur.execute("SELECT * FROM employee_departments")
     dept = cur.fetchall()
     cur.close()
-    
-    # Pass cash_balance AND a dummy subcategories list to prevent Template Error
-    return render_template("employees/add_employee.html", 
-                           positions=pos, 
-                           departments=dept,
-                           cash_balance=cash_balance,
-                           subcategories=[])
+    return render_template("employees/add_employee.html", positions=pos, departments=dept)
 
 
 # =========================================================
@@ -7298,6 +7286,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
