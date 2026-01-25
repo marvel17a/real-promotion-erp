@@ -3361,40 +3361,53 @@ def employee_department_add():
         flash("Department name is required.", "danger")
         return redirect(url_for("employee_master"))
 
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    cursor.execute(
-        "INSERT INTO employee_departments (department_name) VALUES (%s)",
-        (department_name,)
-    )
-    mysql.connection.commit()
-    cursor.close()
+    try:
+        # Use DictCursor for consistency
+        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        cursor.execute(
+            "INSERT INTO employee_departments (department_name) VALUES (%s)",
+            (department_name,)
+        )
+        mysql.connection.commit()
+        flash("Department added successfully!", "success")
+    except Exception as e:
+        mysql.connection.rollback()
+        flash(f"Error adding department: {e}", "danger")
+    finally:
+        cursor.close()
 
-    flash("Department added successfully!", "success")
     return redirect(url_for("employee_master"))
 
 
 @app.route("/employee_department_delete/<int:id>")
 def employee_department_delete(id):
-    cursor = mysql.connection.cursor()
+    if "loggedin" not in session:
+        return redirect(url_for("login"))
 
-    # Check if any employee is using this department
-    cursor.execute("SELECT COUNT(*) AS cnt FROM employees WHERE department_id=%s", (id,))
-    count = cursor.fetchone()['cnt']
+    # Use DictCursor so we can access result['cnt'] safely
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    
+    try:
+        # Check if any employee is using this department
+        cursor.execute("SELECT COUNT(*) AS cnt FROM employees WHERE department_id=%s", (id,))
+        result = cursor.fetchone()
+        count = result['cnt'] if result else 0
 
-    if count > 0:
-        flash("Cannot delete this department because employees are using it.", "danger")
+        if count > 0:
+            flash("Cannot delete this department because employees are currently assigned to it.", "danger")
+        else:
+            # Safe delete
+            cursor.execute("DELETE FROM employee_departments WHERE id=%s", (id,))
+            mysql.connection.commit()
+            flash("Department deleted successfully!", "success")
+            
+    except Exception as e:
+        mysql.connection.rollback()
+        flash(f"Error deleting department: {e}", "danger")
+    finally:
         cursor.close()
-        return redirect(url_for("employee_master"))
 
-    # Safe delete
-    cursor.execute("DELETE FROM employee_departments WHERE id=%s", (id,))
-    mysql.connection.commit()
-    cursor.close()
-
-    flash("Department deleted successfully!", "success")
     return redirect(url_for("employee_master"))
-
-
 
 
 @app.route("/employee_position_add", methods=["POST"])
@@ -3407,37 +3420,50 @@ def employee_position_add():
         flash("Position name is required.", "danger")
         return redirect(url_for("employee_master"))
 
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    cursor.execute(
-        "INSERT INTO employee_positions (position_name) VALUES (%s)",
-        (position_name,)
-    )
-    mysql.connection.commit()
-    cursor.close()
+    try:
+        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        cursor.execute(
+            "INSERT INTO employee_positions (position_name) VALUES (%s)",
+            (position_name,)
+        )
+        mysql.connection.commit()
+        flash("Position added successfully!", "success")
+    except Exception as e:
+        mysql.connection.rollback()
+        flash(f"Error adding position: {e}", "danger")
+    finally:
+        cursor.close()
 
-    flash("Position added successfully!", "success")
     return redirect(url_for("employee_master"))
 
 
 @app.route("/employee_position_delete/<int:id>")
 def employee_position_delete(id):
-    cursor = mysql.connection.cursor()
+    if "loggedin" not in session:
+        return redirect(url_for("login"))
 
-    # Check if any employee is using this position
-    cursor.execute("SELECT COUNT(*) AS cnt FROM employees WHERE position_id=%s", (id,))
-    count = cursor.fetchone()['cnt']
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    
+    try:
+        # Check if any employee is using this position
+        cursor.execute("SELECT COUNT(*) AS cnt FROM employees WHERE position_id=%s", (id,))
+        result = cursor.fetchone()
+        count = result['cnt'] if result else 0
 
-    if count > 0:
-        flash("Cannot delete this position because employees are using it.", "danger")
+        if count > 0:
+            flash("Cannot delete this position because employees are currently assigned to it.", "danger")
+        else:
+            # Safe delete
+            cursor.execute("DELETE FROM employee_positions WHERE id=%s", (id,))
+            mysql.connection.commit()
+            flash("Position deleted successfully!", "success")
+            
+    except Exception as e:
+        mysql.connection.rollback()
+        flash(f"Error deleting position: {e}", "danger")
+    finally:
         cursor.close()
-        return redirect(url_for("employee_master"))
 
-    # Safe delete
-    cursor.execute("DELETE FROM employee_positions WHERE id=%s", (id,))
-    mysql.connection.commit()
-    cursor.close()
-
-    flash("Position deleted successfully!", "success")
     return redirect(url_for("employee_master"))
 
 
@@ -7224,6 +7250,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
