@@ -16,11 +16,11 @@
 
     body { font-family: 'Poppins', sans-serif; background-color: #f1f5f9; }
 
-    /* Requirement 1: Light Blue Styling */
+    /* Requirement 1: Premium Blue Styles */
     .live-clock-box {
         background: var(--light-blue);
         color: white;
-        padding: 6px 20px;
+        padding: 6px 22px;
         border-radius: 50px;
         font-family: 'monospace';
         font-weight: 800;
@@ -35,6 +35,19 @@
         box-shadow: 0 10px 15px -3px rgba(14, 165, 233, 0.4);
     }
 
+    /* Requirement 1: Restored Available Balance Design */
+    .balance-badge {
+        padding: 12px 20px;
+        border-radius: 15px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    .cash-bg { background: #ecfdf5; color: #059669; border: 1px solid #10b98144; }
+    .bank-bg { background: #eff6ff; color: #2563eb; border: 1px solid #3b82f644; }
+
     .premium-card {
         background: var(--glass);
         backdrop-filter: blur(10px);
@@ -43,18 +56,8 @@
         box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
     }
 
-    .balance-badge {
-        padding: 1rem;
-        border-radius: 18px;
-        border: 2px solid transparent;
-        transition: all 0.3s ease;
-    }
-    .cash-mode { background: #ecfdf5; border-color: #10b981; color: #065f46; }
-    .bank-mode { background: #eff6ff; border-color: #3b82f6; color: #1e40af; }
-
     .form-control, .form-select { border-radius: 12px; padding: 12px; border: 1.5px solid #e2e8f0; }
 
-    /* Requirement 2: Add Button Style */
     .btn-add-item {
         background: #ecfdf5;
         color: #059669;
@@ -65,19 +68,17 @@
         font-weight: 700;
         transition: all 0.2s;
     }
-    .btn-add-item:hover { background: #d1fae5; transform: scale(1.01); }
+    .btn-add-item:hover { background: #d1fae5; transform: scale(1.005); }
 
-    /* Bill Upload modern style */
-    .upload-zone {
-        border: 2px dashed #cbd5e1;
-        border-radius: 15px;
-        padding: 20px;
-        text-align: center;
-        background: #f8fafc;
-        cursor: pointer;
-    }
-    .file-type-pill { font-size: 0.65rem; background: #e2e8f0; padding: 2px 8px; border-radius: 4px; margin: 0 2px; font-weight: bold; }
+    /* Button Colors (Requirement 4) */
+    .btn-post { background: var(--success); color: white; border: none; border-radius: 15px; font-weight: 700; transition: 0.3s; }
+    .btn-post:hover { background: #059669; color: white; transform: translateY(-2px); }
+    .btn-post:disabled { background: #cbd5e1; transform: none; }
+    
+    .btn-discard { background: #fee2e2; color: var(--danger); border: 1px solid #fecaca; border-radius: 15px; font-weight: 600; transition: 0.3s; }
+    .btn-discard:hover { background: var(--danger); color: white; }
 
+    .upload-zone { border: 2px dashed #cbd5e1; border-radius: 15px; padding: 20px; text-align: center; background: #f8fafc; cursor: pointer; }
     .item-row { border-bottom: 1px solid #f1f5f9; }
     .error-limit { background: var(--danger) !important; animation: shake 0.4s; }
     @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
@@ -87,20 +88,19 @@
     <!-- Top Header -->
     <div class="row align-items-center mb-4">
         <div class="col-md-7">
-            <h2 class="fw-bold text-dark m-0">New Expense Voucher</h2>
+            <h2 class="fw-bold text-dark m-0">Voucher Requisition</h2>
             <div class="d-flex align-items-center gap-3 mt-2">
                 <span id="liveClock" class="live-clock-box">00:00:00</span>
                 <span class="text-muted small"><i class="fas fa-calendar-alt me-1"></i> {{ today }}</span>
             </div>
         </div>
         <div class="col-md-5 d-flex justify-content-end">
-            <div id="balanceDisplay" class="balance-badge cash-mode shadow-sm">
-                <div class="d-flex align-items-center gap-3">
-                    <i class="fas fa-vault fa-2x opacity-50"></i>
-                    <div>
-                        <small class="d-block text-uppercase fw-bold opacity-75" style="font-size: 0.65rem;">Live Available Balance</small>
-                        <h4 class="m-0 fw-bold" id="balanceText">₹ {{ "{:,.2f}".format(cash_balance) }}</h4>
-                    </div>
+            <!-- Requirement 1: Restored design -->
+            <div id="balanceDisplay" class="balance-badge cash-bg shadow-sm">
+                <i class="fas fa-wallet fa-2x opacity-50"></i>
+                <div>
+                    <small class="d-block text-uppercase fw-bold opacity-75" style="font-size: 0.65rem;">Available fund</small>
+                    <span class="fs-5 fw-bold" id="balanceText">₹ {{ "{:,.2f}".format(cash_balance) }}</span>
                 </div>
             </div>
         </div>
@@ -135,45 +135,39 @@
                     </div>
 
                     <div id="itemsContainer" style="display: none;">
-                        <h6 class="fw-bold text-primary mb-3">Line Item Allocation</h6>
+                        <h6 class="fw-bold text-primary mb-3">Itemized Allocation</h6>
                         <div class="table-responsive">
                             <table class="table table-borderless align-middle">
                                 <thead>
                                     <tr class="small text-muted border-bottom">
-                                        <th style="width: 45%;">Sub-Category Item</th>
-                                        <th style="width: 25%;">Amount (₹)</th>
-                                        <th style="width: 20%;" class="text-center">Details</th>
+                                        <th style="width: 35%;">Sub-Category</th>
+                                        <th style="width: 35%;">Notes / Remarks</th>
+                                        <th style="width: 20%;">Amount (₹)</th>
                                         <th style="width: 10%;"></th>
                                     </tr>
                                 </thead>
                                 <tbody id="tableBody"></tbody>
                             </table>
                         </div>
-                        <!-- Requirement 2: Add Button moved here -->
-                        <button type="button" class="btn btn-add-item mt-2" onclick="addNewRow()">
+                        <!-- Requirement 2: Add Button under the table -->
+                        <button type="button" class="btn btn-add-item mt-3" onclick="addNewRow()">
                             <i class="fas fa-plus-circle me-2"></i> Add Another Line Item
                         </button>
                     </div>
 
                     <div id="placeholder" class="text-center py-5">
                         <i class="fas fa-file-invoice-dollar fa-3x text-light mb-3"></i>
-                        <p class="text-muted">Choose a main category to start adding items.</p>
+                        <p class="text-muted">Select a Main Category to begin.</p>
                     </div>
                 </div>
 
-                <!-- Requirement 4: Adjusted Bottom Section -->
                 <div class="row g-4">
                     <div class="col-md-6">
                         <div class="card premium-card p-4 h-100">
-                            <h6 class="fw-bold mb-3 small text-muted text-uppercase">Supporting Documents</h6>
+                            <h6 class="fw-bold mb-3 small text-muted text-uppercase">Supporting Document</h6>
                             <div class="upload-zone" onclick="document.getElementById('fileInp').click()">
                                 <i class="fas fa-cloud-upload-alt fa-2x text-primary opacity-50 mb-2"></i>
-                                <p class="m-0 fw-bold small">Upload Bill Photo</p>
-                                <div class="mt-2">
-                                    <span class="file-type-pill">JPG</span>
-                                    <span class="file-type-pill">PNG</span>
-                                    <span class="file-type-pill">PDF</span>
-                                </div>
+                                <p class="m-0 fw-bold small">Upload Bill Photo (JPG/PNG/PDF)</p>
                                 <input type="file" name="receipt" id="fileInp" hidden accept="image/*,application/pdf" onchange="updateFileLabel(this)">
                                 <div id="fileName" class="mt-2 small text-success fw-bold"></div>
                             </div>
@@ -181,8 +175,8 @@
                     </div>
                     <div class="col-md-6">
                         <div class="card premium-card p-4 h-100">
-                            <h6 class="fw-bold mb-3 small text-muted text-uppercase">Voucher Remarks (Universal)</h6>
-                            <textarea name="voucher_description" class="form-control bg-light border-0" rows="4" placeholder="Enter overall notes for this entire voucher..."></textarea>
+                            <h6 class="fw-bold mb-3 small text-muted text-uppercase">Universal Voucher Note</h6>
+                            <textarea name="voucher_description" class="form-control bg-light border-0" rows="4" placeholder="Overall description for this voucher..."></textarea>
                         </div>
                     </div>
                 </div>
@@ -191,49 +185,34 @@
             <!-- Right Sidebar -->
             <div class="col-lg-4">
                 <div class="card premium-card p-4 sticky-top" style="top: 20px;">
-                    <h5 class="fw-bold mb-4">Final Summary</h5>
+                    <h5 class="fw-bold mb-4">Summary Dashboard</h5>
                     <div class="d-flex justify-content-between mb-2">
-                        <span class="text-muted">Total Items</span>
+                        <span class="text-muted">Line Items</span>
                         <span class="fw-bold" id="itemCounter">0</span>
                     </div>
 
                     <!-- Requirement 1: Total Box Blue Styling -->
                     <div id="totalCard" class="total-box-premium text-center my-4">
-                        <small class="text-uppercase opacity-75 fw-bold" style="font-size: 0.7rem; letter-spacing: 1px;">Voucher Grand Total</small>
-                        <h1 class="fw-bold m-0" id="totalText">₹ 0.00</h1>
+                        <small class="text-uppercase opacity-75 fw-bold" style="font-size: 0.7rem; letter-spacing: 1px;">Grand Total</small>
+                        <h1 class="fw-bold m-0" id="totalText">₹ 0</h1>
                     </div>
 
                     <div id="balanceAlert" class="alert alert-danger py-2 small mb-3" style="display: none; border-radius: 12px;">
-                        <i class="fas fa-exclamation-triangle me-2"></i> Insufficient funds available!
+                        <i class="fas fa-exclamation-triangle me-2"></i> Insufficient funds!
                     </div>
 
-                    <button type="submit" id="submitBtn" class="btn btn-premium w-100 py-3 mb-3 shadow">
-                        <i class="fas fa-check-double me-2"></i> Post Voucher
+                    <!-- Requirement 4: Colored Buttons -->
+                    <button type="submit" id="submitBtn" class="btn btn-post w-100 py-3 mb-3 shadow-sm">
+                        <i class="fas fa-check-circle me-2"></i> Save & Post Voucher
                     </button>
                     
-                    <a href="{{ url_for('expense_dash') }}" class="btn btn-link text-muted w-100 text-decoration-none small">Discard Voucher</a>
+                    <a href="{{ url_for('expense_dash') }}" class="btn btn-discard w-100 py-2 text-decoration-none text-center">
+                        <i class="fas fa-times me-1"></i> Discard Voucher
+                    </a>
                 </div>
             </div>
         </div>
     </form>
-</div>
-
-<!-- Modal for Item-level Details (Fixing Requirement 3) -->
-<div class="modal fade" id="itemModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg" style="border-radius: 24px;">
-            <div class="modal-header border-0 pb-0">
-                <h5 class="fw-bold mt-2 ms-2">Item Details</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body p-4">
-                <textarea id="modalTextArea" class="form-control" rows="5" placeholder="Add specific notes for this line item..."></textarea>
-            </div>
-            <div class="modal-footer border-0 pt-0">
-                <button type="button" class="btn btn-primary rounded-pill px-4" onclick="closeAndSaveModal()">Save Note</button>
-            </div>
-        </div>
-    </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
@@ -241,32 +220,27 @@
     const subcats = {{ subcategories | tojson }};
     const cBal = {{ cash_balance }};
     const bBal = {{ bank_balance }};
-    let currentActiveInput = null;
 
-    // 1. Initializers
     document.addEventListener('DOMContentLoaded', () => {
-        // Requirement 5: dd-mm-yyyy format
         flatpickr("#datePicker", { defaultDate: "today", dateFormat: "d-m-Y" });
         setInterval(() => { document.getElementById('liveClock').innerText = new Date().toLocaleTimeString(); }, 1000);
     });
 
-    // 2. Balance Toggle
     function syncBalance() {
         const mode = document.getElementById('payMode').value;
         const box = document.getElementById('balanceDisplay');
         const text = document.getElementById('balanceText');
 
         if(mode === 'Cash') {
-            box.className = 'balance-badge cash-mode shadow-sm';
+            box.className = 'balance-badge cash-bg shadow-sm';
             text.innerText = "₹ " + cBal.toLocaleString('en-IN', {minimumFractionDigits: 2});
         } else {
-            box.className = 'balance-badge bank-mode shadow-sm';
+            box.className = 'balance-badge bank-bg shadow-sm';
             text.innerText = "₹ " + bBal.toLocaleString('en-IN', {minimumFractionDigits: 2});
         }
         recalculate();
     }
 
-    // 3. Item Logic
     function initVoucher() {
         document.getElementById('placeholder').style.display = 'none';
         document.getElementById('itemsContainer').style.display = 'block';
@@ -284,13 +258,12 @@
         tr.className = 'item-row';
         tr.innerHTML = `
             <td><select name="subcategory_id[]" class="form-select border-0 bg-light" required>${opts}</select></td>
-            <td><input type="number" name="amount[]" class="form-control border-0 bg-light fw-bold text-end val-input" placeholder="0.00" oninput="recalculate()" step="0.01" required></td>
-            <td class="text-center">
-                <button type="button" class="btn btn-light btn-sm rounded-circle border shadow-sm" onclick="openItemModal(this)">
-                    <i class="far fa-comment-dots"></i>
-                </button>
-                <input type="hidden" name="description[]" class="hidden-note-storage">
-            </td>
+            <!-- Requirement 2: Direct Textbox for Notes -->
+            <td><input type="text" name="description[]" class="form-control border-0 bg-light" placeholder="Note..."></td>
+            <!-- Requirement 3: Integer Only Validation -->
+            <td><input type="number" name="amount[]" class="form-control border-0 bg-light fw-bold text-end val-input" 
+                       placeholder="0" step="1" oninput="recalculate()" 
+                       onkeypress="return event.charCode >= 48 && event.charCode <= 57" required></td>
             <td class="text-end">
                 <button type="button" class="btn btn-link text-danger p-0" onclick="deleteRow(this)">
                     <i class="fas fa-trash-alt"></i>
@@ -302,38 +275,15 @@
     }
 
     function deleteRow(btn) {
-        if(confirm("Dhyan Dein! Kya aap waqai is item ko delete karna chahte hain?")) {
+        if(confirm("Are you sure you want to remove this item?")) {
             btn.closest('tr').remove();
             recalculate();
         }
     }
 
-    // 4. Modal Fix (Requirement 3)
-    const itemModal = new bootstrap.Modal(document.getElementById('itemModal'));
-    function openItemModal(btn) {
-        currentActiveInput = btn.nextElementSibling;
-        document.getElementById('modalTextArea').value = currentActiveInput.value;
-        itemModal.show();
-    }
-
-    function closeAndSaveModal() {
-        const text = document.getElementById('modalTextArea').value;
-        currentActiveInput.value = text;
-        const btn = currentActiveInput.previousElementSibling;
-        if(text) {
-            btn.classList.replace('btn-light', 'btn-primary');
-            btn.classList.add('text-white');
-        } else {
-            btn.classList.replace('btn-primary', 'btn-light');
-            btn.classList.remove('text-white');
-        }
-        itemModal.hide();
-    }
-
-    // 5. Validation Logic
     function recalculate() {
         let total = 0;
-        document.querySelectorAll('.val-input').forEach(i => total += parseFloat(i.value) || 0);
+        document.querySelectorAll('.val-input').forEach(i => total += parseInt(i.value) || 0);
         
         const mode = document.getElementById('payMode').value;
         const available = (mode === 'Cash') ? cBal : bBal;
@@ -343,7 +293,7 @@
         const btn = document.getElementById('submitBtn');
         const alertBox = document.getElementById('balanceAlert');
 
-        display.innerText = "₹ " + total.toLocaleString('en-IN', {minimumFractionDigits: 2});
+        display.innerText = "₹ " + total.toLocaleString('en-IN');
         document.getElementById('itemCounter').innerText = document.querySelectorAll('.item-row').length;
 
         if(total > available) {
