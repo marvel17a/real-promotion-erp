@@ -3504,11 +3504,16 @@ def employee_position_delete(id):
     return redirect(url_for("employee_master"))
 
 
+# REPLACE your existing 'add_employee' route with this one:
 
-# Add employee route#
 @app.route("/add_employee", methods=["GET", "POST"])
 def add_employee():
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    
+    # Calculate Financial Health for Header Stats (Fixes the Error)
+    fin_stats = get_financial_health(cur)
+    cash_balance = fin_stats['cash_balance']
+
     if request.method == "POST":
         d = request.form
         
@@ -3571,12 +3576,18 @@ def add_employee():
         finally:
             cur.close()
 
+    # Get dropdown data
     cur.execute("SELECT * FROM employee_positions")
     pos = cur.fetchall()
     cur.execute("SELECT * FROM employee_departments")
     dept = cur.fetchall()
     cur.close()
-    return render_template("employees/add_employee.html", positions=pos, departments=dept)
+    
+    # Pass cash_balance to template
+    return render_template("employees/add_employee.html", 
+                           positions=pos, 
+                           departments=dept,
+                           cash_balance=cash_balance)
 
 
 # =========================================================
@@ -7287,6 +7298,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
