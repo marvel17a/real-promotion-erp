@@ -1,0 +1,78 @@
+{% extends 'admin_master.html' %}
+{% block page_content %}
+<style>
+    .voucher-container { max-width: 800px; margin: 40px auto; background: white; border-radius: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.1); overflow: hidden; }
+    .voucher-header { background: #0ea5e9; color: white; padding: 40px; }
+    .voucher-body { padding: 40px; }
+    .receipt-preview { width: 100%; border-radius: 15px; border: 5px solid #f1f5f9; cursor: pointer; transition: 0.3s; }
+    .receipt-preview:hover { transform: scale(1.02); }
+    .line-item { border-bottom: 1px dashed #e2e8f0; padding: 12px 0; }
+</style>
+
+<div class="container py-4">
+    <div class="mb-4 d-flex justify-content-between">
+        <a href="{{ url_for('expenses_list') }}" class="btn btn-light rounded-pill border shadow-sm px-4">
+            <i class="fas fa-arrow-left me-2"></i> Ledger
+        </a>
+        <button onclick="window.print()" class="btn btn-dark rounded-pill px-4"><i class="fas fa-print me-2"></i> Print Voucher</button>
+    </div>
+
+    <div class="voucher-container shadow-lg">
+        <div class="voucher-header">
+            <div class="row align-items-center">
+                <div class="col-8">
+                    <h1 class="fw-bold m-0">Voucher #{{ expense.expense_id }}</h1>
+                    <p class="m-0 opacity-75">Recorded on {{ expense.expense_date.strftime('%d-%m-%Y') }} at {{ expense.expense_time }}</p>
+                </div>
+                <div class="col-4 text-end">
+                    <div class="bg-white text-dark rounded-4 p-3 shadow-sm">
+                        <small class="text-uppercase fw-bold opacity-50">Total Amount</small>
+                        <h2 class="fw-bold m-0 text-primary">₹ {{ "{:,.0f}".format(expense.total_amount) }}</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="voucher-body">
+            <div class="row g-5">
+                <div class="col-md-7">
+                    <h5 class="fw-bold mb-4 text-muted border-bottom pb-2">Line Item Allocation</h5>
+                    {% for i in items %}
+                    <div class="line-item">
+                        <div class="d-flex justify-content-between">
+                            <span class="fw-bold">{{ i.subcategory_name }}</span>
+                            <span class="fw-bold">₹ {{ "{:,.0f}".format(i.amount) }}</span>
+                        </div>
+                        <small class="text-muted">{{ i.description or 'No detail' }}</small>
+                    </div>
+                    {% endfor %}
+
+                    <div class="mt-5 p-4 bg-light rounded-4">
+                        <h6 class="fw-bold small text-uppercase">Universal Remarks</h6>
+                        <p class="m-0 text-muted">{{ expense.description or 'No additional notes recorded for this voucher.' }}</p>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <span class="badge bg-primary px-3 py-2 rounded-pill">Payment: {{ expense.payment_method }}</span>
+                    </div>
+                </div>
+
+                <div class="col-md-5">
+                    <h5 class="fw-bold mb-4 text-muted border-bottom pb-2">Supporting Document</h5>
+                    {% if expense.receipt_url %}
+                        <a href="{{ expense.receipt_url }}" target="_blank">
+                            <img src="{{ expense.receipt_url }}" class="receipt-preview" alt="Voucher Receipt">
+                        </a>
+                        <p class="text-center small text-muted mt-2">Click image to expand</p>
+                    {% else %}
+                        <div class="text-center py-5 bg-light rounded-4 border-dashed">
+                            <i class="fas fa-image fa-3x text-muted opacity-25 mb-3"></i>
+                            <p class="text-muted small m-0">No receipt attached</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
