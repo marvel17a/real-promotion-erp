@@ -1,89 +1,150 @@
 {% extends 'admin_master.html' %}
 {% block page_content %}
-<div class="container-fluid py-4 fade-in-up">
-    <div class="row justify-content-center">
-        <div class="col-lg-10">
-            <form action="{{ url_for('edit_expense', expense_id=expense.expense_id) }}" method="POST">
-                <div class="card glass-card border-0 shadow-lg rounded-4">
-                    <div class="card-header bg-white border-0 p-4">
-                        <h4 class="fw-bold mb-0">Edit Expense #{{ expense.expense_id }}</h4>
-                    </div>
-                    <div class="card-body p-4 bg-light bg-opacity-25">
-                        <div class="row g-3 mb-4">
-                            <div class="col-md-4"><label>Date</label><input type="date" name="expense_date" class="form-control" value="{{ expense.expense_date }}" required></div>
-                            <div class="col-md-4"><label>Time</label><input type="time" name="expense_time" class="form-control" value="{{ expense.expense_time }}" required></div>
-                            <div class="col-md-4">
-                                <label>Method</label>
-                                <select name="payment_method" class="form-select">
-                                    <option value="Cash" {% if expense.payment_method=='Cash' %}selected{% endif %}>Cash</option>
-                                    <option value="Online" {% if expense.payment_method=='Online' %}selected{% endif %}>Online</option>
-                                    <option value="Bank Transfer" {% if expense.payment_method=='Bank Transfer' %}selected{% endif %}>Bank Transfer</option>
-                                </select>
-                            </div>
+<!-- Exact design mirror of add_expense.html with pre-filled values -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<style>
+    :root { --primary: #4f46e5; --light-blue: #0ea5e9; --success: #10b981; --danger: #ef4444; --glass: rgba(255, 255, 255, 0.95); }
+    body { font-family: 'Poppins', sans-serif; background-color: #f1f5f9; }
+    .live-clock-box { background: var(--light-blue); color: white; padding: 6px 22px; border-radius: 50px; font-family: 'monospace'; font-weight: 800; }
+    .total-box-premium { background: var(--light-blue) !important; color: white !important; border-radius: 20px; padding: 25px; box-shadow: 0 10px 20px rgba(14, 165, 233, 0.4); }
+    .premium-card { background: var(--glass); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.5); border-radius: 24px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05); }
+    .form-control, .form-select { border-radius: 12px; padding: 12px; border: 1.5px solid #e2e8f0; }
+    .btn-add-item { background: #ecfdf5; color: #059669; border: 2px dashed #10b981; border-radius: 12px; width: 100%; padding: 12px; font-weight: 700; }
+    .btn-post { background: var(--success); color: white; border: none; border-radius: 15px; font-weight: 700; padding: 12px; }
+</style>
+
+<div class="container-fluid py-4">
+    <div class="row align-items-center mb-4">
+        <div class="col-md-7">
+            <h2 class="fw-bold text-dark m-0">Edit Voucher #{{ expense.expense_id }}</h2>
+            <div class="d-flex align-items-center gap-3 mt-2">
+                <span id="liveClock" class="live-clock-box">00:00:00</span>
+                <span class="text-muted small"><i class="fas fa-calendar-alt me-1"></i> Original Date: {{ expense.expense_date.strftime('%d-%m-%Y') }}</span>
+            </div>
+        </div>
+    </div>
+
+    <form action="{{ url_for('edit_expense', expense_id=expense.expense_id) }}" method="POST" enctype="multipart/form-data">
+        <input type="hidden" name="old_receipt_url" value="{{ expense.receipt_url }}">
+        <div class="row g-4">
+            <div class="col-lg-8">
+                <div class="card premium-card p-4 mb-4">
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-4">
+                            <label class="small fw-bold text-muted">VOUCHER DATE</label>
+                            <input type="text" name="expense_date" id="datePicker" class="form-control" value="{{ expense.expense_date.strftime('%d-%m-%Y') }}" required>
                         </div>
-                        <div class="table-responsive bg-white rounded-3 p-3 shadow-sm">
-                            <table class="table align-middle" id="itemsTable">
-                                <thead class="small text-uppercase text-muted"><tr><th style="width:25%">Category</th><th style="width:25%">Item</th><th>Description</th><th style="width:15%">Amount</th><th></th></tr></thead>
-                                <tbody id="itemsBody">
+                        <div class="col-md-4">
+                            <label class="small fw-bold text-muted">PAYMENT MODE</label>
+                            <select name="payment_method" class="form-select">
+                                <option value="Cash" {% if expense.payment_method == 'Cash' %}selected{% endif %}>Cash Payment</option>
+                                <option value="Online" {% if expense.payment_method == 'Online' %}selected{% endif %}>Online / Bank</option>
+                                <option value="Mixed" {% if expense.payment_method == 'Mixed' %}selected{% endif %}>Mixed (Cash + Bank)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="small fw-bold text-muted">MAIN CATEGORY</label>
+                            <select name="main_category_id" id="mainCat" class="form-select" onchange="initVoucher()" required>
+                                {% for cat in categories %}
+                                <option value="{{ cat.category_id }}" {% if items[0] and items[0].category_id == cat.category_id %}selected{% endif %}>{{ cat.category_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="itemsContainer">
+                        <div class="table-responsive">
+                            <table class="table table-borderless align-middle">
+                                <thead>
+                                    <tr class="small text-muted border-bottom">
+                                        <th style="width: 35%;">Sub-Category</th>
+                                        <th style="width: 40%;">Notes</th>
+                                        <th style="width: 20%;">Amount (₹)</th>
+                                        <th style="width: 5%;"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tableBody">
                                     {% for item in items %}
-                                    <tr>
+                                    <tr class="item-row">
                                         <td>
-                                            <select name="category_id[]" class="form-select border-0 bg-light" onchange="updSub(this, {{ loop.index }})" required>
-                                                {% for c in categories %}
-                                                <option value="{{ c.category_id }}" {% if c.category_id==item.category_id %}selected{% endif %}>{{ c.category_name }}</option>
+                                            <select name="subcategory_id[]" class="form-select border-0 bg-light" required>
+                                                {% for s in subcategories %}
+                                                    {% if items[0] and s.category_id == items[0].category_id %}
+                                                    <option value="{{ s.subcategory_id }}" {% if item.subcategory_id == s.subcategory_id %}selected{% endif %}>{{ s.subcategory_name }}</option>
+                                                    {% endif %}
                                                 {% endfor %}
                                             </select>
                                         </td>
-                                        <td>
-                                            <select name="subcategory_id[]" id="sub_{{ loop.index }}" class="form-select border-0 bg-light" required>
-                                                <option value="{{ item.subcategory_id }}" selected>{{ item.description }} (Current)</option>
-                                            </select>
-                                        </td>
                                         <td><input type="text" name="description[]" class="form-control border-0 bg-light" value="{{ item.description }}"></td>
-                                        <td><input type="number" name="amount[]" class="form-control border-0 bg-light fw-bold text-end amt" step="0.01" value="{{ item.amount }}" oninput="calc()" required></td>
-                                        <td><button type="button" class="btn btn-sm text-danger" onclick="this.closest('tr').remove(); calc();"><i class="fas fa-times"></i></button></td>
+                                        <td><input type="number" name="amount[]" class="form-control border-0 bg-light fw-bold text-end val-input" value="{{ item.amount|int }}" oninput="recalculate()" required></td>
+                                        <td class="text-end"><button type="button" class="btn btn-link text-danger p-0" onclick="this.closest('tr').remove();recalculate();"><i class="fas fa-trash"></i></button></td>
                                     </tr>
                                     {% endfor %}
                                 </tbody>
                             </table>
-                            <button type="button" class="btn btn-light w-100 fw-bold text-primary" onclick="addRow()">Add Item</button>
                         </div>
-                    </div>
-                    <div class="card-footer bg-white border-0 p-4 text-end">
-                        <h5 class="d-inline-block me-4">Total: <span id="grandTotal">₹ {{ expense.amount }}</span></h5>
-                        <button type="submit" class="btn btn-primary px-5 rounded-pill">Update</button>
+                        <button type="button" class="btn btn-add-item mt-3" onclick="addNewRow()">
+                            <i class="fas fa-plus-circle me-2"></i> Add Another Line Item
+                        </button>
                     </div>
                 </div>
-            </form>
+
+                <div class="row g-4">
+                    <div class="col-md-6">
+                        <div class="card premium-card p-4 h-100">
+                            <h6 class="fw-bold mb-3 small text-muted text-uppercase">Supporting Document</h6>
+                            <input type="file" name="receipt" class="form-control mb-2" accept="image/*">
+                            {% if expense.receipt_url %}<small class="text-primary">Existing receipt attached</small>{% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card premium-card p-4 h-100">
+                            <h6 class="fw-bold mb-3 small text-muted text-uppercase">Universal Note</h6>
+                            <textarea name="voucher_description" class="form-control bg-light border-0" rows="4">{{ expense.description }}</textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="card premium-card p-4 sticky-top" style="top: 20px;">
+                    <div id="totalCard" class="total-box-premium text-center my-4">
+                        <small class="text-uppercase opacity-75 fw-bold" style="font-size: 0.7rem;">Update Grand Total</small>
+                        <h1 class="fw-bold m-0" id="totalText">₹ {{ "{:,.0f}".format(expense.total_amount) }}</h1>
+                    </div>
+                    <button type="submit" class="btn btn-post w-100 shadow-sm"><i class="fas fa-save me-2"></i> Save Changes</button>
+                    <a href="{{ url_for('expenses_list') }}" class="btn btn-light border w-100 mt-2 rounded-pill">Cancel</a>
+                </div>
+            </div>
         </div>
-    </div>
+    </form>
 </div>
-<!-- Reusing JS logic for brevity -->
+
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script>
-    const categories = {{ categories | tojson }};
-    const subcategories = {{ subcategories | tojson }};
-    function addRow() { 
-        const rowId = Date.now();
-        let catOpts = '<option value="" disabled selected>Select</option>';
-        categories.forEach(c => catOpts += `<option value="${c.category_id}">${c.category_name}</option>`);
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td><select name="category_id[]" class="form-select border-0 bg-light" onchange="updSub(this, ${rowId})" required>${catOpts}</select></td>
-            <td><select name="subcategory_id[]" id="sub_${rowId}" class="form-select border-0 bg-light" required><option disabled selected>--</option></select></td>
-            <td><input type="text" name="description[]" class="form-control border-0 bg-light" placeholder="Note"></td>
-            <td><input type="number" name="amount[]" class="form-control border-0 bg-light fw-bold text-end amt" step="0.01" oninput="calc()" required></td>
-            <td><button type="button" class="btn btn-sm text-danger" onclick="this.closest('tr').remove(); calc();"><i class="fas fa-times"></i></button></td>`;
-        document.getElementById('itemsBody').appendChild(tr);
+    const subcats = {{ subcategories | tojson }};
+    document.addEventListener('DOMContentLoaded', () => {
+        flatpickr("#datePicker", { dateFormat: "d-m-Y" });
+        setInterval(() => { document.getElementById('liveClock').innerText = new Date().toLocaleTimeString(); }, 1000);
+        recalculate();
+    });
+
+    function addNewRow() {
+        const mainId = document.getElementById('mainCat').value;
+        const filtered = subcats.filter(s => s.category_id == mainId);
+        let opts = '';
+        filtered.forEach(s => opts += `<option value="${s.subcategory_id}">${s.subcategory_name}</option>`);
+        const tr = document.createElement('tr'); tr.className = 'item-row';
+        tr.innerHTML = `<td><select name="subcategory_id[]" class="form-select border-0 bg-light" required>${opts}</select></td>
+            <td><input type="text" name="description[]" class="form-control border-0 bg-light"></td>
+            <td><input type="number" name="amount[]" class="form-control border-0 bg-light fw-bold text-end val-input" oninput="recalculate()" required></td>
+            <td class="text-end"><button type="button" class="btn btn-link text-danger p-0" onclick="this.closest('tr').remove();recalculate();"><i class="fas fa-trash"></i></button></td>`;
+        document.getElementById('tableBody').appendChild(tr);
     }
-    function updSub(el, id) {
-        const subs = subcategories.filter(s => s.category_id == el.value);
-        let h = '<option disabled selected>--</option>';
-        subs.forEach(s => h += `<option value="${s.subcategory_id}">${s.subcategory_name}</option>`);
-        document.getElementById(`sub_${id}`).innerHTML = h;
-    }
-    function calc() {
-        let t = 0;
-        document.querySelectorAll('.amt').forEach(i => t += parseFloat(i.value) || 0);
-        document.getElementById('grandTotal').innerText = "₹ " + t.toFixed(2);
+    function recalculate() {
+        let total = 0;
+        document.querySelectorAll('.val-input').forEach(i => total += parseInt(i.value) || 0);
+        document.getElementById('totalText').innerText = "₹ " + total.toLocaleString('en-IN');
     }
 </script>
 {% endblock %}
