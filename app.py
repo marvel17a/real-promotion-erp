@@ -271,54 +271,54 @@ def add_expense():
     
     try:
         if request.method == 'POST':
-            # 1. Get Form Data
-            # parse_date_input converts dd-mm-yyyy to yyyy-mm-dd for MySQL
+            # 1. Capture Form Data
+            # Note: parse_date_input should convert dd-mm-yyyy to yyyy-mm-dd
             exp_date_raw = request.form.get('expense_date')
-            exp_date = parse_date_input(exp_date_raw)
+            exp_date = parse_date_input(exp_date_raw) 
             exp_time = get_ist_now().strftime('%H:%M:%S')
             method = request.form.get('payment_method')
-            main_cat = request.form.get('main_category_id')
-            voucher_note = request.form.get('voucher_description') # Universal Note
+            main_cat_id = request.form.get('main_category_id')
+            universal_note = request.form.get('voucher_description') 
             
-            # Arrays for items
-            subs = request.form.getlist('subcategory_id[]')
-            amts = request.form.getlist('amount[]')
+            subcat_ids = request.form.getlist('subcategory_id[]')
+            amounts = request.form.getlist('amount[]')
             item_notes = request.form.getlist('description[]') 
             
-            # Use int() to strictly capture whole numbers
-            total_sum = sum(int(x) for x in amts if x)
+            # Calculate total as integer for whole numbers as requested
+            total_sum = sum(int(float(x)) for x in amounts if x)
 
-            # 2. Upload to Cloudinary
+            # 2. Receipt Handling (Cloudinary)
             receipt_url = None
             if 'receipt' in request.files:
                 file = request.files['receipt']
-                if file.filename != '':
+                if file and file.filename != '':
                     upload_res = cloudinary.uploader.upload(file, folder="erp_expenses")
                     receipt_url = upload_res.get('secure_url')
 
-            # 3. Insert Parent
+            # 3. Insert Parent Voucher into 'expenses'
+            # Note: subcategory_id is now NULL-able. We save total_sum in 'amount' and 'total_amount'
             cur.execute("""
-                INSERT INTO expenses (expense_date, expense_time, amount, total_amount, payment_method, receipt_url, description)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
-            """, (exp_date, exp_time, total_sum, total_sum, method, receipt_url, voucher_note))
+                INSERT INTO expenses 
+                (expense_date, expense_time, amount, total_amount, payment_method, receipt_url, description, subcategory_id)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, NULL)
+            """, (exp_date, exp_time, total_sum, total_sum, method, receipt_url, universal_note))
             eid = cur.lastrowid
             
-            # 4. Insert Child Items
-            for i in range(len(subs)):
-                if amts[i] and int(amts[i]) > 0:
+            # 4. Insert Child Items into 'expense_items'
+            for i in range(len(subcat_ids)):
+                if amounts[i] and int(float(amounts[i])) > 0:
                     cur.execute("""
                         INSERT INTO expense_items (expense_id, category_id, subcategory_id, amount, description)
                         VALUES (%s, %s, %s, %s, %s)
-                    """, (eid, main_cat, subs[i], int(amts[i]), item_notes[i]))
+                    """, (eid, main_cat_id, subcat_ids[i], int(float(amounts[i])), item_notes[i]))
             
             mysql.connection.commit()
             flash(f"Voucher #{eid} Saved Successfully!", "success")
-            # Close cursor before redirecting
-            cur.close()
             return redirect(url_for('expense_dash'))
 
-        # --- GET Logic: Dynamic Balances & Categories ---
-        # This section now runs if it's a GET request OR if POST failed (due to exception)
+        # --- GET Logic: Calculated regardless of balance sufficiency ---
+        
+        # A. Total Income (Evening + Office Sales)
         cur.execute("SELECT SUM(cash_money) as cash, SUM(online_money) as bank FROM evening_settle WHERE status='final'")
         eve = cur.fetchone()
         cur.execute("SELECT SUM(cash_amount) as cash, SUM(online_amount) as bank FROM office_sales")
@@ -327,6 +327,7 @@ def add_expense():
         total_cash_in = float(eve['cash'] or 0) + float(off['cash'] or 0)
         total_bank_in = float(eve['bank'] or 0) + float(off['bank'] or 0)
 
+        # B. Total Expenses Out
         cur.execute("""
             SELECT 
                 SUM(CASE WHEN payment_method = 'Cash' THEN total_amount ELSE 0 END) as cash_out,
@@ -338,6 +339,7 @@ def add_expense():
         cash_bal = total_cash_in - float(exp_out['cash_out'] or 0)
         bank_bal = total_bank_in - float(exp_out['bank_out'] or 0)
 
+        # C. Meta Data for UI
         cur.execute("SELECT * FROM expensecategories ORDER BY category_name")
         cats = cur.fetchall()
         cur.execute("SELECT * FROM expensesubcategories ORDER BY subcategory_name")
@@ -353,15 +355,9 @@ def add_expense():
     except Exception as e:
         mysql.connection.rollback()
         flash(f"Error: {str(e)}", "danger")
-        # On error, we re-render the page, so we don't close the cursor yet 
-        # unless we were about to finish the function anyway.
         return redirect(url_for('add_expense'))
     finally:
-        # Check if cursor is still open before closing
-        try:
-            cur.close()
-        except:
-            pass
+        cur.close()
 
 # 3. EXPENSE LIST (Ledger View)
 @app.route('/expenses_list')
@@ -7290,6 +7286,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
