@@ -264,7 +264,6 @@ def expense_dash():
                            trend_labels=[r['month'] for r in trend_data],
                            trend_values=[float(r['total']) for r in trend_data])
 
-# REPLACE your existing @app.route('/add_expense') in app.py with this one.
 @app.route('/add_expense', methods=['GET', 'POST'])
 def add_expense():
     if 'loggedin' not in session: return redirect(url_for('login'))
@@ -273,7 +272,7 @@ def add_expense():
     if request.method == 'POST':
         try:
             # 1. Get Form Data
-            # Note: parse_date_input converts dd-mm-yyyy to yyyy-mm-dd for MySQL
+            # parse_date_input converts dd-mm-yyyy to yyyy-mm-dd for MySQL
             exp_date = parse_date_input(request.form.get('expense_date'))
             exp_time = get_ist_now().strftime('%H:%M:%S')
             method = request.form.get('payment_method')
@@ -283,9 +282,10 @@ def add_expense():
             # Arrays for items
             subs = request.form.getlist('subcategory_id[]')
             amts = request.form.getlist('amount[]')
-            item_notes = request.form.getlist('description[]') # Line Item Notes
+            item_notes = request.form.getlist('description[]') 
             
-            total_sum = sum(float(x) for x in amts if x)
+            # Use int() to strictly capture whole numbers as requested
+            total_sum = sum(int(x) for x in amts if x)
 
             # 2. Upload to Cloudinary
             receipt_url = None
@@ -295,7 +295,7 @@ def add_expense():
                     upload_res = cloudinary.uploader.upload(file, folder="erp_expenses")
                     receipt_url = upload_res.get('secure_url')
 
-            # 3. Insert Parent (Using 'voucher_note' for expenses.description)
+            # 3. Insert Parent (Regardless of balance)
             cur.execute("""
                 INSERT INTO expenses (expense_date, expense_time, amount, total_amount, payment_method, receipt_url, description)
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
@@ -304,24 +304,22 @@ def add_expense():
             
             # 4. Insert Child Items
             for i in range(len(subs)):
-                if amts[i] and float(amts[i]) > 0:
+                if amts[i] and int(amts[i]) > 0:
                     cur.execute("""
                         INSERT INTO expense_items (expense_id, category_id, subcategory_id, amount, description)
                         VALUES (%s, %s, %s, %s, %s)
-                    """, (eid, main_cat, subs[i], amts[i], item_notes[i]))
+                    """, (eid, main_cat, subs[i], int(amts[i]), item_notes[i]))
             
             mysql.connection.commit()
-            flash(f"Voucher #{eid} Saved!", "success")
+            flash(f"Voucher #{eid} Saved Successfully!", "success")
             return redirect(url_for('expense_dash'))
         except Exception as e:
             mysql.connection.rollback()
             flash(f"Error: {str(e)}", "danger")
         finally: cur.close()
 
-    # --- GET: CALCULATE LIVE BALANCES ---
-    
-    # A. Income (Evening Settle + Office Sales)
-    cur.execute("SELECT SUM(cash_money) as cash, SUM(online_money) as bank FROM evening_settle")
+    # GET Logic: Dynamic Balances & Categories
+    cur.execute("SELECT SUM(cash_money) as cash, SUM(online_money) as bank FROM evening_settle WHERE status='final'")
     eve = cur.fetchone()
     cur.execute("SELECT SUM(cash_amount) as cash, SUM(online_amount) as bank FROM office_sales")
     off = cur.fetchone()
@@ -329,7 +327,6 @@ def add_expense():
     total_cash_in = float(eve['cash'] or 0) + float(off['cash'] or 0)
     total_bank_in = float(eve['bank'] or 0) + float(off['bank'] or 0)
 
-    # B. Expenses Deduction
     cur.execute("""
         SELECT 
             SUM(CASE WHEN payment_method = 'Cash' THEN total_amount ELSE 0 END) as cash_out,
@@ -341,7 +338,6 @@ def add_expense():
     cash_bal = total_cash_in - float(exp_out['cash_out'] or 0)
     bank_bal = total_bank_in - float(exp_out['bank_out'] or 0)
 
-    # C. Meta Data
     cur.execute("SELECT * FROM expensecategories ORDER BY category_name")
     cats = cur.fetchall()
     cur.execute("SELECT * FROM expensesubcategories ORDER BY subcategory_name")
@@ -354,7 +350,7 @@ def add_expense():
                          subcategories=subs,
                          cash_balance=cash_bal,
                          bank_balance=bank_bal,
-                         today=date.today().strftime('%Y-%m-%d'))
+                         today=date.today().strftime('%d-%m-%Y'))
 
 # 3. EXPENSE LIST (Ledger View)
 @app.route('/expenses_list')
@@ -7283,6 +7279,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
