@@ -266,95 +266,126 @@ def expense_dash():
 
 @app.route('/add_expense', methods=['GET', 'POST'])
 def add_expense():
-    if 'loggedin' not in session: return redirect(url_for('login'))
+    if 'loggedin' not in session: 
+        return redirect(url_for('login'))
+    
+    # We open the connection at the start
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
     if request.method == 'POST':
         try:
-            exp_date = parse_date_input(request.form.get('expense_date'))
+            # 1. Extract Form Data
+            exp_date_raw = request.form.get('expense_date')
+            # Assuming parse_date_input is defined in your app.py to handle d-m-Y to Y-m-d
+            exp_date = parse_date_input(exp_date_raw)
             exp_time = get_ist_now().strftime('%H:%M:%S')
             main_cat_id = request.form.get('main_category_id')
-            universal_note = request.form.get('voucher_description') 
+            universal_note = request.form.get('voucher_description')
             
             subcat_ids = request.form.getlist('subcategory_id[]')
             amounts = request.form.getlist('amount[]')
-            item_notes = request.form.getlist('description[]') 
-            item_methods = request.form.getlist('item_payment_method[]') # Naya: Item-wise method
+            item_notes = request.form.getlist('description[]')
+            item_methods = request.form.getlist('item_payment_method[]')
             
-            total_sum = sum(int(x) for x in amounts if x)
-
-            # Payment Summary Logic (Cash/Online/Mixed)
+            # 2. Calculations
+            # Convert to integers as requested for whole numbers
+            total_sum = sum(int(float(x)) for x in amounts if x)
+            
+            # Determine overall voucher payment method
             unique_methods = set(item_methods)
-            final_voucher_method = item_methods[0] if len(unique_methods) == 1 else "Mixed"
+            if len(unique_methods) > 1:
+                final_voucher_method = "Mixed"
+            elif len(unique_methods) == 1:
+                final_voucher_method = list(unique_methods)[0]
+            else:
+                final_voucher_method = "Cash"
 
-            # Cloudinary upload
+            # 3. Handle Cloudinary Upload
             receipt_url = None
             if 'receipt' in request.files:
                 file = request.files['receipt']
-                if file.filename != '':
-                    upload_res = cloudinary.uploader.upload(file, folder="erp_expenses")
-                    receipt_url = upload_res.get('secure_url')
+                if file and file.filename != '':
+                    try:
+                        upload_res = cloudinary.uploader.upload(file, folder="erp_expenses")
+                        receipt_url = upload_res.get('secure_url')
+                    except Exception as e:
+                        app.logger.error(f"Cloudinary Upload Error: {e}")
 
-            # Parent Insert
+            # 4. Insert Parent Voucher (expenses table)
+            # subcategory_id is passed as NULL since details are in the items table
             cur.execute("""
                 INSERT INTO expenses 
-                (expense_date, expense_time, amount, total_amount, payment_method, receipt_url, description)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                (expense_date, expense_time, amount, total_amount, payment_method, receipt_url, description, subcategory_id)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, NULL)
             """, (exp_date, exp_time, total_sum, total_sum, final_voucher_method, receipt_url, universal_note))
             eid = cur.lastrowid
             
-            # Child Items Insert
+            # 5. Insert Child Items (expense_items table)
             for i in range(len(subcat_ids)):
-                if amounts[i] and int(amounts[i]) > 0:
+                if amounts[i] and int(float(amounts[i])) > 0:
                     cur.execute("""
                         INSERT INTO expense_items (expense_id, category_id, subcategory_id, amount, payment_method, description)
                         VALUES (%s, %s, %s, %s, %s, %s)
-                    """, (eid, main_cat_id, subcat_ids[i], int(amounts[i]), item_methods[i], item_notes[i]))
+                    """, (eid, main_cat_id, subcat_ids[i], int(float(amounts[i])), item_methods[i], item_notes[i]))
             
             mysql.connection.commit()
-            flash(f"Voucher #{eid} Saved!", "success")
+            flash(f"Voucher #{eid} Saved Successfully!", "success")
+            cur.close()
             return redirect(url_for('expenses_list'))
+            
         except Exception as e:
             mysql.connection.rollback()
-            flash(f"Error: {str(e)}", "danger")
-        finally:
-            cur.close()
+            app.logger.error(f"POST /add_expense error: {str(e)}")
+            flash(f"Error recording expense: {str(e)}", "danger")
+            # We don't return here so it falls through to the GET logic to reload the form with the error message
 
-        # --- GET Logic: Calculated regardless of balance sufficiency ---
-        
-        # A. Total Income (Evening + Office Sales)
-        cur.execute("SELECT SUM(cash_money) as cash, SUM(online_money) as bank FROM evening_settle WHERE status='final'")
-        eve = cur.fetchone()
-        cur.execute("SELECT SUM(cash_amount) as cash, SUM(online_amount) as bank FROM office_sales")
-        off = cur.fetchone()
-        
-        total_cash_in = float(eve['cash'] or 0) + float(off['cash'] or 0)
-        total_bank_in = float(eve['bank'] or 0) + float(off['bank'] or 0)
+    # --- GET Logic & Error Recovery Path ---
+    try:
+        # Re-verify cursor in case it was closed or POST failed
+        if not cur or cur.connection is None:
+            cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
-        # B. Total Expenses Out
-        cur.execute("""
-            SELECT 
-                SUM(CASE WHEN payment_method = 'Cash' THEN total_amount ELSE 0 END) as cash_out,
-                SUM(CASE WHEN payment_method != 'Cash' THEN total_amount ELSE 0 END) as bank_out
-            FROM expenses
-        """)
-        exp_out = cur.fetchone()
-        
-        cash_bal = total_cash_in - float(exp_out['cash_out'] or 0)
-        bank_bal = total_bank_in - float(exp_out['bank_out'] or 0)
-
-        # C. Meta Data for UI
+        # 1. Fetch Form Meta-data
         cur.execute("SELECT * FROM expensecategories ORDER BY category_name")
         cats = cur.fetchall()
         cur.execute("SELECT * FROM expensesubcategories ORDER BY subcategory_name")
         subs = cur.fetchall()
         
+        # 2. Dynamic Balance Calculation
+        # A. Total Income (Cash/Online)
+        cur.execute("SELECT SUM(cash_money) as cash, SUM(online_money) as bank FROM evening_settle WHERE status='final'")
+        eve = cur.fetchone()
+        cur.execute("SELECT SUM(cash_amount) as cash, SUM(online_amount) as bank FROM office_sales")
+        off = cur.fetchone()
+        
+        total_cash_in = float((eve['cash'] or 0) + (off['cash'] or 0))
+        total_bank_in = float((eve['bank'] or 0) + (off['bank'] or 0))
+
+        # B. Total Expenses Out (Calculated directly from items for Mixed-mode accuracy)
+        cur.execute("""
+            SELECT 
+                SUM(CASE WHEN payment_method = 'Cash' THEN amount ELSE 0 END) as cash_total,
+                SUM(CASE WHEN payment_method = 'Online' THEN amount ELSE 0 END) as bank_total
+            FROM expense_items
+        """)
+        exp_totals = cur.fetchone()
+        
+        cash_balance = total_cash_in - float(exp_totals['cash_total'] or 0)
+        bank_balance = total_bank_in - float(exp_totals['bank_total'] or 0)
+
+        cur.close()
         return render_template('expenses/add_expense.html', 
                              categories=cats, 
                              subcategories=subs,
-                             cash_balance=cash_bal,
-                             bank_balance=bank_bal,
+                             cash_balance=cash_balance,
+                             bank_balance=bank_balance,
                              today=date.today().strftime('%d-%m-%Y'))
+
+    except Exception as e:
+        app.logger.error(f"GET /add_expense error: {str(e)}")
+        if cur: cur.close()
+        flash("System error while loading the expense form.", "danger")
+        return redirect(url_for('expense_dash'))
 
 @app.route('/expenses_list')
 def expenses_list():
@@ -7358,6 +7389,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
