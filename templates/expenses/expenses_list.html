@@ -6,7 +6,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
 <style>
-    :root { --primary: #4f46e5; --light-blue: #0ea5e9; --sky-blue: #e0f2fe; }
+    :root { --primary: #4f46e5; --light-blue: #0ea5e9; --sky-blue: #e0f2fe; --dark-blue-text: #0369a1; }
     body { background-color: #f1f5f9; font-family: 'Poppins', sans-serif; }
     
     .premium-card { 
@@ -29,9 +29,9 @@
     
     /* Updated Table Headers Style */
     .table thead th { 
-        background: var(--sky-blue); /* Sky Blue Background */
-        color: #0c4a6e;              /* Darker Blue Text for contrast */
-        font-weight: 800;            /* Extra Bold */
+        background-color: var(--sky-blue) !important; /* Sky Blue Background */
+        color: var(--dark-blue-text) !important;      /* Dark Blue Text for contrast */
+        font-weight: 700 !important;                  /* Bold */
         font-size: 0.75rem; 
         text-transform: uppercase; 
         letter-spacing: 0.5px; 
@@ -94,9 +94,10 @@
             <div class="col-md-3">
                 <label class="small fw-bold text-muted mb-1">DATE RANGE</label>
                 <div class="input-group">
-                    <span class="input-group-text bg-light border-0"><i class="far fa-calendar-alt text-muted"></i></span>
-                    <!-- Single input for Flatpickr Range Mode -->
-                    <input type="text" name="date_range" id="rangePicker" class="form-control border-0 bg-light" placeholder="Select date range..." value="{{ filters.range }}">
+                    <!-- Two separate inputs as requested, both using Flatpickr -->
+                    <input type="text" name="start_date" id="startDate" class="form-control border-0 bg-light" placeholder="Start Date" value="{{ filters.start }}">
+                    <span class="input-group-text bg-light border-0 text-muted">to</span>
+                    <input type="text" name="end_date" id="endDate" class="form-control border-0 bg-light" placeholder="End Date" value="{{ filters.end }}">
                 </div>
             </div>
             <div class="col-md-2">
@@ -159,9 +160,12 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', () => {
-        // Flatpickr Range Mode
-        flatpickr("#rangePicker", {
-            mode: "range",
+        // Flatpickr on separate inputs
+        flatpickr("#startDate", {
+            dateFormat: "d-m-Y",
+            allowInput: true
+        });
+        flatpickr("#endDate", {
             dateFormat: "d-m-Y",
             allowInput: true
         });
