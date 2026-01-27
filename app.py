@@ -377,19 +377,18 @@ def add_expense():
         flash("Error loading form data.", "danger")
         return redirect(url_for('expenses_list'))
 
+# 1. Expense List (With Advanced Filters)
 @app.route('/expenses_list')
 def expenses_list():
     if 'loggedin' not in session: return redirect(url_for('login'))
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
-    # 1. Filters lene ke liye
+    # Get Filters
     q = request.args.get('q', '')
     cat_id = request.args.get('cat_id', 'all')
     sub_id = request.args.get('sub_id', 'all')
-    start_date = request.args.get('start_date', '')
-    end_date = request.args.get('end_date', '')
+    date_range = request.args.get('date_range', '') # Using a single range string from Flatpickr
     
-    # 2. Query Build: "Mixed" status automatically handle hoga based on items
     sql = """
         SELECT e.*, 
                GROUP_CONCAT(DISTINCT c.category_name SEPARATOR ', ') as main_category,
@@ -410,16 +409,20 @@ def expenses_list():
     if sub_id != 'all':
         sql += " AND ei.subcategory_id = %s"
         params.append(sub_id)
-    if start_date and end_date:
-        sql += " AND e.expense_date BETWEEN %s AND %s"
-        params.extend([start_date, end_date])
+        
+    # Date Range Logic (format: YYYY-MM-DD to YYYY-MM-DD)
+    if date_range and "to" in date_range:
+        try:
+            start_str, end_str = date_range.split(" to ")
+            sql += " AND e.expense_date BETWEEN %s AND %s"
+            params.extend([start_str.strip(), end_str.strip()])
+        except: pass
     
     sql += " GROUP BY e.expense_id ORDER BY e.expense_date DESC, e.expense_time DESC"
     
     cur.execute(sql, tuple(params))
     expenses = cur.fetchall()
     
-    # Filters ke liye categories fetch karein
     cur.execute("SELECT * FROM expensecategories ORDER BY category_name")
     categories = cur.fetchall()
     cur.execute("SELECT * FROM expensesubcategories ORDER BY subcategory_name")
@@ -430,7 +433,7 @@ def expenses_list():
                          expenses=expenses, 
                          categories=categories, 
                          subcategories=subcategories,
-                         filters={'q':q, 'cat':cat_id, 'sub':sub_id, 'start':start_date, 'end':end_date})
+                         filters={'q':q, 'cat':cat_id, 'sub':sub_id, 'range':date_range})
 
 
 # 4. ANALYTICS
@@ -7379,6 +7382,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
