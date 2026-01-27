@@ -25,7 +25,7 @@
         color: var(--dark);
     }
 
-    /* --- REQUIREMENT: LIGHT BLUE CLOCK & TOTAL --- */
+    /* --- NAVIGATION & CLOCK --- */
     .live-clock-box {
         background: var(--light-blue);
         color: white;
@@ -38,6 +38,34 @@
         display: inline-block;
     }
 
+    /* --- RESTORED: AVAILABLE BALANCE BADGE DESIGN --- */
+    .balance-badge {
+        padding: 12px 20px;
+        border-radius: 15px;
+        font-weight: 600;
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        background: white;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.04);
+        border: 1px solid rgba(0,0,0,0.08);
+    }
+    .cash-mode-ui { border-left: 5px solid var(--success); background: #ecfdf5; color: #065f46; }
+    .online-mode-ui { border-left: 5px solid var(--primary); background: #eff6ff; color: #1e40af; }
+
+    .balance-icon-circle {
+        width: 45px;
+        height: 45px;
+        background: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+
+    /* --- PREMIUM TOTAL BOX --- */
     .total-box-premium {
         background: var(--light-blue) !important;
         color: white !important;
@@ -46,11 +74,7 @@
         box-shadow: 0 12px 20px -5px rgba(14, 165, 233, 0.45);
         border: none;
     }
-
-    .total-box-premium h1 {
-        font-weight: 800;
-        margin: 0;
-    }
+    .total-box-premium h1 { font-weight: 800; margin: 0; }
 
     /* --- CARD & FORM STYLING --- */
     .premium-card {
@@ -61,66 +85,39 @@
         box-shadow: 0 15px 35px -5px rgba(0, 0, 0, 0.05);
     }
 
-    .form-label {
-        font-size: 0.75rem;
-        font-weight: 700;
-        color: #64748b;
-        letter-spacing: 0.5px;
-        margin-bottom: 8px;
-    }
+    .form-label { font-size: 0.75rem; font-weight: 700; color: #64748b; margin-bottom: 8px; text-transform: uppercase; }
 
     .form-control, .form-select {
         border-radius: 12px;
         padding: 12px 18px;
         border: 1.5px solid #e2e8f0;
         background-color: #ffffff;
-        transition: all 0.2s ease-in-out;
+        transition: all 0.2s;
     }
 
-    .form-control:focus, .form-select:focus {
-        border-color: var(--light-blue);
-        box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.1);
-        outline: none;
-    }
-
-    /* --- REQUIREMENT: REMOVE NUMBER SPINNERS --- */
+    /* --- REMOVE NUMBER SPINNERS --- */
     input[type=number]::-webkit-inner-spin-button, 
-    input[type=number]::-webkit-outer-spin-button { 
-        -webkit-appearance: none; 
-        margin: 0; 
-    }
+    input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
     input[type=number] { -moz-appearance: textfield; }
 
     /* --- TABLE STYLING --- */
     .table thead th {
         background: #f8fafc;
-        border: none;
         color: #94a3b8;
         font-size: 0.7rem;
         text-transform: uppercase;
         letter-spacing: 1px;
         padding: 15px;
+        border: none;
     }
 
-    .item-row {
-        border-bottom: 1px solid #f1f5f9;
-        transition: background 0.2s;
-    }
+    .item-row { border-bottom: 1px solid #f1f5f9; transition: background 0.2s; }
     .item-row:hover { background: rgba(241, 245, 249, 0.5); }
 
     /* Fix Dropdown Sizing */
-    .table .form-select {
-        min-width: 160px; /* Ensures text doesn't cut off */
-        padding-right: 35px;
-        white-space: nowrap;
-    }
+    .table .form-select { min-width: 160px; padding-right: 35px; }
 
-    /* Specific width for payment dropdown */
-    .payment-select {
-        min-width: 120px !important;
-    }
-
-    /* --- REQUIREMENT: ADD BUTTON UNDER TABLE --- */
+    /* --- ADD BUTTON UNDER TABLE --- */
     .btn-add-item {
         background: #ecfdf5;
         color: #059669;
@@ -129,115 +126,51 @@
         width: 100%;
         padding: 15px;
         font-weight: 700;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        transition: all 0.3s;
         margin-top: 15px;
     }
-    .btn-add-item:hover {
-        background: #d1fae5;
-        transform: translateY(-2px);
-        box-shadow: 0 5px 15px rgba(16, 185, 129, 0.15);
-    }
+    .btn-add-item:hover { background: #d1fae5; transform: scale(1.005); }
 
-    /* --- REQUIREMENT: POST & DISCARD BOX COLORS --- */
-    .action-card-post {
-        background: #f0fdf4;
-        border: 1px solid #dcfce7;
-        border-radius: 24px;
-        padding: 20px;
-        text-align: center;
-    }
-
-    .action-card-discard {
-        background: #fef2f2;
-        border: 1px solid #fee2e2;
-        border-radius: 24px;
-        padding: 20px;
-        text-align: center;
-    }
+    /* --- ACTION CARD COLORS --- */
+    .action-card-post { background: #f0fdf4; border: 1px solid #dcfce7; border-radius: 24px; padding: 20px; }
+    .action-card-discard { background: #fef2f2; border: 1px solid #fee2e2; border-radius: 24px; padding: 20px; }
 
     .btn-post {
         background: var(--success);
-        color: white;
-        border: none;
-        border-radius: 16px;
-        font-weight: 700;
-        padding: 15px;
-        width: 100%;
-        transition: 0.3s;
-        box-shadow: 0 8px 15px rgba(16, 185, 129, 0.25);
+        color: white; border: none; border-radius: 16px;
+        font-weight: 700; padding: 15px; width: 100%;
+        box-shadow: 0 8px 15px rgba(16, 185, 129, 0.2);
     }
-    .btn-post:hover {
-        background: #059669;
-        transform: translateY(-3px);
-        box-shadow: 0 12px 20px rgba(16, 185, 129, 0.35);
-    }
+    .btn-post:hover { background: #059669; transform: translateY(-2px); }
     
     .btn-discard {
         background: white;
         color: var(--danger);
         border: 1.5px solid #fecaca;
         border-radius: 16px;
-        font-weight: 600;
-        padding: 12px;
-        width: 100%;
-        transition: 0.3s;
-        display: block;
-        text-decoration: none;
+        font-weight: 600; padding: 12px; width: 100%;
+        transition: 0.3s; display: block; text-decoration: none; text-align: center;
     }
-    .btn-discard:hover {
-        background: var(--danger);
-        color: white;
-        border-color: var(--danger);
-    }
+    .btn-discard:hover { background: var(--danger); color: white; }
 
-    /* --- DOCUMENT & REMARKS SECTION --- */
     .upload-zone {
         border: 2.5px dashed #cbd5e1;
         border-radius: 20px;
-        padding: 30px;
+        padding: 25px;
         text-align: center;
         background: #f8fafc;
         cursor: pointer;
-        transition: 0.3s;
-    }
-    .upload-zone:hover {
-        border-color: var(--primary);
-        background: #ffffff;
     }
 
-    /* --- RESPONSIVE TABLE FIX --- */
+    /* --- RESPONSIVE ADJUSTMENTS --- */
     @media (max-width: 768px) {
-        .item-row td { 
-            display: block; 
-            width: 100% !important; 
-            border: none !important; 
-            padding: 8px 0 !important; 
-        }
-        .table .form-select {
-            min-width: 100%;
-        }
-        .item-row { 
-            display: block; 
-            padding: 20px; 
-            border-bottom: 2px solid #f1f5f9; 
-            position: relative; 
-        }
-        .item-row .btn-remove-container { 
-            position: absolute; 
-            top: 15px; 
-            right: 15px; 
-        }
-        .d-md-none-label {
-            display: block !important;
-            font-size: 0.65rem;
-            font-weight: 800;
-            color: #94a3b8;
-            text-transform: uppercase;
-            margin-bottom: 4px;
-        }
+        .item-row td { display: block; width: 100% !important; border: none !important; padding: 8px 0 !important; }
+        .item-row { display: block; padding: 20px; border-bottom: 2px solid #f1f5f9; position: relative; }
+        .item-row .btn-remove-container { position: absolute; top: 15px; right: 15px; }
+        .d-md-none-label { display: block !important; font-size: 0.65rem; font-weight: 800; color: #94a3b8; text-transform: uppercase; margin-bottom: 4px; }
         thead { display: none; }
+        .balance-badge { width: 100%; justify-content: center; }
     }
-
     .d-md-none-label { display: none; }
 
     .fade-in { animation: fadeIn 0.5s ease-in; }
@@ -247,36 +180,42 @@
 <div class="container-fluid py-4 fade-in">
     <!-- Top Navigation Row -->
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
-        <div>
+        <div class="d-flex flex-column flex-md-row align-items-md-center gap-3">
             <a href="{{ url_for('expenses_list') }}" class="btn btn-white bg-white rounded-pill border shadow-sm px-4 py-2 small fw-bold text-muted">
                 <i class="fas fa-arrow-left me-2"></i> Back to Ledger
             </a>
+            <div id="liveClock" class="live-clock-box shadow">00:00:00 AM</div>
         </div>
-        <div id="liveClock" class="live-clock-box shadow">00:00:00 AM</div>
+        
+        <!-- RESTORED: Dynamic Available Balance Badge -->
+        <div id="balanceDisplay" class="balance-badge cash-mode-ui shadow-sm">
+            <div class="balance-icon-circle">
+                <i class="fas fa-wallet text-success" id="balanceIcon"></i>
+            </div>
+            <div>
+                <small class="d-block text-uppercase fw-bold opacity-60" style="font-size: 0.6rem;" id="fundLabel">Cash fund availability</small>
+                <span class="fs-5 fw-bold" id="balanceText">₹ {{ "{:,.2f}".format(cash_balance) }}</span>
+            </div>
+        </div>
     </div>
 
-    <!-- Title Section -->
     <div class="mb-4">
         <h2 class="fw-bold text-dark m-0">Create Expense Voucher</h2>
-        <p class="text-muted m-0 small">Manage multi-item allocations with item-wise payment modes</p>
+        <p class="text-muted m-0 small">Record multi-item expenses with item-wise payment tracking</p>
     </div>
 
     <form id="voucherForm" action="{{ url_for('add_expense') }}" method="POST" enctype="multipart/form-data">
         <div class="row g-4">
             <!-- Left Side: Form Details -->
             <div class="col-12 col-lg-8">
-                <!-- Master Entry Card -->
                 <div class="card premium-card p-4 mb-4">
                     <div class="row g-4 mb-4">
                         <div class="col-12 col-md-6">
                             <label class="form-label">VOUCHER DATE (DD-MM-YYYY)</label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-light border-0"><i class="fas fa-calendar-day text-muted"></i></span>
-                                <input type="text" name="expense_date" id="datePicker" class="form-control border-0 bg-light" required>
-                            </div>
+                            <input type="text" name="expense_date" id="datePicker" class="form-control border-0 bg-light" required>
                         </div>
                         <div class="col-12 col-md-6">
-                            <label class="form-label">SELECT MAIN ACCOUNT CATEGORY</label>
+                            <label class="form-label">MAIN ACCOUNT CATEGORY</label>
                             <select name="main_category_id" id="mainCat" class="form-select border-0 bg-light fw-bold" onchange="initVoucher()" required>
                                 <option value="" disabled selected>Choose Category...</option>
                                 {% for cat in categories %}
@@ -286,7 +225,7 @@
                         </div>
                     </div>
 
-                    <!-- Item Allocation Table Section -->
+                    <!-- Item Allocation Table -->
                     <div id="itemsContainer" style="display: none;">
                         <div class="d-flex justify-content-between align-items-center mb-3">
                             <h6 class="fw-bold text-dark m-0"><i class="fas fa-list-check me-2 text-primary"></i>Allocation Details</h6>
@@ -304,26 +243,22 @@
                                         <th style="width: 5%;"></th>
                                     </tr>
                                 </thead>
-                                <tbody id="tableBody">
-                                    <!-- Rows added via JavaScript -->
-                                </tbody>
+                                <tbody id="tableBody"></tbody>
                             </table>
                         </div>
                         
-                        <!-- Requirement: Add Item Button Directly Below Table -->
                         <button type="button" class="btn btn-add-item shadow-sm" onclick="addNewRow()">
                             <i class="fas fa-plus-circle me-2"></i> Add Another Line Item
                         </button>
                     </div>
 
-                    <!-- Placeholder for Initial State -->
                     <div id="placeholder" class="text-center py-5">
                         <img src="https://cdn-icons-png.flaticon.com/512/9497/9497092.png" style="width: 80px; opacity: 0.15;" alt="">
-                        <p class="text-muted mt-3 fw-medium">Select a Main Category to generate the allocation items.</p>
+                        <p class="text-muted mt-3 fw-medium">Select a Main Category to generate items.</p>
                     </div>
                 </div>
 
-                <!-- Requirement: Supporting Doc and Universal Note Side-by-Side -->
+                <!-- Documentation & Note Section -->
                 <div class="row g-4">
                     <div class="col-12 col-md-6">
                         <div class="card premium-card p-4 h-100">
@@ -331,7 +266,7 @@
                             <div class="upload-zone shadow-sm" onclick="document.getElementById('fileInp').click()">
                                 <i class="fas fa-cloud-arrow-up fa-2x text-primary opacity-50 mb-2"></i>
                                 <p class="m-0 fw-bold small text-dark">Upload Bill Photo</p>
-                                <small class="text-muted">Supports: JPG, PNG, PDF (Max 5MB)</small>
+                                <small class="text-muted">JPG, PNG, PDF (Max 5MB)</small>
                                 <input type="file" name="receipt" id="fileInp" hidden accept="image/*,application/pdf" onchange="updateFileLabel(this)">
                                 <div id="fileName" class="mt-3 small text-success fw-bold p-2 bg-success bg-opacity-10 rounded-pill" style="display:none;"></div>
                             </div>
@@ -340,45 +275,44 @@
                     <div class="col-12 col-md-6">
                         <div class="card premium-card p-4 h-100">
                             <h6 class="fw-bold mb-3 small text-muted text-uppercase">Universal Voucher Note</h6>
-                            <textarea name="voucher_description" class="form-control border-0 bg-light" rows="5" placeholder="Overall description for this entire voucher (Saves to expenses table)..."></textarea>
+                            <textarea name="voucher_description" class="form-control border-0 bg-light" rows="5" placeholder="Overall description for this entire voucher..."></textarea>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Right Side: Summary Dashboard -->
+            <!-- Right Side Summary -->
             <div class="col-12 col-lg-4">
                 <div class="sticky-top" style="top: 25px;">
                     <div class="card premium-card p-4 mb-4">
                         <h5 class="fw-bold mb-4">Voucher Summary</h5>
                         <div class="d-flex justify-content-between mb-3">
-                            <span class="text-muted fw-medium">Line Item Count</span>
+                            <span class="text-muted fw-medium">Itemized Lines</span>
                             <span class="fw-bold" id="itemCounter">0</span>
                         </div>
                         <div class="d-flex justify-content-between mb-4 border-bottom pb-3">
-                            <span class="text-muted fw-medium">Main Category</span>
+                            <span class="text-muted fw-medium">Selected Account</span>
                             <span class="badge bg-light text-dark border px-3" id="summaryCategory">None</span>
                         </div>
 
-                        <!-- Requirement: Light Blue Total Box -->
+                        <!-- REQUIREMENT: LIGHT BLUE TOTAL BOX -->
                         <div id="totalCard" class="total-box-premium text-center my-4">
                             <small class="text-uppercase opacity-75 fw-bold" style="font-size: 0.7rem; letter-spacing: 1px;">Grand Total Amount</small>
                             <h1 id="totalText">₹ 0</h1>
                         </div>
 
-                        <!-- Requirement: Colored Action Cards -->
                         <div class="action-card-post mb-3">
                             <button type="submit" id="submitBtn" class="btn btn-post">
                                 <i class="fas fa-check-circle me-2"></i> Confirm & Post Voucher
                             </button>
-                            <small class="text-success small fw-bold mt-2 d-block">Ready to record in Ledger</small>
+                            <small class="text-success small fw-bold mt-2 d-block">Submits record to Ledger</small>
                         </div>
                         
                         <div class="action-card-discard">
-                            <a href="{{ url_for('expenses_list') }}" class="btn btn-discard text-center">
+                            <a href="{{ url_for('expenses_list') }}" class="btn btn-discard">
                                 <i class="fas fa-trash-can me-2"></i> Discard Voucher
                             </a>
-                            <small class="text-danger small fw-bold mt-2 d-block">Cancel entry process</small>
+                            <small class="text-danger small fw-bold mt-2 d-block">Cancel current entry</small>
                         </div>
                     </div>
                 </div>
@@ -387,88 +321,83 @@
     </form>
 </div>
 
-<!-- Scripts -->
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script>
     const subcategories = {{ subcategories | tojson }};
+    const cBal = {{ cash_balance }};
+    const bBal = {{ bank_balance }};
 
-    // 1. Initialize UI Elements
     document.addEventListener('DOMContentLoaded', () => {
-        // Requirement: DD-MM-YYYY format
-        flatpickr("#datePicker", { 
-            defaultDate: "today", 
-            dateFormat: "d-m-Y",
-            allowInput: true
-        });
-
-        // Live Clock logic
+        flatpickr("#datePicker", { defaultDate: "today", dateFormat: "d-m-Y", allowInput: true });
         setInterval(updateClock, 1000);
         updateClock();
     });
 
     function updateClock() {
-        const now = new Date();
-        const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+        const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
         document.getElementById('liveClock').innerText = timeStr;
     }
 
-    // 2. Voucher Initialization
+    // Logic to sync the top badge with the method selected in the table
+    function syncBalanceUI(method) {
+        const badge = document.getElementById('balanceDisplay');
+        const text = document.getElementById('balanceText');
+        const icon = document.getElementById('balanceIcon');
+        const label = document.getElementById('fundLabel');
+
+        if(method === 'Cash') {
+            badge.className = 'balance-badge cash-mode-ui shadow-sm';
+            text.innerText = "₹ " + cBal.toLocaleString('en-IN', {minimumFractionDigits: 2});
+            icon.className = "fas fa-wallet text-success";
+            label.innerText = "Cash fund availability";
+        } else {
+            badge.className = 'balance-badge online-mode-ui shadow-sm';
+            text.innerText = "₹ " + bBal.toLocaleString('en-IN', {minimumFractionDigits: 2});
+            icon.className = "fas fa-university text-primary";
+            label.innerText = "Online fund availability";
+        }
+    }
+
     function initVoucher() {
         const mainCatSelect = document.getElementById('mainCat');
-        const container = document.getElementById('itemsContainer');
-        const placeholder = document.getElementById('placeholder');
-        const summaryLabel = document.getElementById('summaryCategory');
-
-        summaryLabel.innerText = mainCatSelect.options[mainCatSelect.selectedIndex].text;
-        placeholder.style.display = 'none';
-        container.style.display = 'block';
-        
-        // Reset table body on category change
+        document.getElementById('summaryCategory').innerText = mainCatSelect.options[mainCatSelect.selectedIndex].text;
+        document.getElementById('placeholder').style.display = 'none';
+        document.getElementById('itemsContainer').style.display = 'block';
         document.getElementById('tableBody').innerHTML = '';
         addNewRow();
     }
 
-    // 3. Dynamic Row Addition
     function addNewRow() {
         const mainId = document.getElementById('mainCat').value;
         const filtered = subcategories.filter(s => s.category_id == mainId);
-        
         let opts = '<option value="" disabled selected>Select Item</option>';
-        filtered.forEach(s => {
-            opts += `<option value="${s.subcategory_id}">${s.subcategory_name}</option>`;
-        });
+        filtered.forEach(s => opts += `<option value="${s.subcategory_id}">${s.subcategory_name}</option>`);
 
         const tr = document.createElement('tr');
         tr.className = 'item-row';
         tr.innerHTML = `
             <td>
                 <span class="d-md-none-label">Sub-Category</span>
-                <select name="subcategory_id[]" class="form-select border-0 bg-light fw-bold" required>
-                    ${opts}
-                </select>
+                <select name="subcategory_id[]" class="form-select border-0 bg-light fw-bold" required>${opts}</select>
             </td>
             <td>
-                <span class="d-md-none-label">Payment Mode</span>
-                <select name="item_payment_method[]" class="form-select payment-select border-0 bg-light small">
+                <span class="d-md-none-label">Payment</span>
+                <select name="item_payment_method[]" class="form-select border-0 bg-light small" onchange="syncBalanceUI(this.value)">
                     <option value="Cash" selected>Cash</option>
                     <option value="Online">Online</option>
                 </select>
             </td>
             <td>
                 <span class="d-md-none-label">Item Note</span>
-                <input type="text" name="description[]" class="form-control border-0 bg-light" placeholder="Note for this item">
+                <input type="text" name="description[]" class="form-control border-0 bg-light" placeholder="Remark">
             </td>
             <td>
                 <span class="d-md-none-label">Amount (₹)</span>
-                <!-- Requirement: Integer validation, no spinners -->
                 <input type="number" name="amount[]" class="form-control border-0 bg-light fw-bold text-end val-input" 
-                       placeholder="0" step="1" oninput="recalculate()" 
-                       onkeypress="return event.charCode >= 48 && event.charCode <= 57" required>
+                       placeholder="0" step="1" oninput="recalculate()" onkeypress="return event.charCode >= 48 && event.charCode <= 57" required>
             </td>
             <td class="text-end btn-remove-container">
-                <button type="button" class="btn btn-link text-danger p-0" onclick="removeRow(this)">
-                    <i class="fas fa-trash-can"></i>
-                </button>
+                <button type="button" class="btn btn-link text-danger p-0" onclick="removeRow(this)"><i class="fas fa-trash-can"></i></button>
             </td>
         `;
         document.getElementById('tableBody').appendChild(tr);
@@ -478,29 +407,22 @@
     function removeRow(btn) {
         const rows = document.querySelectorAll('.item-row');
         if(rows.length > 1) {
-            if(confirm("Remove this line item?")) {
-                btn.closest('tr').remove();
-                recalculate();
-            }
+            btn.closest('tr').remove();
+            recalculate();
         } else {
-            alert("A voucher must contain at least one line item.");
+            alert("Minimum one item required.");
         }
     }
 
-    // 4. Calculations
     function recalculate() {
         let total = 0;
         const rows = document.querySelectorAll('.item-row');
-        document.querySelectorAll('.val-input').forEach(i => {
-            total += parseInt(i.value) || 0;
-        });
-
+        document.querySelectorAll('.val-input').forEach(i => total += parseInt(i.value) || 0);
         document.getElementById('totalText').innerText = "₹ " + total.toLocaleString('en-IN');
         document.getElementById('itemCounter').innerText = rows.length;
         document.getElementById('rowCountBadge').innerText = rows.length + (rows.length === 1 ? " Item" : " Items");
     }
 
-    // 5. File Handling
     function updateFileLabel(input) {
         const fileNameDiv = document.getElementById('fileName');
         if(input.files && input.files[0]) {
