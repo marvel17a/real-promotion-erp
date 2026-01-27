@@ -172,9 +172,9 @@ def view_evening_settlement(settle_id):
     return render_template('admin/view_evening.html', settlement=settlement, items=items)
 
 
-# =================================================================================
-#  PREMIUM EXPENSE SYSTEM V3 (Complete & Robust)
-# =================================================================================
+# =================================================================================#
+#  PREMIUM EXPENSE SYSTEM V3 
+# =================================================================================#
 
 # --- Helper: Financial Health Check ---
 def get_financial_health(cursor):
@@ -214,6 +214,174 @@ def get_financial_health(cursor):
         "total_expense": total_expense,
         "net_profit": total_income - total_expense
     }
+
+
+
+# ==========================================
+# EXPENSE VOUCHER PDF GENERATOR
+# ==========================================
+class ExpensePDF(FPDF):
+    def header(self):
+        # Company Details
+        self.set_font('Arial', 'B', 22)
+        self.set_text_color(26, 35, 126) # Dark Blue
+        self.cell(0, 10, "REAL PROMOTION", 0, 1, 'C')
+        
+        self.set_font('Arial', 'B', 9)
+        self.set_text_color(100, 100, 100)
+        self.cell(0, 5, "SINCE 2005", 0, 1, 'C')
+        
+        self.set_font('Arial', '', 9)
+        self.set_text_color(50, 50, 50)
+        address = "Real Promotion, G/12, Tulsimangalam Complex, B/h. Trimurti Complex,\nGhodiya Bazar, Nadiad-387001, Gujarat, India"
+        self.multi_cell(0, 5, address, 0, 'C')
+        self.cell(0, 5, "+91 96623 22476 | help@realpromotion.in", 0, 1, 'C')
+        
+        self.ln(5)
+        self.set_draw_color(200, 200, 200)
+        self.line(10, self.get_y(), 200, self.get_y())
+        self.ln(5)
+        
+        self.set_font('Arial', 'B', 16)
+        self.set_text_color(0, 0, 0)
+        self.cell(0, 10, "EXPENSE VOUCHER", 0, 1, 'C')
+        self.ln(5)
+
+    def footer(self):
+        self.set_y(-15)
+        self.set_font('Arial', 'I', 8)
+        self.set_text_color(128, 128, 128)
+        self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
+
+@app.route('/expense/pdf/<int:expense_id>')
+def expense_pdf(expense_id):
+    if 'loggedin' not in session: return redirect(url_for('login'))
+    
+    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    
+    # Fetch Parent Expense
+    cur.execute("""
+        SELECT e.*, GROUP_CONCAT(DISTINCT c.category_name SEPARATOR ', ') as main_category
+        FROM expenses e
+        LEFT JOIN expense_items ei ON e.expense_id = ei.expense_id
+        LEFT JOIN expensecategories c ON ei.category_id = c.category_id
+        WHERE e.expense_id = %s
+        GROUP BY e.expense_id
+    """, (expense_id,))
+    expense = cur.fetchone()
+    
+    # Fetch Items
+    cur.execute("""
+        SELECT ei.*, sc.subcategory_name 
+        FROM expense_items ei
+        LEFT JOIN expensesubcategories sc ON ei.subcategory_id = sc.subcategory_id
+        WHERE ei.expense_id = %s
+    """, (expense_id,))
+    items = cur.fetchall()
+    cur.close()
+    
+    if not expense:
+        flash("Expense record not found.", "danger")
+        return redirect(url_for('expenses_list'))
+
+    # Generate PDF
+    pdf = ExpensePDF()
+    pdf.alias_nb_pages()
+    pdf.add_page()
+    
+    # --- VOUCHER INFO SECTION ---
+    pdf.set_font('Arial', '', 10)
+    
+    # Left Side: ID, Date, Time
+    y_start = pdf.get_y()
+    pdf.set_xy(10, y_start)
+    pdf.cell(30, 6, "Voucher No:", 0, 0); pdf.set_font('Arial','B',10); pdf.cell(50, 6, f"#{expense['expense_id']}", 0, 1)
+    
+    pdf.set_font('Arial','',10)
+    pdf.cell(30, 6, "Date:", 0, 0); pdf.set_font('Arial','B',10); pdf.cell(50, 6, str(expense['expense_date']), 0, 1)
+    
+    pdf.set_font('Arial','',10)
+    pdf.cell(30, 6, "Time:", 0, 0); pdf.set_font('Arial','B',10); pdf.cell(50, 6, str(expense['expense_time']), 0, 1)
+
+    # Right Side: Category, Method
+    pdf.set_xy(110, y_start)
+    pdf.set_font('Arial','',10)
+    pdf.cell(35, 6, "Main Category:", 0, 0); pdf.set_font('Arial','B',10); pdf.cell(50, 6, str(expense['main_category'] or 'General'), 0, 1)
+    
+    pdf.set_xy(110, y_start + 6)
+    pdf.set_font('Arial','',10)
+    pdf.cell(35, 6, "Payment Mode:", 0, 0); pdf.set_font('Arial','B',10); pdf.cell(50, 6, str(expense['payment_method']), 0, 1)
+    
+    pdf.ln(15)
+
+    # --- ITEMS TABLE ---
+    # Header
+    pdf.set_fill_color(224, 242, 254) # Sky Blue (#e0f2fe)
+    pdf.set_text_color(12, 74, 110)   # Dark Blue Text
+    pdf.set_font('Arial', 'B', 9)
+    pdf.set_draw_color(200, 200, 200)
+    pdf.set_line_width(0.3)
+    
+    # Columns: #, Sub-Category, Description, Amount
+    w = [10, 50, 90, 40]
+    headers = ["#", "Sub-Category / Item", "Notes / Description", "Amount (Rs.)"]
+    
+    for i, h in enumerate(headers):
+        pdf.cell(w[i], 8, h, 1, 0, 'C', True)
+    pdf.ln()
+    
+    # Rows
+    pdf.set_font('Arial', '', 9)
+    pdf.set_text_color(0, 0, 0)
+    pdf.set_fill_color(250, 250, 250)
+    
+    fill = False
+    for idx, item in enumerate(items):
+        pdf.cell(w[0], 8, str(idx+1), 1, 0, 'C', fill)
+        pdf.cell(w[1], 8, str(item['subcategory_name']), 1, 0, 'L', fill)
+        pdf.cell(w[2], 8, str(item['description'] or '-'), 1, 0, 'L', fill)
+        pdf.cell(w[3], 8, f"{item['amount']:,.2f}", 1, 1, 'R', fill)
+        fill = not fill
+        
+    # --- TOTALS SECTION ---
+    pdf.ln(2)
+    pdf.set_font('Arial', 'B', 11)
+    pdf.set_fill_color(240, 240, 240)
+    
+    # Offset to align with Amount column
+    pdf.cell(w[0]+w[1]+w[2], 10, "GRAND TOTAL  ", 0, 0, 'R')
+    pdf.set_text_color(26, 35, 126)
+    pdf.cell(w[3], 10, f"Rs. {expense['total_amount']:,.2f}", 1, 1, 'R', True)
+    
+    # --- UNIVERSAL NOTES ---
+    pdf.ln(10)
+    pdf.set_text_color(0, 0, 0)
+    pdf.set_font('Arial', 'B', 10)
+    pdf.cell(0, 6, "Universal Voucher Notes:", 0, 1)
+    
+    pdf.set_font('Arial', '', 10)
+    note = expense['description'] if expense['description'] else "No additional notes."
+    pdf.multi_cell(0, 6, note, 0, 'L')
+    
+    # --- SIGNATURE ---
+    if pdf.get_y() > 240: pdf.add_page()
+    pdf.ln(20)
+    
+    # Add signature image if exists
+    sig_path = os.path.join(app.root_path, 'static', 'img', 'signature.png')
+    if os.path.exists(sig_path):
+        pdf.image(sig_path, x=150, y=pdf.get_y(), w=40)
+        
+    pdf.set_xy(140, pdf.get_y() + 25)
+    pdf.set_font('Arial', 'B', 9)
+    pdf.cell(50, 5, "Authorized Signature", 0, 1, 'C')
+    pdf.set_font('Arial', 'I', 8)
+    pdf.cell(0, 5, "This is a computer generated document.", 0, 1, 'R')
+
+    # Output
+    buffer = io.BytesIO(pdf.output(dest='S').encode('latin-1'))
+    buffer.seek(0)
+    return send_file(buffer, as_attachment=True, download_name=f"Voucher_{expense_id}.pdf", mimetype='application/pdf')
 
 @app.route('/expense_dash')
 def expense_dash():
@@ -7450,6 +7618,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
