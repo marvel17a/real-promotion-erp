@@ -1,32 +1,42 @@
 {% extends 'admin_master.html' %}
 {% block page_content %}
 <style>
-    .voucher-container { max-width: 800px; margin: 40px auto; background: white; border-radius: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.1); overflow: hidden; }
-    .voucher-header { background: #0ea5e9; color: white; padding: 40px; }
-    .voucher-body { padding: 40px; }
-    .receipt-preview { width: 100%; border-radius: 15px; border: 5px solid #f1f5f9; cursor: pointer; transition: 0.3s; }
-    .receipt-preview:hover { transform: scale(1.02); }
-    .line-item { border-bottom: 1px dashed #e2e8f0; padding: 12px 0; }
+    :root { --light-blue: #0ea5e9; }
+    .voucher-card { max-width: 900px; margin: 2rem auto; background: white; border-radius: 30px; overflow: hidden; }
+    .voucher-header { background: var(--light-blue); color: white; padding: 3rem; position: relative; }
+    .voucher-body { padding: 3rem; }
+    .receipt-frame { border: 10px solid #f8fafc; border-radius: 20px; transition: 0.3s; box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
+    .receipt-frame:hover { transform: scale(1.02); }
+    .line-item { border-bottom: 1px dashed #e2e8f0; padding: 15px 0; }
+    @media print { .no-print { display: none; } .voucher-card { box-shadow: none; margin: 0; } }
 </style>
 
-<div class="container py-4">
-    <div class="mb-4 d-flex justify-content-between">
-        <a href="{{ url_for('expenses_list') }}" class="btn btn-light rounded-pill border shadow-sm px-4">
+<div class="container-fluid py-4">
+    <div class="mb-4 d-flex justify-content-between no-print">
+        <a href="{{ url_for('expenses_list') }}" class="btn btn-light border rounded-pill px-4 shadow-sm">
             <i class="fas fa-arrow-left me-2"></i> Ledger
         </a>
-        <button onclick="window.print()" class="btn btn-dark rounded-pill px-4"><i class="fas fa-print me-2"></i> Print Voucher</button>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('edit_expense', expense_id=expense.expense_id) }}" class="btn btn-success rounded-pill px-4 shadow-sm">
+                <i class="fas fa-edit me-2"></i> Edit
+            </a>
+            <button onclick="window.print()" class="btn btn-dark rounded-pill px-4 shadow-sm">
+                <i class="fas fa-print me-2"></i> Print
+            </button>
+        </div>
     </div>
 
-    <div class="voucher-container shadow-lg">
+    <div class="voucher-card shadow-lg">
         <div class="voucher-header">
             <div class="row align-items-center">
                 <div class="col-8">
-                    <h1 class="fw-bold m-0">Voucher #{{ expense.expense_id }}</h1>
-                    <p class="m-0 opacity-75">Recorded on {{ expense.expense_date.strftime('%d-%m-%Y') }} at {{ expense.expense_time }}</p>
+                    <h5 class="text-uppercase fw-bold opacity-75 ls-1 m-0">Payment Voucher</h5>
+                    <h1 class="display-5 fw-bold m-0 mt-2">Voucher #{{ expense.expense_id }}</h1>
+                    <p class="m-0 mt-2"><i class="far fa-calendar-alt me-2"></i>{{ expense.expense_date.strftime('%d-%m-%Y') }} | <i class="far fa-clock me-2"></i>{{ expense.expense_time }}</p>
                 </div>
                 <div class="col-4 text-end">
-                    <div class="bg-white text-dark rounded-4 p-3 shadow-sm">
-                        <small class="text-uppercase fw-bold opacity-50">Total Amount</small>
+                    <div class="bg-white text-dark rounded-4 p-4 shadow-lg d-inline-block">
+                        <small class="text-uppercase fw-bold text-muted d-block">Grand Total</small>
                         <h2 class="fw-bold m-0 text-primary">₹ {{ "{:,.0f}".format(expense.total_amount) }}</h2>
                     </div>
                 </div>
@@ -35,39 +45,42 @@
 
         <div class="voucher-body">
             <div class="row g-5">
-                <div class="col-md-7">
-                    <h5 class="fw-bold mb-4 text-muted border-bottom pb-2">Line Item Allocation</h5>
+                <div class="col-md-7 border-end">
+                    <h5 class="fw-bold text-dark border-bottom pb-3 mb-4">Line Item Breakdown</h5>
                     {% for i in items %}
                     <div class="line-item">
-                        <div class="d-flex justify-content-between">
-                            <span class="fw-bold">{{ i.subcategory_name }}</span>
-                            <span class="fw-bold">₹ {{ "{:,.0f}".format(i.amount) }}</span>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <span class="fw-bold d-block">{{ i.subcategory_name }}</span>
+                                <span class="badge bg-light text-primary small rounded-pill border">{{ i.payment_method }}</span>
+                            </div>
+                            <span class="fs-5 fw-bold text-dark">₹ {{ "{:,.0f}".format(i.amount) }}</span>
                         </div>
-                        <small class="text-muted">{{ i.description or 'No detail' }}</small>
+                        {% if i.description %}
+                        <small class="text-muted d-block mt-2 italic">Note: {{ i.description }}</small>
+                        {% endif %}
                     </div>
                     {% endfor %}
 
                     <div class="mt-5 p-4 bg-light rounded-4">
-                        <h6 class="fw-bold small text-uppercase">Universal Remarks</h6>
-                        <p class="m-0 text-muted">{{ expense.description or 'No additional notes recorded for this voucher.' }}</p>
-                    </div>
-                    
-                    <div class="mt-4">
-                        <span class="badge bg-primary px-3 py-2 rounded-pill">Payment: {{ expense.payment_method }}</span>
+                        <h6 class="fw-bold small text-muted text-uppercase mb-2">Voucher Remarks</h6>
+                        <p class="m-0 text-dark">{{ expense.description or 'No general notes for this voucher.' }}</p>
                     </div>
                 </div>
 
                 <div class="col-md-5">
-                    <h5 class="fw-bold mb-4 text-muted border-bottom pb-2">Supporting Document</h5>
+                    <h5 class="fw-bold text-dark border-bottom pb-3 mb-4">Supporting Document</h5>
                     {% if expense.receipt_url %}
-                        <a href="{{ expense.receipt_url }}" target="_blank">
-                            <img src="{{ expense.receipt_url }}" class="receipt-preview" alt="Voucher Receipt">
-                        </a>
-                        <p class="text-center small text-muted mt-2">Click image to expand</p>
+                        <div class="text-center">
+                            <a href="{{ expense.receipt_url }}" target="_blank">
+                                <img src="{{ expense.receipt_url }}" class="img-fluid receipt-frame" alt="Receipt">
+                            </a>
+                            <p class="text-muted small mt-3 italic"><i class="fas fa-search-plus me-1"></i> Click photo to view original</p>
+                        </div>
                     {% else %}
-                        <div class="text-center py-5 bg-light rounded-4 border-dashed">
+                        <div class="text-center py-5 bg-light rounded-4 border">
                             <i class="fas fa-image fa-3x text-muted opacity-25 mb-3"></i>
-                            <p class="text-muted small m-0">No receipt attached</p>
+                            <p class="text-muted small m-0">No document attached to this voucher.</p>
                         </div>
                     {% endif %}
                 </div>
