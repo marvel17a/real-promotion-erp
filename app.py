@@ -216,9 +216,10 @@ def get_financial_health(cursor):
     }
 
 
+# ... existing imports ...
 
 # ==========================================
-# EXPENSE VOUCHER PDF GENERATOR
+# EXPENSE VOUCHER PDF GENERATOR (Updated)
 # ==========================================
 class ExpensePDF(FPDF):
     def header(self):
@@ -303,28 +304,29 @@ def expense_pdf(expense_id):
     pdf.set_font('Arial','',10)
     pdf.cell(30, 6, "Time:", 0, 0); pdf.set_font('Arial','B',10); pdf.cell(50, 6, str(expense['expense_time']), 0, 1)
 
-    # Right Side: Category, Method
+    # Right Side: Category
     pdf.set_xy(110, y_start)
     pdf.set_font('Arial','',10)
     pdf.cell(35, 6, "Main Category:", 0, 0); pdf.set_font('Arial','B',10); pdf.cell(50, 6, str(expense['main_category'] or 'General'), 0, 1)
     
-    pdf.set_xy(110, y_start + 6)
-    pdf.set_font('Arial','',10)
-    pdf.cell(35, 6, "Payment Mode:", 0, 0); pdf.set_font('Arial','B',10); pdf.cell(50, 6, str(expense['payment_method']), 0, 1)
+    # Removed overall Payment Mode since it's item-wise now, but keeping for reference if needed
+    # pdf.set_xy(110, y_start + 6)
+    # pdf.set_font('Arial','',10)
+    # pdf.cell(35, 6, "Payment Mode:", 0, 0); pdf.set_font('Arial','B',10); pdf.cell(50, 6, str(expense['payment_method']), 0, 1)
     
-    pdf.ln(15)
+    pdf.ln(20)
 
     # --- ITEMS TABLE ---
     # Header
-    pdf.set_fill_color(224, 242, 254) # Sky Blue (#e0f2fe)
-    pdf.set_text_color(12, 74, 110)   # Dark Blue Text
+    pdf.set_fill_color(30, 58, 138) # Dark Blue (#1e3a8a)
+    pdf.set_text_color(255, 255, 255)   # White Text
     pdf.set_font('Arial', 'B', 9)
     pdf.set_draw_color(200, 200, 200)
     pdf.set_line_width(0.3)
     
-    # Columns: #, Sub-Category, Description, Amount
-    w = [10, 50, 90, 40]
-    headers = ["#", "Sub-Category / Item", "Notes / Description", "Amount (Rs.)"]
+    # Columns: #, Sub-Category, Description, Payment Mode, Amount
+    w = [10, 45, 75, 25, 35] # Adjusted widths
+    headers = ["#", "Item", "Description", "Mode", "Amount (Rs.)"]
     
     for i, h in enumerate(headers):
         pdf.cell(w[i], 8, h, 1, 0, 'C', True)
@@ -340,7 +342,8 @@ def expense_pdf(expense_id):
         pdf.cell(w[0], 8, str(idx+1), 1, 0, 'C', fill)
         pdf.cell(w[1], 8, str(item['subcategory_name']), 1, 0, 'L', fill)
         pdf.cell(w[2], 8, str(item['description'] or '-'), 1, 0, 'L', fill)
-        pdf.cell(w[3], 8, f"{item['amount']:,.2f}", 1, 1, 'R', fill)
+        pdf.cell(w[3], 8, str(item['payment_method']), 1, 0, 'C', fill) # Added Payment Mode
+        pdf.cell(w[4], 8, f"{item['amount']:,.2f}", 1, 1, 'R', fill)
         fill = not fill
         
     # --- TOTALS SECTION ---
@@ -349,9 +352,9 @@ def expense_pdf(expense_id):
     pdf.set_fill_color(240, 240, 240)
     
     # Offset to align with Amount column
-    pdf.cell(w[0]+w[1]+w[2], 10, "GRAND TOTAL  ", 0, 0, 'R')
+    pdf.cell(w[0]+w[1]+w[2]+w[3], 10, "GRAND TOTAL  ", 0, 0, 'R')
     pdf.set_text_color(26, 35, 126)
-    pdf.cell(w[3], 10, f"Rs. {expense['total_amount']:,.2f}", 1, 1, 'R', True)
+    pdf.cell(w[4], 10, f"Rs. {expense['total_amount']:,.2f}", 1, 1, 'R', True)
     
     # --- UNIVERSAL NOTES ---
     pdf.ln(10)
@@ -376,12 +379,17 @@ def expense_pdf(expense_id):
     pdf.set_font('Arial', 'B', 9)
     pdf.cell(50, 5, "Authorized Signature", 0, 1, 'C')
     pdf.set_font('Arial', 'I', 8)
-    pdf.cell(0, 5, "This is a computer generated document.", 0, 1, 'R')
+    pdf.cell(0, 5, "Real Promotion All Rights Reserved.", 0, 1, 'R')
 
     # Output
     buffer = io.BytesIO(pdf.output(dest='S').encode('latin-1'))
     buffer.seek(0)
-    return send_file(buffer, as_attachment=True, download_name=f"Voucher_{expense_id}.pdf", mimetype='application/pdf')
+    
+    # Create Filename: Category_ID.pdf
+    main_cat = str(expense['main_category'] or 'General').replace(" ", "_")
+    filename = f"{main_cat}_{expense_id}.pdf"
+    
+    return send_file(buffer, as_attachment=True, download_name=filename, mimetype='application/pdf')
 
 @app.route('/expense_dash')
 def expense_dash():
@@ -7618,6 +7626,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
