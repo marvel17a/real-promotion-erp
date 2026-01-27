@@ -7,106 +7,263 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
 <style>
+    /* --- PREMIUM THEME & ROOT TOKENS --- */
     :root {
         --primary: #4f46e5;
+        --secondary: #7c3aed;
         --light-blue: #0ea5e9;
         --success: #10b981;
         --danger: #ef4444;
         --dark: #1e293b;
+        --glass: rgba(255, 255, 255, 0.95);
         --bg-soft: #f1f5f9;
     }
 
-    body { font-family: 'Poppins', sans-serif; background-color: var(--bg-soft); color: var(--dark); }
+    body {
+        font-family: 'Poppins', sans-serif;
+        background-color: var(--bg-soft);
+        color: var(--dark);
+    }
 
+    /* --- REQUIREMENT: LIGHT BLUE CLOCK & TOTAL --- */
     .live-clock-box {
         background: var(--light-blue);
-        color: white; padding: 6px 22px; border-radius: 50px;
-        font-family: 'monospace'; font-weight: 800; letter-spacing: 1px;
+        color: white;
+        padding: 8px 25px;
+        border-radius: 50px;
+        font-family: 'monospace';
+        font-weight: 800;
+        letter-spacing: 1px;
         box-shadow: 0 4px 12px rgba(14, 165, 233, 0.35);
+        display: inline-block;
     }
 
     .total-box-premium {
         background: var(--light-blue) !important;
-        color: white !important; border-radius: 20px; padding: 25px;
+        color: white !important;
+        border-radius: 20px;
+        padding: 25px;
         box-shadow: 0 12px 20px -5px rgba(14, 165, 233, 0.45);
+        border: none;
     }
 
+    .total-box-premium h1 {
+        font-weight: 800;
+        margin: 0;
+    }
+
+    /* --- CARD & FORM STYLING --- */
     .premium-card {
-        background: rgba(255, 255, 255, 0.95);
-        backdrop-filter: blur(10px);
+        background: var(--glass);
+        backdrop-filter: blur(12px);
         border: 1px solid rgba(255, 255, 255, 0.6);
-        border-radius: 24px;
+        border-radius: 28px;
         box-shadow: 0 15px 35px -5px rgba(0, 0, 0, 0.05);
     }
 
-    .form-label { font-size: 0.75rem; font-weight: 700; color: #64748b; margin-bottom: 8px; }
+    .form-label {
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: #64748b;
+        letter-spacing: 0.5px;
+        margin-bottom: 8px;
+    }
 
     .form-control, .form-select {
-        border-radius: 12px; padding: 12px 18px; border: 1.5px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 12px 18px;
+        border: 1.5px solid #e2e8f0;
+        background-color: #ffffff;
+        transition: all 0.2s ease-in-out;
     }
 
-    /* Remove Spinners */
+    .form-control:focus, .form-select:focus {
+        border-color: var(--light-blue);
+        box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.1);
+        outline: none;
+    }
+
+    /* --- REQUIREMENT: REMOVE NUMBER SPINNERS --- */
     input[type=number]::-webkit-inner-spin-button, 
-    input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    input[type=number]::-webkit-outer-spin-button { 
+        -webkit-appearance: none; 
+        margin: 0; 
+    }
     input[type=number] { -moz-appearance: textfield; }
 
+    /* --- TABLE STYLING --- */
+    .table thead th {
+        background: #f8fafc;
+        border: none;
+        color: #94a3b8;
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        padding: 15px;
+    }
+
+    .item-row {
+        border-bottom: 1px solid #f1f5f9;
+        transition: background 0.2s;
+    }
+    .item-row:hover { background: rgba(241, 245, 249, 0.5); }
+
+    /* --- REQUIREMENT: ADD BUTTON UNDER TABLE --- */
     .btn-add-item {
-        background: #ecfdf5; color: #059669; border: 2px dashed #10b981;
-        border-radius: 15px; width: 100%; padding: 15px; font-weight: 700;
+        background: #ecfdf5;
+        color: #059669;
+        border: 2px dashed #10b981;
+        border-radius: 15px;
+        width: 100%;
+        padding: 15px;
+        font-weight: 700;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        margin-top: 15px;
+    }
+    .btn-add-item:hover {
+        background: #d1fae5;
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(16, 185, 129, 0.15);
+    }
+
+    /* --- REQUIREMENT: POST & DISCARD BOX COLORS --- */
+    .action-card-post {
+        background: #f0fdf4;
+        border: 1px solid #dcfce7;
+        border-radius: 24px;
+        padding: 20px;
+        text-align: center;
+    }
+
+    .action-card-discard {
+        background: #fef2f2;
+        border: 1px solid #fee2e2;
+        border-radius: 24px;
+        padding: 20px;
+        text-align: center;
+    }
+
+    .btn-post {
+        background: var(--success);
+        color: white;
+        border: none;
+        border-radius: 16px;
+        font-weight: 700;
+        padding: 15px;
+        width: 100%;
+        transition: 0.3s;
+        box-shadow: 0 8px 15px rgba(16, 185, 129, 0.25);
+    }
+    .btn-post:hover {
+        background: #059669;
+        transform: translateY(-3px);
+        box-shadow: 0 12px 20px rgba(16, 185, 129, 0.35);
+    }
+    
+    .btn-discard {
+        background: white;
+        color: var(--danger);
+        border: 1.5px solid #fecaca;
+        border-radius: 16px;
+        font-weight: 600;
+        padding: 12px;
+        width: 100%;
+        transition: 0.3s;
+        display: block;
+        text-decoration: none;
+    }
+    .btn-discard:hover {
+        background: var(--danger);
+        color: white;
+        border-color: var(--danger);
+    }
+
+    /* --- DOCUMENT & REMARKS SECTION --- */
+    .upload-zone {
+        border: 2.5px dashed #cbd5e1;
+        border-radius: 20px;
+        padding: 30px;
+        text-align: center;
+        background: #f8fafc;
+        cursor: pointer;
         transition: 0.3s;
     }
-    .btn-add-item:hover { background: #d1fae5; transform: scale(1.005); }
+    .upload-zone:hover {
+        border-color: var(--primary);
+        background: #ffffff;
+    }
 
-    .action-card-post { background: #f0fdf4; border: 1px solid #dcfce7; border-radius: 24px; padding: 20px; }
-    .action-card-discard { background: #fef2f2; border: 1px solid #fee2e2; border-radius: 24px; padding: 20px; }
-
-    .btn-post { background: var(--success); color: white; border: none; border-radius: 16px; font-weight: 700; padding: 15px; transition: 0.3s; }
-    .btn-post:hover { background: #059669; transform: translateY(-2px); }
-    
-    .btn-discard { background: white; color: var(--danger); border: 1.5px solid #fecaca; border-radius: 16px; font-weight: 600; padding: 12px; transition: 0.3s; }
-    .btn-discard:hover { background: var(--danger); color: white; }
-
-    .upload-zone { border: 2.5px dashed #cbd5e1; border-radius: 20px; padding: 30px; text-align: center; background: #f8fafc; cursor: pointer; }
-
-    /* Responsive Table Fix */
+    /* --- RESPONSIVE TABLE FIX --- */
     @media (max-width: 768px) {
-        .item-row td { display: block; width: 100% !important; border: none !important; padding: 5px 0 !important; }
-        .item-row { display: block; padding: 15px; border-bottom: 2px solid #f1f5f9; position: relative; }
-        .item-row .btn-remove-container { position: absolute; top: 10px; right: 10px; }
+        .item-row td { 
+            display: block; 
+            width: 100% !important; 
+            border: none !important; 
+            padding: 8px 0 !important; 
+        }
+        .item-row { 
+            display: block; 
+            padding: 20px; 
+            border-bottom: 2px solid #f1f5f9; 
+            position: relative; 
+        }
+        .item-row .btn-remove-container { 
+            position: absolute; 
+            top: 15px; 
+            right: 15px; 
+        }
+        .d-md-none-label {
+            display: block !important;
+            font-size: 0.65rem;
+            font-weight: 800;
+            color: #94a3b8;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
         thead { display: none; }
     }
+
+    .d-md-none-label { display: none; }
+
+    .fade-in { animation: fadeIn 0.5s ease-in; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 </style>
 
-<div class="container-fluid py-4">
-    <!-- Top Navigation -->
+<div class="container-fluid py-4 fade-in">
+    <!-- Top Navigation Row -->
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
         <div>
             <a href="{{ url_for('expenses_list') }}" class="btn btn-white bg-white rounded-pill border shadow-sm px-4 py-2 small fw-bold text-muted">
                 <i class="fas fa-arrow-left me-2"></i> Back to Ledger
             </a>
         </div>
-        <div id="liveClock" class="live-clock-box align-self-start align-self-md-center shadow">00:00:00 AM</div>
+        <div id="liveClock" class="live-clock-box shadow">00:00:00 AM</div>
     </div>
 
+    <!-- Title Section -->
     <div class="mb-4">
         <h2 class="fw-bold text-dark m-0">Create Expense Voucher</h2>
-        <p class="text-muted m-0 small">Record operational expenses without fund restriction</p>
+        <p class="text-muted m-0 small">Manage multi-item allocations with item-wise payment modes</p>
     </div>
 
     <form id="voucherForm" action="{{ url_for('add_expense') }}" method="POST" enctype="multipart/form-data">
         <div class="row g-4">
             <!-- Left Side: Form Details -->
             <div class="col-12 col-lg-8">
+                <!-- Master Entry Card -->
                 <div class="card premium-card p-4 mb-4">
-                    <div class="row g-3 mb-4">
+                    <div class="row g-4 mb-4">
                         <div class="col-12 col-md-6">
-                            <label class="form-label">VOUCHER DATE</label>
-                            <input type="text" name="expense_date" id="datePicker" class="form-control" required>
+                            <label class="form-label">VOUCHER DATE (DD-MM-YYYY)</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-0"><i class="fas fa-calendar-day text-muted"></i></span>
+                                <input type="text" name="expense_date" id="datePicker" class="form-control border-0 bg-light" required>
+                            </div>
                         </div>
                         <div class="col-12 col-md-6">
-                            <label class="form-label">MAIN ACCOUNT CATEGORY</label>
-                            <select name="main_category_id" id="mainCat" class="form-select fw-bold" onchange="initVoucher()" required>
-                                <option value="" disabled selected>Select Category...</option>
+                            <label class="form-label">SELECT MAIN ACCOUNT CATEGORY</label>
+                            <select name="main_category_id" id="mainCat" class="form-select border-0 bg-light fw-bold" onchange="initVoucher()" required>
+                                <option value="" disabled selected>Choose Category...</option>
                                 {% for cat in categories %}
                                 <option value="{{ cat.category_id }}">{{ cat.category_name }}</option>
                                 {% endfor %}
@@ -114,78 +271,111 @@
                         </div>
                     </div>
 
-                    <!-- Item Allocation Table -->
+                    <!-- Item Allocation Table Section -->
                     <div id="itemsContainer" style="display: none;">
-                        <h6 class="fw-bold text-dark mb-3"><i class="fas fa-list-check me-2 text-primary"></i>Allocation Details</h6>
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="fw-bold text-dark m-0"><i class="fas fa-list-check me-2 text-primary"></i>Allocation Details</h6>
+                            <span class="badge bg-primary rounded-pill px-3" id="rowCountBadge">1 Item</span>
+                        </div>
+                        
                         <div class="table-responsive">
                             <table class="table table-borderless align-middle mb-0">
                                 <thead class="d-none d-md-table-header-group">
                                     <tr class="border-bottom">
-                                        <th style="width: 30%;">Sub-Category</th>
+                                        <th style="width: 25%;">Sub-Category</th>
                                         <th style="width: 20%;">Payment</th>
-                                        <th style="width: 30%;">Note</th>
-                                        <th style="width: 15%; text-align: right;">Amount (₹)</th>
+                                        <th style="width: 30%;">Notes / Remark</th>
+                                        <th style="width: 20%; text-align: right;">Amount (₹)</th>
                                         <th style="width: 5%;"></th>
                                     </tr>
                                 </thead>
-                                <tbody id="tableBody"></tbody>
+                                <tbody id="tableBody">
+                                    <!-- Rows added via JavaScript -->
+                                </tbody>
                             </table>
                         </div>
-                        <button type="button" class="btn btn-add-item mt-3 shadow-sm" onclick="addNewRow()">
-                            <i class="fas fa-plus-circle me-2"></i> Add Line Item
+                        
+                        <!-- Requirement: Add Item Button Directly Below Table -->
+                        <button type="button" class="btn btn-add-item shadow-sm" onclick="addNewRow()">
+                            <i class="fas fa-plus-circle me-2"></i> Add Another Line Item
                         </button>
                     </div>
 
+                    <!-- Placeholder for Initial State -->
                     <div id="placeholder" class="text-center py-5">
-                        <p class="text-muted fw-medium">Select a category above to start adding line items.</p>
+                        <img src="https://cdn-icons-png.flaticon.com/512/9497/9497092.png" style="width: 80px; opacity: 0.15;" alt="">
+                        <p class="text-muted mt-3 fw-medium">Select a Main Category to generate the allocation items.</p>
                     </div>
                 </div>
 
+                <!-- Requirement: Supporting Doc and Universal Note Side-by-Side -->
                 <div class="row g-4">
                     <div class="col-12 col-md-6">
                         <div class="card premium-card p-4 h-100">
-                            <h6 class="fw-bold mb-3 small text-muted text-uppercase">Attachment</h6>
+                            <h6 class="fw-bold mb-3 small text-muted text-uppercase">Supporting Document</h6>
                             <div class="upload-zone shadow-sm" onclick="document.getElementById('fileInp').click()">
                                 <i class="fas fa-cloud-arrow-up fa-2x text-primary opacity-50 mb-2"></i>
                                 <p class="m-0 fw-bold small text-dark">Upload Bill Photo</p>
+                                <small class="text-muted">Supports: JPG, PNG, PDF (Max 5MB)</small>
                                 <input type="file" name="receipt" id="fileInp" hidden accept="image/*,application/pdf" onchange="updateFileLabel(this)">
-                                <div id="fileName" class="mt-2 small text-success fw-bold" style="display:none;"></div>
+                                <div id="fileName" class="mt-3 small text-success fw-bold p-2 bg-success bg-opacity-10 rounded-pill" style="display:none;"></div>
                             </div>
                         </div>
                     </div>
                     <div class="col-12 col-md-6">
                         <div class="card premium-card p-4 h-100">
-                            <h6 class="fw-bold mb-3 small text-muted text-uppercase">Universal Note</h6>
-                            <textarea name="voucher_description" class="form-control bg-light border-0" rows="4" placeholder="General description..."></textarea>
+                            <h6 class="fw-bold mb-3 small text-muted text-uppercase">Universal Voucher Note</h6>
+                            <textarea name="voucher_description" class="form-control border-0 bg-light" rows="5" placeholder="Overall description for this entire voucher (Saves to expenses table)..."></textarea>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Right Side: Summary & Actions -->
+            <!-- Right Side: Summary Dashboard -->
             <div class="col-12 col-lg-4">
-                <div class="card premium-card p-4 sticky-top" style="top: 25px;">
-                    <h5 class="fw-bold mb-4">Voucher Summary</h5>
-                    <div class="d-flex justify-content-between mb-3 border-bottom pb-3">
-                        <span class="text-muted">Item Lines</span>
-                        <span class="fw-bold" id="itemCounter">0</span>
+                <div class="sticky-top" style="top: 25px;">
+                    <div class="card premium-card p-4 mb-4">
+                        <h5 class="fw-bold mb-4">Voucher Summary</h5>
+                        <div class="d-flex justify-content-between mb-3">
+                            <span class="text-muted fw-medium">Line Item Count</span>
+                            <span class="fw-bold" id="itemCounter">0</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-4 border-bottom pb-3">
+                            <span class="text-muted fw-medium">Main Category</span>
+                            <span class="badge bg-light text-dark border px-3" id="summaryCategory">None</span>
+                        </div>
+
+                        <!-- Requirement: Light Blue Total Box -->
+                        <div id="totalCard" class="total-box-premium text-center my-4">
+                            <small class="text-uppercase opacity-75 fw-bold" style="font-size: 0.7rem; letter-spacing: 1px;">Grand Total Amount</small>
+                            <h1 id="totalText">₹ 0</h1>
+                        </div>
+
+                        <!-- Requirement: Colored Action Cards -->
+                        <div class="action-card-post mb-3">
+                            <button type="submit" id="submitBtn" class="btn btn-post">
+                                <i class="fas fa-check-circle me-2"></i> Confirm & Post Voucher
+                            </button>
+                            <small class="text-success small fw-bold mt-2 d-block">Ready to record in Ledger</small>
+                        </div>
+                        
+                        <div class="action-card-discard">
+                            <a href="{{ url_for('expenses_list') }}" class="btn btn-discard text-center">
+                                <i class="fas fa-trash-can me-2"></i> Discard Voucher
+                            </a>
+                            <small class="text-danger small fw-bold mt-2 d-block">Cancel entry process</small>
+                        </div>
                     </div>
 
-                    <div class="total-box-premium text-center my-4">
-                        <small class="text-uppercase opacity-75 fw-bold" style="font-size: 0.7rem;">Grand Total</small>
-                        <h1 class="fw-bold m-0" id="totalText">₹ 0</h1>
-                    </div>
-
-                    <div class="action-card-post mb-3 text-center">
-                        <button type="submit" class="btn btn-post w-100">
-                            <i class="fas fa-check-circle me-2"></i> Confirm & Post
-                        </button>
-                    </div>
-                    
-                    <div class="action-card-discard text-center">
-                        <a href="{{ url_for('expenses_list') }}" class="btn btn-discard w-100 text-decoration-none d-block">
-                            <i class="fas fa-times-circle me-2"></i> Discard
-                        </a>
+                    <!-- Decorative Info Card -->
+                    <div class="card premium-card p-4 border-0" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: white;">
+                        <div class="d-flex align-items-center gap-3">
+                            <i class="fas fa-circle-info fa-2x opacity-25"></i>
+                            <div>
+                                <h6 class="fw-bold m-0 small text-uppercase opacity-50">Audit Requirement</h6>
+                                <p class="m-0 small opacity-75">Ensure all physical bills match the digital voucher amount before posting.</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -193,55 +383,86 @@
     </form>
 </div>
 
+<!-- Scripts -->
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script>
     const subcategories = {{ subcategories | tojson }};
 
+    // 1. Initialize UI Elements
     document.addEventListener('DOMContentLoaded', () => {
-        flatpickr("#datePicker", { defaultDate: "today", dateFormat: "d-m-Y" });
-        setInterval(() => {
-            document.getElementById('liveClock').innerText = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        }, 1000);
+        // Requirement: DD-MM-YYYY format
+        flatpickr("#datePicker", { 
+            defaultDate: "today", 
+            dateFormat: "d-m-Y",
+            allowInput: true
+        });
+
+        // Live Clock logic
+        setInterval(updateClock, 1000);
+        updateClock();
     });
 
+    function updateClock() {
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+        document.getElementById('liveClock').innerText = timeStr;
+    }
+
+    // 2. Voucher Initialization
     function initVoucher() {
-        document.getElementById('placeholder').style.display = 'none';
-        document.getElementById('itemsContainer').style.display = 'block';
+        const mainCatSelect = document.getElementById('mainCat');
+        const container = document.getElementById('itemsContainer');
+        const placeholder = document.getElementById('placeholder');
+        const summaryLabel = document.getElementById('summaryCategory');
+
+        summaryLabel.innerText = mainCatSelect.options[mainCatSelect.selectedIndex].text;
+        placeholder.style.display = 'none';
+        container.style.display = 'block';
+        
+        // Reset table body on category change
         document.getElementById('tableBody').innerHTML = '';
         addNewRow();
     }
 
+    // 3. Dynamic Row Addition
     function addNewRow() {
         const mainId = document.getElementById('mainCat').value;
         const filtered = subcategories.filter(s => s.category_id == mainId);
+        
         let opts = '<option value="" disabled selected>Select Item</option>';
-        filtered.forEach(s => opts += `<option value="${s.subcategory_id}">${s.subcategory_name}</option>`);
+        filtered.forEach(s => {
+            opts += `<option value="${s.subcategory_id}">${s.subcategory_name}</option>`;
+        });
 
         const tr = document.createElement('tr');
         tr.className = 'item-row';
         tr.innerHTML = `
             <td>
-                <label class="form-label d-md-none">SUB-CATEGORY</label>
-                <select name="subcategory_id[]" class="form-select border-0 bg-light" required>${opts}</select>
+                <span class="d-md-none-label">Sub-Category</span>
+                <select name="subcategory_id[]" class="form-select border-0 bg-light fw-bold" required>
+                    ${opts}
+                </select>
             </td>
             <td>
-                <label class="form-label d-md-none">PAYMENT</label>
+                <span class="d-md-none-label">Payment Mode</span>
                 <select name="item_payment_method[]" class="form-select border-0 bg-light small">
                     <option value="Cash" selected>Cash</option>
                     <option value="Online">Online</option>
                 </select>
             </td>
             <td>
-                <label class="form-label d-md-none">NOTE</label>
-                <input type="text" name="description[]" class="form-control border-0 bg-light" placeholder="Item note">
+                <span class="d-md-none-label">Item Note</span>
+                <input type="text" name="description[]" class="form-control border-0 bg-light" placeholder="Note for this item">
             </td>
             <td>
-                <label class="form-label d-md-none text-end w-100">AMOUNT (₹)</label>
+                <span class="d-md-none-label">Amount (₹)</span>
+                <!-- Requirement: Integer validation, no spinners -->
                 <input type="number" name="amount[]" class="form-control border-0 bg-light fw-bold text-end val-input" 
-                       placeholder="0" step="1" oninput="recalculate()" onkeypress="return event.charCode >= 48 && event.charCode <= 57" required>
+                       placeholder="0" step="1" oninput="recalculate()" 
+                       onkeypress="return event.charCode >= 48 && event.charCode <= 57" required>
             </td>
             <td class="text-end btn-remove-container">
-                <button type="button" class="btn btn-link text-danger p-0" onclick="this.closest('tr').remove();recalculate();">
+                <button type="button" class="btn btn-link text-danger p-0" onclick="removeRow(this)">
                     <i class="fas fa-trash-can"></i>
                 </button>
             </td>
@@ -250,19 +471,37 @@
         recalculate();
     }
 
+    function removeRow(btn) {
+        const rows = document.querySelectorAll('.item-row');
+        if(rows.length > 1) {
+            if(confirm("Remove this line item?")) {
+                btn.closest('tr').remove();
+                recalculate();
+            }
+        } else {
+            alert("A voucher must contain at least one line item.");
+        }
+    }
+
+    // 4. Calculations
     function recalculate() {
         let total = 0;
         const rows = document.querySelectorAll('.item-row');
-        document.querySelectorAll('.val-input').forEach(i => total += parseInt(i.value) || 0);
+        document.querySelectorAll('.val-input').forEach(i => {
+            total += parseInt(i.value) || 0;
+        });
+
         document.getElementById('totalText').innerText = "₹ " + total.toLocaleString('en-IN');
         document.getElementById('itemCounter').innerText = rows.length;
+        document.getElementById('rowCountBadge').innerText = rows.length + (rows.length === 1 ? " Item" : " Items");
     }
 
+    // 5. File Handling
     function updateFileLabel(input) {
-        if(input.files[0]) {
-            const fileName = document.getElementById('fileName');
-            fileName.innerText = "✓ Ready: " + input.files[0].name;
-            fileName.style.display = 'block';
+        const fileNameDiv = document.getElementById('fileName');
+        if(input.files && input.files[0]) {
+            fileNameDiv.innerHTML = `<i class="fas fa-check-circle me-2"></i>Ready: ${input.files[0].name}`;
+            fileNameDiv.style.display = 'inline-block';
         }
     }
 </script>
