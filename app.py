@@ -2033,6 +2033,7 @@ def new_purchase():
             supplier_id = request.form['supplier_id']
             purchase_date = request.form['purchase_date']
             bill_number = request.form.get('bill_number', '')
+            notes = request.form.get('notes', '') # Capture Notes
             
             # 2. Item Arrays
             product_ids = request.form.getlist('product_id[]')
@@ -2048,35 +2049,26 @@ def new_purchase():
                     try:
                         raw_qty = quantities[i]
                         qty = float(raw_qty) if raw_qty and str(raw_qty).strip() else 0.0
-                    except ValueError:
-                        qty = 0.0
+                    except ValueError: qty = 0.0
 
                     try:
                         raw_price = prices[i]
                         price = float(raw_price) if raw_price and str(raw_price).strip() else 0.0
-                    except ValueError:
-                        price = 0.0
+                    except ValueError: price = 0.0
 
                     total_amount += (qty * price)
                     valid_items.append({'p_id': product_ids[i], 'qty': qty, 'price': price})
             
-            # 3. Insert Master Purchase Record
+            # 3. Insert Master Purchase Record (Added notes)
             cursor.execute("""
-                INSERT INTO purchases (supplier_id, purchase_date, bill_number, total_amount)
-                VALUES (%s, %s, %s, %s)
-            """, (supplier_id, purchase_date, bill_number, total_amount))
+                INSERT INTO purchases (supplier_id, purchase_date, bill_number, total_amount, notes)
+                VALUES (%s, %s, %s, %s, %s)
+            """, (supplier_id, purchase_date, bill_number, total_amount, notes))
             
             purchase_id = cursor.lastrowid
             
-            # 4. Insert Items & Update Stock
-            
-            # Dynamic Column Detection for Stock
-            stock_col = 'quantity' # default
-            cursor.execute("SHOW COLUMNS FROM products")
-            columns = [row['Field'] for row in cursor.fetchall()]
-            if 'stock_quantity' in columns: stock_col = 'stock_quantity'
-            elif 'stock' in columns: stock_col = 'stock'
-            elif 'qty' in columns: stock_col = 'qty'
+            # 4. Insert Items & Update Stock (Warehouse Stock Increase)
+            stock_col = 'stock' 
             
             for item in valid_items:
                 p_id = item['p_id']
@@ -2088,12 +2080,10 @@ def new_purchase():
                 current_product = cursor.fetchone()
                 
                 if current_product:
-                    try:
-                        old_qty = float(current_product[stock_col] or 0)
+                    try: old_qty = float(current_product[stock_col] or 0)
                     except: old_qty = 0.0
                     
-                    try:
-                        old_price = float(current_product['price'] or 0)
+                    try: old_price = float(current_product['price'] or 0)
                     except: old_price = 0.0
                     
                     # Calculate New Total Quantity
@@ -2107,8 +2097,7 @@ def new_purchase():
                         
                         if final_total_qty > 0:
                             new_avg_price = final_total_value / final_total_qty
-                        else:
-                            new_avg_price = 0.0
+                        else: new_avg_price = 0.0
                     else:
                         new_avg_price = old_price
 
@@ -2134,19 +2123,14 @@ def new_purchase():
         except Exception as e:
             mysql.connection.rollback()
             flash(f"Error creating purchase: {str(e)}", "danger")
-            print(f"Purchase Error: {e}") 
             return redirect(url_for('purchases'))
             
     # GET: Load data
     cursor.execute("SELECT id, name FROM suppliers ORDER BY name")
     suppliers = cursor.fetchall()
     
-    # --- MODIFIED: Fetch ONLY Active Products ---
-    try:
-        cursor.execute("SELECT * FROM products WHERE status='Active' ORDER BY name")
-    except:
-        cursor.execute("SELECT * FROM products ORDER BY name")
-        
+    try: cursor.execute("SELECT * FROM products WHERE status='Active' ORDER BY name")
+    except: cursor.execute("SELECT * FROM products ORDER BY name")
     products = cursor.fetchall()
     
     cursor.close()
@@ -7685,6 +7669,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
