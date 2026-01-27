@@ -1,7 +1,7 @@
 {% extends 'admin_master.html' %}
 
 {% block page_content %}
-<!-- Dependencies -->
+<!-- External Dependencies -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -38,7 +38,7 @@
         display: inline-block;
     }
 
-    /* --- RESTORED: AVAILABLE BALANCE BADGE DESIGN --- */
+    /* --- AVAILABLE BALANCE BADGE --- */
     .balance-badge {
         padding: 12px 20px;
         border-radius: 15px;
@@ -117,16 +117,15 @@
         border: none;
     }
 
-    /* Requirement: Columns width optimization for better Amount space */
-    .col-sub { width: 35%; }
+    /* Column Width Optimization */
+    .col-sub { width: 30%; }
     .col-pay { width: 20%; }
-    .col-note { width: 10%; } /* Sirf button ke liye choti space */
-    .col-amt { width: 30%; }  /* Amount ko zyada space di gayi hai */
+    .col-note { width: 10%; } 
+    .col-amt { width: 35%; } /* Increased width for better visibility */
     .col-del { width: 5%; }
 
     .item-row { border-bottom: 1px solid #f1f5f9; }
 
-    /* --- ADD BUTTON UNDER TABLE --- */
     .btn-add-item {
         background: #ecfdf5;
         color: #059669;
@@ -138,7 +137,7 @@
         margin-top: 15px;
         transition: 0.3s;
     }
-    .btn-add-item:hover { background: #d1fae5; transform: scale(1.01); }
+    .btn-add-item:hover { background: #d1fae5; transform: scale(1.005); }
 
     /* --- ACTION BOXES --- */
     .action-card-post { background: #f0fdf4; border: 1px solid #dcfce7; border-radius: 24px; padding: 20px; }
@@ -162,6 +161,23 @@
     }
     .btn-discard:hover { background: var(--danger); color: white; }
 
+    /* Requirement: Note Button UI */
+    .btn-note-popup {
+        width: 42px;
+        height: 42px;
+        border-radius: 12px;
+        background: #f1f5f9;
+        color: #64748b;
+        border: 1px solid #e2e8f0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+        cursor: pointer;
+    }
+    .btn-note-popup:hover { background: var(--light-blue); color: white; }
+    .btn-note-popup.has-note { background: #ecfdf5; color: var(--success); border-color: var(--success); }
+
     .upload-zone {
         border: 2.5px dashed #cbd5e1;
         border-radius: 20px;
@@ -174,23 +190,7 @@
     input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
     input[type=number] { -moz-appearance: textfield; }
 
-    /* Requirement: Note Button Styling */
-    .btn-note-popup {
-        width: 40px;
-        height: 40px;
-        border-radius: 10px;
-        background: #f1f5f9;
-        color: #64748b;
-        border: 1px solid #e2e8f0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: all 0.2s;
-    }
-    .btn-note-popup:hover { background: var(--light-blue); color: white; border-color: var(--light-blue); }
-    .btn-note-popup.has-note { background: #f0fdf4; color: var(--success); border-color: var(--success); }
-
-    /* --- RESPONSIVE STACKING FOR MOBILE --- */
+    /* --- RESPONSIVE STACKING --- */
     @media (max-width: 768px) {
         .table { table-layout: auto; }
         .item-row td { display: block; width: 100% !important; border: none !important; padding: 8px 0 !important; }
@@ -198,13 +198,14 @@
         .item-row .btn-remove-container { position: absolute; top: 15px; right: 15px; }
         .d-md-none-label { display: block !important; font-size: 0.65rem; font-weight: 800; color: #94a3b8; text-transform: uppercase; }
         thead { display: none; }
-        .balance-badge { width: 100%; justify-content: center; }
     }
     .d-md-none-label { display: none; }
+    .fade-in { animation: fadeIn 0.5s ease-in; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 </style>
 
-<div class="container-fluid py-4">
-    <!-- Top Nav Row -->
+<div class="container-fluid py-4 fade-in">
+    <!-- Top Bar -->
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
         <div class="d-flex flex-column flex-md-row align-items-md-center gap-3">
             <a href="{{ url_for('expenses_list') }}" class="btn btn-white bg-white rounded-pill border shadow-sm px-4 py-2 small fw-bold text-muted">
@@ -213,37 +214,36 @@
             <div id="liveClock" class="live-clock-box shadow">00:00:00 AM</div>
         </div>
         
-        <!-- RESTORED: Dynamic Available Balance Badge -->
         <div id="balanceDisplay" class="balance-badge cash-mode-ui shadow-sm">
             <div class="balance-icon-circle">
                 <i class="fas fa-wallet text-success" id="balanceIcon"></i>
             </div>
             <div>
-                <small class="d-block text-uppercase fw-bold opacity-60" style="font-size: 0.6rem;" id="fundLabel">Cash fund availability</small>
+                <small class="d-block text-uppercase fw-bold opacity-60" style="font-size: 0.6rem;" id="fundLabel">Account availability</small>
                 <span class="fs-5 fw-bold" id="balanceText">₹ {{ "{:,.2f}".format(cash_balance) if cash_balance is not none else '0.00' }}</span>
             </div>
         </div>
     </div>
 
     <div class="mb-4">
-        <h2 class="fw-bold text-dark m-0 text-uppercase">Create Expense Voucher</h2>
-        <p class="text-muted m-0 small">Item-wise allocation with specific payment modes</p>
+        <h2 class="fw-bold text-dark m-0">CREATE VOUCHER</h2>
+        <p class="text-muted m-0 small">Record operational expenses with itemized tracking</p>
     </div>
 
     <form id="voucherForm" action="{{ url_for('add_expense') }}" method="POST" enctype="multipart/form-data">
         <div class="row g-4">
-            <!-- Left Side -->
+            <!-- Left Panel -->
             <div class="col-12 col-lg-8">
                 <div class="card premium-card p-4 mb-4">
                     <div class="row g-4 mb-4">
                         <div class="col-12 col-md-6">
-                            <label class="form-label">VOUCHER DATE (DD-MM-YYYY)</label>
+                            <label class="form-label">VOUCHER DATE</label>
                             <input type="text" name="expense_date" id="datePicker" class="form-control border-0 bg-light fw-bold" required>
                         </div>
                         <div class="col-12 col-md-6">
-                            <label class="form-label">SELECT MAIN ACCOUNT CATEGORY</label>
+                            <label class="form-label">MAIN CATEGORY</label>
                             <select name="main_category_id" id="mainCat" class="form-select border-0 bg-light fw-bold" onchange="initVoucher()" required>
-                                <option value="" disabled selected>Choose Category...</option>
+                                <option value="" disabled selected>Choose Account Category...</option>
                                 {% for cat in categories %}
                                 <option value="{{ cat.category_id }}">{{ cat.category_name }}</option>
                                 {% endfor %}
@@ -251,10 +251,10 @@
                         </div>
                     </div>
 
-                    <!-- Allocation Table Section -->
+                    <!-- Items Table -->
                     <div id="itemsContainer" style="display: none;" class="table-container">
                         <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h6 class="fw-bold text-dark m-0"><i class="fas fa-list-check me-2 text-primary"></i>Allocation Details</h6>
+                            <h6 class="fw-bold text-dark m-0"><i class="fas fa-list-ul me-2 text-primary"></i>Allocation Details</h6>
                             <span class="badge bg-primary rounded-pill px-3" id="rowCountBadge">1 Item</span>
                         </div>
                         
@@ -274,24 +274,24 @@
                         </div>
                         
                         <button type="button" class="btn btn-add-item shadow-sm" onclick="addNewRow()">
-                            <i class="fas fa-plus-circle me-2"></i> Add Another Line Item
+                            <i class="fas fa-plus-circle me-2"></i> Add Line Item
                         </button>
                     </div>
 
                     <div id="placeholder" class="text-center py-5">
                         <img src="https://cdn-icons-png.flaticon.com/512/9497/9497092.png" style="width: 80px; opacity: 0.15;" alt="">
-                        <p class="text-muted mt-3 fw-medium">Select a Main Category to start allocation.</p>
+                        <p class="text-muted mt-3 fw-medium">Select a category to start voucher allocation.</p>
                     </div>
                 </div>
 
-                <!-- Footer Meta -->
+                <!-- Footer Cards -->
                 <div class="row g-4">
                     <div class="col-12 col-md-6">
                         <div class="card premium-card p-4 h-100">
                             <h6 class="fw-bold mb-3 small text-muted text-uppercase">Supporting Document</h6>
                             <div class="upload-zone shadow-sm" onclick="document.getElementById('fileInp').click()">
                                 <i class="fas fa-cloud-arrow-up fa-2x text-primary opacity-50 mb-2"></i>
-                                <p class="m-0 fw-bold small text-dark">Browse Bill Photo</p>
+                                <p class="m-0 fw-bold small text-dark">Upload Bill Image</p>
                                 <small class="text-muted">JPG, PNG, PDF (Max 5MB)</small>
                                 <input type="file" name="receipt" id="fileInp" hidden accept="image/*,application/pdf" onchange="updateFileLabel(this)">
                                 <div id="fileName" class="mt-3 small text-success fw-bold p-2 bg-success bg-opacity-10 rounded-pill" style="display:none;"></div>
@@ -301,29 +301,28 @@
                     <div class="col-12 col-md-6">
                         <div class="card premium-card p-4 h-100">
                             <h6 class="fw-bold mb-3 small text-muted text-uppercase">Universal Voucher Note</h6>
-                            <textarea name="voucher_description" class="form-control border-0 bg-light" rows="5" placeholder="Saves to main expenses table description..."></textarea>
+                            <textarea name="voucher_description" class="form-control border-0 bg-light" rows="5" placeholder="Overall voucher description..."></textarea>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Right Sidebar -->
+            <!-- Sidebar -->
             <div class="col-12 col-lg-4">
                 <div class="sticky-top" style="top: 25px;">
                     <div class="card premium-card p-4 mb-4">
                         <h5 class="fw-bold mb-4">Final Summary</h5>
                         <div class="d-flex justify-content-between mb-3">
-                            <span class="text-muted fw-medium">Line Items</span>
+                            <span class="text-muted">Line Items</span>
                             <span class="fw-bold" id="itemCounter">0</span>
                         </div>
                         <div class="d-flex justify-content-between mb-4 border-bottom pb-3">
-                            <span class="text-muted fw-medium">Account</span>
+                            <span class="text-muted">Account</span>
                             <span class="badge bg-light text-dark border px-3" id="summaryCategory">None</span>
                         </div>
 
-                        <!-- TOTAL BOX BLUE -->
                         <div id="totalCard" class="total-box-premium text-center my-4">
-                            <small class="text-uppercase opacity-75 fw-bold" style="font-size: 0.7rem;">Voucher Total</small>
+                            <small class="text-uppercase opacity-75 fw-bold" style="font-size: 0.7rem;">Grand Total Amount</small>
                             <h1 id="totalText">₹ 0</h1>
                         </div>
 
@@ -335,7 +334,7 @@
                         
                         <div class="action-card-discard">
                             <a href="{{ url_for('expenses_list') }}" class="btn btn-discard">
-                                <i class="fas fa-trash-can me-2"></i> Discard Voucher
+                                <i class="fas fa-trash-can me-2"></i> Discard
                             </a>
                         </div>
                     </div>
@@ -350,27 +349,28 @@
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow-lg" style="border-radius: 24px;">
             <div class="modal-header border-0 pb-0">
-                <h5 class="fw-bold m-0 p-3"><i class="fas fa-edit me-2 text-primary"></i>Line Item Note</h5>
+                <h5 class="fw-bold m-0 p-3 text-dark"><i class="fas fa-edit me-2 text-primary"></i>Enter Item Note</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body p-4">
-                <p class="text-muted small mb-3">Enter specific details or remarks for this individual expense item.</p>
-                <textarea id="modalNoteText" class="form-control bg-light border-0" rows="6" placeholder="Type your note here..."></textarea>
+                <textarea id="modalNoteText" class="form-control bg-light border-0" rows="6" placeholder="Type specific details for this item..."></textarea>
             </div>
             <div class="modal-footer border-0 pt-0">
-                <button type="button" class="btn btn-primary rounded-pill px-5 py-2 fw-bold" onclick="saveModalNote()">Save Remarks</button>
+                <button type="button" class="btn btn-primary rounded-pill px-5 py-2 fw-bold" onclick="saveModalNote()">Save Note</button>
             </div>
         </div>
     </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<!-- Make sure Bootstrap JS is included in your admin_master.html -->
 <script>
     const subcategories = {{ subcategories | tojson }};
     const cBal = {{ cash_balance if cash_balance is not none else 0 }};
     const bBal = {{ bank_balance if bank_balance is not none else 0 }};
-    let currentNoteTarget = null;
-    let currentBtnTarget = null;
+    
+    let activeHiddenInput = null;
+    let activeBtn = null;
 
     document.addEventListener('DOMContentLoaded', () => {
         flatpickr("#datePicker", { defaultDate: "today", dateFormat: "d-m-Y", allowInput: true });
@@ -383,18 +383,15 @@
         const badge = document.getElementById('balanceDisplay');
         const text = document.getElementById('balanceText');
         const icon = document.getElementById('balanceIcon');
-        const label = document.getElementById('fundLabel');
 
         if(method === 'Cash') {
             badge.className = 'balance-badge cash-mode-ui shadow-sm';
             text.innerText = "₹ " + cBal.toLocaleString('en-IN', {minimumFractionDigits: 2});
             icon.className = "fas fa-wallet text-success";
-            label.innerText = "Cash fund availability";
         } else {
             badge.className = 'balance-badge online-mode-ui shadow-sm';
             text.innerText = "₹ " + bBal.toLocaleString('en-IN', {minimumFractionDigits: 2});
             icon.className = "fas fa-university text-primary";
-            label.innerText = "Online fund availability";
         }
     }
 
@@ -429,14 +426,13 @@
             </td>
             <td class="col-note text-center">
                 <span class="d-md-none-label">Notes</span>
-                <!-- Requirement: Button for Notes Popup -->
-                <button type="button" class="btn-note-popup mx-auto" onclick="openNotesModal(this)">
+                <button type="button" class="btn-note-popup mx-auto" onclick="openNotePopup(this)">
                     <i class="far fa-sticky-note"></i>
                 </button>
-                <input type="hidden" name="description[]" class="row-note-input">
+                <input type="hidden" name="description[]" class="row-note-storage">
             </td>
             <td class="col-amt">
-                <span class="d-md-none-label">Amount</span>
+                <span class="d-md-none-label">Amount (₹)</span>
                 <input type="number" name="amount[]" class="form-control border-0 bg-light fw-bold text-end val-input" 
                        placeholder="0" step="1" oninput="recalculate()" onkeypress="return event.charCode >= 48 && event.charCode <= 57" required>
             </td>
@@ -448,35 +444,36 @@
         recalculate();
     }
 
-    // Modal Logic
-    const nModal = new bootstrap.Modal(document.getElementById('notesModal'));
-    
-    function openNotesModal(btn) {
-        currentBtnTarget = btn;
-        currentNoteTarget = btn.nextElementSibling;
-        document.getElementById('modalNoteText').value = currentNoteTarget.value;
-        nModal.show();
+    // Modal Trigger Fix
+    function openNotePopup(btn) {
+        activeBtn = btn;
+        activeHiddenInput = btn.nextElementSibling;
+        document.getElementById('modalNoteText').value = activeHiddenInput.value;
+        
+        // Explicit Modal Show (Fixes the "not opening" issue)
+        var myModal = new bootstrap.Modal(document.getElementById('notesModal'), { keyboard: false });
+        myModal.show();
     }
 
     function saveModalNote() {
-        const textValue = document.getElementById('modalNoteText').value.trim();
-        currentNoteTarget.value = textValue;
+        const text = document.getElementById('modalNoteText').value.trim();
+        activeHiddenInput.value = text;
         
-        // Highlight button if text exists
-        if(textValue !== "") {
-            currentBtnTarget.classList.add('has-note');
-            currentBtnTarget.innerHTML = '<i class="fas fa-sticky-note"></i>';
+        if(text !== "") {
+            activeBtn.classList.add('has-note');
+            activeBtn.innerHTML = '<i class="fas fa-sticky-note"></i>';
         } else {
-            currentBtnTarget.classList.remove('has-note');
-            currentBtnTarget.innerHTML = '<i class="far fa-sticky-note"></i>';
+            activeBtn.classList.remove('has-note');
+            activeBtn.innerHTML = '<i class="far fa-sticky-note"></i>';
         }
-        
-        nModal.hide();
+
+        // Hide modal
+        bootstrap.Modal.getInstance(document.getElementById('notesModal')).hide();
     }
 
     function removeRow(btn) {
         if(document.querySelectorAll('.item-row').length > 1) {
-            if(confirm("Remove this item?")) {
+            if(confirm("Remove this line?")) {
                 btn.closest('tr').remove();
                 recalculate();
             }
@@ -494,9 +491,9 @@
 
     function updateFileLabel(input) {
         if(input.files[0]) {
-            const fileNameDiv = document.getElementById('fileName');
-            fileNameDiv.innerText = "✓ Attached: " + input.files[0].name;
-            fileNameDiv.style.display = 'inline-block';
+            const info = document.getElementById('fileName');
+            info.innerText = "✓ Ready: " + input.files[0].name;
+            info.style.display = 'inline-block';
         }
     }
 </script>
