@@ -226,7 +226,7 @@
     </div>
 
     <div class="mb-4">
-        <h2 class="fw-bold text-dark m-0">CREATE VOUCHER</h2>
+        <h2 class="fw-bold text-dark m-0">CREATE EXPENSE</h2>
         <p class="text-muted m-0 small">Record operational expenses with itemized tracking</p>
     </div>
 
@@ -237,13 +237,13 @@
                 <div class="card premium-card p-4 mb-4">
                     <div class="row g-4 mb-4">
                         <div class="col-12 col-md-6">
-                            <label class="form-label">VOUCHER DATE</label>
+                            <label class="form-label">EXPENSE DATE</label>
                             <input type="text" name="expense_date" id="datePicker" class="form-control border-0 bg-light fw-bold" required>
                         </div>
                         <div class="col-12 col-md-6">
                             <label class="form-label">MAIN CATEGORY</label>
                             <select name="main_category_id" id="mainCat" class="form-select border-0 bg-light fw-bold" onchange="initVoucher()" required>
-                                <option value="" disabled selected>Choose Account Category...</option>
+                                <option value="" disabled selected>Choose Category...</option>
                                 {% for cat in categories %}
                                 <option value="{{ cat.category_id }}">{{ cat.category_name }}</option>
                                 {% endfor %}
@@ -280,7 +280,7 @@
 
                     <div id="placeholder" class="text-center py-5">
                         <img src="https://cdn-icons-png.flaticon.com/512/9497/9497092.png" style="width: 80px; opacity: 0.15;" alt="">
-                        <p class="text-muted mt-3 fw-medium">Select a category to start voucher allocation.</p>
+                        <p class="text-muted mt-3 fw-medium">Select a category to start expense allocation.</p>
                     </div>
                 </div>
 
@@ -300,7 +300,7 @@
                     </div>
                     <div class="col-12 col-md-6">
                         <div class="card premium-card p-4 h-100">
-                            <h6 class="fw-bold mb-3 small text-muted text-uppercase">Universal Voucher Note</h6>
+                            <h6 class="fw-bold mb-3 small text-muted text-uppercase">Expense Note</h6>
                             <textarea name="voucher_description" class="form-control border-0 bg-light" rows="5" placeholder="Overall voucher description..."></textarea>
                         </div>
                     </div>
@@ -328,7 +328,7 @@
 
                         <div class="action-card-post mb-3">
                             <button type="submit" id="submitBtn" class="btn btn-post">
-                                <i class="fas fa-check-circle me-2"></i> Confirm & Post
+                                <i class="fas fa-check-circle me-2"></i> Confirm
                             </button>
                         </div>
                         
@@ -498,3 +498,4 @@
     }
 </script>
 {% endblock %}
+
