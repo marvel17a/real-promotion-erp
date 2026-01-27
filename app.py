@@ -215,54 +215,113 @@ def get_financial_health(cursor):
         "net_profit": total_income - total_expense
     }
 
-# 1. DASHBOARD
 @app.route('/expense_dash')
 def expense_dash():
     if 'loggedin' not in session: return redirect(url_for('login'))
     
-    conn = mysql.connection
-    cursor = conn.cursor(MySQLdb.cursors.DictCursor)
+    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
-    # Financials
-    fin = get_financial_health(cursor)
+    # --- 1. FINANCIAL HEALTH (KPI Cards) ---
     
-    # Monthly Stats
-    cursor.execute("""
+    # Income (Sales)
+    cur.execute("SELECT SUM(cash_money) as cash, SUM(online_money) as bank FROM evening_settle WHERE status='final'")
+    eve = cur.fetchone()
+    cur.execute("SELECT SUM(cash_amount) as cash, SUM(online_amount) as bank FROM office_sales")
+    off = cur.fetchone()
+    
+    total_cash_in = float(eve['cash'] or 0) + float(off['cash'] or 0)
+    total_bank_in = float(eve['bank'] or 0) + float(off['bank'] or 0)
+
+    # Expenses
+    cur.execute("""
         SELECT 
-            SUM(CASE WHEN MONTH(expense_date) = MONTH(CURDATE()) THEN amount ELSE 0 END) as this_month,
-            SUM(CASE WHEN MONTH(expense_date) = MONTH(CURDATE() - INTERVAL 1 MONTH) THEN amount ELSE 0 END) as last_month
-        FROM expenses 
-        WHERE YEAR(expense_date) = YEAR(CURDATE())
+            SUM(CASE WHEN payment_method = 'Cash' THEN amount ELSE 0 END) as cash_out,
+            SUM(CASE WHEN payment_method != 'Cash' THEN amount ELSE 0 END) as bank_out
+        FROM expense_items
     """)
-    stats = cursor.fetchone()
+    exp = cur.fetchone()
     
-    # Recent Activity
-    cursor.execute("""
-        SELECT e.*, GROUP_CONCAT(sc.subcategory_name SEPARATOR ', ') as items 
+    cash_bal = total_cash_in - float(exp['cash_out'] or 0)
+    bank_bal = total_bank_in - float(exp['bank_out'] or 0)
+    total_bal = cash_bal + bank_bal
+
+    fin_health = {
+        'total_balance': total_bal,
+        'cash_balance': cash_bal,
+        'bank_balance': bank_bal
+    }
+
+    # --- 2. CASHFLOW CHART (Monthly Income vs Expense) ---
+    # Get last 6 months
+    months = []
+    income_data = []
+    expense_data = []
+    
+    for i in range(5, -1, -1):
+        d = date.today() - timedelta(days=i*30)
+        m_start = d.replace(day=1)
+        # End of month logic simplified
+        next_m = (m_start.replace(day=28) + timedelta(days=4)).replace(day=1)
+        m_end = next_m - timedelta(days=1)
+        
+        m_label = m_start.strftime('%b')
+        months.append(m_label)
+        
+        # Monthly Income
+        cur.execute("""
+            SELECT (
+                COALESCE((SELECT SUM(total_amount) FROM evening_settle WHERE date BETWEEN %s AND %s AND status='final'), 0) +
+                COALESCE((SELECT SUM(final_amount) FROM office_sales WHERE sale_date BETWEEN %s AND %s), 0)
+            ) as total
+        """, (m_start, m_end, m_start, m_end))
+        inc = cur.fetchone()['total']
+        income_data.append(float(inc))
+        
+        # Monthly Expense
+        cur.execute("SELECT SUM(total_amount) as total FROM expenses WHERE expense_date BETWEEN %s AND %s", (m_start, m_end))
+        exc = cur.fetchone()['total'] or 0
+        expense_data.append(float(exc))
+
+    chart_cashflow = {
+        'labels': months,
+        'income': income_data,
+        'expense': expense_data
+    }
+
+    # --- 3. CATEGORY PIE CHART ---
+    cur.execute("""
+        SELECT c.category_name, SUM(ei.amount) as total
+        FROM expense_items ei
+        JOIN expensecategories c ON ei.category_id = c.category_id
+        GROUP BY c.category_name
+        ORDER BY total DESC
+    """)
+    cat_data = cur.fetchall()
+    
+    chart_pie = {
+        'labels': [r['category_name'] for r in cat_data],
+        'data': [float(r['total']) for r in cat_data]
+    }
+
+    # --- 4. RECENT ACTIVITY ---
+    cur.execute("""
+        SELECT e.expense_id, e.expense_date, e.total_amount, e.payment_method, e.description,
+               COUNT(ei.id) as item_count
         FROM expenses e
         LEFT JOIN expense_items ei ON e.expense_id = ei.expense_id
-        LEFT JOIN expensesubcategories sc ON ei.subcategory_id = sc.subcategory_id
         GROUP BY e.expense_id
-        ORDER BY e.expense_date DESC LIMIT 5
+        ORDER BY e.expense_date DESC, e.expense_time DESC
+        LIMIT 5
     """)
-    recent = cursor.fetchall()
-    
-    # Chart Data: Monthly Trend
-    cursor.execute("""
-        SELECT DATE_FORMAT(expense_date, '%b') as month, SUM(amount) as total
-        FROM expenses 
-        WHERE expense_date >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
-        GROUP BY DATE_FORMAT(expense_date, '%Y-%m') 
-        ORDER BY MIN(expense_date) ASC
-    """)
-    trend_data = cursor.fetchall()
-    
-    cursor.close()
+    recent = cur.fetchall()
+
+    cur.close()
     
     return render_template('expenses/expense_dash.html', 
-                           fin=fin, stats=stats, recent=recent,
-                           trend_labels=[r['month'] for r in trend_data],
-                           trend_values=[float(r['total']) for r in trend_data])
+                         fin=fin_health, 
+                         cashflow=chart_cashflow, 
+                         pie=chart_pie, 
+                         recent=recent)
 
 @app.route('/add_expense', methods=['GET', 'POST'])
 def add_expense():
@@ -7391,6 +7450,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
