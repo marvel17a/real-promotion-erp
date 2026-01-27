@@ -1,30 +1,30 @@
 {% extends 'admin_master.html' %}
 {% block page_content %}
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
     :root { --primary: #4f46e5; --light-blue: #0ea5e9; }
     body { background-color: #f1f5f9; font-family: 'Poppins', sans-serif; }
     .premium-card { background: white; border-radius: 20px; border: none; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
-    .filter-bar { background: #fff; border-radius: 15px; padding: 20px; margin-bottom: 25px; }
-    .method-badge { font-size: 0.75rem; padding: 4px 10px; border-radius: 50px; font-weight: 600; }
-    .cash-txt { color: #059669; background: #ecfdf5; }
-    .online-txt { color: #2563eb; background: #eff6ff; }
-    .mixed-txt { color: #7c3aed; background: #f5f3ff; }
-    .table thead th { background: #f8fafc; color: #64748b; text-transform: uppercase; font-size: 0.7rem; letter-spacing: 1px; border: none; }
+    .filter-bar { background: #fff; border-radius: 15px; padding: 20px; margin-bottom: 25px; border: 1px solid #e2e8f0; }
+    .method-badge { font-size: 0.75rem; padding: 4px 12px; border-radius: 50px; font-weight: 600; text-transform: uppercase; }
+    .cash-bg { color: #059669; background: #ecfdf5; }
+    .online-bg { color: #2563eb; background: #eff6ff; }
+    .mixed-bg { color: #7c3aed; background: #f5f3ff; }
+    .table thead th { background: #f8fafc; color: #64748b; font-size: 0.7rem; letter-spacing: 1px; border: none; padding: 15px; }
 </style>
 
 <div class="container-fluid py-4">
-    <!-- Header Area -->
+    <!-- Header -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h3 class="fw-bold text-dark m-0">Expense Ledger</h3>
-            <p class="text-muted small m-0">Consolidated operational spending history</p>
+            <p class="text-muted small m-0">Transaction overview & reporting</p>
         </div>
         <div class="d-flex gap-2">
-            <a href="{{ url_for('category_man') }}" class="btn btn-outline-primary rounded-pill px-3">
-                <i class="fas fa-tags me-1"></i> Categories
+            <a href="{{ url_for('category_man') }}" class="btn btn-outline-primary rounded-pill px-4">
+                <i class="fas fa-tags me-1"></i> Manage Categories
             </a>
-            <a href="{{ url_for('add_expense') }}" class="btn btn-primary rounded-pill px-4 shadow-sm">
+            <a href="{{ url_for('add_expense') }}" class="btn btn-primary rounded-pill px-4 shadow">
                 <i class="fas fa-plus me-1"></i> New Entry
             </a>
         </div>
@@ -34,12 +34,15 @@
     <div class="filter-bar shadow-sm">
         <form action="{{ url_for('expenses_list') }}" method="GET" class="row g-3 align-items-end">
             <div class="col-md-3">
-                <label class="small fw-bold text-muted">SEARCH</label>
-                <input type="text" name="q" class="form-control" placeholder="Description or Category..." value="{{ filters.q }}">
+                <label class="small fw-bold text-muted mb-1">SEARCHBAR</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-light border-0"><i class="fas fa-search text-muted"></i></span>
+                    <input type="text" name="q" class="form-control border-0 bg-light" placeholder="Voucher # or Note..." value="{{ filters.q }}">
+                </div>
             </div>
             <div class="col-md-2">
-                <label class="small fw-bold text-muted">CATEGORY</label>
-                <select name="cat_id" class="form-select" id="filterCat" onchange="filterSubCats()">
+                <label class="small fw-bold text-muted mb-1">CATEGORY</label>
+                <select name="cat_id" class="form-select border-0 bg-light" id="filterCat" onchange="filterSubCats()">
                     <option value="all">All Main</option>
                     {% for c in categories %}
                     <option value="{{ c.category_id }}" {% if filters.cat == c.category_id|string %}selected{% endif %}>{{ c.category_name }}</option>
@@ -47,8 +50,8 @@
                 </select>
             </div>
             <div class="col-md-2">
-                <label class="small fw-bold text-muted">SUB-CATEGORY</label>
-                <select name="sub_id" class="form-select" id="filterSub">
+                <label class="small fw-bold text-muted mb-1">SUB-CATEGORY</label>
+                <select name="sub_id" class="form-select border-0 bg-light" id="filterSub">
                     <option value="all">All Sub</option>
                     {% for s in subcategories %}
                     <option value="{{ s.subcategory_id }}" data-parent="{{ s.category_id }}" {% if filters.sub == s.subcategory_id|string %}selected{% endif %}>{{ s.subcategory_name }}</option>
@@ -56,14 +59,14 @@
                 </select>
             </div>
             <div class="col-md-3">
-                <label class="small fw-bold text-muted">DATE RANGE</label>
+                <label class="small fw-bold text-muted mb-1">DATE RANGE</label>
                 <div class="input-group">
-                    <input type="date" name="start_date" class="form-control" value="{{ filters.start }}">
-                    <input type="date" name="end_date" class="form-control" value="{{ filters.end }}">
+                    <input type="date" name="start_date" class="form-control border-0 bg-light" value="{{ filters.start }}">
+                    <input type="date" name="end_date" class="form-control border-0 bg-light" value="{{ filters.end }}">
                 </div>
             </div>
             <div class="col-md-2">
-                <button type="submit" class="btn btn-dark w-100 rounded-pill"><i class="fas fa-filter me-1"></i> Filter</button>
+                <button type="submit" class="btn btn-dark w-100 rounded-pill py-2"><i class="fas fa-sync-alt me-1"></i> Apply</button>
             </div>
         </form>
     </div>
@@ -75,10 +78,10 @@
                 <thead>
                     <tr>
                         <th class="ps-4">Date & Time</th>
-                        <th>Main Category</th>
+                        <th>Voucher Detail</th>
                         <th>Items</th>
                         <th>Method</th>
-                        <th class="text-end">Total Amount</th>
+                        <th class="text-end">Voucher Total</th>
                         <th class="text-center">Actions</th>
                     </tr>
                 </thead>
@@ -86,15 +89,17 @@
                     {% for e in expenses %}
                     <tr>
                         <td class="ps-4">
-                            <div class="fw-bold">{{ e.expense_date.strftime('%d-%m-%Y') if e.expense_date else 'N/A' }}</div>
-                            <small class="text-muted">{{ e.expense_time or '00:00:00' }}</small>
+                            <div class="fw-bold text-dark">{{ e.expense_date.strftime('%d-%m-%Y') if e.expense_date else 'N/A' }}</div>
+                            <small class="text-muted"><i class="far fa-clock me-1"></i>{{ e.expense_time }}</small>
                         </td>
-                        <td><span class="fw-bold text-primary">{{ e.main_category or 'General' }}</span></td>
-                        <td><span class="badge bg-light text-dark border">{{ e.item_count }} Lines</span></td>
+                        <td>
+                            <div class="fw-bold text-primary">{{ e.main_category or 'General' }}</div>
+                            <div class="small text-muted text-truncate" style="max-width: 200px;">{{ e.description or 'No remarks' }}</div>
+                        </td>
+                        <td><span class="badge bg-light text-dark border px-3 rounded-pill">{{ e.item_count }} Lines</span></td>
                         <td>
                             {% set m = e.payment_method|lower %}
-                            <span class="method-badge {% if m=='cash' %}cash-txt{% elif m=='mixed' %}mixed-txt{% else %}online-txt{% endif %}">
-                                <i class="fas {% if m=='cash' %}fa-money-bill-wave{% elif m=='mixed' %}fa-balance-scale{% else %}fa-credit-card{% endif %} me-1"></i>
+                            <span class="method-badge {% if m=='cash' %}cash-bg{% elif m=='mixed' %}mixed-bg{% else %}online-bg{% endif %}">
                                 {{ e.payment_method }}
                             </span>
                         </td>
@@ -103,14 +108,14 @@
                             <div class="d-flex justify-content-center gap-2">
                                 <a href="{{ url_for('view_expense', expense_id=e.expense_id) }}" class="btn btn-sm btn-light rounded-circle shadow-sm" title="View"><i class="fas fa-eye text-primary"></i></a>
                                 <a href="{{ url_for('edit_expense', expense_id=e.expense_id) }}" class="btn btn-sm btn-light rounded-circle shadow-sm" title="Edit"><i class="fas fa-edit text-success"></i></a>
-                                <form action="{{ url_for('delete_expense', id=e.expense_id) }}" method="POST" onsubmit="return confirm('Archive this record?')">
+                                <form action="{{ url_for('delete_expense', id=e.expense_id) }}" method="POST" onsubmit="return confirm('Kya aap is voucher ko hamesha ke liye delete karna chahte hain?')">
                                     <button class="btn btn-sm btn-light rounded-circle shadow-sm"><i class="fas fa-trash text-danger"></i></button>
                                 </form>
                             </div>
                         </td>
                     </tr>
                     {% else %}
-                    <tr><td colspan="6" class="text-center py-5 text-muted">No transactions matching your criteria.</td></tr>
+                    <tr><td colspan="6" class="text-center py-5 text-muted">No records found matching your filters.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -122,8 +127,7 @@
     function filterSubCats() {
         const catId = document.getElementById('filterCat').value;
         const subSelect = document.getElementById('filterSub');
-        const options = subSelect.querySelectorAll('option');
-        options.forEach(opt => {
+        subSelect.querySelectorAll('option').forEach(opt => {
             if(opt.value === 'all') opt.style.display = 'block';
             else if(catId === 'all' || opt.getAttribute('data-parent') === catId) opt.style.display = 'block';
             else opt.style.display = 'none';
