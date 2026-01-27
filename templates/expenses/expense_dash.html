@@ -1,118 +1,264 @@
 {% extends 'admin_master.html' %}
 {% block page_content %}
+<!-- Dependencies -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+    :root {
+        --primary: #4f46e5;
+        --secondary: #0ea5e9;
+        --success: #10b981;
+        --dark: #0f172a;
+        --glass: rgba(255, 255, 255, 0.95);
+    }
+    
+    body { background-color: #f8fafc; font-family: 'Poppins', sans-serif; }
+
+    /* KPI Cards */
+    .kpi-card {
+        border: none; border-radius: 24px; position: relative; overflow: hidden;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    .kpi-card:hover { transform: translateY(-5px); box-shadow: 0 20px 40px rgba(0,0,0,0.1); }
+    
+    .card-total { background: linear-gradient(135deg, #0f172a 0%, #334155 100%); color: white; }
+    .card-cash { background: white; border: 1px solid #e2e8f0; color: #065f46; border-left: 6px solid #10b981; }
+    .card-bank { background: white; border: 1px solid #e2e8f0; color: #1e40af; border-left: 6px solid #3b82f6; }
+
+    /* Chart Containers */
+    .chart-card {
+        background: white; border-radius: 24px; border: none;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        padding: 1.5rem; height: 100%;
+    }
+
+    /* Action Buttons */
+    .btn-action {
+        padding: 12px 25px; border-radius: 50px; font-weight: 600;
+        transition: 0.2s; border: none;
+    }
+    .btn-primary-glow {
+        background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+        color: white; box-shadow: 0 4px 15px rgba(79, 70, 229, 0.4);
+    }
+    .btn-primary-glow:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(79, 70, 229, 0.5); color: white; }
+
+    /* Recent List */
+    .transaction-item {
+        border-bottom: 1px solid #f1f5f9; padding: 15px 0;
+        transition: 0.2s;
+    }
+    .transaction-item:hover { background-color: #f8fafc; padding-left: 10px; border-radius: 10px; }
+    .transaction-item:last-child { border-bottom: none; }
+    
+    .icon-box {
+        width: 45px; height: 45px; border-radius: 12px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.2rem;
+    }
+</style>
+
 <div class="container-fluid py-4 fade-in-up">
-    <!-- Header -->
+    <!-- Top Header -->
     <div class="d-flex justify-content-between align-items-center mb-5">
         <div>
-            <h2 class="fw-bold text-dark mb-0">Financial Command Center</h2>
-            <p class="text-muted small">Real-time expense oversight</p>
+            <h2 class="fw-bold text-dark m-0">Financial Command Center</h2>
+            <p class="text-muted small m-0">Real-time expense oversight & cashflow analytics</p>
         </div>
-        <div class="d-flex gap-2">
-            <a href="{{ url_for('expense_analytics') }}" class="btn btn-dark rounded-pill px-4">
-                <i class="fas fa-chart-line me-2"></i> Forecast AI
+        <div class="d-flex gap-3">
+            <a href="{{ url_for('expenses_list') }}" class="btn btn-light border btn-action shadow-sm">
+                <i class="fas fa-list-ul me-2"></i> Ledger
             </a>
-            <a href="{{ url_for('add_expense') }}" class="btn btn-primary rounded-pill px-4 shadow-sm">
+            <a href="{{ url_for('add_expense') }}" class="btn btn-primary-glow btn-action">
                 <i class="fas fa-plus me-2"></i> New Voucher
             </a>
         </div>
     </div>
 
-    <!-- Live Balance Row -->
+    <!-- KPI Row -->
     <div class="row g-4 mb-5">
-        <div class="col-md-6">
-            <div class="card border-0 shadow-lg rounded-4 overflow-hidden text-white" style="background: linear-gradient(135deg, #0f172a 0%, #334155 100%);">
-                <div class="card-body p-5 position-relative">
-                    <h6 class="text-white-50 text-uppercase fw-bold ls-1 mb-2">Net Cash Hand</h6>
-                    <h1 class="display-3 fw-bold mb-0">₹ {{ "{:,.0f}".format(fin.cash_balance) }}</h1>
-                    <i class="fas fa-wallet position-absolute end-0 top-50 translate-middle-y display-1 opacity-10 me-5"></i>
+        <!-- Total Balance -->
+        <div class="col-md-4">
+            <div class="kpi-card card-total p-4 h-100 shadow-lg">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <p class="text-uppercase fw-bold opacity-50 mb-1" style="font-size: 0.75rem; letter-spacing: 1px;">Net Liquidity</p>
+                        <h2 class="fw-bold m-0">₹ {{ "{:,.0f}".format(fin.total_balance) }}</h2>
+                    </div>
+                    <div class="icon-box bg-white bg-opacity-10 text-white">
+                        <i class="fas fa-chart-pie"></i>
+                    </div>
+                </div>
+                <div class="mt-4 pt-3 border-top border-white border-opacity-10">
+                    <small class="opacity-75"><i class="fas fa-check-circle me-1"></i> Total Available Funds</small>
                 </div>
             </div>
         </div>
-        <div class="col-md-6">
-            <div class="card border-0 shadow-lg rounded-4 overflow-hidden bg-white">
-                <div class="card-body p-5 position-relative">
-                    <h6 class="text-muted text-uppercase fw-bold ls-1 mb-2">Bank Liquidity</h6>
-                    <h1 class="display-3 fw-bold mb-0 text-primary">₹ {{ "{:,.0f}".format(fin.bank_balance) }}</h1>
-                    <i class="fas fa-building-columns position-absolute end-0 top-50 translate-middle-y display-1 text-primary opacity-10 me-5"></i>
+
+        <!-- Cash Balance -->
+        <div class="col-md-4">
+            <div class="kpi-card card-cash p-4 h-100 shadow-sm">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <p class="text-uppercase fw-bold text-muted mb-1" style="font-size: 0.75rem;">Office Cash</p>
+                        <h2 class="fw-bold text-dark m-0">₹ {{ "{:,.0f}".format(fin.cash_balance) }}</h2>
+                    </div>
+                    <div class="icon-box bg-success bg-opacity-10 text-success">
+                        <i class="fas fa-wallet"></i>
+                    </div>
+                </div>
+                <div class="mt-4 pt-3 border-top">
+                    <small class="text-success fw-bold"><i class="fas fa-arrow-up me-1"></i> Cash in Hand</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bank Balance -->
+        <div class="col-md-4">
+            <div class="kpi-card card-bank p-4 h-100 shadow-sm">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <p class="text-uppercase fw-bold text-muted mb-1" style="font-size: 0.75rem;">Bank / Online</p>
+                        <h2 class="fw-bold text-dark m-0">₹ {{ "{:,.0f}".format(fin.bank_balance) }}</h2>
+                    </div>
+                    <div class="icon-box bg-primary bg-opacity-10 text-primary">
+                        <i class="fas fa-university"></i>
+                    </div>
+                </div>
+                <div class="mt-4 pt-3 border-top">
+                    <small class="text-primary fw-bold"><i class="fas fa-shield-alt me-1"></i> Digital Funds</small>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Main Content Grid -->
-    <div class="row g-4">
-        <!-- Left: Stats & Trend -->
+    <!-- Analytics Row -->
+    <div class="row g-4 mb-5">
         <div class="col-lg-8">
-            <div class="row g-4 mb-4">
-                <div class="col-md-4">
-                    <div class="card border-0 shadow-sm p-4 h-100 rounded-4 bg-primary bg-opacity-10">
-                        <small class="text-primary fw-bold text-uppercase">This Month</small>
-                        <h3 class="fw-bold mb-0 mt-2">₹ {{ "{:,.0f}".format(stats.this_month or 0) }}</h3>
-                    </div>
+            <div class="chart-card">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h5 class="fw-bold m-0">Cashflow Trend</h5>
+                    <span class="badge bg-light text-dark border">Last 6 Months</span>
                 </div>
-                <div class="col-md-4">
-                    <div class="card border-0 shadow-sm p-4 h-100 rounded-4 bg-secondary bg-opacity-10">
-                        <small class="text-secondary fw-bold text-uppercase">Last Month</small>
-                        <h3 class="fw-bold mb-0 mt-2">₹ {{ "{:,.0f}".format(stats.last_month or 0) }}</h3>
-                    </div>
+                <div style="height: 300px;">
+                    <canvas id="cashflowChart"></canvas>
                 </div>
-                <div class="col-md-4">
-                    <div class="card border-0 shadow-sm p-4 h-100 rounded-4 bg-danger bg-opacity-10">
-                        <small class="text-danger fw-bold text-uppercase">Net Profit (Est)</small>
-                        <h3 class="fw-bold mb-0 mt-2">₹ {{ "{:,.0f}".format(fin.net_profit) }}</h3>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="card border-0 shadow-sm rounded-4 p-4">
-                <h5 class="fw-bold mb-4">Spending Velocity</h5>
-                <div style="height: 300px;"><canvas id="mainChart"></canvas></div>
             </div>
         </div>
-
-        <!-- Right: Recent Vouchers -->
         <div class="col-lg-4">
-            <div class="card border-0 shadow-sm rounded-4 h-100">
-                <div class="card-header bg-white border-0 pt-4 px-4 pb-0 d-flex justify-content-between">
-                    <h5 class="fw-bold mb-0">Recent Vouchers</h5>
-                    <a href="{{ url_for('expenses_list') }}" class="small text-decoration-none">View All</a>
+            <div class="chart-card">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h5 class="fw-bold m-0">Expense Breakdown</h5>
+                    <small class="text-muted">By Category</small>
                 </div>
-                <div class="card-body px-0">
-                    <div class="list-group list-group-flush">
-                        {% for e in recent %}
-                        <div class="list-group-item border-0 px-4 py-3">
-                            <div class="d-flex justify-content-between align-items-center mb-1">
-                                <span class="fw-bold text-dark">₹ {{ "{:,.2f}".format(e.total_amount) }}</span>
-                                <small class="text-muted">{{ e.expense_date }}</small>
+                <div style="height: 250px; position: relative;">
+                    <canvas id="pieChart"></canvas>
+                </div>
+                <div class="text-center mt-4">
+                    <small class="text-muted d-block">Top Spending Category</small>
+                    <span class="fw-bold text-dark">{{ pie.labels[0] if pie.labels else 'N/A' }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Transactions -->
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+        <div class="card-header bg-white p-4 border-0">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="fw-bold m-0">Recent Transactions</h5>
+                <a href="{{ url_for('expenses_list') }}" class="btn btn-sm btn-light border rounded-pill px-3">View All</a>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="list-group list-group-flush">
+                {% for r in recent %}
+                <div class="list-group-item border-0 px-4 py-3 transaction-item">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="icon-box {% if r.payment_method=='Cash' %}bg-success{% else %}bg-primary{% endif %} bg-opacity-10 text-dark">
+                                <i class="fas {% if r.payment_method=='Cash' %}fa-money-bill{% else %}fa-credit-card{% endif %}"></i>
                             </div>
-                            <div class="small text-muted text-truncate">{{ e.items }}</div>
-                            <span class="badge bg-light text-dark mt-2">{{ e.payment_method }}</span>
+                            <div>
+                                <h6 class="fw-bold m-0 text-dark">Voucher #{{ r.expense_id }}</h6>
+                                <small class="text-muted">{{ r.expense_date.strftime('%d %b, %Y') }} • {{ r.item_count }} Items</small>
+                            </div>
                         </div>
-                        {% endfor %}
+                        <div class="text-end">
+                            <h6 class="fw-bold m-0 text-danger">- ₹ {{ "{:,.0f}".format(r.total_amount) }}</h6>
+                            <span class="badge bg-light text-muted border rounded-pill" style="font-size: 0.65rem;">{{ r.payment_method }}</span>
+                        </div>
                     </div>
                 </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <p class="text-muted">No recent transactions found.</p>
+                </div>
+                {% endfor %}
             </div>
         </div>
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    const ctx = document.getElementById('mainChart').getContext('2d');
-    new Chart(ctx, {
-        type: 'line',
+    // 1. Cashflow Bar Chart
+    const ctxBar = document.getElementById('cashflowChart').getContext('2d');
+    new Chart(ctxBar, {
+        type: 'bar',
         data: {
-            labels: {{ trend_labels | tojson }},
+            labels: {{ cashflow.labels | tojson }},
+            datasets: [
+                {
+                    label: 'Income',
+                    data: {{ cashflow.income | tojson }},
+                    backgroundColor: '#10b981',
+                    borderRadius: 5,
+                    barPercentage: 0.6
+                },
+                {
+                    label: 'Expense',
+                    data: {{ cashflow.expense | tojson }},
+                    backgroundColor: '#ef4444',
+                    borderRadius: 5,
+                    barPercentage: 0.6
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'top', align: 'end', labels: { usePointStyle: true, boxWidth: 8 } }
+            },
+            scales: {
+                y: { beginAtZero: true, grid: { borderDash: [5, 5], color: '#f1f5f9' }, ticks: { font: { size: 11 } } },
+                x: { grid: { display: false }, ticks: { font: { size: 11 } } }
+            }
+        }
+    });
+
+    // 2. Category Pie Chart
+    const ctxPie = document.getElementById('pieChart').getContext('2d');
+    new Chart(ctxPie, {
+        type: 'doughnut',
+        data: {
+            labels: {{ pie.labels | tojson }},
             datasets: [{
-                label: 'Expense Trend',
-                data: {{ trend_values | tojson }},
-                borderColor: '#1e293b',
-                backgroundColor: 'rgba(30, 41, 59, 0.05)',
-                fill: true,
-                tension: 0.4
+                data: {{ pie.data | tojson }},
+                backgroundColor: ['#4f46e5', '#0ea5e9', '#10b981', '#f59e0b', '#ef4444'],
+                borderWidth: 0,
+                hoverOffset: 10
             }]
         },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '75%',
+            plugins: {
+                legend: { position: 'bottom', labels: { usePointStyle: true, padding: 20, boxWidth: 8 } }
+            }
+        }
     });
 </script>
 {% endblock %}
