@@ -142,6 +142,7 @@
                         <td class="text-center">
                             <div class="d-flex justify-content-center gap-2">
                                 <a href="{{ url_for('view_expense', expense_id=e.expense_id) }}" class="btn btn-sm btn-light rounded-circle shadow-sm border" title="View"><i class="fas fa-eye text-primary"></i></a>
+                                <a href="{{ url_for('expense_pdf', expense_id=e.expense_id) }}" class="btn btn-sm btn-light rounded-circle shadow-sm border" title="Download PDF"><i class="fas fa-file-pdf text-danger"></i></a>
                                 <a href="{{ url_for('edit_expense', expense_id=e.expense_id) }}" class="btn btn-sm btn-light rounded-circle shadow-sm border" title="Edit"><i class="fas fa-edit text-success"></i></a>
                                 <form action="{{ url_for('delete_expense', id=e.expense_id) }}" method="POST" onsubmit="return confirm('Archive this record?')">
                                     <button class="btn btn-sm btn-light rounded-circle shadow-sm border"><i class="fas fa-trash text-danger"></i></button>
@@ -184,3 +185,4 @@
     }
 </script>
 {% endblock %}
+
