@@ -269,15 +269,13 @@ def add_expense():
     if 'loggedin' not in session: 
         return redirect(url_for('login'))
     
-    # We open the connection at the start
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
     if request.method == 'POST':
         try:
             # 1. Extract Form Data
             exp_date_raw = request.form.get('expense_date')
-            # Assuming parse_date_input is defined in your app.py to handle d-m-Y to Y-m-d
-            exp_date = parse_date_input(exp_date_raw)
+            exp_date = parse_date_input(exp_date_raw) # d-m-Y to Y-m-d
             exp_time = get_ist_now().strftime('%H:%M:%S')
             main_cat_id = request.form.get('main_category_id')
             universal_note = request.form.get('voucher_description')
@@ -288,10 +286,9 @@ def add_expense():
             item_methods = request.form.getlist('item_payment_method[]')
             
             # 2. Calculations
-            # Convert to integers as requested for whole numbers
             total_sum = sum(int(float(x)) for x in amounts if x)
             
-            # Determine overall voucher payment method
+            # Overall voucher method logic
             unique_methods = set(item_methods)
             if len(unique_methods) > 1:
                 final_voucher_method = "Mixed"
@@ -300,18 +297,15 @@ def add_expense():
             else:
                 final_voucher_method = "Cash"
 
-            # 3. Handle Cloudinary Upload
+            # 3. Cloudinary Upload
             receipt_url = None
             if 'receipt' in request.files:
                 file = request.files['receipt']
                 if file and file.filename != '':
-                    try:
-                        upload_res = cloudinary.uploader.upload(file, folder="erp_expenses")
-                        receipt_url = upload_res.get('secure_url')
-                    except Exception as e:
-                        app.logger.error(f"Cloudinary Upload Error: {e}")
+                    upload_res = cloudinary.uploader.upload(file, folder="erp_expenses")
+                    receipt_url = upload_res.get('secure_url')
 
-            # 4. Insert Parent Voucher (expenses table)
+            # 4. Insert Parent Voucher
             cur.execute("""
                 INSERT INTO expenses 
                 (expense_date, expense_time, amount, total_amount, payment_method, receipt_url, description, subcategory_id)
@@ -319,7 +313,7 @@ def add_expense():
             """, (exp_date, exp_time, total_sum, total_sum, final_voucher_method, receipt_url, universal_note))
             eid = cur.lastrowid
             
-            # 5. Insert Child Items (expense_items table)
+            # 5. Insert Child Items
             for i in range(len(subcat_ids)):
                 if amounts[i] and int(float(amounts[i])) > 0:
                     cur.execute("""
@@ -335,14 +329,35 @@ def add_expense():
         except Exception as e:
             mysql.connection.rollback()
             app.logger.error(f"POST /add_expense error: {str(e)}")
-            flash(f"Error recording expense: {str(e)}", "danger")
+            flash(f"Error: {str(e)}", "danger")
 
-    # --- GET Logic & Error Recovery Path ---
+    # --- GET Logic: Calculate Balances for UI ---
     try:
         if not cur or cur.connection is None:
             cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
-        # Fetch Form Meta-data only
+        # 1. Total Income
+        cur.execute("SELECT SUM(cash_money) as cash, SUM(online_money) as bank FROM evening_settle WHERE status='final'")
+        eve = cur.fetchone()
+        cur.execute("SELECT SUM(cash_amount) as cash, SUM(online_amount) as bank FROM office_sales")
+        off = cur.fetchone()
+        
+        total_cash_in = float((eve['cash'] or 0) + (off['cash'] or 0))
+        total_bank_in = float((eve['bank'] or 0) + (off['bank'] or 0))
+
+        # 2. Total Expenses
+        cur.execute("""
+            SELECT 
+                SUM(CASE WHEN payment_method = 'Cash' THEN amount ELSE 0 END) as cash_total,
+                SUM(CASE WHEN payment_method = 'Online' THEN amount ELSE 0 END) as bank_total
+            FROM expense_items
+        """)
+        exp_totals = cur.fetchone()
+        
+        cash_balance = total_cash_in - float(exp_totals['cash_total'] or 0)
+        bank_balance = total_bank_in - float(exp_totals['bank_total'] or 0)
+
+        # 3. Meta Data
         cur.execute("SELECT * FROM expensecategories ORDER BY category_name")
         cats = cur.fetchall()
         cur.execute("SELECT * FROM expensesubcategories ORDER BY subcategory_name")
@@ -352,19 +367,15 @@ def add_expense():
         return render_template('expenses/add_expense.html', 
                              categories=cats, 
                              subcategories=subs,
+                             cash_balance=cash_balance,
+                             bank_balance=bank_balance,
                              today=date.today().strftime('%d-%m-%Y'))
 
     except Exception as e:
         app.logger.error(f"GET /add_expense error: {str(e)}")
         if cur: cur.close()
-        flash("System error while loading the expense form.", "danger")
-        return redirect(url_for('expense_dash'))
-
-    except Exception as e:
-        app.logger.error(f"GET /add_expense error: {str(e)}")
-        if cur: cur.close()
-        flash("System error while loading the expense form.", "danger")
-        return redirect(url_for('expense_dash'))
+        flash("Error loading form data.", "danger")
+        return redirect(url_for('expenses_list'))
 
 @app.route('/expenses_list')
 def expenses_list():
@@ -7368,6 +7379,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
