@@ -286,7 +286,7 @@
             </div>
             <div>
                 <small class="d-block text-uppercase fw-bold opacity-60" style="font-size: 0.6rem;" id="fundLabel">Cash fund availability</small>
-                <span class="fs-5 fw-bold" id="balanceText">₹ {{ "{:,.2f}".format(cash_balance) }}</span>
+                <span class="fs-5 fw-bold" id="balanceText">₹ {{ "{:,.2f}".format(cash_balance) if cash_balance is not none else '0.00' }}</span>
             </div>
         </div>
     </div>
@@ -407,14 +407,12 @@
                             <button type="submit" id="submitBtn" class="btn btn-post">
                                 <i class="fas fa-check-circle me-2"></i> Submit
                             </button>
-                            
                         </div>
                         
                         <div class="action-card-discard">
                             <a href="{{ url_for('expenses_list') }}" class="btn btn-discard text-center">
                                 <i class="fas fa-trash-can me-2"></i> Discard
                             </a>
-                        
                         </div>
                     </div>
                 </div>
@@ -427,8 +425,8 @@
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script>
     const subcategories = {{ subcategories | tojson }};
-    const cBal = {{ cash_balance }};
-    const bBal = {{ bank_balance }};
+    const cBal = {{ cash_balance if cash_balance is not none else 0 }};
+    const bBal = {{ bank_balance if bank_balance is not none else 0 }};
 
     // 1. Initialize UI Elements
     document.addEventListener('DOMContentLoaded', () => {
