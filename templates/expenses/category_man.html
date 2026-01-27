@@ -1,44 +1,49 @@
 {% extends 'admin_master.html' %}
 {% block page_content %}
 <style>
-    .cat-card { background: white; border-radius: 20px; border: 1px solid #e2e8f0; transition: 0.3s; }
-    .cat-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.05); }
-    .pill-add { background: #eff6ff; border: 1.5px dashed #3b82f6; border-radius: 12px; padding: 20px; text-align: center; }
+    :root { --primary: #4f46e5; }
+    body { background-color: #f1f5f9; font-family: 'Poppins', sans-serif; }
+    .cat-card { background: white; border-radius: 24px; border: none; transition: 0.3s; position: relative; overflow: hidden; }
+    .cat-card:hover { transform: translateY(-5px); box-shadow: 0 15px 30px rgba(0,0,0,0.05); }
+    .add-panel { background: #fff; border-radius: 20px; padding: 25px; border: 1px solid #e2e8f0; }
+    .main-cat-title { background: #eff6ff; color: #1e40af; border-radius: 12px; padding: 10px 15px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
 </style>
 
-<div class="container py-4">
+<div class="container py-5">
     <div class="d-flex justify-content-between align-items-center mb-5">
         <div>
-            <h3 class="fw-bold m-0">Accounting Structure</h3>
-            <p class="text-muted small">Manage Expense Categories & Sub-items</p>
+            <h2 class="fw-bold text-dark m-0">Accounting Hierarchy</h2>
+            <p class="text-muted">Define your expense structure for precise reporting</p>
         </div>
-        <a href="{{ url_for('expenses_list') }}" class="btn btn-light rounded-pill border px-4">Back to Ledger</a>
+        <a href="{{ url_for('expenses_list') }}" class="btn btn-light rounded-pill border px-4 shadow-sm">
+            <i class="fas fa-arrow-left me-2"></i> Back to Ledger
+        </a>
     </div>
 
     <div class="row g-4 mb-5">
         <div class="col-md-6">
-            <div class="pill-add">
-                <h6 class="fw-bold text-primary mb-3">Add Main Account Category</h6>
+            <div class="add-panel shadow-sm">
+                <h6 class="fw-bold text-primary mb-3"><i class="fas fa-folder-plus me-2"></i>Add Main Category</h6>
                 <form action="{{ url_for('category_man') }}" method="POST">
                     <input type="hidden" name="type" value="main">
                     <div class="input-group">
-                        <input type="text" name="name" class="form-control" placeholder="e.g. Office Rent, Electricity..." required>
+                        <input type="text" name="name" class="form-control border-0 bg-light" placeholder="e.g. Utility Bills, Fuel..." required>
                         <button class="btn btn-primary px-4"><i class="fas fa-plus"></i></button>
                     </div>
                 </form>
             </div>
         </div>
         <div class="col-md-6">
-            <div class="pill-add" style="background: #f0fdf4; border-color: #22c55e;">
-                <h6 class="fw-bold text-success mb-3">Add Sub-Category Item</h6>
+            <div class="add-panel shadow-sm" style="background: #f0fdf4; border-color: #dcfce7;">
+                <h6 class="fw-bold text-success mb-3"><i class="fas fa-plus-circle me-2"></i>Add Sub-Category Item</h6>
                 <form action="{{ url_for('category_man') }}" method="POST">
                     <input type="hidden" name="type" value="sub">
                     <div class="input-group">
-                        <select name="parent_id" class="form-select" style="max-width: 150px;" required>
-                            <option value="" disabled selected>Main...</option>
+                        <select name="parent_id" class="form-select border-0 bg-light" style="max-width: 160px;" required>
+                            <option value="" disabled selected>Select Main...</option>
                             {% for c in tree %} <option value="{{ c.category_id }}">{{ c.category_name }}</option> {% endfor %}
                         </select>
-                        <input type="text" name="name" class="form-control" placeholder="Item Name" required>
+                        <input type="text" name="name" class="form-control border-0 bg-light" placeholder="Item Name" required>
                         <button class="btn btn-success px-4"><i class="fas fa-plus"></i></button>
                     </div>
                 </form>
@@ -49,16 +54,16 @@
     <div class="row g-4">
         {% for c in tree %}
         <div class="col-md-4">
-            <div class="cat-card p-4 h-100">
-                <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
-                    <h5 class="fw-bold text-dark m-0">{{ c.category_name }}</h5>
-                    <button class="btn btn-sm btn-light text-danger rounded-circle"><i class="fas fa-trash"></i></button>
+            <div class="cat-card p-4 h-100 shadow-sm">
+                <div class="main-cat-title">
+                    <h6 class="fw-bold m-0">{{ c.category_name }}</h6>
+                    <span class="badge bg-white text-primary rounded-pill border">{{ c.subs|length }} Items</span>
                 </div>
                 <div class="list-group list-group-flush">
                     {% for s in c.subs %}
                     <div class="list-group-item d-flex justify-content-between align-items-center border-0 px-0 py-2">
-                        <span class="text-muted small"><i class="fas fa-chevron-right me-2 font-xs"></i>{{ s.subcategory_name }}</span>
-                        <button class="btn btn-sm text-muted opacity-50"><i class="fas fa-times"></i></button>
+                        <span class="text-muted small"><i class="fas fa-chevron-right me-2 text-primary opacity-25"></i>{{ s.subcategory_name }}</span>
+                        <button class="btn btn-sm text-danger opacity-25 hover-opacity-100"><i class="fas fa-times"></i></button>
                     </div>
                     {% endfor %}
                 </div>
