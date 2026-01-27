@@ -377,7 +377,8 @@ def add_expense():
         flash("Error loading form data.", "danger")
         return redirect(url_for('expenses_list'))
 
-# 1. Expense List (With Advanced Filters)
+
+# 1. Expense List (With Advanced Filters & Date Range Support)
 @app.route('/expenses_list')
 def expenses_list():
     if 'loggedin' not in session: return redirect(url_for('login'))
@@ -387,7 +388,7 @@ def expenses_list():
     q = request.args.get('q', '')
     cat_id = request.args.get('cat_id', 'all')
     sub_id = request.args.get('sub_id', 'all')
-    date_range = request.args.get('date_range', '') # Using a single range string from Flatpickr
+    date_range = request.args.get('date_range', '') # Single string from Flatpickr
     
     sql = """
         SELECT e.*, 
@@ -410,13 +411,20 @@ def expenses_list():
         sql += " AND ei.subcategory_id = %s"
         params.append(sub_id)
         
-    # Date Range Logic (format: YYYY-MM-DD to YYYY-MM-DD)
-    if date_range and "to" in date_range:
-        try:
-            start_str, end_str = date_range.split(" to ")
-            sql += " AND e.expense_date BETWEEN %s AND %s"
-            params.extend([start_str.strip(), end_str.strip()])
-        except: pass
+    # Date Range Logic (format from Flatpickr: "YYYY-MM-DD to YYYY-MM-DD")
+    if date_range:
+        if "to" in date_range:
+            try:
+                parts = date_range.split(" to ")
+                if len(parts) == 2:
+                    start_str, end_str = parts
+                    sql += " AND e.expense_date BETWEEN %s AND %s"
+                    params.extend([start_str.strip(), end_str.strip()])
+            except: pass
+        else:
+            # Single date selected
+            sql += " AND e.expense_date = %s"
+            params.append(date_range.strip())
     
     sql += " GROUP BY e.expense_id ORDER BY e.expense_date DESC, e.expense_time DESC"
     
@@ -434,6 +442,7 @@ def expenses_list():
                          categories=categories, 
                          subcategories=subcategories,
                          filters={'q':q, 'cat':cat_id, 'sub':sub_id, 'range':date_range})
+
 
 
 # 4. ANALYTICS
@@ -7382,6 +7391,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
