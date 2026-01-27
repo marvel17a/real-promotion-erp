@@ -399,16 +399,28 @@ def expense_dash():
     
     # --- 1. FINANCIAL HEALTH (KPI Cards) ---
     
-    # Income (Sales)
+    # A. Existing Income (Sales)
     cur.execute("SELECT SUM(cash_money) as cash, SUM(online_money) as bank FROM evening_settle WHERE status='final'")
     eve = cur.fetchone()
     cur.execute("SELECT SUM(cash_amount) as cash, SUM(online_amount) as bank FROM office_sales")
     off = cur.fetchone()
     
-    total_cash_in = float(eve['cash'] or 0) + float(off['cash'] or 0)
-    total_bank_in = float(eve['bank'] or 0) + float(off['bank'] or 0)
+    # B. NEW SOURCE: Employee Transactions (Money In -> Credit)
+    # If type='credit', money comes IN to company (e.g. return of advance, collection)
+    cur.execute("""
+        SELECT 
+            SUM(CASE WHEN payment_mode = 'Cash' THEN amount ELSE 0 END) as cash_in,
+            SUM(CASE WHEN payment_mode != 'Cash' THEN amount ELSE 0 END) as bank_in
+        FROM employee_transactions 
+        WHERE type = 'credit'
+    """)
+    emp_credit = cur.fetchone()
+    
+    # Total Income Calculation
+    total_cash_in = float(eve['cash'] or 0) + float(off['cash'] or 0) + float(emp_credit['cash_in'] or 0)
+    total_bank_in = float(eve['bank'] or 0) + float(off['bank'] or 0) + float(emp_credit['bank_in'] or 0)
 
-    # Expenses
+    # C. Expenses (Money Out -> Vouchers)
     cur.execute("""
         SELECT 
             SUM(CASE WHEN payment_method = 'Cash' THEN amount ELSE 0 END) as cash_out,
@@ -417,8 +429,23 @@ def expense_dash():
     """)
     exp = cur.fetchone()
     
-    cash_bal = total_cash_in - float(exp['cash_out'] or 0)
-    bank_bal = total_bank_in - float(exp['bank_out'] or 0)
+    # D. NEW OUTFLOW: Employee Transactions (Money Out -> Debit)
+    # If type='debit', money goes OUT from company (e.g. Salary Advance, Petrol)
+    cur.execute("""
+        SELECT 
+            SUM(CASE WHEN payment_mode = 'Cash' THEN amount ELSE 0 END) as cash_out,
+            SUM(CASE WHEN payment_mode != 'Cash' THEN amount ELSE 0 END) as bank_out
+        FROM employee_transactions 
+        WHERE type = 'debit'
+    """)
+    emp_debit = cur.fetchone()
+
+    # Final Balance Calculation
+    total_cash_out = float(exp['cash_out'] or 0) + float(emp_debit['cash_out'] or 0)
+    total_bank_out = float(exp['bank_out'] or 0) + float(emp_debit['bank_out'] or 0)
+    
+    cash_bal = total_cash_in - total_cash_out
+    bank_bal = total_bank_in - total_bank_out
     total_bal = cash_bal + bank_bal
 
     fin_health = {
@@ -428,7 +455,6 @@ def expense_dash():
     }
 
     # --- 2. CASHFLOW CHART (Monthly Income vs Expense) ---
-    # Get last 6 months
     months = []
     income_data = []
     expense_data = []
@@ -436,25 +462,29 @@ def expense_dash():
     for i in range(5, -1, -1):
         d = date.today() - timedelta(days=i*30)
         m_start = d.replace(day=1)
-        # End of month logic simplified
         next_m = (m_start.replace(day=28) + timedelta(days=4)).replace(day=1)
         m_end = next_m - timedelta(days=1)
-        
         m_label = m_start.strftime('%b')
         months.append(m_label)
         
-        # Monthly Income
+        # Monthly Income (Field + Office + Emp Credit)
         cur.execute("""
             SELECT (
                 COALESCE((SELECT SUM(total_amount) FROM evening_settle WHERE date BETWEEN %s AND %s AND status='final'), 0) +
-                COALESCE((SELECT SUM(final_amount) FROM office_sales WHERE sale_date BETWEEN %s AND %s), 0)
+                COALESCE((SELECT SUM(final_amount) FROM office_sales WHERE sale_date BETWEEN %s AND %s), 0) +
+                COALESCE((SELECT SUM(amount) FROM employee_transactions WHERE transaction_date BETWEEN %s AND %s AND type='credit'), 0)
             ) as total
-        """, (m_start, m_end, m_start, m_end))
+        """, (m_start, m_end, m_start, m_end, m_start, m_end))
         inc = cur.fetchone()['total']
         income_data.append(float(inc))
         
-        # Monthly Expense
-        cur.execute("SELECT SUM(total_amount) as total FROM expenses WHERE expense_date BETWEEN %s AND %s", (m_start, m_end))
+        # Monthly Expense (Vouchers + Emp Debit)
+        cur.execute("""
+            SELECT (
+                COALESCE((SELECT SUM(total_amount) FROM expenses WHERE expense_date BETWEEN %s AND %s), 0) +
+                COALESCE((SELECT SUM(amount) FROM employee_transactions WHERE transaction_date BETWEEN %s AND %s AND type='debit'), 0)
+            ) as total
+        """, (m_start, m_end, m_start, m_end))
         exc = cur.fetchone()['total'] or 0
         expense_data.append(float(exc))
 
@@ -504,13 +534,15 @@ def add_expense():
     if 'loggedin' not in session: 
         return redirect(url_for('login'))
     
+    # We open the connection at the start
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
     if request.method == 'POST':
         try:
             # 1. Extract Form Data
             exp_date_raw = request.form.get('expense_date')
-            exp_date = parse_date_input(exp_date_raw) # d-m-Y to Y-m-d
+            # Assuming parse_date_input is defined in your app.py to handle d-m-Y to Y-m-d
+            exp_date = parse_date_input(exp_date_raw)
             exp_time = get_ist_now().strftime('%H:%M:%S')
             main_cat_id = request.form.get('main_category_id')
             universal_note = request.form.get('voucher_description')
@@ -521,9 +553,10 @@ def add_expense():
             item_methods = request.form.getlist('item_payment_method[]')
             
             # 2. Calculations
+            # Convert to integers as requested for whole numbers
             total_sum = sum(int(float(x)) for x in amounts if x)
             
-            # Overall voucher method logic
+            # Determine overall voucher payment method
             unique_methods = set(item_methods)
             if len(unique_methods) > 1:
                 final_voucher_method = "Mixed"
@@ -532,15 +565,18 @@ def add_expense():
             else:
                 final_voucher_method = "Cash"
 
-            # 3. Cloudinary Upload
+            # 3. Handle Cloudinary Upload
             receipt_url = None
             if 'receipt' in request.files:
                 file = request.files['receipt']
                 if file and file.filename != '':
-                    upload_res = cloudinary.uploader.upload(file, folder="erp_expenses")
-                    receipt_url = upload_res.get('secure_url')
+                    try:
+                        upload_res = cloudinary.uploader.upload(file, folder="erp_expenses")
+                        receipt_url = upload_res.get('secure_url')
+                    except Exception as e:
+                        app.logger.error(f"Cloudinary Upload Error: {e}")
 
-            # 4. Insert Parent Voucher
+            # 4. Insert Parent Voucher (expenses table)
             cur.execute("""
                 INSERT INTO expenses 
                 (expense_date, expense_time, amount, total_amount, payment_method, receipt_url, description, subcategory_id)
@@ -548,7 +584,7 @@ def add_expense():
             """, (exp_date, exp_time, total_sum, total_sum, final_voucher_method, receipt_url, universal_note))
             eid = cur.lastrowid
             
-            # 5. Insert Child Items
+            # 5. Insert Child Items (expense_items table)
             for i in range(len(subcat_ids)):
                 if amounts[i] and int(float(amounts[i])) > 0:
                     cur.execute("""
@@ -564,23 +600,33 @@ def add_expense():
         except Exception as e:
             mysql.connection.rollback()
             app.logger.error(f"POST /add_expense error: {str(e)}")
-            flash(f"Error: {str(e)}", "danger")
+            flash(f"Error recording expense: {str(e)}", "danger")
 
-    # --- GET Logic: Calculate Balances for UI ---
+    # --- GET Logic & Error Recovery Path ---
     try:
         if not cur or cur.connection is None:
             cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
-        # 1. Total Income
+        # 1. Total Income (Sales + Employee Credit)
         cur.execute("SELECT SUM(cash_money) as cash, SUM(online_money) as bank FROM evening_settle WHERE status='final'")
         eve = cur.fetchone()
         cur.execute("SELECT SUM(cash_amount) as cash, SUM(online_amount) as bank FROM office_sales")
         off = cur.fetchone()
         
-        total_cash_in = float((eve['cash'] or 0) + (off['cash'] or 0))
-        total_bank_in = float((eve['bank'] or 0) + (off['bank'] or 0))
+        # New: Add Employee Credit (Money In)
+        cur.execute("""
+            SELECT 
+                SUM(CASE WHEN payment_mode = 'Cash' THEN amount ELSE 0 END) as cash_in,
+                SUM(CASE WHEN payment_mode != 'Cash' THEN amount ELSE 0 END) as bank_in
+            FROM employee_transactions 
+            WHERE type = 'credit'
+        """)
+        emp_in = cur.fetchone()
+        
+        total_cash_in = float(eve['cash'] or 0) + float(off['cash'] or 0) + float(emp_in['cash_in'] or 0)
+        total_bank_in = float(eve['bank'] or 0) + float(off['bank'] or 0) + float(emp_in['bank_in'] or 0)
 
-        # 2. Total Expenses
+        # 2. Total Expenses (Vouchers + Employee Debit)
         cur.execute("""
             SELECT 
                 SUM(CASE WHEN payment_method = 'Cash' THEN amount ELSE 0 END) as cash_total,
@@ -589,8 +635,21 @@ def add_expense():
         """)
         exp_totals = cur.fetchone()
         
-        cash_balance = total_cash_in - float(exp_totals['cash_total'] or 0)
-        bank_balance = total_bank_in - float(exp_totals['bank_total'] or 0)
+        # New: Add Employee Debit (Money Out)
+        cur.execute("""
+            SELECT 
+                SUM(CASE WHEN payment_mode = 'Cash' THEN amount ELSE 0 END) as cash_out,
+                SUM(CASE WHEN payment_mode != 'Cash' THEN amount ELSE 0 END) as bank_out
+            FROM employee_transactions 
+            WHERE type = 'debit'
+        """)
+        emp_out = cur.fetchone()
+        
+        total_cash_out = float(exp_totals['cash_total'] or 0) + float(emp_out['cash_out'] or 0)
+        total_bank_out = float(exp_totals['bank_total'] or 0) + float(emp_out['bank_out'] or 0)
+
+        cash_balance = total_cash_in - total_cash_out
+        bank_balance = total_bank_in - total_bank_out
 
         # 3. Meta Data
         cur.execute("SELECT * FROM expensecategories ORDER BY category_name")
@@ -609,8 +668,8 @@ def add_expense():
     except Exception as e:
         app.logger.error(f"GET /add_expense error: {str(e)}")
         if cur: cur.close()
-        flash("Error loading form data.", "danger")
-        return redirect(url_for('expenses_list'))
+        flash("System error while loading the expense form.", "danger")
+        return redirect(url_for('expense_dash'))
 
 
 # 1. Expense List (With Advanced Filters & Date Range Support)
@@ -7626,6 +7685,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
