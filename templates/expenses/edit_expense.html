@@ -1,26 +1,28 @@
 {% extends 'admin_master.html' %}
 {% block page_content %}
-<!-- Exact design mirror of add_expense.html with pre-filled values -->
+<!-- Same premium design as add_expense but with populated values -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <style>
-    :root { --primary: #4f46e5; --light-blue: #0ea5e9; --success: #10b981; --danger: #ef4444; --glass: rgba(255, 255, 255, 0.95); }
+    :root { --primary: #4f46e5; --light-blue: #0ea5e9; --success: #10b981; --danger: #ef4444; }
     body { font-family: 'Poppins', sans-serif; background-color: #f1f5f9; }
-    .live-clock-box { background: var(--light-blue); color: white; padding: 6px 22px; border-radius: 50px; font-family: 'monospace'; font-weight: 800; }
-    .total-box-premium { background: var(--light-blue) !important; color: white !important; border-radius: 20px; padding: 25px; box-shadow: 0 10px 20px rgba(14, 165, 233, 0.4); }
-    .premium-card { background: var(--glass); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.5); border-radius: 24px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05); }
-    .form-control, .form-select { border-radius: 12px; padding: 12px; border: 1.5px solid #e2e8f0; }
+    .live-clock-box { background: var(--light-blue); color: white; padding: 6px 22px; border-radius: 50px; font-weight: 800; }
+    .total-box-premium { background: var(--light-blue) !important; color: white !important; border-radius: 20px; padding: 25px; }
+    .premium-card { background: white; border-radius: 24px; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05); }
     .btn-add-item { background: #ecfdf5; color: #059669; border: 2px dashed #10b981; border-radius: 12px; width: 100%; padding: 12px; font-weight: 700; }
-    .btn-post { background: var(--success); color: white; border: none; border-radius: 15px; font-weight: 700; padding: 12px; }
+    input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 </style>
 
 <div class="container-fluid py-4">
+    <div class="mb-4">
+        <a href="{{ url_for('expenses_list') }}" class="btn btn-light rounded-pill border shadow-sm px-4">
+            <i class="fas fa-arrow-left me-2"></i> Back to Ledger
+        </a>
+    </div>
+
     <div class="row align-items-center mb-4">
         <div class="col-md-7">
             <h2 class="fw-bold text-dark m-0">Edit Voucher #{{ expense.expense_id }}</h2>
-            <div class="d-flex align-items-center gap-3 mt-2">
-                <span id="liveClock" class="live-clock-box">00:00:00</span>
-                <span class="text-muted small"><i class="fas fa-calendar-alt me-1"></i> Original Date: {{ expense.expense_date.strftime('%d-%m-%Y') }}</span>
-            </div>
+            <div class="mt-2 text-muted small"><i class="fas fa-calendar me-1"></i> Original: {{ expense.expense_date.strftime('%d-%m-%Y') }}</div>
         </div>
     </div>
 
@@ -30,19 +32,11 @@
             <div class="col-lg-8">
                 <div class="card premium-card p-4 mb-4">
                     <div class="row g-3 mb-4">
-                        <div class="col-md-4">
+                        <div class="col-md-6">
                             <label class="small fw-bold text-muted">VOUCHER DATE</label>
                             <input type="text" name="expense_date" id="datePicker" class="form-control" value="{{ expense.expense_date.strftime('%d-%m-%Y') }}" required>
                         </div>
-                        <div class="col-md-4">
-                            <label class="small fw-bold text-muted">PAYMENT MODE</label>
-                            <select name="payment_method" class="form-select">
-                                <option value="Cash" {% if expense.payment_method == 'Cash' %}selected{% endif %}>Cash Payment</option>
-                                <option value="Online" {% if expense.payment_method == 'Online' %}selected{% endif %}>Online / Bank</option>
-                                <option value="Mixed" {% if expense.payment_method == 'Mixed' %}selected{% endif %}>Mixed (Cash + Bank)</option>
-                            </select>
-                        </div>
-                        <div class="col-md-4">
+                        <div class="col-md-6">
                             <label class="small fw-bold text-muted">MAIN CATEGORY</label>
                             <select name="main_category_id" id="mainCat" class="form-select" onchange="initVoucher()" required>
                                 {% for cat in categories %}
@@ -57,15 +51,16 @@
                             <table class="table table-borderless align-middle">
                                 <thead>
                                     <tr class="small text-muted border-bottom">
-                                        <th style="width: 35%;">Sub-Category</th>
-                                        <th style="width: 40%;">Notes</th>
+                                        <th style="width: 25%;">Sub-Category</th>
+                                        <th style="width: 20%;">Method</th>
+                                        <th style="width: 30%;">Note</th>
                                         <th style="width: 20%;">Amount (₹)</th>
                                         <th style="width: 5%;"></th>
                                     </tr>
                                 </thead>
                                 <tbody id="tableBody">
                                     {% for item in items %}
-                                    <tr class="item-row">
+                                    <tr>
                                         <td>
                                             <select name="subcategory_id[]" class="form-select border-0 bg-light" required>
                                                 {% for s in subcategories %}
@@ -75,9 +70,15 @@
                                                 {% endfor %}
                                             </select>
                                         </td>
+                                        <td>
+                                            <select name="item_payment_method[]" class="form-select border-0 bg-light small">
+                                                <option value="Cash" {% if item.payment_method == 'Cash' %}selected{% endif %}>Cash</option>
+                                                <option value="Online" {% if item.payment_method == 'Online' %}selected{% endif %}>Online</option>
+                                            </select>
+                                        </td>
                                         <td><input type="text" name="description[]" class="form-control border-0 bg-light" value="{{ item.description }}"></td>
                                         <td><input type="number" name="amount[]" class="form-control border-0 bg-light fw-bold text-end val-input" value="{{ item.amount|int }}" oninput="recalculate()" required></td>
-                                        <td class="text-end"><button type="button" class="btn btn-link text-danger p-0" onclick="this.closest('tr').remove();recalculate();"><i class="fas fa-trash"></i></button></td>
+                                        <td><button type="button" class="btn btn-link text-danger p-0" onclick="this.closest('tr').remove();recalculate();"><i class="fas fa-trash"></i></button></td>
                                     </tr>
                                     {% endfor %}
                                 </tbody>
@@ -91,16 +92,16 @@
 
                 <div class="row g-4">
                     <div class="col-md-6">
-                        <div class="card premium-card p-4 h-100">
-                            <h6 class="fw-bold mb-3 small text-muted text-uppercase">Supporting Document</h6>
-                            <input type="file" name="receipt" class="form-control mb-2" accept="image/*">
-                            {% if expense.receipt_url %}<small class="text-primary">Existing receipt attached</small>{% endif %}
+                        <div class="card premium-card p-4 h-100 text-center">
+                            <h6 class="fw-bold mb-3 small text-muted text-uppercase">Update Document</h6>
+                            <input type="file" name="receipt" class="form-control mb-2" accept="image/*,application/pdf">
+                            {% if expense.receipt_url %}<a href="{{ expense.receipt_url }}" target="_blank" class="small text-primary"><i class="fas fa-link me-1"></i>View Existing Receipt</a>{% endif %}
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="card premium-card p-4 h-100">
                             <h6 class="fw-bold mb-3 small text-muted text-uppercase">Universal Note</h6>
-                            <textarea name="voucher_description" class="form-control bg-light border-0" rows="4">{{ expense.description }}</textarea>
+                            <textarea name="voucher_description" class="form-control bg-light border-0" rows="3">{{ expense.description }}</textarea>
                         </div>
                     </div>
                 </div>
@@ -108,12 +109,12 @@
 
             <div class="col-lg-4">
                 <div class="card premium-card p-4 sticky-top" style="top: 20px;">
-                    <div id="totalCard" class="total-box-premium text-center my-4">
-                        <small class="text-uppercase opacity-75 fw-bold" style="font-size: 0.7rem;">Update Grand Total</small>
-                        <h1 class="fw-bold m-0" id="totalText">₹ {{ "{:,.0f}".format(expense.total_amount) }}</h1>
+                    <div class="total-box-premium text-center my-4">
+                        <small class="text-uppercase opacity-75 fw-bold">Grand Total</small>
+                        <h1 class="fw-bold m-0" id="totalText">₹ 0</h1>
                     </div>
-                    <button type="submit" class="btn btn-post w-100 shadow-sm"><i class="fas fa-save me-2"></i> Save Changes</button>
-                    <a href="{{ url_for('expenses_list') }}" class="btn btn-light border w-100 mt-2 rounded-pill">Cancel</a>
+                    <button type="submit" class="btn btn-success w-100 py-3 rounded-4 fw-bold shadow-sm mb-3">Save Changes</button>
+                    <a href="{{ url_for('expenses_list') }}" class="btn btn-outline-secondary w-100 rounded-4 py-2">Cancel</a>
                 </div>
             </div>
         </div>
@@ -125,7 +126,6 @@
     const subcats = {{ subcategories | tojson }};
     document.addEventListener('DOMContentLoaded', () => {
         flatpickr("#datePicker", { dateFormat: "d-m-Y" });
-        setInterval(() => { document.getElementById('liveClock').innerText = new Date().toLocaleTimeString(); }, 1000);
         recalculate();
     });
 
@@ -134,11 +134,12 @@
         const filtered = subcats.filter(s => s.category_id == mainId);
         let opts = '';
         filtered.forEach(s => opts += `<option value="${s.subcategory_id}">${s.subcategory_name}</option>`);
-        const tr = document.createElement('tr'); tr.className = 'item-row';
+        const tr = document.createElement('tr');
         tr.innerHTML = `<td><select name="subcategory_id[]" class="form-select border-0 bg-light" required>${opts}</select></td>
+            <td><select name="item_payment_method[]" class="form-select border-0 bg-light small"><option value="Cash">Cash</option><option value="Online">Online</option></select></td>
             <td><input type="text" name="description[]" class="form-control border-0 bg-light"></td>
             <td><input type="number" name="amount[]" class="form-control border-0 bg-light fw-bold text-end val-input" oninput="recalculate()" required></td>
-            <td class="text-end"><button type="button" class="btn btn-link text-danger p-0" onclick="this.closest('tr').remove();recalculate();"><i class="fas fa-trash"></i></button></td>`;
+            <td><button type="button" class="btn btn-link text-danger p-0" onclick="this.closest('tr').remove();recalculate();"><i class="fas fa-trash"></i></button></td>`;
         document.getElementById('tableBody').appendChild(tr);
     }
     function recalculate() {
