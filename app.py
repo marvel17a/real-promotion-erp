@@ -269,52 +269,56 @@ def add_expense():
     if 'loggedin' not in session: return redirect(url_for('login'))
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
-    try:
-        if request.method == 'POST':
-            # 1. Capture Form Data
-            # Note: parse_date_input should convert dd-mm-yyyy to yyyy-mm-dd
-            exp_date_raw = request.form.get('expense_date')
-            exp_date = parse_date_input(exp_date_raw) 
+    if request.method == 'POST':
+        try:
+            exp_date = parse_date_input(request.form.get('expense_date'))
             exp_time = get_ist_now().strftime('%H:%M:%S')
-            method = request.form.get('payment_method')
             main_cat_id = request.form.get('main_category_id')
             universal_note = request.form.get('voucher_description') 
             
             subcat_ids = request.form.getlist('subcategory_id[]')
             amounts = request.form.getlist('amount[]')
             item_notes = request.form.getlist('description[]') 
+            item_methods = request.form.getlist('item_payment_method[]') # Naya: Item-wise method
             
-            # Calculate total as integer for whole numbers as requested
-            total_sum = sum(int(float(x)) for x in amounts if x)
+            total_sum = sum(int(x) for x in amounts if x)
 
-            # 2. Receipt Handling (Cloudinary)
+            # Payment Summary Logic (Cash/Online/Mixed)
+            unique_methods = set(item_methods)
+            final_voucher_method = item_methods[0] if len(unique_methods) == 1 else "Mixed"
+
+            # Cloudinary upload
             receipt_url = None
             if 'receipt' in request.files:
                 file = request.files['receipt']
-                if file and file.filename != '':
+                if file.filename != '':
                     upload_res = cloudinary.uploader.upload(file, folder="erp_expenses")
                     receipt_url = upload_res.get('secure_url')
 
-            # 3. Insert Parent Voucher into 'expenses'
-            # Note: subcategory_id is now NULL-able. We save total_sum in 'amount' and 'total_amount'
+            # Parent Insert
             cur.execute("""
                 INSERT INTO expenses 
-                (expense_date, expense_time, amount, total_amount, payment_method, receipt_url, description, subcategory_id)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, NULL)
-            """, (exp_date, exp_time, total_sum, total_sum, method, receipt_url, universal_note))
+                (expense_date, expense_time, amount, total_amount, payment_method, receipt_url, description)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+            """, (exp_date, exp_time, total_sum, total_sum, final_voucher_method, receipt_url, universal_note))
             eid = cur.lastrowid
             
-            # 4. Insert Child Items into 'expense_items'
+            # Child Items Insert
             for i in range(len(subcat_ids)):
-                if amounts[i] and int(float(amounts[i])) > 0:
+                if amounts[i] and int(amounts[i]) > 0:
                     cur.execute("""
-                        INSERT INTO expense_items (expense_id, category_id, subcategory_id, amount, description)
-                        VALUES (%s, %s, %s, %s, %s)
-                    """, (eid, main_cat_id, subcat_ids[i], int(float(amounts[i])), item_notes[i]))
+                        INSERT INTO expense_items (expense_id, category_id, subcategory_id, amount, payment_method, description)
+                        VALUES (%s, %s, %s, %s, %s, %s)
+                    """, (eid, main_cat_id, subcat_ids[i], int(amounts[i]), item_methods[i], item_notes[i]))
             
             mysql.connection.commit()
-            flash(f"Voucher #{eid} Saved Successfully!", "success")
-            return redirect(url_for('expense_dash'))
+            flash(f"Voucher #{eid} Saved!", "success")
+            return redirect(url_for('expenses_list'))
+        except Exception as e:
+            mysql.connection.rollback()
+            flash(f"Error: {str(e)}", "danger")
+        finally:
+            cur.close()
 
         # --- GET Logic: Calculated regardless of balance sufficiency ---
         
@@ -364,16 +368,14 @@ def expenses_list():
     if 'loggedin' not in session: return redirect(url_for('login'))
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
-    # 1. Get Filters
+    # 1. Filters lene ke liye
     q = request.args.get('q', '')
     cat_id = request.args.get('cat_id', 'all')
     sub_id = request.args.get('sub_id', 'all')
     start_date = request.args.get('start_date', '')
     end_date = request.args.get('end_date', '')
     
-    # 2. Build Query
-    # We join with expense_items and categories to get the "Main Category" name for the list
-    # We group by expense_id to show one row per voucher
+    # 2. Query Build: "Mixed" status automatically handle hoga based on items
     sql = """
         SELECT e.*, 
                GROUP_CONCAT(DISTINCT c.category_name SEPARATOR ', ') as main_category,
@@ -403,7 +405,7 @@ def expenses_list():
     cur.execute(sql, tuple(params))
     expenses = cur.fetchall()
     
-    # Fetch Meta for Filters
+    # Filters ke liye categories fetch karein
     cur.execute("SELECT * FROM expensecategories ORDER BY category_name")
     categories = cur.fetchall()
     cur.execute("SELECT * FROM expensesubcategories ORDER BY subcategory_name")
@@ -477,16 +479,15 @@ def category_man():
     return render_template('expenses/category_man.html', tree=tree)
 
 
+
 @app.route('/view_expense/<int:expense_id>')
 def view_expense(expense_id):
     if 'loggedin' not in session: return redirect(url_for('login'))
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
-    # Fetch Parent
     cur.execute("SELECT * FROM expenses WHERE expense_id = %s", (expense_id,))
     expense = cur.fetchone()
     
-    # Fetch Items with full names
     cur.execute("""
         SELECT ei.*, c.category_name, sc.subcategory_name 
         FROM expense_items ei
@@ -507,57 +508,53 @@ def edit_expense(expense_id):
     if request.method == 'POST':
         try:
             exp_date = parse_date_input(request.form.get('expense_date'))
-            method = request.form.get('payment_method')
             main_cat_id = request.form.get('main_category_id')
             universal_note = request.form.get('voucher_description')
             subcat_ids = request.form.getlist('subcategory_id[]')
             amounts = request.form.getlist('amount[]')
             item_notes = request.form.getlist('description[]')
+            item_methods = request.form.getlist('item_payment_method[]')
             
             total_sum = sum(int(x) for x in amounts if x)
-            
-            # Handle Image Update (Only if new file uploaded)
+            unique_methods = set(item_methods)
+            final_voucher_method = item_methods[0] if len(unique_methods) == 1 else "Mixed"
+
+            # Handle Receipt Update
             receipt_url = request.form.get('old_receipt_url')
             if 'receipt' in request.files and request.files['receipt'].filename != '':
                 upload_res = cloudinary.uploader.upload(request.files['receipt'], folder="erp_expenses")
                 receipt_url = upload_res.get('secure_url')
 
-            # Update Parent
             cur.execute("""
                 UPDATE expenses 
                 SET expense_date=%s, amount=%s, total_amount=%s, payment_method=%s, receipt_url=%s, description=%s
                 WHERE expense_id=%s
-            """, (exp_date, total_sum, total_sum, method, receipt_url, universal_note, expense_id))
+            """, (exp_date, total_sum, total_sum, final_voucher_method, receipt_url, universal_note, expense_id))
             
-            # Refresh Items: Delete and Re-insert
             cur.execute("DELETE FROM expense_items WHERE expense_id=%s", (expense_id,))
             for i in range(len(subcat_ids)):
                 if amounts[i] and int(amounts[i]) > 0:
                     cur.execute("""
-                        INSERT INTO expense_items (expense_id, category_id, subcategory_id, amount, description)
-                        VALUES (%s, %s, %s, %s, %s)
-                    """, (expense_id, main_cat_id, subcat_ids[i], int(amounts[i]), item_notes[i]))
+                        INSERT INTO expense_items (expense_id, category_id, subcategory_id, amount, payment_method, description)
+                        VALUES (%s, %s, %s, %s, %s, %s)
+                    """, (expense_id, main_cat_id, subcat_ids[i], int(amounts[i]), item_methods[i], item_notes[i]))
             
             mysql.connection.commit()
-            flash(f"Voucher #{expense_id} Updated!", "success")
+            flash("Voucher updated!", "success")
             return redirect(url_for('expenses_list'))
         except Exception as e:
             mysql.connection.rollback()
-            flash(f"Error: {str(e)}", "danger")
+            flash(f"Error: {e}", "danger")
 
-    # GET Logic
+    # GET: Load current data
     cur.execute("SELECT * FROM expenses WHERE expense_id=%s", (expense_id,))
     expense = cur.fetchone()
     cur.execute("SELECT * FROM expense_items WHERE expense_id=%s", (expense_id,))
     items = cur.fetchall()
-    cur.execute("SELECT * FROM expensecategories")
+    cur.execute("SELECT * FROM expensecategories ORDER BY category_name")
     categories = cur.fetchall()
-    cur.execute("SELECT * FROM expensesubcategories")
+    cur.execute("SELECT * FROM expensesubcategories ORDER BY subcategory_name")
     subs = cur.fetchall()
-    
-    # Financial Balances (Standard logic)
-    # ... (Add your get_financial_health logic here) ...
-    
     cur.close()
     return render_template('expenses/edit_expense.html', expense=expense, items=items, categories=categories, subcategories=subs)
 
@@ -7368,6 +7365,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
