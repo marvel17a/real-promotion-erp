@@ -359,45 +359,63 @@ def add_expense():
     finally:
         cur.close()
 
-# 3. EXPENSE LIST (Ledger View)
 @app.route('/expenses_list')
 def expenses_list():
     if 'loggedin' not in session: return redirect(url_for('login'))
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
-    cat_filter = request.args.get('cat')
-    search = request.args.get('q')
+    # 1. Get Filters
+    q = request.args.get('q', '')
+    cat_id = request.args.get('cat_id', 'all')
+    sub_id = request.args.get('sub_id', 'all')
+    start_date = request.args.get('start_date', '')
+    end_date = request.args.get('end_date', '')
     
+    # 2. Build Query
+    # We join with expense_items and categories to get the "Main Category" name for the list
+    # We group by expense_id to show one row per voucher
     sql = """
-        SELECT e.*, COUNT(ei.id) as item_count, 
-               GROUP_CONCAT(sc.subcategory_name SEPARATOR ', ') as summary
+        SELECT e.*, 
+               GROUP_CONCAT(DISTINCT c.category_name SEPARATOR ', ') as main_category,
+               COUNT(ei.id) as item_count
         FROM expenses e
         LEFT JOIN expense_items ei ON e.expense_id = ei.expense_id
-        LEFT JOIN expensesubcategories sc ON ei.subcategory_id = sc.subcategory_id
+        LEFT JOIN expensecategories c ON ei.category_id = c.category_id
         WHERE 1=1
     """
     params = []
     
-    if cat_filter and cat_filter != 'all':
+    if q:
+        sql += " AND (e.description LIKE %s OR c.category_name LIKE %s)"
+        params.extend([f'%{q}%', f'%{q}%'])
+    if cat_id != 'all':
         sql += " AND ei.category_id = %s"
-        params.append(cat_filter)
+        params.append(cat_id)
+    if sub_id != 'all':
+        sql += " AND ei.subcategory_id = %s"
+        params.append(sub_id)
+    if start_date and end_date:
+        sql += " AND e.expense_date BETWEEN %s AND %s"
+        params.extend([start_date, end_date])
     
-    if search:
-        sql += " AND (sc.subcategory_name LIKE %s OR ei.description LIKE %s)"
-        params.extend([f"%{search}%", f"%{search}%"])
-        
-    sql += " GROUP BY e.expense_id ORDER BY e.expense_date DESC"
+    sql += " GROUP BY e.expense_id ORDER BY e.expense_date DESC, e.expense_time DESC"
     
-    cursor.execute(sql, tuple(params))
-    expenses = cursor.fetchall()
+    cur.execute(sql, tuple(params))
+    expenses = cur.fetchall()
     
-    cursor.execute("SELECT * FROM expensecategories")
-    cats = cursor.fetchall()
-    cursor.close()
+    # Fetch Meta for Filters
+    cur.execute("SELECT * FROM expensecategories ORDER BY category_name")
+    categories = cur.fetchall()
+    cur.execute("SELECT * FROM expensesubcategories ORDER BY subcategory_name")
+    subcategories = cur.fetchall()
     
+    cur.close()
     return render_template('expenses/expenses_list.html', 
-                           expenses=expenses, categories=cats, 
-                           sel_cat=cat_filter, search=search)
+                         expenses=expenses, 
+                         categories=categories, 
+                         subcategories=subcategories,
+                         filters={'q':q, 'cat':cat_id, 'sub':sub_id, 'start':start_date, 'end':end_date})
+
 
 # 4. ANALYTICS
 @app.route('/expense_analytics')
@@ -458,41 +476,105 @@ def category_man():
     cursor.close()
     return render_template('expenses/category_man.html', tree=tree)
 
-# 6. DELETE & EDIT (Simplified for brevity but essential)
+
+@app.route('/view_expense/<int:expense_id>')
+def view_expense(expense_id):
+    if 'loggedin' not in session: return redirect(url_for('login'))
+    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    
+    # Fetch Parent
+    cur.execute("SELECT * FROM expenses WHERE expense_id = %s", (expense_id,))
+    expense = cur.fetchone()
+    
+    # Fetch Items with full names
+    cur.execute("""
+        SELECT ei.*, c.category_name, sc.subcategory_name 
+        FROM expense_items ei
+        JOIN expensecategories c ON ei.category_id = c.category_id
+        JOIN expensesubcategories sc ON ei.subcategory_id = sc.subcategory_id
+        WHERE ei.expense_id = %s
+    """, (expense_id,))
+    items = cur.fetchall()
+    
+    cur.close()
+    return render_template('expenses/view_expense.html', expense=expense, items=items)
+
+@app.route('/edit_expense/<int:expense_id>', methods=['GET', 'POST'])
+def edit_expense(expense_id):
+    if 'loggedin' not in session: return redirect(url_for('login'))
+    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    
+    if request.method == 'POST':
+        try:
+            exp_date = parse_date_input(request.form.get('expense_date'))
+            method = request.form.get('payment_method')
+            main_cat_id = request.form.get('main_category_id')
+            universal_note = request.form.get('voucher_description')
+            subcat_ids = request.form.getlist('subcategory_id[]')
+            amounts = request.form.getlist('amount[]')
+            item_notes = request.form.getlist('description[]')
+            
+            total_sum = sum(int(x) for x in amounts if x)
+            
+            # Handle Image Update (Only if new file uploaded)
+            receipt_url = request.form.get('old_receipt_url')
+            if 'receipt' in request.files and request.files['receipt'].filename != '':
+                upload_res = cloudinary.uploader.upload(request.files['receipt'], folder="erp_expenses")
+                receipt_url = upload_res.get('secure_url')
+
+            # Update Parent
+            cur.execute("""
+                UPDATE expenses 
+                SET expense_date=%s, amount=%s, total_amount=%s, payment_method=%s, receipt_url=%s, description=%s
+                WHERE expense_id=%s
+            """, (exp_date, total_sum, total_sum, method, receipt_url, universal_note, expense_id))
+            
+            # Refresh Items: Delete and Re-insert
+            cur.execute("DELETE FROM expense_items WHERE expense_id=%s", (expense_id,))
+            for i in range(len(subcat_ids)):
+                if amounts[i] and int(amounts[i]) > 0:
+                    cur.execute("""
+                        INSERT INTO expense_items (expense_id, category_id, subcategory_id, amount, description)
+                        VALUES (%s, %s, %s, %s, %s)
+                    """, (expense_id, main_cat_id, subcat_ids[i], int(amounts[i]), item_notes[i]))
+            
+            mysql.connection.commit()
+            flash(f"Voucher #{expense_id} Updated!", "success")
+            return redirect(url_for('expenses_list'))
+        except Exception as e:
+            mysql.connection.rollback()
+            flash(f"Error: {str(e)}", "danger")
+
+    # GET Logic
+    cur.execute("SELECT * FROM expenses WHERE expense_id=%s", (expense_id,))
+    expense = cur.fetchone()
+    cur.execute("SELECT * FROM expense_items WHERE expense_id=%s", (expense_id,))
+    items = cur.fetchall()
+    cur.execute("SELECT * FROM expensecategories")
+    categories = cur.fetchall()
+    cur.execute("SELECT * FROM expensesubcategories")
+    subs = cur.fetchall()
+    
+    # Financial Balances (Standard logic)
+    # ... (Add your get_financial_health logic here) ...
+    
+    cur.close()
+    return render_template('expenses/edit_expense.html', expense=expense, items=items, categories=categories, subcategories=subs)
+
 @app.route('/delete_expense/<int:id>', methods=['POST'])
 def delete_expense(id):
     if 'loggedin' not in session: return redirect(url_for('login'))
     cur = mysql.connection.cursor()
-    cur.execute("DELETE FROM expenses WHERE expense_id=%s", (id,))
-    mysql.connection.commit()
+    try:
+        cur.execute("DELETE FROM expense_items WHERE expense_id=%s", (id,))
+        cur.execute("DELETE FROM expenses WHERE expense_id=%s", (id,))
+        mysql.connection.commit()
+        flash("Voucher deleted permanently.", "info")
+    except Exception as e:
+        mysql.connection.rollback()
+        flash(f"Error: {e}", "danger")
     cur.close()
     return redirect(url_for('expenses_list'))
-
-@app.route('/edit_expense/<int:expense_id>', methods=['GET', 'POST'])
-def edit_expense(expense_id):
-    # (Same logic as add_expense but with UPDATE and pre-filled data)
-    # Using existing logic pattern
-    if 'loggedin' not in session: return redirect(url_for('login'))
-    conn = mysql.connection
-    cursor = conn.cursor(MySQLdb.cursors.DictCursor)
-    
-    if request.method == 'POST':
-        # ... Update Logic ...
-        pass 
-    
-    cursor.execute("SELECT * FROM expenses WHERE expense_id=%s", (expense_id,))
-    expense = cursor.fetchone()
-    cursor.execute("SELECT * FROM expense_items WHERE expense_id=%s", (expense_id,))
-    items = cursor.fetchall()
-    cursor.execute("SELECT * FROM expensecategories")
-    cats = cursor.fetchall()
-    cursor.execute("SELECT * FROM expensesubcategories")
-    subcats = cursor.fetchall()
-    cursor.close()
-    
-    return render_template('expenses/edit_expense.html', 
-                           expense=expense, items=items, 
-                           categories=cats, subcategories=subcats)
 
 
 
@@ -7286,6 +7368,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
