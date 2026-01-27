@@ -356,13 +356,6 @@ def add_expense():
                              bank_balance=bank_bal,
                              today=date.today().strftime('%d-%m-%Y'))
 
-    except Exception as e:
-        mysql.connection.rollback()
-        flash(f"Error: {str(e)}", "danger")
-        return redirect(url_for('add_expense'))
-    finally:
-        cur.close()
-
 @app.route('/expenses_list')
 def expenses_list():
     if 'loggedin' not in session: return redirect(url_for('login'))
@@ -7365,6 +7358,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
