@@ -6,7 +6,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
 <style>
-    :root { --primary: #4f46e5; --light-blue: #0ea5e9; }
+    :root { --primary: #4f46e5; --light-blue: #0ea5e9; --sky-blue: #e0f2fe; }
     body { background-color: #f1f5f9; font-family: 'Poppins', sans-serif; }
     
     .premium-card { 
@@ -27,11 +27,11 @@
     .online-bg { color: #2563eb; background: #eff6ff; border: 1px solid #dbeafe; }
     .mixed-bg { color: #7c3aed; background: #f5f3ff; border: 1px solid #ede9fe; }
     
-    /* Table Headers Style */
+    /* Updated Table Headers Style */
     .table thead th { 
-        background: #f1f5f9; /* Light gray background */
-        color: #1e293b;      /* Dark slate text */
-        font-weight: 700;    /* Bold text */
+        background: var(--sky-blue); /* Sky Blue Background */
+        color: #0c4a6e;              /* Darker Blue Text for contrast */
+        font-weight: 800;            /* Extra Bold */
         font-size: 0.75rem; 
         text-transform: uppercase; 
         letter-spacing: 0.5px; 
@@ -95,7 +95,8 @@
                 <label class="small fw-bold text-muted mb-1">DATE RANGE</label>
                 <div class="input-group">
                     <span class="input-group-text bg-light border-0"><i class="far fa-calendar-alt text-muted"></i></span>
-                    <input type="text" name="date_range" id="rangePicker" class="form-control border-0 bg-light" placeholder="Select dates..." value="{{ filters.range }}">
+                    <!-- Single input for Flatpickr Range Mode -->
+                    <input type="text" name="date_range" id="rangePicker" class="form-control border-0 bg-light" placeholder="Select date range..." value="{{ filters.range }}">
                 </div>
             </div>
             <div class="col-md-2">
