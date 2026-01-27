@@ -97,12 +97,12 @@
 
     /* --- FIXED TABLE (NO SCROLLBAR) --- */
     .table-container {
-        overflow: hidden; /* Scrollbar hatane ke liye */
+        overflow: hidden; 
         width: 100%;
     }
 
     .table {
-        table-layout: fixed; /* Fixed widths ke liye mandatory */
+        table-layout: fixed; 
         width: 100%;
         margin-bottom: 0;
     }
@@ -117,15 +117,16 @@
         border: none;
     }
 
-    /* Column widths optimization */
-    .col-sub { width: 25%; }
-    .col-pay { width: 15%; }
-    .col-note { width: 40%; } /* Notes ko zyada space */
-    .col-amt { width: 15%; }
+    /* Requirement: Columns width optimization for better Amount space */
+    .col-sub { width: 35%; }
+    .col-pay { width: 20%; }
+    .col-note { width: 10%; } /* Sirf button ke liye choti space */
+    .col-amt { width: 30%; }  /* Amount ko zyada space di gayi hai */
     .col-del { width: 5%; }
 
     .item-row { border-bottom: 1px solid #f1f5f9; }
 
+    /* --- ADD BUTTON UNDER TABLE --- */
     .btn-add-item {
         background: #ecfdf5;
         color: #059669;
@@ -172,6 +173,22 @@
 
     input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
     input[type=number] { -moz-appearance: textfield; }
+
+    /* Requirement: Note Button Styling */
+    .btn-note-popup {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        background: #f1f5f9;
+        color: #64748b;
+        border: 1px solid #e2e8f0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+    }
+    .btn-note-popup:hover { background: var(--light-blue); color: white; border-color: var(--light-blue); }
+    .btn-note-popup.has-note { background: #f0fdf4; color: var(--success); border-color: var(--success); }
 
     /* --- RESPONSIVE STACKING FOR MOBILE --- */
     @media (max-width: 768px) {
@@ -237,7 +254,7 @@
                     <!-- Allocation Table Section -->
                     <div id="itemsContainer" style="display: none;" class="table-container">
                         <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h6 class="fw-bold text-dark m-0"><i class="fas fa-list-check me-2 text-primary"></i>Line Item Details</h6>
+                            <h6 class="fw-bold text-dark m-0"><i class="fas fa-list-check me-2 text-primary"></i>Allocation Details</h6>
                             <span class="badge bg-primary rounded-pill px-3" id="rowCountBadge">1 Item</span>
                         </div>
                         
@@ -247,7 +264,7 @@
                                     <tr class="border-bottom">
                                         <th class="col-sub">Sub-Category</th>
                                         <th class="col-pay">Payment</th>
-                                        <th class="col-note">Notes / Remark</th>
+                                        <th class="col-note text-center">Notes</th>
                                         <th class="col-amt" style="text-align: right;">Amount (₹)</th>
                                         <th class="col-del"></th>
                                     </tr>
@@ -328,11 +345,32 @@
     </form>
 </div>
 
+<!-- Requirement: Notes Popup Modal -->
+<div class="modal fade" id="notesModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 24px;">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="fw-bold m-0 p-3"><i class="fas fa-edit me-2 text-primary"></i>Line Item Note</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <p class="text-muted small mb-3">Enter specific details or remarks for this individual expense item.</p>
+                <textarea id="modalNoteText" class="form-control bg-light border-0" rows="6" placeholder="Type your note here..."></textarea>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-primary rounded-pill px-5 py-2 fw-bold" onclick="saveModalNote()">Save Remarks</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script>
     const subcategories = {{ subcategories | tojson }};
     const cBal = {{ cash_balance if cash_balance is not none else 0 }};
     const bBal = {{ bank_balance if bank_balance is not none else 0 }};
+    let currentNoteTarget = null;
+    let currentBtnTarget = null;
 
     document.addEventListener('DOMContentLoaded', () => {
         flatpickr("#datePicker", { defaultDate: "today", dateFormat: "d-m-Y", allowInput: true });
@@ -389,9 +427,13 @@
                     <option value="Online">Online</option>
                 </select>
             </td>
-            <td class="col-note">
-                <span class="d-md-none-label">Note</span>
-                <input type="text" name="description[]" class="form-control border-0 bg-light" placeholder="Item remark">
+            <td class="col-note text-center">
+                <span class="d-md-none-label">Notes</span>
+                <!-- Requirement: Button for Notes Popup -->
+                <button type="button" class="btn-note-popup mx-auto" onclick="openNotesModal(this)">
+                    <i class="far fa-sticky-note"></i>
+                </button>
+                <input type="hidden" name="description[]" class="row-note-input">
             </td>
             <td class="col-amt">
                 <span class="d-md-none-label">Amount</span>
@@ -406,10 +448,38 @@
         recalculate();
     }
 
+    // Modal Logic
+    const nModal = new bootstrap.Modal(document.getElementById('notesModal'));
+    
+    function openNotesModal(btn) {
+        currentBtnTarget = btn;
+        currentNoteTarget = btn.nextElementSibling;
+        document.getElementById('modalNoteText').value = currentNoteTarget.value;
+        nModal.show();
+    }
+
+    function saveModalNote() {
+        const textValue = document.getElementById('modalNoteText').value.trim();
+        currentNoteTarget.value = textValue;
+        
+        // Highlight button if text exists
+        if(textValue !== "") {
+            currentBtnTarget.classList.add('has-note');
+            currentBtnTarget.innerHTML = '<i class="fas fa-sticky-note"></i>';
+        } else {
+            currentBtnTarget.classList.remove('has-note');
+            currentBtnTarget.innerHTML = '<i class="far fa-sticky-note"></i>';
+        }
+        
+        nModal.hide();
+    }
+
     function removeRow(btn) {
         if(document.querySelectorAll('.item-row').length > 1) {
-            btn.closest('tr').remove();
-            recalculate();
+            if(confirm("Remove this item?")) {
+                btn.closest('tr').remove();
+                recalculate();
+            }
         }
     }
 
