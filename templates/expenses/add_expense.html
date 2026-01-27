@@ -25,7 +25,7 @@
         color: var(--dark);
     }
 
-    /* --- NAVIGATION & CLOCK --- */
+    /* --- CLOCK & HEADER --- */
     .live-clock-box {
         background: var(--light-blue);
         color: white;
@@ -51,7 +51,6 @@
         box-shadow: 0 4px 10px rgba(0,0,0,0.04);
         border: 1px solid rgba(0,0,0,0.08);
     }
-    
     .cash-mode-ui { border-left: 5px solid var(--success); background: #ecfdf5; color: #065f46; }
     .online-mode-ui { border-left: 5px solid var(--primary); background: #eff6ff; color: #1e40af; }
 
@@ -66,7 +65,7 @@
         box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     }
 
-    /* --- PREMIUM TOTAL BOX --- */
+    /* --- TOTAL BOX PREMIUM --- */
     .total-box-premium {
         background: var(--light-blue) !important;
         color: white !important;
@@ -77,7 +76,7 @@
     }
     .total-box-premium h1 { font-weight: 800; margin: 0; }
 
-    /* --- CARD & FORM STYLING --- */
+    /* --- CARD & FORM UI --- */
     .premium-card {
         background: var(--glass);
         backdrop-filter: blur(12px);
@@ -93,15 +92,21 @@
         padding: 12px 18px;
         border: 1.5px solid #e2e8f0;
         background-color: #ffffff;
-        transition: all 0.2s;
+        transition: all 0.2s ease-in-out;
     }
 
-    /* --- REMOVE NUMBER SPINNERS --- */
-    input[type=number]::-webkit-inner-spin-button, 
-    input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
-    input[type=number] { -moz-appearance: textfield; }
+    /* --- FIXED TABLE (NO SCROLLBAR) --- */
+    .table-container {
+        overflow: hidden; /* Scrollbar hatane ke liye */
+        width: 100%;
+    }
 
-    /* --- TABLE STYLING --- */
+    .table {
+        table-layout: fixed; /* Fixed widths ke liye mandatory */
+        width: 100%;
+        margin-bottom: 0;
+    }
+
     .table thead th {
         background: #f8fafc;
         color: #94a3b8;
@@ -112,22 +117,15 @@
         border: none;
     }
 
-    .item-row { border-bottom: 1px solid #f1f5f9; transition: background 0.2s; }
-    .item-row:hover { background: rgba(241, 245, 249, 0.5); }
+    /* Column widths optimization */
+    .col-sub { width: 25%; }
+    .col-pay { width: 15%; }
+    .col-note { width: 40%; } /* Notes ko zyada space */
+    .col-amt { width: 15%; }
+    .col-del { width: 5%; }
 
-    /* Fix Dropdown & Note Sizing - INCREASED SIZE AS REQUESTED */
-    .table .form-select { 
-        min-width: 200px; /* Wider for sub-category items */
-        padding-right: 35px; 
-    }
-    .payment-select { 
-        min-width: 140px !important; /* Wider for payment text */
-    }
-    .note-input-field {
-        min-width: 280px; /* Medium size for notes as requested */
-    }
+    .item-row { border-bottom: 1px solid #f1f5f9; }
 
-    /* --- ADD BUTTON UNDER TABLE --- */
     .btn-add-item {
         background: #ecfdf5;
         color: #059669;
@@ -136,12 +134,12 @@
         width: 100%;
         padding: 15px;
         font-weight: 700;
-        transition: all 0.3s;
         margin-top: 15px;
+        transition: 0.3s;
     }
-    .btn-add-item:hover { background: #d1fae5; transform: scale(1.005); }
+    .btn-add-item:hover { background: #d1fae5; transform: scale(1.01); }
 
-    /* --- ACTION CARD COLORS --- */
+    /* --- ACTION BOXES --- */
     .action-card-post { background: #f0fdf4; border: 1px solid #dcfce7; border-radius: 24px; padding: 20px; }
     .action-card-discard { background: #fef2f2; border: 1px solid #fee2e2; border-radius: 24px; padding: 20px; }
 
@@ -172,24 +170,24 @@
         cursor: pointer;
     }
 
-    /* --- RESPONSIVE ADJUSTMENTS --- */
+    input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    input[type=number] { -moz-appearance: textfield; }
+
+    /* --- RESPONSIVE STACKING FOR MOBILE --- */
     @media (max-width: 768px) {
+        .table { table-layout: auto; }
         .item-row td { display: block; width: 100% !important; border: none !important; padding: 8px 0 !important; }
         .item-row { display: block; padding: 20px; border-bottom: 2px solid #f1f5f9; position: relative; }
         .item-row .btn-remove-container { position: absolute; top: 15px; right: 15px; }
-        .d-md-none-label { display: block !important; font-size: 0.65rem; font-weight: 800; color: #94a3b8; text-transform: uppercase; margin-bottom: 4px; }
+        .d-md-none-label { display: block !important; font-size: 0.65rem; font-weight: 800; color: #94a3b8; text-transform: uppercase; }
         thead { display: none; }
-        .balance-badge { width: 100%; justify-content: center; margin-top: 10px; }
-        .note-input-field, .table .form-select { min-width: 100%; }
+        .balance-badge { width: 100%; justify-content: center; }
     }
     .d-md-none-label { display: none; }
-
-    .fade-in { animation: fadeIn 0.5s ease-in; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 </style>
 
-<div class="container-fluid py-4 fade-in">
-    <!-- Top Navigation Row -->
+<div class="container-fluid py-4">
+    <!-- Top Nav Row -->
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
         <div class="d-flex flex-column flex-md-row align-items-md-center gap-3">
             <a href="{{ url_for('expenses_list') }}" class="btn btn-white bg-white rounded-pill border shadow-sm px-4 py-2 small fw-bold text-muted">
@@ -210,24 +208,20 @@
         </div>
     </div>
 
-    <!-- Title Section -->
     <div class="mb-4">
-        <h2 class="fw-bold text-dark m-0">Create Expense Voucher</h2>
-        <p class="text-muted m-0 small">Record multi-item expenses with specific notes and payment modes</p>
+        <h2 class="fw-bold text-dark m-0 text-uppercase">Create Expense Voucher</h2>
+        <p class="text-muted m-0 small">Item-wise allocation with specific payment modes</p>
     </div>
 
     <form id="voucherForm" action="{{ url_for('add_expense') }}" method="POST" enctype="multipart/form-data">
         <div class="row g-4">
-            <!-- Left Side: Form Details -->
+            <!-- Left Side -->
             <div class="col-12 col-lg-8">
                 <div class="card premium-card p-4 mb-4">
                     <div class="row g-4 mb-4">
                         <div class="col-12 col-md-6">
                             <label class="form-label">VOUCHER DATE (DD-MM-YYYY)</label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-light border-0"><i class="fas fa-calendar-day text-muted"></i></span>
-                                <input type="text" name="expense_date" id="datePicker" class="form-control border-0 bg-light" required>
-                            </div>
+                            <input type="text" name="expense_date" id="datePicker" class="form-control border-0 bg-light fw-bold" required>
                         </div>
                         <div class="col-12 col-md-6">
                             <label class="form-label">SELECT MAIN ACCOUNT CATEGORY</label>
@@ -240,22 +234,22 @@
                         </div>
                     </div>
 
-                    <!-- Item Allocation Table -->
-                    <div id="itemsContainer" style="display: none;">
+                    <!-- Allocation Table Section -->
+                    <div id="itemsContainer" style="display: none;" class="table-container">
                         <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h6 class="fw-bold text-dark m-0"><i class="fas fa-list-check me-2 text-primary"></i>Allocation Details</h6>
+                            <h6 class="fw-bold text-dark m-0"><i class="fas fa-list-check me-2 text-primary"></i>Line Item Details</h6>
                             <span class="badge bg-primary rounded-pill px-3" id="rowCountBadge">1 Item</span>
                         </div>
                         
-                        <div class="table-responsive">
+                        <div class="table-responsive" style="overflow: visible;">
                             <table class="table table-borderless align-middle mb-0">
-                                <thead class="d-none d-md-table-header-group">
+                                <thead>
                                     <tr class="border-bottom">
-                                        <th style="width: 25%;">Sub-Category</th>
-                                        <th style="width: 18%;">Payment</th>
-                                        <th style="width: 35%;">Notes / Remark</th>
-                                        <th style="width: 17%; text-align: right;">Amount (₹)</th>
-                                        <th style="width: 5%;"></th>
+                                        <th class="col-sub">Sub-Category</th>
+                                        <th class="col-pay">Payment</th>
+                                        <th class="col-note">Notes / Remark</th>
+                                        <th class="col-amt" style="text-align: right;">Amount (₹)</th>
+                                        <th class="col-del"></th>
                                     </tr>
                                 </thead>
                                 <tbody id="tableBody"></tbody>
@@ -269,18 +263,18 @@
 
                     <div id="placeholder" class="text-center py-5">
                         <img src="https://cdn-icons-png.flaticon.com/512/9497/9497092.png" style="width: 80px; opacity: 0.15;" alt="">
-                        <p class="text-muted mt-3 fw-medium">Select a Main Category to generate items.</p>
+                        <p class="text-muted mt-3 fw-medium">Select a Main Category to start allocation.</p>
                     </div>
                 </div>
 
-                <!-- Documentation & Note Section -->
+                <!-- Footer Meta -->
                 <div class="row g-4">
                     <div class="col-12 col-md-6">
                         <div class="card premium-card p-4 h-100">
                             <h6 class="fw-bold mb-3 small text-muted text-uppercase">Supporting Document</h6>
                             <div class="upload-zone shadow-sm" onclick="document.getElementById('fileInp').click()">
                                 <i class="fas fa-cloud-arrow-up fa-2x text-primary opacity-50 mb-2"></i>
-                                <p class="m-0 fw-bold small text-dark">Upload Bill Photo</p>
+                                <p class="m-0 fw-bold small text-dark">Browse Bill Photo</p>
                                 <small class="text-muted">JPG, PNG, PDF (Max 5MB)</small>
                                 <input type="file" name="receipt" id="fileInp" hidden accept="image/*,application/pdf" onchange="updateFileLabel(this)">
                                 <div id="fileName" class="mt-3 small text-success fw-bold p-2 bg-success bg-opacity-10 rounded-pill" style="display:none;"></div>
@@ -290,44 +284,42 @@
                     <div class="col-12 col-md-6">
                         <div class="card premium-card p-4 h-100">
                             <h6 class="fw-bold mb-3 small text-muted text-uppercase">Universal Voucher Note</h6>
-                            <textarea name="voucher_description" class="form-control border-0 bg-light" rows="5" placeholder="Overall description for this entire voucher..."></textarea>
+                            <textarea name="voucher_description" class="form-control border-0 bg-light" rows="5" placeholder="Saves to main expenses table description..."></textarea>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Right Side Summary -->
+            <!-- Right Sidebar -->
             <div class="col-12 col-lg-4">
                 <div class="sticky-top" style="top: 25px;">
                     <div class="card premium-card p-4 mb-4">
-                        <h5 class="fw-bold mb-4">Voucher Summary</h5>
+                        <h5 class="fw-bold mb-4">Final Summary</h5>
                         <div class="d-flex justify-content-between mb-3">
-                            <span class="text-muted fw-medium">Itemized Lines</span>
+                            <span class="text-muted fw-medium">Line Items</span>
                             <span class="fw-bold" id="itemCounter">0</span>
                         </div>
                         <div class="d-flex justify-content-between mb-4 border-bottom pb-3">
-                            <span class="text-muted fw-medium">Selected Account</span>
+                            <span class="text-muted fw-medium">Account</span>
                             <span class="badge bg-light text-dark border px-3" id="summaryCategory">None</span>
                         </div>
 
-                        <!-- REQUIREMENT: LIGHT BLUE TOTAL BOX -->
+                        <!-- TOTAL BOX BLUE -->
                         <div id="totalCard" class="total-box-premium text-center my-4">
-                            <small class="text-uppercase opacity-75 fw-bold" style="font-size: 0.7rem; letter-spacing: 1px;">Grand Total Amount</small>
+                            <small class="text-uppercase opacity-75 fw-bold" style="font-size: 0.7rem;">Voucher Total</small>
                             <h1 id="totalText">₹ 0</h1>
                         </div>
 
                         <div class="action-card-post mb-3">
                             <button type="submit" id="submitBtn" class="btn btn-post">
-                                <i class="fas fa-check-circle me-2"></i> Confirm & Post Voucher
+                                <i class="fas fa-check-circle me-2"></i> Confirm & Post
                             </button>
-                            <small class="text-success small fw-bold mt-2 d-block">Submits record to Ledger</small>
                         </div>
                         
                         <div class="action-card-discard">
                             <a href="{{ url_for('expenses_list') }}" class="btn btn-discard">
                                 <i class="fas fa-trash-can me-2"></i> Discard Voucher
                             </a>
-                            <small class="text-danger small fw-bold mt-2 d-block">Cancel current entry</small>
                         </div>
                     </div>
                 </div>
@@ -344,14 +336,10 @@
 
     document.addEventListener('DOMContentLoaded', () => {
         flatpickr("#datePicker", { defaultDate: "today", dateFormat: "d-m-Y", allowInput: true });
-        setInterval(updateClock, 1000);
-        updateClock();
+        setInterval(() => {
+            document.getElementById('liveClock').innerText = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+        }, 1000);
     });
-
-    function updateClock() {
-        const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
-        document.getElementById('liveClock').innerText = timeStr;
-    }
 
     function syncBalanceUI(method) {
         const badge = document.getElementById('balanceDisplay');
@@ -390,27 +378,27 @@
         const tr = document.createElement('tr');
         tr.className = 'item-row';
         tr.innerHTML = `
-            <td>
+            <td class="col-sub">
                 <span class="d-md-none-label">Sub-Category</span>
                 <select name="subcategory_id[]" class="form-select border-0 bg-light fw-bold" required>${opts}</select>
             </td>
-            <td>
+            <td class="col-pay">
                 <span class="d-md-none-label">Payment</span>
-                <select name="item_payment_method[]" class="form-select payment-select border-0 bg-light small" onchange="syncBalanceUI(this.value)">
+                <select name="item_payment_method[]" class="form-select border-0 bg-light small" onchange="syncBalanceUI(this.value)">
                     <option value="Cash" selected>Cash</option>
                     <option value="Online">Online</option>
                 </select>
             </td>
-            <td>
-                <span class="d-md-none-label">Item Note</span>
-                <input type="text" name="description[]" class="form-control border-0 bg-light note-input-field" placeholder="Remark for this item">
+            <td class="col-note">
+                <span class="d-md-none-label">Note</span>
+                <input type="text" name="description[]" class="form-control border-0 bg-light" placeholder="Item remark">
             </td>
-            <td>
-                <span class="d-md-none-label">Amount (₹)</span>
+            <td class="col-amt">
+                <span class="d-md-none-label">Amount</span>
                 <input type="number" name="amount[]" class="form-control border-0 bg-light fw-bold text-end val-input" 
                        placeholder="0" step="1" oninput="recalculate()" onkeypress="return event.charCode >= 48 && event.charCode <= 57" required>
             </td>
-            <td class="text-end btn-remove-container">
+            <td class="text-end col-del btn-remove-container">
                 <button type="button" class="btn btn-link text-danger p-0" onclick="removeRow(this)"><i class="fas fa-trash-can"></i></button>
             </td>
         `;
@@ -419,14 +407,9 @@
     }
 
     function removeRow(btn) {
-        const rows = document.querySelectorAll('.item-row');
-        if(rows.length > 1) {
-            if(confirm("Remove this line item?")) {
-                btn.closest('tr').remove();
-                recalculate();
-            }
-        } else {
-            alert("A voucher must contain at least one line item.");
+        if(document.querySelectorAll('.item-row').length > 1) {
+            btn.closest('tr').remove();
+            recalculate();
         }
     }
 
@@ -440,9 +423,9 @@
     }
 
     function updateFileLabel(input) {
-        const fileNameDiv = document.getElementById('fileName');
-        if(input.files && input.files[0]) {
-            fileNameDiv.innerHTML = `<i class="fas fa-check-circle me-2"></i>Ready: ${input.files[0].name}`;
+        if(input.files[0]) {
+            const fileNameDiv = document.getElementById('fileName');
+            fileNameDiv.innerText = "✓ Attached: " + input.files[0].name;
             fileNameDiv.style.display = 'inline-block';
         }
     }
