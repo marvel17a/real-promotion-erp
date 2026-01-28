@@ -2292,7 +2292,6 @@ def view_purchase(purchase_id):
 
 
 
-
 # ==========================================
 # PURCHASE ORDER PDF GENERATOR (Dedicated Class)
 # ==========================================
@@ -2386,7 +2385,15 @@ class PurchasePDFGenerator(FPDF):
             self.set_xy(120, y+26)
             self.set_font('Arial','',10); self.cell(25, 6, "GSTIN:", 0, 0); self.set_font('Arial','B',10); self.cell(40, 6, str(purchase['supplier_gst']), 0, 1)
 
-        self.ln(20) # Space before table
+        # ADDED: Notes Section
+        if purchase.get('notes'):
+            self.set_y(self.get_y() + 10) # Move down a bit
+            self.set_font('Arial', 'B', 10)
+            self.cell(0, 6, "Notes / Remarks:", 0, 1)
+            self.set_font('Arial', '', 9)
+            self.multi_cell(0, 5, str(purchase['notes']), 0, 'L')
+
+        self.ln(5 if purchase.get('notes') else 20) # Space before table
 
     def add_table(self, items):
         # Header
@@ -2476,7 +2483,7 @@ def purchase_pdf(purchase_id):
     
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
-    # 1. Fetch Purchase & Supplier
+    # 1. Fetch Purchase & Supplier (ADDED NOTES field)
     cursor.execute("""
         SELECT p.*, s.name as supplier_name, s.address as supplier_address, s.phone as supplier_phone, s.gstin as supplier_gst
         FROM purchases p 
@@ -2518,6 +2525,7 @@ def purchase_pdf(purchase_id):
     filename = f"PO_{purchase['id']}_{supp_name}.pdf"
     
     return send_file(buffer, as_attachment=True, download_name=filename, mimetype='application/pdf')
+
 
 # --- HELPER: Safe Date Formatter ---
 def safe_date_format(date_obj, format='%d-%m-%Y', default='N/A'):
@@ -7659,6 +7667,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
