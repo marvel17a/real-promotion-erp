@@ -31,29 +31,36 @@
 
     <div class="glass-panel p-5">
         
-        <!-- Info Header -->
+        <!-- Header Info -->
         <div class="row mb-5 border-bottom pb-4">
             <div class="col-md-6">
-                <small class="text-uppercase text-muted fw-bold ls-1">Supplier</small>
-                <h4 class="fw-bold mt-1 text-dark">{{ purchase.supplier_name }}</h4>
-                <div class="text-muted small">
-                    <p class="mb-1"><i class="fa-solid fa-location-dot me-2"></i>{{ purchase.supplier_address or 'No Address' }}</p>
-                    <p class="mb-0"><i class="fa-solid fa-phone me-2"></i>{{ purchase.supplier_phone or 'No Phone' }}</p>
-                </div>
+                <small class="text-uppercase text-muted fw-bold mb-2 d-block">Supplier Details</small>
+                <h5 class="fw-bold text-dark mb-1">{{ purchase.supplier_name }}</h5>
+                <p class="text-muted mb-1 small"><i class="fa-solid fa-phone me-2"></i>{{ purchase.supplier_phone or 'N/A' }}</p>
+                <p class="text-muted small mb-0"><i class="fa-solid fa-location-dot me-2"></i>{{ purchase.supplier_address or 'N/A' }}</p>
             </div>
-            <div class="col-md-6 text-md-end mt-4 mt-md-0">
-                <div class="bg-light p-3 rounded-3 d-inline-block text-start">
-                    <p class="mb-1"><strong>Bill No:</strong> {{ purchase.bill_number or 'N/A' }}</p>
-                    <p class="mb-0"><strong>Status:</strong> <span class="badge bg-success bg-opacity-10 text-success">Received</span></p>
-                </div>
+            <div class="col-md-6 text-md-end">
+                <small class="text-uppercase text-muted fw-bold mb-2 d-block">Bill Information</small>
+                <h5 class="fw-bold text-dark mb-1">Bill No: {{ purchase.bill_number or 'N/A' }}</h5>
+                <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-3 py-2 rounded-pill">Completed</span>
             </div>
         </div>
 
+        <!-- NEW: Notes Section -->
+        {% if purchase.notes %}
+        <div class="mb-5">
+            <small class="text-uppercase text-muted fw-bold mb-2 d-block">Notes / Remarks</small>
+            <div class="p-3 bg-light rounded-3 border">
+                <p class="mb-0 text-dark" style="white-space: pre-wrap;">{{ purchase.notes }}</p>
+            </div>
+        </div>
+        {% endif %}
+
         <!-- Items Table -->
-        <div class="table-responsive">
-            <table class="table table-borderless align-middle">
-                <thead class="bg-light text-uppercase small text-muted">
-                    <tr>
+        <div class="table-responsive rounded-3 border mb-0">
+            <table class="table table-borderless mb-0">
+                <thead class="bg-light">
+                    <tr class="text-uppercase small text-muted">
                         <th class="ps-3 py-3 rounded-start">#</th>
                         <th class="py-3">Product</th>
                         <th class="text-end py-3">Quantity</th>
@@ -68,7 +75,6 @@
                         <td class="fw-bold text-dark">{{ item.product_name }}</td>
                         <td class="text-end">{{ item.quantity }}</td>
                         <td class="text-end">{{ item.purchase_price|inr }}</td>
-                        <!-- Calculate Item Total on the fly since we removed the column -->
                         <td class="text-end pe-3 fw-bold">{{ (item.quantity * item.purchase_price)|inr }}</td>
                     </tr>
                     {% endfor %}
