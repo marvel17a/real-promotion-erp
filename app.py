@@ -2138,54 +2138,6 @@ def new_purchase():
 
 
 
-@app.route('/purchases/view/<int:purchase_id>')
-def view_purchase(purchase_id):
-    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    cur.execute("""
-        SELECT p.*, s.name as supplier_name, s.address as supplier_address, s.phone as supplier_phone
-        FROM purchases p JOIN suppliers s ON p.supplier_id = s.id WHERE p.id = %s
-    """, (purchase_id,))
-    purchase = cur.fetchone()
-    cur.execute("""
-        SELECT pi.*, pr.name as product_name 
-        FROM purchase_items pi JOIN products pr ON pi.product_id = pr.id WHERE pi.purchase_id = %s
-    """, (purchase_id,))
-    items = cur.fetchall()
-    cur.close()
-    if not purchase:
-        flash("Purchase not found.", "danger")
-        return redirect(url_for('purchases'))
-    return render_template('purchases/view_purchase.html', purchase=purchase, items=items)
-
-
-@app.route('/purchases/edit/<int:purchase_id>', methods=['GET'])
-def edit_purchase(purchase_id):
-    # ... (auth check) ...
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    
-    # 1. Fetch Purchase
-    cursor.execute("SELECT * FROM purchases WHERE id = %s", (purchase_id,))
-    purchase = cursor.fetchone()
-    
-    # 2. Fetch Suppliers (for dropdown)
-    cursor.execute("SELECT id, name FROM suppliers ORDER BY name")
-    suppliers = cursor.fetchall()
-    
-    # 3. Fetch Products (for JS dropdown)
-    cursor.execute("SELECT * FROM products ORDER BY name")
-    products = cursor.fetchall()
-    
-    # 4. Fetch Existing Items (to populate rows)
-    cursor.execute("SELECT * FROM purchase_items WHERE purchase_id = %s", (purchase_id,))
-    items = cursor.fetchall()
-    
-    cursor.close()
-    return render_template('purchases/edit_purchase.html', 
-                         purchase=purchase, 
-                         suppliers=suppliers, 
-                         products=products, 
-                         items=items)
-
 
 @app.route('/purchases/update/<int:purchase_id>', methods=['POST'])
 def update_purchase(purchase_id):
@@ -2209,15 +2161,9 @@ def update_purchase(purchase_id):
         cursor.execute("SELECT * FROM purchase_items WHERE purchase_id = %s", (purchase_id,))
         old_items = cursor.fetchall()
         
-        # Reverse Stock: Subtract old quantities
-        # Logic: Purchase added stock, so editing/removing means subtracting that addition first
-        stock_col = 'quantity' # dynamic check logic omitted for brevity, assuming 'quantity' or 'stock_quantity'
-        # Check column name quickly
-        cursor.execute("SHOW COLUMNS FROM products")
-        cols = [r['Field'] for r in cursor.fetchall()]
-        if 'stock_quantity' in cols: stock_col = 'stock_quantity'
-        elif 'stock' in cols: stock_col = 'stock'
+        stock_col = 'stock' 
         
+        # Reverse Stock: Subtract old quantities
         for item in old_items:
             cursor.execute(f"UPDATE products SET {stock_col} = {stock_col} - %s WHERE id = %s", 
                            (item['quantity'], item['product_id']))
@@ -2226,6 +2172,8 @@ def update_purchase(purchase_id):
         new_supplier_id = request.form['supplier_id']
         new_date = request.form['purchase_date']
         new_bill = request.form.get('bill_number', '')
+        # Capture notes
+        notes = request.form.get('notes', '')
         
         product_ids = request.form.getlist('product_id[]')
         quantities = request.form.getlist('quantity[]')
@@ -2234,7 +2182,7 @@ def update_purchase(purchase_id):
         # 4. Delete Old Items
         cursor.execute("DELETE FROM purchase_items WHERE purchase_id = %s", (purchase_id,))
         
-        # 5. Insert NEW Items & Update Stock & Calculate New Total
+        # 5. Insert NEW Items & Update Stock
         new_total = 0.0
         
         for i in range(len(product_ids)):
@@ -2245,33 +2193,30 @@ def update_purchase(purchase_id):
                 line_total = qty * price
                 new_total += line_total
                 
-                # Insert Item (Using 'total_amount' based on your DB schema)
                 cursor.execute("""
-                    INSERT INTO purchase_items (purchase_id, product_id, quantity, purchase_price, total_amount)
-                    VALUES (%s, %s, %s, %s, %s)
-                """, (purchase_id, p_id, qty, price, line_total))
+                    INSERT INTO purchase_items (purchase_id, product_id, quantity, purchase_price)
+                    VALUES (%s, %s, %s, %s)
+                """, (purchase_id, p_id, qty, price))
                 
-                # Update Stock (Add new quantity)
+                # Add new quantity back
                 cursor.execute(f"UPDATE products SET {stock_col} = {stock_col} + %s, price = %s WHERE id = %s", 
                                (qty, price, p_id))
 
         # 6. Update Master Record
         cursor.execute("""
             UPDATE purchases 
-            SET supplier_id=%s, purchase_date=%s, bill_number=%s, total_amount=%s 
+            SET supplier_id=%s, purchase_date=%s, bill_number=%s, total_amount=%s, notes=%s
             WHERE id=%s
-        """, (new_supplier_id, new_date, new_bill, new_total, purchase_id))
+        """, (new_supplier_id, new_date, new_bill, new_total, notes, purchase_id))
         
         # 7. Update Supplier Dues
-        # Logic: Subtract Old Total, Add New Total
-        # If supplier changed, handle separately (Complex, assuming same supplier for simplicity or simple adjustment)
         if str(old_supplier_id) == str(new_supplier_id):
             diff = new_total - old_total
             cursor.execute("UPDATE suppliers SET current_due = current_due + %s WHERE id = %s", (diff, old_supplier_id))
         else:
-            # Revert old supplier
+            # Revert old supplier (Subtract old total)
             cursor.execute("UPDATE suppliers SET current_due = current_due - %s WHERE id = %s", (old_total, old_supplier_id))
-            # Add to new supplier
+            # Add to new supplier (Add new total)
             cursor.execute("UPDATE suppliers SET current_due = current_due + %s WHERE id = %s", (new_total, new_supplier_id))
         
         mysql.connection.commit()
@@ -2280,12 +2225,45 @@ def update_purchase(purchase_id):
     except Exception as e:
         mysql.connection.rollback()
         flash(f"Error updating purchase: {str(e)}", "danger")
-        print(f"Update Error: {e}")
+        app.logger.error(f"Update Error: {e}")
         
     finally:
         cursor.close()
         
     return redirect(url_for('purchases'))
+
+
+# REPLACE your existing 'view_purchase' route with this one:
+
+@app.route('/purchases/view/<int:purchase_id>')
+def view_purchase(purchase_id):
+    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    
+    # Updated Query: Added 'p.notes'
+    cur.execute("""
+        SELECT p.*, s.name as supplier_name, s.address as supplier_address, s.phone as supplier_phone
+        FROM purchases p 
+        JOIN suppliers s ON p.supplier_id = s.id 
+        WHERE p.id = %s
+    """, (purchase_id,))
+    
+    purchase = cur.fetchone()
+    
+    cur.execute("""
+        SELECT pi.*, pr.name as product_name 
+        FROM purchase_items pi 
+        JOIN products pr ON pi.product_id = pr.id 
+        WHERE pi.purchase_id = %s
+    """, (purchase_id,))
+    
+    items = cur.fetchall()
+    cur.close()
+    
+    if not purchase:
+        flash("Purchase not found.", "danger")
+        return redirect(url_for('purchases'))
+        
+    return render_template('purchases/view_purchase.html', purchase=purchase, items=items)
 
 
 
@@ -2524,10 +2502,6 @@ def safe_date_format(date_obj, format='%d-%m-%Y', default='N/A'):
     return default
 
 
-
-
-
-
 @app.route('/purchases/delete/<int:purchase_id>', methods=['POST'])
 def delete_purchase(purchase_id):
     if 'loggedin' not in session: return redirect(url_for('login'))
@@ -2550,30 +2524,21 @@ def delete_purchase(purchase_id):
         cursor.execute("SELECT product_id, quantity FROM purchase_items WHERE purchase_id = %s", (purchase_id,))
         items = cursor.fetchall()
         
-        # 3. Dynamic Column Detection for Stock
-        stock_col = 'quantity' # default
-        cursor.execute("SHOW COLUMNS FROM products")
-        columns = [row['Field'] for row in cursor.fetchall()]
-        if 'stock_quantity' in columns: stock_col = 'stock_quantity'
-        elif 'stock' in columns: stock_col = 'stock'
-        elif 'qty' in columns: stock_col = 'qty'
+        stock_col = 'stock'
         
-        # 4. Reverse Stock (Subtract quantity)
+        # 3. Reverse Stock (Subtract quantity from Warehouse)
         for item in items:
             p_id = item['product_id']
             qty = float(item['quantity'])
-            
-            # Subtract the quantity back
             query = f"UPDATE products SET {stock_col} = {stock_col} - %s WHERE id = %s"
             cursor.execute(query, (qty, p_id))
             
-        # 5. Reverse Supplier Dues (Subtract amount)
+        # 4. Reverse Supplier Dues (Subtract amount)
         cursor.execute("""
             UPDATE suppliers SET current_due = current_due - %s WHERE id = %s
         """, (total_amount, supplier_id))
         
-        # 6. Delete the Purchase Record
-        # (purchase_items will be deleted automatically if ON DELETE CASCADE is set, otherwise delete them first)
+        # 5. Delete the Purchase Record
         cursor.execute("DELETE FROM purchases WHERE id = %s", (purchase_id,))
         
         mysql.connection.commit()
@@ -2582,7 +2547,7 @@ def delete_purchase(purchase_id):
     except Exception as e:
         mysql.connection.rollback()
         flash(f"Error deleting purchase: {str(e)}", "danger")
-        print(f"Delete Error: {e}")
+        app.logger.error(f"Delete Error: {e}")
         
     finally:
         cursor.close()
@@ -7669,6 +7634,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
