@@ -17,137 +17,130 @@
         <form id="purchaseForm" method="POST" action="{{ url_for('new_purchase') }}" class="needs-validation" novalidate>
             
             <!-- Master Details -->
-            <div class="row g-4 mb-5 border-bottom pb-4">
+            <div class="row g-4 mb-4">
                 <div class="col-md-4">
                     <label for="supplier_id" class="form-label fw-bold text-muted small text-uppercase">Supplier <span class="text-danger">*</span></label>
                     <select class="form-select input-glass" id="supplier_id" name="supplier_id" required>
-                        <option value="" disabled selected>-- Select Supplier --</option>
-                        {% for supplier in suppliers %}
-                        <option value="{{ supplier.id }}">{{ supplier.name }}</option>
+                        <option value="" selected disabled>Select Supplier</option>
+                        {% for s in suppliers %}
+                        <option value="{{ s.id }}">{{ s.name }}</option>
                         {% endfor %}
                     </select>
                 </div>
                 <div class="col-md-4">
-                    <label for="purchase_date" class="form-label fw-bold text-muted small text-uppercase">Purchase Date <span class="text-danger">*</span></label>
-                    <div class="input-group">
-                        <span class="input-group-text bg-white border-end-0"><i class="fa-regular fa-calendar"></i></span>
-                        <input type="text" class="form-control input-glass border-start-0 ps-0" id="purchase_date" name="purchase_date" required>
-                    </div>
+                    <label for="purchase_date" class="form-label fw-bold text-muted small text-uppercase">Date <span class="text-danger">*</span></label>
+                    <input type="date" class="form-control input-glass" id="purchase_date" name="purchase_date" required>
                 </div>
                 <div class="col-md-4">
-                    <label for="bill_number" class="form-label fw-bold text-muted small text-uppercase">Bill / Invoice No.</label>
+                    <label for="bill_number" class="form-label fw-bold text-muted small text-uppercase">Bill Number</label>
                     <input type="text" class="form-control input-glass" id="bill_number" name="bill_number" placeholder="Optional">
+                </div>
+                
+                <!-- NEW: Notes Section -->
+                <div class="col-12">
+                    <label for="notes" class="form-label fw-bold text-muted small text-uppercase">Purchase Notes / Remarks</label>
+                    <textarea class="form-control input-glass" id="notes" name="notes" rows="2" placeholder="Any details about this purchase (e.g. Delivery terms, conditions)..."></textarea>
                 </div>
             </div>
 
-            <!-- Product Items Table -->
-            <h5 class="fw-bold mb-3">Item Details</h5>
-            <div class="table-responsive mb-3">
-                <table class="table table-borderless align-middle" id="itemsTable">
-                    <thead class="text-muted small text-uppercase border-bottom">
+            <!-- Items Table -->
+            <div class="table-responsive mb-4 rounded-3 border">
+                <table class="table table-borderless mb-0" id="itemsTable">
+                    <thead class="bg-light">
                         <tr>
-                            <th style="width: 35%;">Product</th>
-                            <th style="width: 15%;">Quantity</th>
-                            <th style="width: 20%;">Unit Price (₹)</th>
-                            <th style="width: 20%;" class="text-end">Total</th>
-                            <th style="width: 10%;" class="text-center">Action</th>
+                            <th style="width: 40%;" class="ps-4">Product</th>
+                            <th style="width: 20%;">Quantity</th>
+                            <th style="width: 25%;">Purchase Price</th>
+                            <th style="width: 10%;" class="text-end pe-4">Total</th>
+                            <th style="width: 5%;"></th>
                         </tr>
                     </thead>
                     <tbody>
                         <!-- Rows added by JS -->
                     </tbody>
-                    <tfoot class="border-top">
-                        <tr>
-                            <td colspan="3" class="text-end pt-3"><strong>Grand Total</strong></td>
-                            <td id="grandTotal" class="fw-bold fs-5 text-end pt-3 text-primary">₹0.00</td>
-                            <td></td>
-                        </tr>
-                    </tfoot>
                 </table>
             </div>
-            
-            <button type="button" id="addRowBtn" class="btn btn-sm btn-light border shadow-sm fw-bold text-primary">
-                <i class="fa-solid fa-plus me-2"></i> Add Item Row
-            </button>
 
-            <div class="mt-5 text-end">
-                <button type="submit" class="btn-glass-primary px-5 py-3 shadow-lg">
-                    <i class="fa-solid fa-check me-2"></i>Save Purchase
+            <div class="d-flex justify-content-between align-items-center mt-3">
+                <button type="button" class="btn btn-light border shadow-sm text-primary fw-bold" id="addRowBtn">
+                    <i class="fa-solid fa-plus me-2"></i>Add Item
+                </button>
+                
+                <div class="text-end">
+                    <small class="text-uppercase text-muted fw-bold d-block mb-1">Grand Total</small>
+                    <h3 class="fw-bold text-primary mb-0" id="grandTotal">₹0.00</h3>
+                </div>
+            </div>
+
+            <hr class="my-5 opacity-10">
+
+            <div class="text-end">
+                <button type="submit" class="btn btn-primary px-5 py-2 rounded-pill shadow-lg fw-bold">
+                    <i class="fa-solid fa-check-circle me-2"></i>Confirm Purchase
                 </button>
             </div>
+
         </form>
     </div>
 </div>
 
-<!-- Scripts -->
-<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-<script>
-    flatpickr("#purchase_date", {
-        dateFormat: "Y-m-d", 
-        altInput: true,
-        altFormat: "d-m-Y",
-        defaultDate: "today",
-        allowInput: true
-    });
+<!-- Product Data for JS -->
+<script id="products-data" type="application/json">
+    {{ products | tojson }}
+</script>
 
-    document.addEventListener('DOMContentLoaded', function() {
-        const productsDataElement = document.getElementById('products-data');
-        let products = [];
-        
-        if (productsDataElement) {
-            try {
-                const rawData = productsDataElement.textContent.trim();
-                if (rawData) products = JSON.parse(rawData);
-            } catch (e) { console.error("JSON Error:", e); }
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // Set Today's Date
+        const dateInput = document.getElementById('purchase_date');
+        if (!dateInput.value) {
+            dateInput.value = new Date().toISOString().split('T')[0];
         }
 
+        const products = JSON.parse(document.getElementById('products-data').textContent);
         const tbody = document.querySelector('#itemsTable tbody');
         const addBtn = document.getElementById('addRowBtn');
         const grandTotalEl = document.getElementById('grandTotal');
 
         function addRow() {
             const row = document.createElement('tr');
-            let productOptions = '<option value="" disabled selected>Select Product</option>';
-            if (Array.isArray(products) && products.length > 0) {
-                products.forEach(p => {
-                    let price = p.price || p.cost_price || 0;
-                    let safeName = p.name.replace(/"/g, '&quot;');
-                    productOptions += `<option value="${p.id}" data-price="${price}">${safeName}</option>`;
-                });
-            }
-
             row.innerHTML = `
-                <td>
-                    <select class="form-select input-glass product-select" name="product_id[]" required>
-                        ${productOptions}
+                <td class="ps-4">
+                    <select name="product_id[]" class="form-select input-glass product-select" required>
+                        <option value="" selected disabled>Select Product</option>
+                        ${products.map(p => `<option value="${p.id}" data-price="${p.purchase_price || 0}">${p.name}</option>`).join('')}
                     </select>
                 </td>
                 <td>
-                    <input type="number" class="form-control input-glass quantity" name="quantity[]" value="1" min="1" required>
+                    <input type="number" name="quantity[]" class="form-control input-glass quantity" value="1" min="1" required>
                 </td>
                 <td>
-                    <!-- Removed 'required' attribute to allow 0/empty price -->
-                    <input type="number" step="0.01" class="form-control input-glass price" name="price[]" value="0.00">
+                    <div class="input-group">
+                        <span class="input-group-text border-0 bg-transparent text-muted">₹</span>
+                        <input type="number" name="price[]" class="form-control input-glass border-start-0 ps-0 price" value="0.00" step="0.01" required>
+                    </div>
                 </td>
-                <td class="text-end total-cell fw-bold text-dark">₹0.00</td>
-                <td class="text-center">
-                    <button type="button" class="btn btn-sm text-danger remove-row"><i class="fa-solid fa-trash"></i></button>
+                <td class="text-end pe-4 align-middle fw-bold text-dark total-cell">₹0.00</td>
+                <td class="align-middle text-center">
+                    <button type="button" class="btn btn-link text-danger p-0 remove-row">
+                        <i class="fa-solid fa-times"></i>
+                    </button>
                 </td>
             `;
             tbody.appendChild(row);
-            
+
             const select = row.querySelector('.product-select');
             const qtyInput = row.querySelector('.quantity');
             const priceInput = row.querySelector('.price');
             const removeBtn = row.querySelector('.remove-row');
 
-            select.addEventListener('change', function() {
-                const selectedOption = this.options[this.selectedIndex];
-                const price = parseFloat(selectedOption.dataset.price) || 0;
-                // Only autofill if field is empty or 0
-                if (!priceInput.value || parseFloat(priceInput.value) === 0) {
-                    priceInput.value = price.toFixed(2);
-                }
+            // Events
+            select.addEventListener('change', () => {
+                const opt = select.options[select.selectedIndex];
+                // Auto-fill purchase price if available in DB
+                const price = parseFloat(opt.getAttribute('data-price')) || 0;
+                // If price is 0, user types it. If DB has purchase_price, suggest it.
+                if(price > 0) priceInput.value = price.toFixed(2);
                 updateRowTotal(row);
             });
 
@@ -162,7 +155,6 @@
 
         function updateRowTotal(row) {
             const qty = parseFloat(row.querySelector('.quantity').value) || 0;
-            // Handle empty price string as 0
             const priceStr = row.querySelector('.price').value;
             const price = priceStr ? parseFloat(priceStr) : 0;
             
@@ -183,11 +175,9 @@
         }
 
         if(addBtn) addBtn.addEventListener('click', () => addRow());
-        addRow();
+        
+        // Add initial row
+        if(tbody.children.length === 0) addRow();
     });
-</script>
-
-<script id="products-data" type="application/json">
-    {{ products|tojson|safe }}
 </script>
 {% endblock %}
