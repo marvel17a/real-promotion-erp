@@ -397,61 +397,35 @@ def expense_dash():
     
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
-    # --- 1. FINANCIAL HEALTH (KPI Cards) ---
-    
-    # A. Existing Income (Sales)
-    cur.execute("SELECT SUM(cash_money) as cash, SUM(online_money) as bank FROM evening_settle WHERE status='final'")
+    # --- INCOME ---
+    cur.execute("SELECT SUM(cash_money) as c, SUM(online_money) as b FROM evening_settle WHERE status='final'")
     eve = cur.fetchone()
-    cur.execute("SELECT SUM(cash_amount) as cash, SUM(online_amount) as bank FROM office_sales")
+    cur.execute("SELECT SUM(cash_amount) as c, SUM(online_amount) as b FROM office_sales")
     off = cur.fetchone()
+    cur.execute("SELECT SUM(CASE WHEN payment_mode='Cash' THEN amount ELSE 0 END) as c, SUM(CASE WHEN payment_mode!='Cash' THEN amount ELSE 0 END) as b FROM employee_transactions WHERE type='credit'")
+    emp_in = cur.fetchone()
     
-    # B. NEW SOURCE: Employee Transactions (Money In -> Credit)
-    # If type='credit', money comes IN to company (e.g. return of advance, collection)
-    cur.execute("""
-        SELECT 
-            SUM(CASE WHEN payment_mode = 'Cash' THEN amount ELSE 0 END) as cash_in,
-            SUM(CASE WHEN payment_mode != 'Cash' THEN amount ELSE 0 END) as bank_in
-        FROM employee_transactions 
-        WHERE type = 'credit'
-    """)
-    emp_credit = cur.fetchone()
-    
-    # Total Income Calculation
-    total_cash_in = float(eve['cash'] or 0) + float(off['cash'] or 0) + float(emp_credit['cash_in'] or 0)
-    total_bank_in = float(eve['bank'] or 0) + float(off['bank'] or 0) + float(emp_credit['bank_in'] or 0)
+    total_cash_in = float(eve['c'] or 0) + float(off['c'] or 0) + float(emp_in['c'] or 0)
+    total_bank_in = float(eve['b'] or 0) + float(off['b'] or 0) + float(emp_in['b'] or 0)
 
-    # C. Expenses (Money Out -> Vouchers)
-    cur.execute("""
-        SELECT 
-            SUM(CASE WHEN payment_method = 'Cash' THEN amount ELSE 0 END) as cash_out,
-            SUM(CASE WHEN payment_method != 'Cash' THEN amount ELSE 0 END) as bank_out
-        FROM expense_items
-    """)
-    exp = cur.fetchone()
+    # --- EXPENSES (Now includes Supplier Payments) ---
+    cur.execute("SELECT SUM(CASE WHEN payment_method='Cash' THEN amount ELSE 0 END) as c, SUM(CASE WHEN payment_method!='Cash' THEN amount ELSE 0 END) as b FROM expense_items")
+    exp_out = cur.fetchone()
     
-    # D. NEW OUTFLOW: Employee Transactions (Money Out -> Debit)
-    # If type='debit', money goes OUT from company (e.g. Salary Advance, Petrol)
-    cur.execute("""
-        SELECT 
-            SUM(CASE WHEN payment_mode = 'Cash' THEN amount ELSE 0 END) as cash_out,
-            SUM(CASE WHEN payment_mode != 'Cash' THEN amount ELSE 0 END) as bank_out
-        FROM employee_transactions 
-        WHERE type = 'debit'
-    """)
-    emp_debit = cur.fetchone()
-
-    # Final Balance Calculation
-    total_cash_out = float(exp['cash_out'] or 0) + float(emp_debit['cash_out'] or 0)
-    total_bank_out = float(exp['bank_out'] or 0) + float(emp_debit['bank_out'] or 0)
+    cur.execute("SELECT SUM(CASE WHEN payment_mode='Cash' THEN amount ELSE 0 END) as c, SUM(CASE WHEN payment_mode!='Cash' THEN amount ELSE 0 END) as b FROM employee_transactions WHERE type='debit'")
+    emp_out = cur.fetchone()
     
-    cash_bal = total_cash_in - total_cash_out
-    bank_bal = total_bank_in - total_bank_out
-    total_bal = cash_bal + bank_bal
-
+    # *** ADDED THIS BLOCK ***
+    cur.execute("SELECT SUM(CASE WHEN payment_mode='Cash' THEN amount_paid ELSE 0 END) as c, SUM(CASE WHEN payment_mode!='Cash' THEN amount_paid ELSE 0 END) as b FROM supplier_payments")
+    supp_out = cur.fetchone()
+    
+    total_cash_out = float(exp_out['c'] or 0) + float(emp_out['c'] or 0) + float(supp_out['c'] or 0)
+    total_bank_out = float(exp_out['b'] or 0) + float(emp_out['b'] or 0) + float(supp_out['b'] or 0)
+    
     fin_health = {
-        'total_balance': total_bal,
-        'cash_balance': cash_bal,
-        'bank_balance': bank_bal
+        'total_balance': (total_cash_in + total_bank_in) - (total_cash_out + total_bank_out),
+        'cash_balance': total_cash_in - total_cash_out,
+        'bank_balance': total_bank_in - total_bank_out
     }
 
     # --- 2. CASHFLOW CHART (Monthly Income vs Expense) ---
@@ -1982,7 +1956,6 @@ def delete_supplier_payment(payment_id):
     
     cur.close()
     return redirect(url_for('suppliers'))
-
 
 @app.route('/suppliers/delete/<int:supplier_id>', methods=['POST'])
 def delete_supplier(supplier_id):
@@ -7760,6 +7733,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
