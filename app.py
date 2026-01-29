@@ -2004,17 +2004,56 @@ def delete_supplier(supplier_id):
 @app.route('/purchases')
 def purchases():
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    cur.execute("""
+    
+    # --- 1. Get Filters from URL ---
+    q = request.args.get('q', '').strip()
+    supplier_id = request.args.get('supplier_id', '')
+    start_date = request.args.get('start_date', '')
+    end_date = request.args.get('end_date', '')
+    
+    # --- 2. Build Query ---
+    query = """
         SELECT p.*, s.name as supplier_name, COUNT(pi.id) as item_count
         FROM purchases p
         JOIN suppliers s ON p.supplier_id = s.id
         LEFT JOIN purchase_items pi ON p.id = pi.purchase_id
-        GROUP BY p.id
-        ORDER BY p.purchase_date DESC
-    """)
+        WHERE 1=1
+    """
+    params = []
+    
+    if q:
+        query += " AND p.bill_number LIKE %s"
+        params.append(f"%{q}%")
+        
+    if supplier_id:
+        query += " AND p.supplier_id = %s"
+        params.append(supplier_id)
+        
+    if start_date:
+        query += " AND p.purchase_date >= %s"
+        params.append(start_date)
+        
+    if end_date:
+        query += " AND p.purchase_date <= %s"
+        params.append(end_date)
+        
+    query += " GROUP BY p.id ORDER BY p.purchase_date DESC"
+    
+    # --- 3. Execute Query ---
+    cur.execute(query, tuple(params))
     all_purchases = cur.fetchall()
+    
+    # --- 4. Fetch Suppliers for Filter Dropdown ---
+    cur.execute("SELECT id, name FROM suppliers ORDER BY name")
+    suppliers = cur.fetchall()
+    
     cur.close()
-    return render_template('purchases/purchases.html', purchases=all_purchases)
+    
+    # --- 5. Return Template ---
+    return render_template('purchases/purchases.html', 
+                           purchases=all_purchases, 
+                           suppliers=suppliers,
+                           filters={'q': q, 'supplier_id': supplier_id, 'start_date': start_date, 'end_date': end_date})
 
 
 
@@ -7678,6 +7717,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
