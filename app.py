@@ -2018,9 +2018,6 @@ def purchases():
 
 
 
-# =====================================================================================#
-# 5. NEW PURCHASE ROUTE (Updated to show only Active Products)
-# =====================================================================================#
 @app.route('/new_purchase', methods=['GET', 'POST'])
 def new_purchase():
     if 'loggedin' not in session: return redirect(url_for('login'))
@@ -2031,19 +2028,48 @@ def new_purchase():
         try:
             # 1. Master Data
             supplier_id = request.form['supplier_id']
-            purchase_date = request.form['purchase_date']
+            purchase_date_str = request.form['purchase_date']
             
-            # Get Bill Number & Notes
+            # --- AUTO-GENERATE BILL NUMBER LOGIC (SMART SEQUENCE) ---
             bill_number = request.form.get('bill_number', '').strip()
             notes = request.form.get('notes', '')
             
-            # --- AUTO-GENERATE BILL NUMBER LOGIC ---
-            # Agar user ne Bill Number nahi dala, to hum automatic generate karenge
+            # Agar user ne Bill Number nahi dala, to hum PO-ddmmyy-X format use karenge
             if not bill_number:
-                # Format: PO-YYYYMMDD-HHMMSS (Example: PO-20260129-123045)
-                # Ye unique hoga kyunki isme second bhi include hai
-                bill_number = "PO-" + datetime.now().strftime("%Y%m%d-%H%M%S")
-            # ---------------------------------------
+                # 1. Parse Date to get ddmmyy
+                try:
+                    p_date_obj = datetime.strptime(purchase_date_str, '%Y-%m-%d')
+                    date_part = p_date_obj.strftime("%d%m%y") # e.g. 290126
+                except:
+                    # Fallback to today if date parse fails
+                    p_date_obj = date.today()
+                    date_part = p_date_obj.strftime("%d%m%y")
+                
+                # 2. Check DB for max existing suffix for THIS date
+                # Hum 'PO-290126-%' pattern search karenge
+                prefix = f"PO-{date_part}-"
+                query_pattern = prefix + "%"
+                
+                cursor.execute("SELECT bill_number FROM purchases WHERE bill_number LIKE %s ORDER BY id DESC", (query_pattern,))
+                existing_bills = cursor.fetchall()
+                
+                max_suffix = 0
+                for row in existing_bills:
+                    bn = row['bill_number']
+                    # Extract the number part after the last dash
+                    if bn.startswith(prefix):
+                        try:
+                            parts = bn.split('-')
+                            suffix = int(parts[-1])
+                            if suffix > max_suffix:
+                                max_suffix = suffix
+                        except:
+                            pass # Ignore if format doesn't match exactly
+                
+                # 3. Generate New Bill Number
+                new_suffix = max_suffix + 1
+                bill_number = f"PO-{date_part}-{new_suffix}"
+            # -------------------------------------------------------
             
             # 2. Item Arrays
             product_ids = request.form.getlist('product_id[]')
@@ -2073,7 +2099,7 @@ def new_purchase():
             cursor.execute("""
                 INSERT INTO purchases (supplier_id, purchase_date, bill_number, total_amount, notes)
                 VALUES (%s, %s, %s, %s, %s)
-            """, (supplier_id, purchase_date, bill_number, total_amount, notes))
+            """, (supplier_id, purchase_date_str, bill_number, total_amount, notes))
             
             purchase_id = cursor.lastrowid
             
@@ -2145,7 +2171,6 @@ def new_purchase():
     
     cursor.close()
     return render_template('purchases/new_purchase.html', suppliers=suppliers, products=products)
-
 
 
 
@@ -7678,6 +7703,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
