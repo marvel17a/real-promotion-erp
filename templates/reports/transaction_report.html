@@ -1,138 +1,524 @@
 {% extends "admin_master.html" %}
 
-{% block title %}Transaction Analysis Report{% endblock %}
+{% block title %}Financial Intelligence Dashboard{% endblock %}
 
 {% block page_content %}
+<!-- Fonts & Icons -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<!-- Flatpickr -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=DejaVu+Sans:wght@400;700&display=swap');
-
     :root {
-        --primary-color: #4f46e5;
-        --border-color: #e5e7eb;
-        --bg-light: #f9fafb;
-        --text-dark: #111827;
-        --text-muted: #6b7280;
+        --glass-bg: rgba(255, 255, 255, 0.85);
+        --glass-border: 1px solid rgba(255, 255, 255, 0.6);
+        --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05);
+        --primary-gradient: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+        --text-main: #1e293b;
+        --text-sub: #64748b;
+        --success-bg: #dcfce7;
+        --success-text: #166534;
+        --danger-bg: #fee2e2;
+        --danger-text: #991b1b;
     }
 
-    .report-container {
-        font-family: 'DejaVu Sans', sans-serif;
-        color: var(--text-dark);
+    body {
+        font-family: 'Inter', sans-serif;
+        background-color: #f1f5f9;
+        color: var(--text-main);
     }
 
-    /* Filter Bar */
+    /* --- GLASS CONTAINER --- */
+    .dashboard-container {
+        padding: 2rem;
+        max-width: 1400px;
+        margin: 0 auto;
+        animation: fadeIn 0.6s ease-out;
+    }
+
+    .glass-panel {
+        background: var(--glass-bg);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: var(--glass-border);
+        border-radius: 24px;
+        box-shadow: var(--glass-shadow);
+        padding: 2rem;
+        margin-bottom: 2rem;
+    }
+
+    /* --- HEADER --- */
+    .dashboard-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+
+    .header-title h2 {
+        font-family: 'Poppins', sans-serif;
+        font-weight: 700;
+        font-size: 1.8rem;
+        color: var(--text-main);
+        margin: 0;
+        letter-spacing: -0.5px;
+    }
+
+    .header-title p {
+        color: var(--text-sub);
+        margin: 0;
+        font-size: 0.95rem;
+    }
+
+    /* --- KPI CARDS --- */
+    .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .kpi-card {
+        background: #fff;
+        border-radius: 16px;
+        padding: 1.5rem;
+        border: 1px solid rgba(226, 232, 240, 0.8);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
+        display: flex;
+        align-items: center;
+        transition: transform 0.2s;
+    }
+
+    .kpi-card:hover { transform: translateY(-4px); }
+
+    .kpi-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+        margin-right: 1rem;
+    }
+
+    .bg-green-grad { background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%); color: #15803d; }
+    .bg-red-grad { background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%); color: #b91c1c; }
+    .bg-blue-grad { background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); color: #1d4ed8; }
+
+    .kpi-content h5 {
+        font-size: 0.85rem;
+        color: var(--text-sub);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 0.25rem;
+        font-weight: 600;
+    }
+
+    .kpi-value {
+        font-family: 'Poppins', sans-serif;
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--text-main);
+    }
+
+    /* --- FILTERS --- */
     .filter-bar {
-        background-color: #fff;
-        border: 1px solid var(--border-color);
-        border-radius: 0.75rem;
-        padding: 1rem;
+        background: #fff;
+        border-radius: 16px;
+        padding: 1.25rem;
+        display: flex;
+        gap: 1rem;
+        align-items: flex-end;
+        flex-wrap: wrap;
+        border: 1px solid #e2e8f0;
+        margin-bottom: 2rem;
     }
-    .filter-bar .form-label {
+
+    .form-group { flex: 1; min-width: 200px; }
+    .form-label {
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        color: var(--text-sub);
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+
+    .form-control-modern {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        font-size: 0.95rem;
+        color: var(--text-main);
+        background: #f8fafc;
+        transition: 0.2s;
+    }
+
+    .form-control-modern:focus {
+        background: #fff;
+        border-color: #6366f1;
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    }
+
+    .btn-filter {
+        background: var(--primary-gradient);
+        color: white;
+        border: none;
+        padding: 0.75rem 2rem;
+        border-radius: 10px;
+        font-weight: 600;
+        height: 48px;
+        cursor: pointer;
+        transition: 0.2s;
+        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
+    }
+    .btn-filter:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(99, 102, 241, 0.3); }
+
+    /* --- TABLE --- */
+    .table-container {
+        border-radius: 16px;
+        overflow: hidden;
+        border: 1px solid #e2e8f0;
+        background: white;
+    }
+
+    .modern-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .modern-table thead {
+        background: #f8fafc;
+        border-bottom: 2px solid #e2e8f0;
+    }
+
+    .modern-table th {
+        padding: 1rem 1.5rem;
+        text-align: left;
         font-size: 0.8rem;
         font-weight: 700;
+        color: var(--text-sub);
         text-transform: uppercase;
-        color: var(--text-muted);
-        margin-bottom: 0.5rem;
-    }
-    .filter-bar .form-select, .filter-bar .form-control {
-        border-radius: 0.5rem;
-        border: 1px solid var(--border-color);
-    }
-    .filter-bar .btn-primary {
-        background-color: var(--primary-color);
-        border: none;
-        font-weight: 700;
-        height: 100%;
-    }
-
-    /* KPI Cards */
-    .kpi-card {
-        background-color: #fff;
-        border: 1px solid var(--border-color);
-        border-radius: 0.75rem;
-        padding: 1.5rem;
-    }
-    .kpi-icon {
-        font-size: 1.75rem;
-        padding: 1rem;
-        border-radius: 50%;
-        background-color: var(--bg-light);
-    }
-    .kpi-value {
-        font-size: 2rem;
-        font-weight: 700;
-    }
-
-    /* Transaction Table */
-    .table-container {
-        background-color: #fff;
-        border: 1px solid var(--border-color);
-        border-radius: 0.75rem;
-        overflow: hidden;
-    }
-    .table thead th {
-        background-color: var(--bg-light);
-        border-bottom: 2px solid var(--border-color);
-        text-transform: uppercase;
-        font-size: 0.75rem;
         letter-spacing: 0.5px;
     }
-    .table tbody tr:last-child td { border-bottom: none; }
+
+    .modern-table td {
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid #f1f5f9;
+        vertical-align: middle;
+        font-size: 0.95rem;
+    }
+
+    .modern-table tr:last-child td { border-bottom: none; }
+    .modern-table tr:hover { background-color: #f8fafc; }
+
+    /* Employee Cell */
+    .emp-cell { display: flex; align-items: center; gap: 12px; }
+    .emp-avatar {
+        width: 40px; height: 40px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 2px solid #fff;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    .emp-info { display: flex; flex-direction: column; }
+    .emp-name { font-weight: 600; color: var(--text-main); }
+    .emp-meta { font-size: 0.75rem; color: var(--text-sub); }
+
+    /* Badges */
+    .badge-pill {
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        display: inline-block;
+    }
+    .badge-credit { background: var(--success-bg); color: var(--success-text); }
+    .badge-debit { background: var(--danger-bg); color: var(--danger-text); }
+
+    /* Amounts */
+    .amt-credit { color: #166534; font-weight: 600; font-family: 'Poppins', sans-serif; }
+    .amt-debit { color: #991b1b; font-weight: 600; font-family: 'Poppins', sans-serif; }
+
+    /* Export Buttons */
+    .export-actions { display: flex; gap: 10px; }
+    .btn-export {
+        display: inline-flex; align-items: center; gap: 8px;
+        padding: 0.6rem 1.2rem;
+        border-radius: 50px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        text-decoration: none;
+        transition: 0.2s;
+        border: 1px solid transparent;
+    }
+    .btn-pdf { background: #fee2e2; color: #991b1b; }
+    .btn-pdf:hover { background: #fecaca; }
+    .btn-excel { background: #dcfce7; color: #166534; }
+    .btn-excel:hover { background: #bbf7d0; }
+
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .filter-bar { flex-direction: column; align-items: stretch; }
+        .form-group { min-width: 100%; }
+        .kpi-grid { grid-template-columns: 1fr; }
+    }
 </style>
 
-<div class="report-container">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="mb-0">Transaction Analysis</h2>
-        <div class="btn-group">
-            <a href="{{ url_for('download_transaction_report', format='excel', **filters) }}" class="btn btn-sm btn-outline-success">
-                <i class="fa-solid fa-file-excel me-1"></i> Export Excel
+<div class="dashboard-container">
+    
+    <!-- Header -->
+    <div class="dashboard-header">
+        <div class="header-title">
+            <h2>Financial Intelligence</h2>
+            <p>Employee Ledger Analysis & Cash Flow</p>
+        </div>
+        <div class="export-actions">
+            <!-- Dynamic Export Links -->
+            <a href="{{ url_for('download_transaction_report', format='pdf', period=filters.period, employee_id=filters.employee_id, start_date=filters.start_date, end_date=filters.end_date) }}" class="btn-export btn-pdf">
+                <i class="fa-solid fa-file-pdf"></i> Export PDF
             </a>
-            <a href="{{ url_for('download_transaction_report', format='pdf', **filters) }}" class="btn btn-sm btn-outline-danger">
-                <i class="fa-solid fa-file-pdf me-1"></i> Export PDF
+            <a href="{{ url_for('download_transaction_report', format='excel', period=filters.period, employee_id=filters.employee_id, start_date=filters.start_date, end_date=filters.end_date) }}" class="btn-export btn-excel">
+                <i class="fa-solid fa-file-excel"></i> Export Excel
             </a>
         </div>
     </div>
 
-    <div class="filter-bar mb-4">
-        <form action="{{ url_for('transaction_report') }}" method="POST">
-            <div class="row g-3 align-items-end">
-                <div class="col-md-3"><label for="period" class="form-label">Period</label><select name="period" id="periodSelector" class="form-select"><option value="today" {% if filters.period == 'today' %}selected{% endif %}>Today</option><option value="this_week" {% if filters.period == 'this_week' %}selected{% endif %}>This Week</option><option value="this_month" {% if filters.period == 'this_month' %}selected{% endif %}>This Month</option><option value="this_year" {% if filters.period == 'this_year' %}selected{% endif %}>This Year</option><option value="custom" {% if filters.period == 'custom' %}selected{% endif %}>Custom Range</option></select></div>
-                <div class="col-md-4"><div class="row g-2" id="customDateRange" style="display: {% if filters.period == 'custom' %}'flex'{% else %}'none'{% endif %};"><div class="col"><label for="start_date" class="form-label">From</label><input type="date" name="start_date" class="form-control" value="{{ filters.start_date }}"></div><div class="col"><label for="end_date" class="form-label">To</label><input type="date" name="end_date" class="form-control" value="{{ filters.end_date }}"></div></div></div>
-                <div class="col-md-3"><label for="employee_id" class="form-label">Employee</label><select name="employee_id" class="form-select"><option value="all" {% if filters.employee_id == 'all' %}selected{% endif %}>All Employees</option>{% for employee in employees %}<option value="{{ employee.id }}" {% if filters.employee_id|string == employee.id|string %}selected{% endif %}>{{ employee.name }}</option>{% endfor %}</select></div>
-                <div class="col-md-2"><button type="submit" class="btn btn-primary w-100"><i class="fa-solid fa-filter me-1"></i> Apply Filters</button></div>
+    <!-- 1. KPI Cards -->
+    <div class="kpi-grid">
+        <!-- Total Credit (Company Owes / Salary Due) -->
+        <div class="kpi-card">
+            <div class="kpi-icon bg-green-grad"><i class="fa-solid fa-arrow-trend-up"></i></div>
+            <div class="kpi-content">
+                <h5>Total Credit (Due)</h5>
+                <div class="kpi-value text-success">{{ total_credit|inr }}</div>
             </div>
-        </form>
+        </div>
+
+        <!-- Total Debit (Advance Given) -->
+        <div class="kpi-card">
+            <div class="kpi-icon bg-red-grad"><i class="fa-solid fa-arrow-trend-down"></i></div>
+            <div class="kpi-content">
+                <h5>Total Debit (Given)</h5>
+                <div class="kpi-value text-danger">{{ total_debit|inr }}</div>
+            </div>
+        </div>
+
+        <!-- Net Flow -->
+        <div class="kpi-card">
+            <div class="kpi-icon bg-blue-grad"><i class="fa-solid fa-scale-balanced"></i></div>
+            <div class="kpi-content">
+                <h5>Net Cash Flow</h5>
+                <!-- Dynamic Color Logic -->
+                <div class="kpi-value" style="color: {{ '#166534' if net_flow < 0 else '#991b1b' }}">
+                    {{ net_flow|abs|inr }} 
+                    <span style="font-size: 0.8rem; font-weight: 400; color: #64748b;">
+                        ({{ 'Payable' if net_flow < 0 else 'Receivable' }})
+                    </span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Transaction Count -->
+        <div class="kpi-card">
+            <div class="kpi-icon" style="background: #f3e8ff; color: #7e22ce;"><i class="fa-solid fa-list-check"></i></div>
+            <div class="kpi-content">
+                <h5>Transactions</h5>
+                <div class="kpi-value">{{ total_transactions }}</div>
+            </div>
+        </div>
     </div>
 
-    <div class="row g-4 mb-4">
-        <div class="col"><div class="kpi-card"><div class="d-flex align-items-center"><div class="flex-grow-1"><div class="text-muted"> Debit (Given)</div><div class="kpi-value text-danger">{{ total_debit|inr }}</div></div><div class="kpi-icon text-danger"><i class="fa-solid fa-arrow-up-from-bracket"></i></div></div></div></div>
-        <div class="col"><div class="kpi-card"><div class="d-flex align-items-center"><div class="flex-grow-1"><div class="text-muted"> Credit (Received)</div><div class="kpi-value text-success">{{ total_credit|inr }}</div></div><div class="kpi-icon text-success"><i class="fa-solid fa-hand-holding-dollar"></i></div></div></div></div>
-        <div class="col"><div class="kpi-card"><div class="d-flex align-items-center"><div class="flex-grow-1"><div class="text-muted">Net Flow</div><div class="kpi-value {% if net_flow > 0 %}text-danger{% else %}text-success{% endif %}">{{ net_flow|inr }}</div></div><div class="kpi-icon {% if net_flow > 0 %}text-danger{% else %}text-success{% endif %}"><i class="fa-solid fa-scale-balanced"></i></div></div></div></div>
-        <div class="col"><div class="kpi-card"><div class="d-flex align-items-center"><div class="flex-grow-1"><div class="text-muted">Transactions</div><div class="kpi-value">{{ total_transactions }}</div></div><div class="kpi-icon text-primary"><i class="fa-solid fa-receipt"></i></div></div></div></div>
+    <!-- 2. Chart Section (Visible if Data Exists) -->
+    {% if total_transactions > 0 %}
+    <div class="glass-panel" style="padding: 1.5rem; height: 300px; position: relative;">
+        <canvas id="flowChart"></canvas>
     </div>
+    {% endif %}
 
-    <div class="table-container">
-        <table class="table mb-0">
-            <thead><tr><th>Date</th><th>Employee</th><th>Description</th><th class="text-end">Debit</th><th class="text-end">Credit</th></tr></thead>
+    <!-- 3. Advanced Filter Bar -->
+    <form method="POST" class="filter-bar shadow-sm">
+        <div class="form-group">
+            <label class="form-label">Time Period</label>
+            <select name="period" id="periodSelect" class="form-control-modern">
+                <option value="today" {% if filters.period == 'today' %}selected{% endif %}>Today</option>
+                <option value="this_week" {% if filters.period == 'this_week' %}selected{% endif %}>This Week</option>
+                <option value="this_month" {% if filters.period == 'this_month' %}selected{% endif %}>This Month</option>
+                <option value="this_year" {% if filters.period == 'this_year' %}selected{% endif %}>This Year</option>
+                <option value="custom" {% if filters.period == 'custom' %}selected{% endif %}>Custom Range</option>
+            </select>
+        </div>
+
+        <!-- Custom Range (Hidden by default via JS) -->
+        <div class="form-group" id="customRangeGroup" style="display: none;">
+            <label class="form-label">Date Range</label>
+            <input type="text" id="dateRange" class="form-control-modern" placeholder="Select Dates">
+            <!-- Hidden inputs for backend -->
+            <input type="hidden" name="start_date" id="startDate" value="{{ filters.start_date }}">
+            <input type="hidden" name="end_date" id="endDate" value="{{ filters.end_date }}">
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Employee</label>
+            <select name="employee_id" class="form-control-modern">
+                <option value="all">All Employees</option>
+                {% for emp in employees %}
+                <option value="{{ emp.id }}" {% if filters.employee_id|string == emp.id|string %}selected{% endif %}>
+                    {{ emp.name }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <button type="submit" class="btn-filter">
+            <i class="fa-solid fa-filter me-2"></i> Apply Filters
+        </button>
+    </form>
+
+    <!-- 4. Data Table -->
+    <div class="table-container shadow-sm">
+        <table class="modern-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Employee</th>
+                    <th>Description</th>
+                    <th class="text-end">Credit (Due)</th> <!-- First -->
+                    <th class="text-end">Debit (Given)</th> <!-- Second -->
+                </tr>
+            </thead>
             <tbody>
                 {% for t in transactions %}
                 <tr>
-                    <td>{{ t.transaction_date.strftime('%d-%m-%Y') }}</td>
-                    <td>{{ t.employee_name }}</td>
-                    <td class="text-muted">{{ t.description or 'N/A' }}</td>
-                    <td class="text-end text-danger fw-bold">{% if t.type == 'debit' %}{{ t.amount|inr }}{% endif %}</td>
-                    <td class="text-end text-success fw-bold">{% if t.type == 'credit' %}{{ t.amount|inr }}{% endif %}</td>
+                    <td>
+                        <div class="fw-bold text-dark">{{ t.transaction_date.strftime('%d-%m-%Y') }}</div>
+                    </td>
+                    <td>
+                        <div class="emp-cell">
+                            <img src="{{ t.employee_image or url_for('static', filename='img/default-user.png') }}" class="emp-avatar" alt="Avatar">
+                            <div class="emp-info">
+                                <span class="emp-name">{{ t.employee_name }}</span>
+                                <span class="emp-meta">ID: #{{ t.id }}</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <span class="text-muted small">{{ t.description or 'No description' }}</span>
+                    </td>
+                    
+                    <!-- Credit Column (Green) -->
+                    <td class="text-end">
+                        {% if t.type == 'credit' %}
+                            <span class="amt-credit">+ {{ t.amount|inr }}</span>
+                            <span class="badge-pill badge-credit ms-2">Credit</span>
+                        {% else %}
+                            <span class="text-muted opacity-25">-</span>
+                        {% endif %}
+                    </td>
+
+                    <!-- Debit Column (Red) -->
+                    <td class="text-end">
+                        {% if t.type == 'debit' %}
+                            <span class="amt-debit">- {{ t.amount|inr }}</span>
+                            <span class="badge-pill badge-debit ms-2">Debit</span>
+                        {% else %}
+                            <span class="text-muted opacity-25">-</span>
+                        {% endif %}
+                    </td>
                 </tr>
                 {% else %}
-                <tr><td colspan="5" class="text-center p-5">No transactions found for the selected criteria.</td></tr>
+                <tr>
+                    <td colspan="5" class="text-center py-5">
+                        <div class="text-muted opacity-50">
+                            <i class="fa-solid fa-folder-open fa-3x mb-3"></i>
+                            <p>No transactions found for this period.</p>
+                        </div>
+                    </td>
+                </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
+
 </div>
 
+<!-- Scripts -->
 <script>
-    document.getElementById('periodSelector').addEventListener('change', function() {
-        document.getElementById('customDateRange').style.display = (this.value === 'custom') ? 'flex' : 'none';
+    document.addEventListener("DOMContentLoaded", function() {
+        // 1. Flatpickr Range Mode
+        const periodSelect = document.getElementById('periodSelect');
+        const customGroup = document.getElementById('customRangeGroup');
+        
+        const fp = flatpickr("#dateRange", {
+            mode: "range",
+            dateFormat: "d-m-Y",
+            defaultDate: ["{{ filters.start_date }}", "{{ filters.end_date }}"],
+            onChange: function(selectedDates, dateStr, instance) {
+                if (selectedDates.length === 2) {
+                    // Format for backend (YYYY-MM-DD)
+                    const format = d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, '0') + "-" + String(d.getDate()).padStart(2, '0');
+                    document.getElementById('startDate').value = format(selectedDates[0]);
+                    document.getElementById('endDate').value = format(selectedDates[1]);
+                }
+            }
+        });
+
+        // Toggle Custom Range
+        function toggleRange() {
+            customGroup.style.display = periodSelect.value === 'custom' ? 'block' : 'none';
+        }
+        periodSelect.addEventListener('change', toggleRange);
+        toggleRange(); // Init
+
+        // 2. Chart.js (If data exists)
+        const ctx = document.getElementById('flowChart');
+        if (ctx) {
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Total Credit (Income/Due)', 'Total Debit (Expense/Given)'],
+                    datasets: [{
+                        label: 'Amount (₹)',
+                        data: [{{ chart_data.credit }}, {{ chart_data.debit }}],
+                        backgroundColor: [
+                            'rgba(34, 197, 94, 0.7)', // Green
+                            'rgba(239, 68, 68, 0.7)'  // Red
+                        ],
+                        borderColor: [
+                            '#166534',
+                            '#991b1b'
+                        ],
+                        borderWidth: 1,
+                        borderRadius: 8,
+                        barThickness: 60
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        title: { display: true, text: 'Cash Flow Overview', font: { size: 16, family: 'Poppins' } }
+                    },
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+        }
     });
 </script>
+
 {% endblock %}
