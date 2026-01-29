@@ -1,37 +1,132 @@
-<div class="card report-card">
-    <div class="card-header">
-        <h5 class="mb-0">Monthly Summary: {{ report_data.month_name }} {{ report_data.year }}</h5>
-    </div>
-    <div class="card-body">
-        <div class="row align-items-center">
-            <div class="col-md-4 text-center border-end">
-                <h6 class="text-muted">Total Expenses</h6>
-                <h1 class="display-4 font-weight-bold">₹{{ (report_data.summary.total | default(0)) | round(0) | int }}</h1>
-            </div>
+<style>
+    .kpi-card {
+        background: white;
+        border-radius: 16px;
+        padding: 1.5rem;
+        box-shadow: var(--shadow-soft);
+        border: 1px solid rgba(0,0,0,0.04);
+        height: 100%;
+        transition: transform 0.2s;
+    }
+    .kpi-card:hover { transform: translateY(-3px); }
+    
+    .kpi-icon-wrapper {
+        width: 48px; height: 48px;
+        border-radius: 12px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.25rem; margin-bottom: 1rem;
+    }
+    
+    .kpi-label { font-size: 0.85rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; }
+    .kpi-value { font-size: 1.75rem; font-weight: 800; color: var(--text-main); margin-bottom: 0; line-height: 1.2; }
+    
+    /* Colors for icons */
+    .bg-indigo-soft { background: #e0e7ff; color: #4338ca; }
+    .bg-emerald-soft { background: #dcfce7; color: #15803d; }
+    .bg-amber-soft { background: #fef3c7; color: #b45309; }
+    .bg-rose-soft { background: #ffe4e6; color: #be123c; }
 
-            <div class="col-md-3 text-center border-end">
-                 <div class="mb-3">
-                    <h6 class="text-muted">Total Transactions</h6>
-                    <p class="h3 font-weight-bold">{{ report_data.summary.count | default(0) }}</p>
-                </div>
+    .leaderboard-item {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 1rem 0;
+        border-bottom: 1px solid #f1f5f9;
+    }
+    .leaderboard-item:last-child { border-bottom: none; }
+</style>
+
+<div class="row g-4 mb-4">
+    <!-- KPI 1: Total Spend -->
+    <div class="col-xl-3 col-md-6">
+        <div class="kpi-card">
+            <div class="d-flex justify-content-between align-items-start">
                 <div>
-                    <h6 class="text-muted">Average Expense</h6>
-                    <p class="h3 font-weight-bold">₹{{ (report_data.summary.average | default(0)) | round(2) }}</p>
+                    <span class="kpi-label">Total Outflow</span>
+                    <h3 class="kpi-value">{{ (report_data.summary.total | default(0)) | inr }}</h3>
+                </div>
+                <div class="kpi-icon-wrapper bg-indigo-soft">
+                    <i class="fa-solid fa-wallet"></i>
                 </div>
             </div>
+        </div>
+    </div>
 
-            <div class="col-md-5">
-                <h6 class="text-center mb-3">Top Spending Items This Month</h6>
-                <ul class="list-group list-group-flush">
-                    {% for item in report_data.top_items %}
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        {{ item.subcategory_name }}
-                        <span class="badge bg-primary rounded-pill">₹{{ (item.sub_total | default(0)) | round(0) | int }}</span>
-                    </li>
-                    {% else %}
-                    <li class="list-group-item text-muted">No specific items to show.</li>
-                    {% endfor %}
-                </ul>
+    <!-- KPI 2: Transactions -->
+    <div class="col-xl-3 col-md-6">
+        <div class="kpi-card">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <span class="kpi-label">Transactions</span>
+                    <h3 class="kpi-value">{{ report_data.summary.count | default(0) }}</h3>
+                </div>
+                <div class="kpi-icon-wrapper bg-emerald-soft">
+                    <i class="fa-solid fa-receipt"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- KPI 3: Average Ticket -->
+    <div class="col-xl-3 col-md-6">
+        <div class="kpi-card">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <span class="kpi-label">Avg. Ticket Size</span>
+                    <h3 class="kpi-value">{{ (report_data.summary.average | default(0)) | inr }}</h3>
+                </div>
+                <div class="kpi-icon-wrapper bg-amber-soft">
+                    <i class="fa-solid fa-scale-balanced"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- KPI 4: Daily Average -->
+    <div class="col-xl-3 col-md-6">
+        <div class="kpi-card">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <span class="kpi-label">Daily Average</span>
+                    <!-- Simple calc: Total / 30 (approx) -->
+                    <h3 class="kpi-value">{{ ((report_data.summary.total | default(0)) / 30) | inr }}</h3>
+                </div>
+                <div class="kpi-icon-wrapper bg-rose-soft">
+                    <i class="fa-solid fa-calendar-day"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Top Spenders Leaderboard -->
+    <div class="col-lg-6">
+        <div class="kpi-card">
+            <h5 class="fw-bold mb-4 text-dark">Top Spending Areas</h5>
+            <div class="leaderboard-list">
+                {% for item in report_data.top_items %}
+                <div class="leaderboard-item">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="rounded-circle bg-light d-flex align-items-center justify-content-center fw-bold text-muted" style="width: 32px; height: 32px;">{{ loop.index }}</div>
+                        <div>
+                            <div class="fw-bold text-dark">{{ item.subcategory_name }}</div>
+                            <small class="text-muted">{{ item.category_name }}</small>
+                        </div>
+                    </div>
+                    <div class="fw-bold text-dark">{{ item.sub_total | inr }}</div>
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-4">No data available for this month.</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Placeholder for Chart (Can be added later) -->
+    <div class="col-lg-6">
+        <div class="kpi-card d-flex align-items-center justify-content-center bg-light">
+            <div class="text-center text-muted">
+                <i class="fa-solid fa-chart-pie fa-3x mb-3 opacity-25"></i>
+                <p>Select "Category Analysis" for visual charts</p>
             </div>
         </div>
     </div>
