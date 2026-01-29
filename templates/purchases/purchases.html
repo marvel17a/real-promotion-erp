@@ -2,19 +2,67 @@
 
 {% block page_content %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/purchase.css') }}">
+<!-- Flatpickr for Date Inputs -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 
 <div class="container-fluid py-4 fade-in-up">
     
-    <div class="page-header">
-        <div>
-            <h2 class="page-title mb-0">Purchase Orders</h2>
-            <p class="text-muted mb-0">Track and manage inventory procurement.</p>
+    <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h2 class="page-title mb-0 fw-bold text-dark">Purchase Orders</h2>
+                <p class="text-muted mb-0 small">Track and manage inventory procurement.</p>
+            </div>
+            <a href="{{ url_for('new_purchase') }}" class="btn btn-primary rounded-pill px-4 shadow-sm fw-bold">
+                <i class="fa-solid fa-cart-plus me-2"></i>New Purchase
+            </a>
         </div>
-        <a href="{{ url_for('new_purchase') }}" class="btn-glass-primary text-decoration-none">
-            <i class="fa-solid fa-cart-plus me-2"></i>New Purchase
-        </a>
     </div>
 
+    <!-- FILTER BAR -->
+    <div class="glass-panel p-4 mb-4">
+        <form method="GET" action="{{ url_for('purchases') }}" class="row g-3 align-items-end">
+            
+            <!-- Search Bill No -->
+            <div class="col-md-3">
+                <label class="form-label small fw-bold text-muted text-uppercase">Search Bill No</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-white border-end-0"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
+                    <input type="text" name="q" class="form-control border-start-0 ps-0" placeholder="e.g. PO-290126..." value="{{ filters.q }}">
+                </div>
+            </div>
+
+            <!-- Supplier Filter -->
+            <div class="col-md-3">
+                <label class="form-label small fw-bold text-muted text-uppercase">Supplier</label>
+                <select name="supplier_id" class="form-select">
+                    <option value="">All Suppliers</option>
+                    {% for s in suppliers %}
+                        <option value="{{ s.id }}" {% if filters.supplier_id == s.id|string %}selected{% endif %}>{{ s.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Date Range -->
+            <div class="col-md-2">
+                <label class="form-label small fw-bold text-muted text-uppercase">Start Date</label>
+                <input type="text" name="start_date" class="form-control date-picker" placeholder="Select Date" value="{{ filters.start_date }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small fw-bold text-muted text-uppercase">End Date</label>
+                <input type="text" name="end_date" class="form-control date-picker" placeholder="Select Date" value="{{ filters.end_date }}">
+            </div>
+
+            <!-- Filter Button -->
+            <div class="col-md-2 d-flex gap-2">
+                <button type="submit" class="btn btn-primary w-100 fw-bold"><i class="fa-solid fa-filter me-2"></i>Filter</button>
+                <a href="{{ url_for('purchases') }}" class="btn btn-light border" title="Reset"><i class="fa-solid fa-rotate-right"></i></a>
+            </div>
+
+        </form>
+    </div>
+
+    <!-- Purchases Table -->
     <div class="glass-panel p-0 overflow-hidden">
         <div class="table-responsive p-3">
             <table class="table-glass">
@@ -35,30 +83,25 @@
                             {% if purchase.purchase_date %}
                                 {{ purchase.purchase_date.strftime('%d-%b-%Y') }}
                             {% else %}
-                                <a href="{{ url_for('edit_purchase', purchase_id=purchase.id) }}" class="badge bg-warning text-dark text-decoration-none">
-                                    <i class="fa-solid fa-calendar-plus me-1"></i> Set Date
-                                </a>
+                                <span class="text-muted">-</span>
                             {% endif %}
                         </td>
                         <td>
-                            <div class="d-flex align-items-center gap-3">
-                                <div class="icon-box bg-light text-primary">
+                            <div class="d-flex align-items-center">
+                                <div class="supplier-icon me-2">
                                     <i class="fa-solid fa-truck-field"></i>
                                 </div>
-                                <span class="fw-bold text-dark">{{ purchase.supplier_name }}</span>
+                                <span class="fw-bold text-secondary">{{ purchase.supplier_name }}</span>
                             </div>
                         </td>
-                        <td><span class="badge bg-light text-dark border">{{ purchase.bill_number or 'N/A' }}</span></td>
-                        <!-- Display Total Amount with Fallback -->
+                        <td>
+                            <span class="badge bg-light text-dark border">{{ purchase.bill_number or 'N/A' }}</span>
+                        </td>
                         <td class="text-end fw-bold text-success">
-                            {% if purchase.total_amount %}
-                                {{ purchase.total_amount|inr }}
-                            {% else %}
-                                ₹0.00
-                            {% endif %}
+                            {{ purchase.total_amount|inr }}
                         </td>
                         <td class="text-center pe-4">
-                            <div class="d-flex justify-content-center gap-2">
+                            <div class="action-group justify-content-center">
                                 <a href="{{ url_for('view_purchase', purchase_id=purchase.id) }}" class="action-btn btn-view" title="View Details">
                                     <i class="fa-regular fa-eye"></i>
                                 </a>
@@ -77,7 +120,7 @@
                     <tr>
                         <td colspan="5" class="text-center py-5 text-muted">
                             <i class="fa-solid fa-file-invoice fa-3x mb-3 text-secondary opacity-50"></i>
-                            <p>No purchases recorded yet.</p>
+                            <p>No purchases found matching your criteria.</p>
                         </td>
                     </tr>
                     {% endfor %}
@@ -86,4 +129,51 @@
         </div>
     </div>
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        flatpickr(".date-picker", {
+            dateFormat: "Y-m-d",
+            altInput: true,
+            altFormat: "d M, Y",
+            allowInput: true
+        });
+    });
+</script>
+
+<style>
+    /* Styling to match previous design */
+    .glass-panel {
+        background: #ffffff;
+        border-radius: 16px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+        border: 1px solid rgba(0,0,0,0.02);
+    }
+    .supplier-icon {
+        width: 32px; height: 32px;
+        background: #f8f9fa;
+        color: #6c757d;
+        border-radius: 8px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 0.8rem;
+    }
+    .table-glass { width: 100%; border-collapse: separate; border-spacing: 0; }
+    .table-glass th { 
+        background: #f8f9fa; color: #6c757d; font-weight: 700; text-transform: uppercase; 
+        font-size: 0.75rem; padding: 1rem; border-bottom: 1px solid #e9ecef; 
+    }
+    .table-glass td { padding: 1rem; border-bottom: 1px solid #f1f3f5; vertical-align: middle; }
+    .table-glass tr:last-child td { border-bottom: none; }
+    .table-glass tr:hover td { background: #fcfcfc; }
+    
+    .action-group { display: flex; gap: 0.5rem; }
+    .action-btn { 
+        width: 32px; height: 32px; border-radius: 8px; border: 1px solid transparent; 
+        display: flex; align-items: center; justify-content: center; color: #6c757d; transition: all 0.2s; 
+    }
+    .btn-view:hover { background: #e0f2fe; color: #0284c7; border-color: #bae6fd; }
+    .btn-edit:hover { background: #f0fdf4; color: #16a34a; border-color: #bbf7d0; }
+    .btn-delete:hover { background: #fef2f2; color: #dc2626; border-color: #fecaca; }
+</style>
 {% endblock %}
