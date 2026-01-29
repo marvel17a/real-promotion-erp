@@ -1,18 +1,22 @@
-<div class="card report-card">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="mb-0">Annual Summary: {{ report_data.year }}</h5>
-        <span class="badge bg-primary fs-6">Total: ₹{{ (report_data.grand_total | default(0)) | round(0) | int }}</span>
+<div class="control-center bg-white p-4">
+    <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
+        <h5 class="fw-bold mb-0">Annual Overview: {{ report_data.year }}</h5>
+        <div class="text-end">
+            <small class="text-muted d-block">Grand Total</small>
+            <h3 class="fw-bold text-primary mb-0">{{ (report_data.grand_total | default(0)) | inr }}</h3>
+        </div>
     </div>
-    <div class="card-body">
-        <table class="table">
-            <tbody>
-                {% for item in report_data.annual %}
-                <tr>
-                    <td class="font-weight-bold">{{ item.month_name }}</td>
-                    <td class="text-end">₹{{ (item.total | default(0)) | round(0) | int }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+
+    <div class="row g-3">
+        {% for item in report_data.annual %}
+        <div class="col-md-3 col-sm-4 col-6">
+            <div class="p-3 border rounded-3 text-center {{ 'bg-light border-0' if item.total == 0 else 'border-primary bg-white shadow-sm' }}">
+                <div class="text-uppercase small fw-bold text-muted mb-2">{{ item.month_name }}</div>
+                <div class="fw-bold fs-5 {{ 'text-muted opacity-50' if item.total == 0 else 'text-dark' }}">
+                    {{ item.total | inr }}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
     </div>
 </div>
