@@ -2483,17 +2483,10 @@ class PurchasePDFGenerator(FPDF):
             self.set_xy(120, y+26)
             self.set_font('Arial','',10); self.cell(25, 6, "GSTIN:", 0, 0); self.set_font('Arial','B',10); self.cell(40, 6, str(purchase['supplier_gst']), 0, 1)
 
-        # ADDED: Notes Section
-        if purchase.get('notes'):
-            self.set_y(self.get_y() + 10) # Move down a bit
-            self.set_font('Arial', 'B', 10)
-            self.cell(0, 6, "Notes / Remarks:", 0, 1)
-            self.set_font('Arial', '', 9)
-            self.multi_cell(0, 5, str(purchase['notes']), 0, 'L')
+        # Removed Notes from here (Moved to bottom)
+        self.ln(20) # Space before table
 
-        self.ln(5 if purchase.get('notes') else 20) # Space before table
-
-    def add_table(self, items):
+    def add_table(self, items, notes=None):
         # Header
         cols = ["#", "Product Description", "Qty", "Unit Price", "Total Amount"]
         widths = [10, 90, 20, 30, 40]
@@ -2547,7 +2540,16 @@ class PurchasePDFGenerator(FPDF):
         self.set_font('Arial', 'B', 12)
         self.cell(40, 10, "GRAND TOTAL:", 1, 0, 'R', True)
         self.cell(30, 10, f"{grand_total:.2f}", 1, 1, 'R', True)
-        self.ln(10)
+        self.ln(5)
+
+        # ADDED: Notes Section (Below Grand Total)
+        if notes:
+            self.ln(5) # Gap
+            self.set_font('Arial', 'B', 10)
+            self.cell(0, 6, "Notes / Remarks:", 0, 1)
+            self.set_font('Arial', '', 9)
+            # Use multi-cell to handle long text
+            self.multi_cell(0, 5, str(notes), 0, 'L')
 
     def add_signature(self):
         # Ensure space
@@ -2611,7 +2613,8 @@ def purchase_pdf(purchase_id):
     pdf.add_page()
     
     pdf.add_po_info(purchase)
-    pdf.add_table(items)
+    # Pass notes to add_table
+    pdf.add_table(items, notes=purchase.get('notes'))
     pdf.add_signature()
     
     pdf_string = pdf.output(dest='S').encode('latin-1')
@@ -7713,6 +7716,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
