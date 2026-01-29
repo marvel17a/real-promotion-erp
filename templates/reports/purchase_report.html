@@ -1,340 +1,390 @@
 {% extends "admin_master.html" %}
 
 {% block page_content %}
-<!-- Trending Font: Poppins & Inter -->
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
+<!-- Premium Design CSS -->
 <style>
     :root {
-        --primary-gradient: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
-        --glass-bg: rgba(255, 255, 255, 0.9);
-        --glass-border: 1px solid rgba(255, 255, 255, 0.8);
-        --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
-        --hover-shadow: 0 12px 30px rgba(67, 97, 238, 0.15);
-        --text-main: #1e293b;
-        --text-sub: #64748b;
+        --primary-color: #4e73df;
+        --secondary-color: #858796;
+        --success-color: #1cc88a;
+        --info-color: #36b9cc;
+        --warning-color: #f6c23e;
+        --danger-color: #e74a3b;
+        --dark-color: #5a5c69;
+        --body-bg: #f8f9fc;
+        --card-bg: #ffffff;
     }
 
-    body {
-        font-family: 'Inter', sans-serif;
-        background-color: #f1f5f9; /* Slate-100 */
-        color: var(--text-main);
-    }
+    body { background-color: var(--body-bg); font-family: 'Nunito', sans-serif; }
 
-    /* Compact Container */
-    .reports-wrapper {
-        padding: 1.5rem;
-        max-width: 1400px;
-        margin: 0 auto;
-    }
+    .fade-in-up { animation: fadeInUp 0.6s ease-out; }
+    @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 
-    /* Modern Header */
-    .page-header-compact {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 2rem;
+    /* KPI Cards */
+    .kpi-card {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        transition: transform 0.2s;
+        overflow: hidden;
+        height: 100%;
+        background: #fff;
+        position: relative;
     }
-
-    .header-title h2 {
-        font-family: 'Poppins', sans-serif;
-        font-weight: 700;
+    .kpi-card:hover { transform: translateY(-5px); }
+    .kpi-border-left { border-left: 5px solid; }
+    .kpi-purple { border-left-color: var(--primary-color); }
+    .kpi-orange { border-left-color: var(--warning-color); }
+    .kpi-green { border-left-color: var(--success-color); }
+    .kpi-blue { border-left-color: var(--info-color); }
+    
+    .kpi-icon {
+        width: 50px; height: 50px;
+        border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
         font-size: 1.5rem;
-        color: var(--text-main);
-        margin: 0;
-        letter-spacing: -0.5px;
+        opacity: 0.15;
     }
 
-    .header-title p {
-        font-size: 0.85rem;
-        color: var(--text-sub);
-        margin: 0;
+    /* Filter Bar */
+    .filter-box {
+        background: #fff;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.03);
+        border: 1px solid rgba(0,0,0,0.05);
     }
 
-    /* Section Label */
-    .section-label {
-        font-size: 0.75rem;
+    /* Charts */
+    .chart-box {
+        background: #fff;
+        border-radius: 15px;
+        padding: 20px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+        height: 400px;
+        position: relative;
+    }
+
+    /* Table */
+    .table-container {
+        background: #fff;
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+        overflow: hidden;
+    }
+    .table thead th {
+        background: #f8f9fc;
+        color: var(--secondary-color);
         font-weight: 700;
         text-transform: uppercase;
-        letter-spacing: 1.2px;
-        color: #94a3b8;
-        margin-bottom: 1rem;
-        display: flex;
-        align-items: center;
-        gap: 8px;
+        font-size: 0.75rem;
+        border-bottom: 2px solid #e3e6f0;
+        padding: 1rem;
     }
-    .section-label::after {
-        content: '';
-        flex: 1;
-        height: 1px;
-        background: #e2e8f0;
+    .table tbody td {
+        padding: 1rem;
+        vertical-align: middle;
+        color: var(--dark-color);
     }
-
-    /* Compact Glass Card */
-    .mini-card {
-        background: var(--glass-bg);
-        border: var(--glass-border);
-        border-radius: 16px;
-        padding: 1.25rem;
-        height: 100%;
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-        transition: all 0.25s ease-out;
-        text-decoration: none;
-        box-shadow: var(--card-shadow);
-        position: relative;
-        overflow: hidden;
-    }
-
-    .mini-card:hover {
-        transform: translateY(-4px);
-        box-shadow: var(--hover-shadow);
-        background: #fff;
-        border-color: #e0e7ff;
-    }
-
-    /* Card Content */
-    .card-top {
-        display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
-        margin-bottom: 0.8rem;
-    }
-
-    .icon-box {
-        width: 42px;
-        height: 42px;
-        border-radius: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.1rem;
-    }
-
-    /* Category Colors */
-    .theme-finance { background: #eff6ff; color: #3b82f6; }
-    .theme-sales { background: #fdf2f8; color: #ec4899; }
-    .theme-inventory { background: #f0fdf4; color: #22c55e; }
-    .theme-employee { background: #f5f3ff; color: #8b5cf6; }
-
-    .card-title {
-        font-family: 'Poppins', sans-serif;
-        font-weight: 600;
-        font-size: 1rem;
-        color: var(--text-main);
-        margin-bottom: 0.3rem;
-        line-height: 1.2;
-    }
-
-    .card-desc {
-        font-size: 0.8rem;
-        color: var(--text-sub);
-        line-height: 1.4;
-        font-weight: 400;
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-    }
-
-    /* Action Icon */
-    .action-icon {
-        font-size: 0.9rem;
-        color: #cbd5e1;
-        transition: 0.2s;
-    }
-    
-    .mini-card:hover .action-icon {
-        color: var(--primary-color);
-        transform: translateX(3px);
-    }
-
-    /* Animations */
-    .fade-in { animation: fadeIn 0.5s ease-out forwards; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-
 </style>
 
-<div class="reports-wrapper fade-in">
-    
-    <!-- Compact Header -->
-    <div class="page-header-compact">
-        <div class="header-title">
-            <h2>Analytics</h2>
-            <p>Performance Metrics</p>
-        </div>
-    </div>
+<!-- --- DATA CALCULATION LOGIC (JINJA) --- -->
+<!-- This ensures data is calculated before display -->
+{% set ns = namespace(total_val=0, total_count=0) %}
+{% for p in purchases %}
+    {% set ns.total_val = ns.total_val + p.total_amount %}
+    {% set ns.total_count = ns.total_count + 1 %}
+{% endfor %}
 
-    <!-- 1. FINANCIAL -->
-    <div class="section-label"><i class="fa-solid fa-wallet text-primary"></i> Finance</div>
-    <div class="row g-3 mb-4">
-        
-        <!-- Daily Summary -->
-        <div class="col-12 col-md-6 col-lg-4 col-xl-3">
-            <a href="{{ url_for('daily_summary') }}" class="mini-card">
-                <div class="card-top">
-                    <div class="icon-box theme-finance"><i class="fa-solid fa-chart-pie"></i></div>
-                    <i class="fa-solid fa-arrow-right action-icon"></i>
-                </div>
-                <div>
-                    <h5 class="card-title">Daily Snapshot</h5>
-                    <p class="card-desc">Today's Sales, Expenses & Net Cash.</p>
-                </div>
+{% set avg_val = ns.total_val / ns.total_count if ns.total_count > 0 else 0 %}
+
+<!-- Determine Top Supplier from Chart Data if available -->
+{% set top_supplier_name = "N/A" %}
+{% if supplier_data and supplier_data|length > 0 %}
+    {% set top_supplier_name = supplier_data[0].supplier_name %}
+{% endif %}
+
+<div class="container-fluid py-4 fade-in-up">
+
+    <!-- 1. Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold text-dark mb-1">Purchase Analytics</h2>
+            <p class="text-muted small mb-0">Overview of procurement performance.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('export_purchase_excel') }}" class="btn btn-success btn-sm rounded-pill px-3 shadow-sm fw-bold">
+                <i class="fa-solid fa-file-excel me-2"></i>Export Excel
             </a>
-        </div>
-
-        <!-- Profitability -->
-        <div class="col-12 col-md-6 col-lg-4 col-xl-3">
-            <a href="{{ url_for('profitability_report') }}" class="mini-card">
-                <div class="card-top">
-                    <div class="icon-box theme-finance"><i class="fa-solid fa-coins"></i></div>
-                    <i class="fa-solid fa-arrow-right action-icon"></i>
-                </div>
-                <div>
-                    <h5 class="card-title">Profit Analysis</h5>
-                    <p class="card-desc">Calculate Net Profit (Revenue - Costs).</p>
-                </div>
-            </a>
-        </div>
-
-        <!-- Expense Report -->
-        <div class="col-12 col-md-6 col-lg-4 col-xl-3">
-            <a href="{{ url_for('exp_report') }}" class="mini-card">
-                <div class="card-top">
-                    <div class="icon-box theme-finance"><i class="fa-solid fa-file-invoice"></i></div>
-                    <i class="fa-solid fa-arrow-right action-icon"></i>
-                </div>
-                <div>
-                    <h5 class="card-title">Expense Log</h5>
-                    <p class="card-desc">Detailed breakdown of operational costs.</p>
-                </div>
-            </a>
-        </div>
-
-        <!-- Transactions -->
-        <div class="col-12 col-md-6 col-lg-4 col-xl-3">
-            <a href="{{ url_for('transaction_report') }}" class="mini-card">
-                <div class="card-top">
-                    <div class="icon-box theme-finance"><i class="fa-solid fa-money-bill-transfer"></i></div>
-                    <i class="fa-solid fa-arrow-right action-icon"></i>
-                </div>
-                <div>
-                    <h5 class="card-title">Ledger History</h5>
-                    <p class="card-desc">Employee credits, debits & advances.</p>
-                </div>
+            <a href="{{ url_for('export_purchase_pdf') }}" class="btn btn-danger btn-sm rounded-pill px-3 shadow-sm fw-bold">
+                <i class="fa-solid fa-file-pdf me-2"></i>Export PDF
             </a>
         </div>
     </div>
 
-    <!-- 2. SALES -->
-    <div class="section-label"><i class="fa-solid fa-chart-line text-danger"></i> Sales</div>
-    <div class="row g-3 mb-4">
-        
-        <!-- Monthly Dashboard -->
-        <div class="col-12 col-md-6 col-lg-4 col-xl-3">
-            <a href="{{ url_for('monthly_sales_dashboard') }}" class="mini-card">
-                <div class="card-top">
-                    <div class="icon-box theme-sales"><i class="fa-solid fa-calendar-days"></i></div>
-                    <i class="fa-solid fa-arrow-right action-icon"></i>
+    <!-- 2. KPI Cards Row (Using Calculated Data) -->
+    <div class="row g-4 mb-4">
+        <!-- Total Purchases -->
+        <div class="col-xl-3 col-md-6">
+            <div class="kpi-card kpi-border-left kpi-purple p-3">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <div class="text-uppercase text-primary fw-bold small mb-1">Total Amount</div>
+                        <div class="h4 mb-0 fw-bold text-dark">{{ ns.total_val|inr }}</div>
+                    </div>
+                    <div class="kpi-icon bg-primary text-primary"><i class="fa-solid fa-indian-rupee-sign"></i></div>
                 </div>
-                <div>
-                    <h5 class="card-title">Monthly Trends</h5>
-                    <p class="card-desc">Visual growth charts & monthly comparisons.</p>
-                </div>
-            </a>
+            </div>
         </div>
 
-        <!-- Detailed Sales -->
-        <div class="col-12 col-md-6 col-lg-4 col-xl-3">
-            <a href="{{ url_for('daily_sales') }}" class="mini-card">
-                <div class="card-top">
-                    <div class="icon-box theme-sales"><i class="fa-solid fa-list-ul"></i></div>
-                    <i class="fa-solid fa-arrow-right action-icon"></i>
+        <!-- Total Orders -->
+        <div class="col-xl-3 col-md-6">
+            <div class="kpi-card kpi-border-left kpi-orange p-3">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <div class="text-uppercase text-warning fw-bold small mb-1">Total Orders</div>
+                        <div class="h4 mb-0 fw-bold text-dark">{{ ns.total_count }}</div>
+                    </div>
+                    <div class="kpi-icon bg-warning text-warning"><i class="fa-solid fa-file-invoice"></i></div>
                 </div>
-                <div>
-                    <h5 class="card-title">Detailed Sales</h5>
-                    <p class="card-desc">Granular item-wise list of today's sales.</p>
-                </div>
-            </a>
+            </div>
         </div>
 
-        <!-- Top Products -->
-        <div class="col-12 col-md-6 col-lg-4 col-xl-3">
-            <a href="{{ url_for('product_perfrm') }}" class="mini-card">
-                <div class="card-top">
-                    <div class="icon-box theme-sales"><i class="fa-solid fa-trophy"></i></div>
-                    <i class="fa-solid fa-arrow-right action-icon"></i>
+        <!-- Top Supplier -->
+        <div class="col-xl-3 col-md-6">
+            <div class="kpi-card kpi-border-left kpi-green p-3">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <div class="text-uppercase text-success fw-bold small mb-1">Top Supplier</div>
+                        <div class="h5 mb-0 fw-bold text-dark text-truncate" style="max-width: 150px;" title="{{ top_supplier_name }}">
+                            {{ top_supplier_name }}
+                        </div>
+                    </div>
+                    <div class="kpi-icon bg-success text-success"><i class="fa-solid fa-trophy"></i></div>
                 </div>
-                <div>
-                    <h5 class="card-title">Top Sellers</h5>
-                    <p class="card-desc">Best performing products by qty or revenue.</p>
-                </div>
-            </a>
+            </div>
         </div>
-        
-        <!-- Stock Sales -->
-        <div class="col-12 col-md-6 col-lg-4 col-xl-3">
-            <a href="{{ url_for('product_sales_report') }}" class="mini-card">
-                <div class="card-top">
-                    <div class="icon-box theme-sales"><i class="fa-solid fa-tags"></i></div>
-                    <i class="fa-solid fa-arrow-right action-icon"></i>
+
+        <!-- Avg Order Value -->
+        <div class="col-xl-3 col-md-6">
+            <div class="kpi-card kpi-border-left kpi-blue p-3">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <div class="text-uppercase text-info fw-bold small mb-1">Avg. Order Value</div>
+                        <div class="h4 mb-0 fw-bold text-dark">{{ avg_val|inr }}</div>
+                    </div>
+                    <div class="kpi-icon bg-info text-info"><i class="fa-solid fa-chart-line"></i></div>
                 </div>
-                <div>
-                    <h5 class="card-title">Stock Sales</h5>
-                    <p class="card-desc">Inventory movement & sales overview.</p>
-                </div>
-            </a>
+            </div>
         </div>
     </div>
 
-    <!-- 3. INVENTORY & STAFF -->
-    <div class="section-label"><i class="fa-solid fa-box text-success"></i> Operations</div>
-    <div class="row g-3">
-        
-        <!-- Purchases -->
-        <div class="col-12 col-md-6 col-lg-4 col-xl-3">
-            <a href="{{ url_for('purchase_report') }}" class="mini-card">
-                <div class="card-top">
-                    <div class="icon-box theme-inventory"><i class="fa-solid fa-truck"></i></div>
-                    <i class="fa-solid fa-arrow-right action-icon"></i>
+    <!-- 3. Filter Bar (Below Cards) -->
+    <div class="filter-box mb-4">
+        <form method="POST" action="{{ url_for('purchase_report') }}" class="row g-3 align-items-end">
+            <input type="hidden" name="type" value="monthly_summary">
+            
+            <div class="col-md-3">
+                <label class="form-label small fw-bold text-muted text-uppercase">Start Date</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-light border-end-0"><i class="fa-solid fa-calendar text-muted"></i></span>
+                    <input type="text" name="start_date" class="form-control date-picker" value="{{ start_date }}" placeholder="Select Date">
                 </div>
-                <div>
-                    <h5 class="card-title">Procurement</h5>
-                    <p class="card-desc">Supplier purchase history logs.</p>
+            </div>
+            
+            <div class="col-md-3">
+                <label class="form-label small fw-bold text-muted text-uppercase">End Date</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-light border-end-0"><i class="fa-solid fa-calendar text-muted"></i></span>
+                    <input type="text" name="end_date" class="form-control date-picker" value="{{ end_date }}" placeholder="Select Date">
                 </div>
-            </a>
+            </div>
+            
+            <div class="col-md-3">
+                <label class="form-label small fw-bold text-muted text-uppercase">Supplier</label>
+                <select name="supplier_id" class="form-select">
+                    <option value="">All Suppliers</option>
+                    {% for s in suppliers %}
+                    <option value="{{ s.id }}" {% if selected_supplier == s.id|string %}selected{% endif %}>{{ s.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-primary w-100 fw-bold shadow-sm">
+                    <i class="fa-solid fa-filter me-2"></i> Apply Filters
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- 4. Charts Section -->
+    <div class="row g-4 mb-4">
+        <!-- Monthly Trend -->
+        <div class="col-lg-8">
+            <div class="chart-box">
+                <h5 class="fw-bold text-dark mb-4">Monthly Purchase Trend</h5>
+                <div style="height: 320px;">
+                    <canvas id="trendChart"></canvas>
+                </div>
+            </div>
         </div>
 
-        <!-- Product Sales Detail -->
-        <div class="col-12 col-md-6 col-lg-4 col-xl-3">
-            <a href="{{ url_for('product_sales') }}" class="mini-card">
-                <div class="card-top">
-                    <div class="icon-box theme-inventory"><i class="fa-solid fa-magnifying-glass"></i></div>
-                    <i class="fa-solid fa-arrow-right action-icon"></i>
+        <!-- Supplier Distribution -->
+        <div class="col-lg-4">
+            <div class="chart-box">
+                <h5 class="fw-bold text-dark mb-4">Top Suppliers</h5>
+                <div style="height: 320px; display: flex; justify-content: center;">
+                    <canvas id="supplierChart"></canvas>
                 </div>
-                <div>
-                    <h5 class="card-title">Product Audit</h5>
-                    <p class="card-desc">Who sold what & when details.</p>
-                </div>
-            </a>
+            </div>
         </div>
+    </div>
 
-        <!-- Staff Ranking -->
-        <div class="col-12 col-md-6 col-lg-4 col-xl-3">
-            <a href="{{ url_for('employee_performance') }}" class="mini-card">
-                <div class="card-top">
-                    <div class="icon-box theme-employee"><i class="fa-solid fa-user-group"></i></div>
-                    <i class="fa-solid fa-arrow-right action-icon"></i>
-                </div>
-                <div>
-                    <h5 class="card-title">Staff Ranking</h5>
-                    <p class="card-desc">Employee performance leaderboard.</p>
-                </div>
-            </a>
+    <!-- 5. Data Table -->
+    <div class="table-container mb-5">
+        <div class="p-3 border-bottom bg-white d-flex align-items-center justify-content-between">
+            <h6 class="m-0 fw-bold text-primary">Detailed Purchase History</h6>
+        </div>
+        <div class="table-responsive">
+            <table class="table mb-0 table-hover">
+                <thead>
+                    <tr>
+                        <th class="ps-4">Date</th>
+                        <th>Bill No.</th>
+                        <th>Supplier</th>
+                        <th class="text-end pe-4">Total Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in purchases %}
+                    <tr>
+                        <td class="ps-4 fw-medium">
+                            {% if p.purchase_date %}
+                                {{ p.purchase_date.strftime('%d-%b-%Y') }}
+                            {% else %} - {% endif %}
+                        </td>
+                        <td><span class="badge bg-light text-dark border">{{ p.bill_number or 'N/A' }}</span></td>
+                        <td>{{ p.supplier_name }}</td>
+                        <td class="text-end pe-4 fw-bold text-dark">{{ p.total_amount|inr }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="4" class="text-center py-5 text-muted">No purchase records found matching your criteria.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 
 </div>
+
+<!-- Scripts -->
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script>
+    // 1. Date Picker
+    flatpickr(".date-picker", { dateFormat: "Y-m-d", allowInput: true });
+
+    // 2. Data from Backend (Using safe filter to prevent errors)
+    const monthlyData = {{ monthly_data | tojson | safe }};
+    const supplierData = {{ supplier_data | tojson | safe }};
+
+    // 3. Prepare Chart Data
+    const trendLabels = monthlyData.map(d => {
+        // Simple month formatter if data is YYYY-MM
+        const parts = d.month.split('-'); 
+        if(parts.length === 2) {
+            const date = new Date(parts[0], parts[1] - 1);
+            return date.toLocaleString('default', { month: 'short', year: 'numeric' });
+        }
+        return d.month;
+    });
+    const trendValues = monthlyData.map(d => d.total_purchase);
+
+    const suppLabels = supplierData.map(d => d.supplier_name);
+    const suppValues = supplierData.map(d => d.total_purchase);
+
+    // 4. Trend Chart Config (Gradient Line)
+    const ctxTrend = document.getElementById('trendChart').getContext('2d');
+    const grad = ctxTrend.createLinearGradient(0, 0, 0, 400);
+    grad.addColorStop(0, 'rgba(78, 115, 223, 0.2)');
+    grad.addColorStop(1, 'rgba(78, 115, 223, 0)');
+
+    new Chart(ctxTrend, {
+        type: 'line',
+        data: {
+            labels: trendLabels,
+            datasets: [{
+                label: 'Purchase Volume',
+                data: trendValues,
+                borderColor: '#4e73df',
+                backgroundColor: grad,
+                pointBackgroundColor: '#fff',
+                pointBorderColor: '#4e73df',
+                pointRadius: 4,
+                pointHoverRadius: 6,
+                fill: true,
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return ' ₹ ' + context.raw.toLocaleString('en-IN');
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: { beginAtZero: true, grid: { borderDash: [2] } },
+                x: { grid: { display: false } }
+            }
+        }
+    });
+
+    // 5. Supplier Chart Config (Doughnut with %)
+    const ctxSup = document.getElementById('supplierChart').getContext('2d');
+    const colors = ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b'];
+
+    new Chart(ctxSup, {
+        type: 'doughnut',
+        data: {
+            labels: suppLabels,
+            datasets: [{
+                data: suppValues,
+                backgroundColor: colors,
+                borderWidth: 0,
+                hoverOffset: 5
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '70%',
+            plugins: {
+                legend: { position: 'bottom', labels: { boxWidth: 10, padding: 15 } },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.label || '';
+                            let value = context.raw || 0;
+                            let total = context.chart._metasets[context.datasetIndex].total;
+                            let percentage = ((value / total) * 100).toFixed(1) + "%";
+                            return ` ${label}: ₹${value.toLocaleString()} (${percentage})`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+</script>
 {% endblock %}
