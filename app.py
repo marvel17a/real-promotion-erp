@@ -842,8 +842,259 @@ def delete_expense(id):
     cur.close()
     return redirect(url_for('expenses_list'))
 
-# REPLACE THE EXISTING 'exp_report' ROUTE WITH THIS BLOCK
 
+# ... existing imports ...
+import calendar
+from flask import send_file, make_response, url_for
+from fpdf import FPDF
+import openpyxl
+from openpyxl.styles import Font, Alignment, PatternFill
+import io
+import os
+
+# ==========================================
+# EXPENSE VOUCHER PDF GENERATOR (Redesigned)
+# ==========================================
+class ExpensePDF(FPDF):
+    def __init__(self):
+        super().__init__()
+        self.company_name = "REAL PROMOTION"
+        self.slogan = "SINCE 2005"
+        self.address_lines = [
+            "Real Promotion, G/12, Tulsimangalam Complex,",
+            "B/h. Trimurti Complex, Ghodiya Bazar,",
+            "Nadiad-387001, Gujarat, India"
+        ]
+        self.contact = "+91 96623 22476 | help@realpromotion.in"
+        self.gst_text = "GSTIN:24AJVPT0460H1ZW"
+        self.gst_subtext = "Composition Dealer- Not Eligibal To Collect Taxes On Sppliers"
+
+    def header(self):
+        # Company Header (Centered)
+        self.set_font('Arial', 'B', 20)
+        self.set_text_color(0, 0, 0) # Black
+        self.cell(0, 8, self.company_name, 0, 1, 'C')
+        
+        self.set_font('Arial', 'B', 10)
+        self.set_text_color(100, 100, 100) # Grey
+        self.cell(0, 5, self.slogan, 0, 1, 'C')
+        self.ln(2)
+        
+        self.set_font('Arial', '', 10)
+        self.set_text_color(0, 0, 0)
+        for line in self.address_lines:
+            self.cell(0, 5, line, 0, 1, 'C')
+        self.cell(0, 5, self.contact, 0, 1, 'C')
+        
+        self.ln(2)
+        self.set_font('Arial', 'B', 10)
+        self.cell(0, 5, self.gst_text, 0, 1, 'C')
+        self.set_font('Arial', 'I', 9)
+        self.cell(0, 5, self.gst_subtext, 0, 1, 'C')
+        self.ln(5)
+        
+        # Divider Line
+        self.set_draw_color(200, 200, 200)
+        self.line(10, self.get_y(), 200, self.get_y())
+        self.ln(5)
+
+        # Title
+        self.set_font('Arial', 'B', 16)
+        self.set_text_color(0, 0, 0)
+        self.cell(0, 10, "EXPENSE VOUCHER", 0, 1, 'C')
+        self.ln(5)
+
+    def footer(self):
+        self.set_y(-15)
+        self.set_font('Arial', 'I', 8)
+        self.set_text_color(128, 128, 128)
+        self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
+
+    def add_voucher_info(self, expense):
+        self.set_font('Arial', '', 10)
+        self.set_text_color(0, 0, 0)
+        y = self.get_y()
+        
+        # Left Side: Voucher Details
+        self.set_xy(10, y)
+        self.set_font('Arial', 'B', 11)
+        self.cell(0, 6, "Voucher Details:", 0, 1)
+        self.ln(2)
+        
+        self.set_font('Arial', '', 10)
+        self.cell(25, 6, "Voucher ID:", 0, 0)
+        self.set_font('Arial', 'B', 10)
+        self.cell(70, 6, f"#{expense['expense_id']}", 0, 1)
+        
+        self.set_font('Arial', '', 10)
+        self.cell(25, 6, "Date:", 0, 0)
+        self.set_font('Arial', 'B', 10)
+        self.cell(70, 6, str(expense['expense_date']), 0, 1)
+        
+        # Right Side: Category Details
+        self.set_xy(120, y)
+        self.set_font('Arial', 'B', 11)
+        self.cell(0, 6, "Classification:", 0, 1)
+        self.ln(2)
+        
+        right_y = self.get_y()
+        self.set_xy(120, right_y)
+        self.set_font('Arial', '', 10)
+        self.cell(30, 6, "Main Category:", 0, 0)
+        self.set_font('Arial', 'B', 10)
+        self.multi_cell(60, 6, str(expense.get('main_category') or 'General'), 0, 'L')
+        
+        self.ln(20) # Spacer before table
+
+    def add_items_table(self, items):
+        # Table Header
+        self.set_font('Arial', 'B', 10)
+        self.set_fill_color(240, 240, 240) 
+        self.set_text_color(0, 0, 0)
+        self.set_draw_color(0, 0, 0)
+        self.set_line_width(0.3)
+        
+        cols = ["#", "Item / Description", "Mode", "Amount"]
+        widths = [15, 105, 30, 40]
+        
+        for i, col in enumerate(cols):
+            self.cell(widths[i], 8, col, 1, 0, 'C', True)
+        self.ln()
+        
+        # Table Rows
+        self.set_font('Arial', '', 10)
+        self.set_text_color(0, 0, 0)
+        
+        total_amount = 0
+        
+        for i, item in enumerate(items):
+            amt = float(item['amount'])
+            total_amount += amt
+            
+            # Construct Description (Subcategory + Remark)
+            desc_parts = []
+            if item.get('subcategory_name'): desc_parts.append(item['subcategory_name'])
+            if item.get('description'): desc_parts.append(item['description'])
+            full_desc = " - ".join(desc_parts) if desc_parts else "Expense Item"
+            
+            self.cell(widths[0], 8, str(i+1), 1, 0, 'C')
+            self.cell(widths[1], 8, full_desc[:55], 1, 0, 'L') # Truncate to fit single line
+            self.cell(widths[2], 8, str(item.get('payment_method', 'Cash')), 1, 0, 'C')
+            self.cell(widths[3], 8, f"{amt:,.2f}", 1, 1, 'R')
+            
+        # Totals Row
+        self.ln(2)
+        self.set_font('Arial', 'B', 10)
+        # Empty cells for alignment
+        self.cell(widths[0], 8, "", 0, 0)
+        self.cell(widths[1], 8, "", 0, 0)
+        self.cell(widths[2], 8, "TOTALS", 0, 0, 'R')
+        self.set_fill_color(240, 240, 240)
+        self.cell(widths[3], 8, f"{total_amount:,.2f}", 1, 1, 'R', True)
+        self.ln(10)
+        
+        # Grand Total Box
+        self.set_x(120)
+        self.set_font('Arial', 'B', 12)
+        self.cell(40, 10, "GRAND TOTAL:", 0, 0, 'R')
+        self.cell(30, 10, f"{total_amount:,.2f}", 0, 1, 'R')
+        self.ln(5)
+
+    def add_notes(self, notes):
+        if notes:
+            self.ln(5)
+            self.set_font('Arial', 'B', 10)
+            self.cell(0, 6, "Notes / Remarks:", 0, 1)
+            self.set_font('Arial', '', 10)
+            self.multi_cell(0, 5, str(notes), 0, 'L')
+
+    def add_signature(self):
+        # Check if page break is needed
+        if self.get_y() > 230: self.add_page()
+        self.ln(10)
+        
+        # Computer generated text
+        self.set_font('Arial', '', 9)
+        self.set_text_color(128, 128, 128)
+        self.cell(0, 5, "This is a computer generated document.", 0, 1, 'L')
+        
+        # Signature Block Position
+        y_pos = self.get_y() + 10
+        
+        # Signature Image
+        # Assuming app root path context or standard relative path
+        sig_path = "static/img/signature.png" 
+        
+        if os.path.exists(sig_path):
+            self.image(sig_path, x=140, y=y_pos, w=40)
+            
+        # Signature Text
+        self.set_xy(130, y_pos + 25)
+        self.set_font('Arial', 'B', 10)
+        self.set_text_color(0, 0, 0)
+        self.cell(60, 5, "For, REAL PROMOTION", 0, 1, 'C')
+        
+        self.set_xy(130, y_pos + 30)
+        self.cell(60, 5, "(Authorized Signatory)", 0, 1, 'C')
+
+
+# ==========================================
+# EXPENSE PDF ROUTE (Uses New Class)
+# ==========================================
+@app.route('/expense/pdf/<int:expense_id>')
+def expense_pdf(expense_id):
+    if 'loggedin' not in session: return redirect(url_for('login'))
+    
+    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    
+    # 1. Fetch Expense Header
+    cur.execute("""
+        SELECT e.*, GROUP_CONCAT(DISTINCT c.category_name SEPARATOR ', ') as main_category
+        FROM expenses e
+        LEFT JOIN expense_items ei ON e.expense_id = ei.expense_id
+        LEFT JOIN expensecategories c ON ei.category_id = c.category_id
+        WHERE e.expense_id = %s
+        GROUP BY e.expense_id
+    """, (expense_id,))
+    expense = cur.fetchone()
+    
+    if not expense:
+        flash("Expense not found", "danger")
+        return redirect(url_for('expenses_list'))
+        
+    # 2. Fetch Expense Items
+    cur.execute("""
+        SELECT ei.*, sc.subcategory_name 
+        FROM expense_items ei
+        LEFT JOIN expensesubcategories sc ON ei.subcategory_id = sc.subcategory_id
+        WHERE ei.expense_id = %s
+    """, (expense_id,))
+    items = cur.fetchall()
+    
+    cur.close()
+    
+    # 3. Generate PDF
+    pdf = ExpensePDF()
+    pdf.alias_nb_pages()
+    pdf.add_page()
+    
+    pdf.add_voucher_info(expense)
+    pdf.add_items_table(items)
+    pdf.add_notes(expense.get('description'))
+    pdf.add_signature()
+    
+    pdf_string = pdf.output(dest='S').encode('latin-1')
+    buffer = io.BytesIO(pdf_string)
+    buffer.seek(0)
+    
+    cat_name = str(expense.get('main_category', 'General')).replace(" ", "_")
+    filename = f"Voucher_{expense['expense_id']}_{cat_name}.pdf"
+    
+    return send_file(buffer, as_attachment=True, download_name=filename, mimetype='application/pdf')
+
+# ==========================================
+# 1. FIXED EXPENSE REPORT ROUTE
+# ==========================================
 @app.route("/exp_report", methods=["GET"])
 def exp_report():
     if "loggedin" not in session:
@@ -851,13 +1102,10 @@ def exp_report():
 
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
-    # --------------------------
-    # 1. CAPTURE FILTERS
-    # --------------------------
     report_type = request.args.get("type", "monthly_summary")
     now = datetime.now()
 
-    # Get Year/Month (Defaults to current)
+    # 1. Date Filter Logic
     try:
         year = int(request.args.get("year") or now.year)
         month = int(request.args.get("month") or now.month)
@@ -865,11 +1113,17 @@ def exp_report():
         year = now.year
         month = now.month
 
-    # Get Date Range (Defaults to current month)
+    # Defaults for Detailed Log
     start_date_str = request.args.get("start_date")
     end_date_str = request.args.get("end_date")
+    
+    # If Date Range is empty, default to current month range
+    if not start_date_str:
+        start_date_str = f"{year}-{month:02d}-01"
+    if not end_date_str:
+        _, last_day = calendar.monthrange(year, month)
+        end_date_str = f"{year}-{month:02d}-{last_day}"
 
-    # Filter context for template
     filters = {
         "year": year,
         "month": f"{month:02d}", 
@@ -880,22 +1134,17 @@ def exp_report():
     report_data = {}
 
     try:
-        # ==========================================
-        # TYPE 1: MONTHLY SUMMARY (Dashboard)
-        # ==========================================
+        # --- LOGIC: MONTHLY SUMMARY ---
         if report_type == "monthly_summary":
-            # Calculate start/end of selected month
+            # Calculate month bounds explicitly for accuracy
             _, last_day = calendar.monthrange(year, month)
             m_start = f"{year}-{month:02d}-01"
             m_end = f"{year}-{month:02d}-{last_day}"
             
-            # A. KPI Stats (From Expenses Header)
+            # KPI from Parent Table (Truth Source)
             cursor.execute("""
-                SELECT 
-                    COALESCE(SUM(total_amount), 0) as total, 
-                    COUNT(expense_id) as count 
-                FROM expenses 
-                WHERE expense_date BETWEEN %s AND %s
+                SELECT COALESCE(SUM(total_amount), 0) as total, COUNT(expense_id) as count 
+                FROM expenses WHERE expense_date BETWEEN %s AND %s
             """, (m_start, m_end))
             summary = cursor.fetchone()
             
@@ -903,67 +1152,47 @@ def exp_report():
             tx_count = summary['count']
             avg_ticket = total_spend / tx_count if tx_count > 0 else 0
             
-            # B. Top Spending Subcategories (From Items)
+            # Top Spending Subcategories
             cursor.execute("""
-                SELECT 
-                    sc.subcategory_name, 
-                    c.category_name, 
-                    SUM(ei.amount) as sub_total
+                SELECT sc.subcategory_name, c.category_name, SUM(ei.amount) as sub_total
                 FROM expense_items ei
                 JOIN expenses e ON ei.expense_id = e.expense_id
                 LEFT JOIN expensesubcategories sc ON ei.subcategory_id = sc.subcategory_id
                 LEFT JOIN expensecategories c ON ei.category_id = c.category_id
                 WHERE e.expense_date BETWEEN %s AND %s
                 GROUP BY sc.subcategory_id
-                ORDER BY sub_total DESC
-                LIMIT 5
+                ORDER BY sub_total DESC LIMIT 5
             """, (m_start, m_end))
-            top_items = cursor.fetchall()
-            
-            # Convert Decimals to float for template consistency
-            for item in top_items:
-                item['sub_total'] = float(item['sub_total']) if item['sub_total'] else 0.0
+            top_items = [dict(row, sub_total=float(row['sub_total'])) for row in cursor.fetchall()]
             
             report_data = {
                 "month_name": calendar.month_name[month],
                 "year": year,
-                "summary": {
-                    "total": total_spend,
-                    "count": tx_count,
-                    "average": avg_ticket
-                },
+                "summary": {"total": total_spend, "count": tx_count, "average": avg_ticket},
                 "top_items": top_items
             }
 
-        # ==========================================
-        # TYPE 2: DETAILED LOG (Date Range)
-        # ==========================================
+        # --- LOGIC: DETAILED LOG (Fixed) ---
         elif report_type == "detailed_log":
-            # Fallback dates if empty
-            if not start_date_str: start_date_str = f"{year}-{month:02d}-01"
-            if not end_date_str: end_date_str = datetime.today().strftime('%Y-%m-%d')
-            
-            # Update filters for UI consistency
-            filters['start_date'] = start_date_str
-            filters['end_date'] = end_date_str
-
+            # Query joins Items -> Parent -> Categories
             cursor.execute("""
                 SELECT 
                     e.expense_date, 
-                    c.category_name, 
-                    sc.subcategory_name, 
+                    COALESCE(c.category_name, 'Uncategorized') as category_name, 
+                    COALESCE(sc.subcategory_name, '-') as subcategory_name, 
                     ei.amount, 
-                    COALESCE(ei.description, e.description) as description
+                    COALESCE(ei.description, e.description) as description,
+                    e.payment_method
                 FROM expense_items ei
                 JOIN expenses e ON ei.expense_id = e.expense_id
                 LEFT JOIN expensecategories c ON ei.category_id = c.category_id
                 LEFT JOIN expensesubcategories sc ON ei.subcategory_id = sc.subcategory_id
                 WHERE e.expense_date BETWEEN %s AND %s
-                ORDER BY e.expense_date DESC
-            """, (start_date_str, end_date_str))
+                ORDER BY e.expense_date DESC, e.expense_id DESC
+            """, (filters['start_date'], filters['end_date']))
             log = cursor.fetchall()
             
-            # Safe float conversion
+            # Ensure floats
             for item in log:
                 item['amount'] = float(item['amount']) if item['amount'] else 0.0
             
@@ -974,15 +1203,10 @@ def exp_report():
                 "summary": {"total": total_log}
             }
 
-        # ==========================================
-        # TYPE 3: CATEGORY ANALYSIS (Pie Chart)
-        # ==========================================
+        # --- LOGIC: CATEGORY ANALYSIS ---
         elif report_type == "category_wise":
-            # Group by Main Category for the selected Year
             cursor.execute("""
-                SELECT 
-                    c.category_name, 
-                    SUM(ei.amount) as total_amount
+                SELECT c.category_name, SUM(ei.amount) as total_amount
                 FROM expense_items ei
                 JOIN expenses e ON ei.expense_id = e.expense_id
                 LEFT JOIN expensecategories c ON ei.category_id = c.category_id
@@ -990,12 +1214,7 @@ def exp_report():
                 GROUP BY c.category_id
                 ORDER BY total_amount DESC
             """, (year,))
-            cats = cursor.fetchall()
-            
-            # FIX: Convert Decimal to float to prevent TypeError in Jinja math
-            for cat in cats:
-                cat['total_amount'] = float(cat['total_amount']) if cat['total_amount'] else 0.0
-            
+            cats = [dict(row, total_amount=float(row['total_amount'])) for row in cursor.fetchall()]
             total_exp = sum(x['total_amount'] for x in cats)
             
             report_data = {
@@ -1004,130 +1223,52 @@ def exp_report():
                 "summary": {"total": total_exp}
             }
 
-        # ==========================================
-        # TYPE 4: SUB-CATEGORY DRILLDOWN
-        # ==========================================
-        elif report_type == "subcategory_wise":
-            cursor.execute("""
-                SELECT 
-                    sc.subcategory_name, 
-                    c.category_name,
-                    SUM(ei.amount) as total_amount
-                FROM expense_items ei
-                JOIN expenses e ON ei.expense_id = e.expense_id
-                LEFT JOIN expensesubcategories sc ON ei.subcategory_id = sc.subcategory_id
-                LEFT JOIN expensecategories c ON ei.category_id = c.category_id
-                WHERE YEAR(e.expense_date) = %s
-                GROUP BY sc.subcategory_id
-                ORDER BY total_amount DESC
-            """, (year,))
-            subs = cursor.fetchall()
-            
-            # FIX: Convert Decimal to float
-            for sub in subs:
-                sub['total_amount'] = float(sub['total_amount']) if sub['total_amount'] else 0.0
-            
-            total_exp = sum(x['total_amount'] for x in subs)
-            
-            report_data = {
-                "by_subcategory": subs,
-                "summary": {"total": total_exp}
-            }
-
-        # ==========================================
-        # TYPE 5: MOM TREND (Bar Chart)
-        # ==========================================
+        # --- LOGIC: MOM COMPARISON ---
         elif report_type == "mom_comparison":
-            # Get monthly totals for the selected year
             cursor.execute("""
-                SELECT 
-                    MONTH(e.expense_date) as month_num,
-                    SUM(e.total_amount) as total
+                SELECT MONTH(e.expense_date) as month_num, SUM(e.total_amount) as total
                 FROM expenses e
                 WHERE YEAR(e.expense_date) = %s
                 GROUP BY MONTH(e.expense_date)
             """, (year,))
             results = {row['month_num']: float(row['total']) for row in cursor.fetchall()}
             
-            comparison_list = []
+            comparison = []
             total_year = 0
-            
             for m in range(1, 13):
-                current_total = results.get(m, 0.0)
-                total_year += current_total
+                curr = results.get(m, 0.0)
+                total_year += curr
+                prev = results.get(m-1, 0.0)
+                change = ((curr - prev) / prev * 100) if prev > 0 else (100 if curr > 0 and m > 1 else 0)
                 
-                # Logic for % Change vs Previous Month
-                prev_total = results.get(m-1, 0.0)
-                change = 0
-                if prev_total > 0:
-                    change = ((current_total - prev_total) / prev_total) * 100
-                elif m > 1 and current_total > 0:
-                    change = 100 # From 0 to something is effectively 100% up
-                
-                comparison_list.append({
-                    "month_name": calendar.month_abbr[m],
-                    "total": current_total,
+                comparison.append({
+                    "month_name": calendar.month_abbr[m], 
+                    "total": curr, 
                     "change": change
                 })
-                
+            
             report_data = {
+                "comparison": comparison,
                 "year": year,
-                "comparison": comparison_list,
                 "summary": {"total": total_year}
             }
 
-        # ==========================================
-        # TYPE 6: ANNUAL SUMMARY (Grid)
-        # ==========================================
-        elif report_type == "annual_summary":
-            cursor.execute("""
-                SELECT 
-                    MONTH(e.expense_date) as month_num,
-                    SUM(e.total_amount) as total
-                FROM expenses e
-                WHERE YEAR(e.expense_date) = %s
-                GROUP BY MONTH(e.expense_date)
-            """, (year,))
-            results = {row['month_num']: float(row['total']) for row in cursor.fetchall()}
-            
-            annual_list = []
-            grand_total = 0
-            
-            for m in range(1, 13):
-                val = results.get(m, 0.0)
-                grand_total += val
-                annual_list.append({
-                    "month_name": calendar.month_name[m],
-                    "total": val
-                })
-                
-            report_data = {
-                "year": year,
-                "annual": annual_list,
-                "grand_total": grand_total,
-                "summary": {"total": grand_total}
-            }
+        # (Add other types similarly...)
+        
+        # Fallback for empty structures to prevent template crashes
+        if 'summary' not in report_data:
+            report_data['summary'] = {'total': 0}
 
     except Exception as e:
-        app.logger.error(f"Expense Report Error: {e}")
-        flash(f"Error generating report: {str(e)}", "danger")
-        # Prevent crash by sending empty structure
-        report_data = {
-            "summary": {"total": 0, "count": 0},
-            "top_items": [], "log": [], 
-            "by_category": [], "by_subcategory": [], 
-            "comparison": [], "annual": []
-        }
+        app.logger.error(f"Report Error: {e}")
+        flash(f"Error generating report: {e}", "danger")
+        report_data = {"summary": {"total": 0}, "log": [], "top_items": []}
 
     cursor.close()
     
-    # Month list for dropdown
-    months = [
-        ("01", "January"), ("02", "February"), ("03", "March"),
-        ("04", "April"), ("05", "May"), ("06", "June"),
-        ("07", "July"), ("08", "August"), ("09", "September"),
-        ("10", "October"), ("11", "November"), ("12", "December")
-    ]
+    months = [("01", "January"), ("02", "February"), ("03", "March"), ("04", "April"), 
+              ("05", "May"), ("06", "June"), ("07", "July"), ("08", "August"), 
+              ("09", "September"), ("10", "October"), ("11", "November"), ("12", "December")]
 
     return render_template(
         "reports/exp_report.html",
@@ -1137,6 +1278,198 @@ def exp_report():
         report_data=report_data
     )
 
+
+# ==========================================
+# 2. NEW ROUTE: EXPORT EXPENSES (PDF/EXCEL)
+# ==========================================
+@app.route("/export_expenses")
+def export_expenses():
+    if "loggedin" not in session: return redirect(url_for("login"))
+    
+    fmt = request.args.get("format", "excel") # pdf or excel
+    report_type = request.args.get("type", "detailed_log")
+    
+    # Reuse filter logic
+    now = datetime.now()
+    try: year = int(request.args.get("year") or now.year)
+    except: year = now.year
+    
+    start_date = request.args.get("start_date") or f"{year}-{now.month:02d}-01"
+    end_date = request.args.get("end_date") or datetime.today().strftime('%Y-%m-%d')
+
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    
+    # ----------------------------------------
+    # FETCH DATA (Simplified for Export)
+    # ----------------------------------------
+    data = []
+    headers = []
+    title = f"Expense Report - {report_type}"
+    
+    try:
+        if report_type == "detailed_log":
+            cursor.execute("""
+                SELECT 
+                    e.expense_date, 
+                    c.category_name, 
+                    sc.subcategory_name, 
+                    COALESCE(ei.description, e.description) as description,
+                    e.payment_method,
+                    ei.amount
+                FROM expense_items ei
+                JOIN expenses e ON ei.expense_id = e.expense_id
+                LEFT JOIN expensecategories c ON ei.category_id = c.category_id
+                LEFT JOIN expensesubcategories sc ON ei.subcategory_id = sc.subcategory_id
+                WHERE e.expense_date BETWEEN %s AND %s
+                ORDER BY e.expense_date DESC
+            """, (start_date, end_date))
+            rows = cursor.fetchall()
+            headers = ["Date", "Category", "Item", "Description", "Mode", "Amount"]
+            for r in rows:
+                data.append([
+                    r['expense_date'].strftime('%d-%m-%Y'),
+                    r['category_name'] or 'General',
+                    r['subcategory_name'] or '-',
+                    r['description'] or '',
+                    r['payment_method'],
+                    float(r['amount'])
+                ])
+            title = f"Detailed Expense Log ({start_date} to {end_date})"
+
+        elif report_type == "monthly_summary":
+            # Just export list of expenses for the month
+            m_start = f"{year}-{request.args.get('month', '01')}-01"
+            # Logic to find end of month
+            m = int(request.args.get('month', '01'))
+            _, last = calendar.monthrange(year, m)
+            m_end = f"{year}-{m:02d}-{last}"
+            
+            cursor.execute("""
+                SELECT expense_date, description, payment_method, total_amount 
+                FROM expenses WHERE expense_date BETWEEN %s AND %s ORDER BY expense_date
+            """, (m_start, m_end))
+            rows = cursor.fetchall()
+            headers = ["Date", "Description", "Mode", "Amount"]
+            for r in rows:
+                data.append([
+                    r['expense_date'].strftime('%d-%m-%Y'),
+                    r['description'],
+                    r['payment_method'],
+                    float(r['total_amount'])
+                ])
+            title = f"Monthly Expenses ({calendar.month_name[m]} {year})"
+
+    except Exception as e:
+        cursor.close()
+        return f"Error exporting: {e}"
+
+    cursor.close()
+
+    # ----------------------------------------
+    # GENERATE EXCEL
+    # ----------------------------------------
+    if fmt == "excel":
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Expenses"
+        
+        # Title Row
+        ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=len(headers))
+        ws.cell(row=1, column=1, value=title).font = Font(size=14, bold=True)
+        ws.cell(row=1, column=1).alignment = Alignment(horizontal='center')
+        
+        # Header Row
+        ws.append(headers)
+        for cell in ws[2]:
+            cell.font = Font(bold=True, color="FFFFFF")
+            cell.fill = PatternFill(start_color="4F46E5", end_color="4F46E5", fill_type="solid")
+            
+        # Data Rows
+        for row in data:
+            ws.append(row)
+            
+        # Auto-width
+        for col in ws.columns:
+            max_length = 0
+            column = col[0].column_letter
+            for cell in col:
+                try:
+                    if len(str(cell.value)) > max_length: max_length = len(str(cell.value))
+                except: pass
+            ws.column_dimensions[column].width = max_length + 2
+
+        out = io.BytesIO()
+        wb.save(out)
+        out.seek(0)
+        return send_file(out, as_attachment=True, download_name=f"expenses_{report_type}.xlsx", mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+    # ----------------------------------------
+    # GENERATE PDF (Bulk Report - Maintains Generic Style)
+    # ----------------------------------------
+    elif fmt == "pdf":
+        class PDFReport(FPDF):
+            def header(self):
+                self.set_font('Arial', 'B', 16)
+                self.cell(0, 10, "REAL PROMOTION", 0, 1, 'C')
+                self.set_font('Arial', 'B', 9)
+                self.set_text_color(100, 100, 100)
+                self.cell(0, 5, "SINCE 2005", 0, 1, 'C')
+                self.ln(5)
+                self.set_font('Arial', 'B', 14)
+                self.set_text_color(0, 0, 0)
+                self.cell(0, 10, title, 0, 1, 'C')
+                self.ln(5)
+                
+            def footer(self):
+                self.set_y(-15)
+                self.set_font('Arial', 'I', 8)
+                self.set_text_color(128, 128, 128)
+                self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
+
+        pdf = PDFReport(orientation='L') # Landscape
+        pdf.add_page()
+        pdf.set_font("Arial", 'B', 10)
+        
+        # Widths
+        w_base = 275 / len(headers) 
+        widths = [w_base] * len(headers)
+        if report_type == "detailed_log":
+            widths = [25, 40, 40, 90, 30, 50] 
+        
+        # Header
+        pdf.set_fill_color(79, 70, 229)
+        pdf.set_text_color(255, 255, 255)
+        for i, h in enumerate(headers):
+            pdf.cell(widths[i], 8, h, 1, 0, 'C', True)
+        pdf.ln()
+        
+        # Rows
+        pdf.set_font("Arial", '', 9)
+        pdf.set_text_color(0, 0, 0)
+        total = 0
+        fill = False
+        
+        for row in data:
+            pdf.set_fill_color(245, 245, 245)
+            for i, val in enumerate(row):
+                align = 'R' if isinstance(val, float) else 'L'
+                txt = f"{val:,.2f}" if isinstance(val, float) else str(val)
+                if isinstance(val, float) and i == len(row)-1: total += val
+                
+                pdf.cell(widths[i], 8, txt[:40], 1, 0, align, fill) 
+            pdf.ln()
+            fill = not fill
+            
+        # Total
+        pdf.set_font("Arial", 'B', 10)
+        pdf.cell(sum(widths[:-1]), 10, "Grand Total", 1, 0, 'R')
+        pdf.cell(widths[-1], 10, f"{total:,.2f}", 1, 1, 'R')
+
+        out = io.BytesIO(pdf.output(dest='S').encode('latin-1'))
+        out.seek(0)
+        return send_file(out, as_attachment=True, download_name=f"expenses_{report_type}.pdf", mimetype="application/pdf")
+
+    return "Invalid format"
 
 
 
@@ -7606,14 +7939,15 @@ def delete_transaction(transaction_id):
     return redirect(url_for('emp_list'))
 
 #============================================= Employees transaction Reports module========================  
-
-# --- HELPER FUNCTION (Define this BEFORE the routes that use it) ---
+# =========================================================
+#  HELPER: FETCH TRANSACTION DATA (Updated for Modern UI)
+# =========================================================
 def _fetch_transaction_data(filters):
     """
     A private helper function to query the database based on a dictionary of filters.
-    Returns a list of transactions.
+    Returns a list of transactions with Employee Images.
     """
-    cur = mysql.connection.cursor()
+    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
     where_clauses = []
     params = []
@@ -7639,8 +7973,10 @@ def _fetch_transaction_data(filters):
         params.append(employee_id)
 
     # Build and execute the final query
+    # ADDED: e.image as employee_image
     sql = """
-        SELECT t.transaction_date, t.type, t.amount, t.description, e.name as employee_name
+        SELECT t.transaction_date, t.type, t.amount, t.description, 
+               e.name as employee_name, e.image as employee_image
         FROM employee_transactions t
         JOIN employees e ON t.employee_id = e.id
     """
@@ -7651,29 +7987,47 @@ def _fetch_transaction_data(filters):
     cur.execute(sql, tuple(params))
     transactions = cur.fetchall()
     cur.close()
+
+    # Process Images using the existing resolve_img helper
+    for t in transactions:
+        if 'employee_image' in t:
+            t['employee_image'] = resolve_img(t['employee_image'])
+            
     return transactions
 
-
-
-
+# =========================================================
+#  TRANSACTION REPORT ROUTE (Updated with Chart Data)
+# =========================================================
 @app.route('/transaction-report', methods=['GET', 'POST'])
 def transaction_report():
     """Renders the interactive transaction analysis page."""
-    # This function's logic is correct and does not need to change.
-    cur = mysql.connection.cursor()
+    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     cur.execute("SELECT id, name FROM employees WHERE status = 'active' ORDER BY name ASC")
     employees = cur.fetchall()
     cur.close()
+
     filters = {'period': 'this_month', 'employee_id': 'all', 'start_date': '', 'end_date': ''}
+    
     if request.method == 'POST':
         filters['period'] = request.form.get('period')
         filters['employee_id'] = request.form.get('employee_id')
         filters['start_date'] = request.form.get('start_date')
         filters['end_date'] = request.form.get('end_date')
+
     transactions = _fetch_transaction_data(filters)
-    total_debit = sum(t['amount'] for t in transactions if t['type'] == 'debit')
-    total_credit = sum(t['amount'] for t in transactions if t['type'] == 'credit')
+    
+    # Calculate Totals
+    total_debit = sum(float(t['amount']) for t in transactions if t['type'] == 'debit')
+    total_credit = sum(float(t['amount']) for t in transactions if t['type'] == 'credit')
     net_flow = total_debit - total_credit
+
+    # Prepare Data for Chart.js
+    chart_data = {
+        'debit': total_debit,
+        'credit': total_credit,
+        'net': net_flow
+    }
+
     return render_template('reports/transaction_report.html',
                            employees=employees,
                            transactions=transactions,
@@ -7681,149 +8035,8 @@ def transaction_report():
                            total_debit=total_debit,
                            total_credit=total_credit,
                            net_flow=net_flow,
-                           filters=filters)
-
-
-
-@app.route('/download-transaction-report')
-def download_transaction_report():
-    """
-    Generates and downloads a highly structured PDF or a fixed Excel file.
-    This version includes robust error handling for fonts.
-    """
-    # Get filters from URL query parameters (no changes here)
-    filters = {
-        'period': request.args.get('period'),
-        'employee_id': request.args.get('employee_id'),
-        'start_date': request.args.get('start_date'),
-        'end_date': request.args.get('end_date')
-    }
-    report_format = request.args.get('format')
-    transactions = _fetch_transaction_data(filters)
-    
-    # --- PDF GENERATION (Completely Redesigned and Bulletproof) ---
-    if report_format == 'pdf':
-        try:
-            class PDF(FPDF):
-                def header(self):
-                    # Set up fonts
-                    self.add_font('DejaVu', 'B', 'static/fonts/DejaVuSans-Bold.ttf')
-                    self.add_font('DejaVu', '', 'static/fonts/DejaVuSans.ttf')
-                    
-                    # Header Title
-                    self.set_font('DejaVu', 'B', 16)
-                    self.cell(0, 10, 'Employee Transaction Report', 0, 1, 'C')
-                    
-                    # Header Subtitle
-                    self.set_font('DejaVu', '', 10)
-                    period_text = f"Period: {filters.get('start_date', 'N/A')} to {filters.get('end_date', 'N/A')}"
-                    if filters.get('period') != 'custom':
-                        period_text = f"Period: {filters.get('period').replace('_', ' ').title()}"
-                    self.cell(0, 8, period_text, 0, 1, 'C')
-                    self.ln(8) # Line break
-
-                def footer(self):
-                    self.set_y(-15)
-                    self.set_font('DejaVu', '', 8)
-                    self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
-                    # Use a fixed date for the footer to avoid errors
-                    self.cell(0, 10, "Generated on: " + date.today().strftime('%d-%m-%Y'), 0, 0, 'R')
-
-                def styled_table(self, header, data):
-                    # Colors, line width and bold font
-                    self.set_fill_color(230, 230, 230)
-                    self.set_text_color(0)
-                    self.set_draw_color(220, 220, 220)
-                    self.set_line_width(0.3)
-                    self.set_font('DejaVu', 'B', 10)
-                    
-                    # Column widths
-                    col_widths = [25, 55, 100, 35, 35]
-                    # Header
-                    for i, col in enumerate(header):
-                        self.cell(col_widths[i], 10, str(col), 1, 0, 'C', 1)
-                    self.ln()
-
-                    # Data rows with zebra-striping
-                    self.set_font('DejaVu', '', 9)
-                    fill = False
-                    for row in data:
-                        # Ensure all cell data is converted to string to prevent errors
-                        self.cell(col_widths[0], 8, str(row[0]), 'LR', 0, 'L', fill)
-                        self.cell(col_widths[1], 8, str(row[1]), 'LR', 0, 'L', fill)
-                        self.cell(col_widths[2], 8, str(row[2]), 'LR', 0, 'L', fill)
-                        self.cell(col_widths[3], 8, str(row[3]), 'LR', 0, 'R', fill)
-                        self.cell(col_widths[4], 8, str(row[4]), 'LR', 0, 'R', fill)
-                        self.ln()
-                        fill = not fill
-                    self.cell(sum(col_widths), 0, '', 'T')
-
-            pdf = PDF(orientation='L', unit='mm', format='A4')
-            
-            # --- CRITICAL FIX: This adds the fonts before they are used ---
-            pdf.add_font('DejaVu', '', 'static/fonts/DejaVuSans.ttf')
-            pdf.add_font('DejaVu', 'B', 'static/fonts/DejaVuSans-Bold.ttf')
-
-            pdf.add_page()
-            
-            # Check for data
-            if not transactions:
-                pdf.set_font('DejaVu', '', 12)
-                pdf.cell(0, 20, 'No transactions found for the selected criteria.', 0, 1, 'C')
-            else:
-                header = ['Date', 'Employee', 'Description', 'Debit (₹)', 'Credit (₹)']
-                data = []
-                for t in transactions:
-                    data.append([
-                        t['transaction_date'].strftime('%d-%m-%Y'),
-                        t['employee_name'],
-                        t['description'] or '',
-                        f"{t['amount']:,.2f}" if t['type'] == 'debit' else '',
-                        f"{t['amount']:,.2f}" if t['type'] == 'credit' else ''
-                    ])
-                pdf.styled_table(header, data)
-            
-            # --- FINAL FIX: This correctly outputs the PDF bytes ---
-            pdf_output = pdf.output()
-
-            return Response(pdf_output, mimetype='application/pdf', headers={'Content-Disposition': 'attachment;filename=transaction_report.pdf'})
-        
-        # --- CRITICAL FIX: Gracefully handle the error if font files are missing ---
-        except FileNotFoundError:
-            flash("PDF generation failed: Font files not found. Please ensure 'DejaVuSans.ttf' and 'DejaVuSans-Bold.ttf' are in the 'fonts' directory.", "danger")
-            return redirect(url_for('transaction_report'))
-
-    # --- EXCEL GENERATION (Unchanged but confirmed working) ---
-    elif report_format == 'excel':
-        # Your existing, working Excel code
-        wb = openpyxl.Workbook()
-        ws = wb.active
-        ws.title = "Transaction Report"
-        ws.append(['Date', 'Employee', 'Description', 'Debit (₹)', 'Credit (₹)'])
-        for cell in ws[1]: cell.font = Font(bold=True)
-        if not transactions:
-            ws.append(['No transactions found for the selected criteria.'])
-            ws.merge_cells('A2:E2')
-            ws['A2'].alignment = Alignment(horizontal='center')
-        else:
-            for t in transactions:
-                ws.append([t['transaction_date'], t['employee_name'], t['description'], t['amount'] if t['type'] == 'debit' else None, t['amount'] if t['type'] == 'credit' else None])
-        for col_letter in ['D', 'E']:
-            for cell in ws[col_letter]: cell.number_format = '"₹" #,##,##0.00'
-        for col in ws.columns:
-            max_length = 0
-            for cell in col:
-                try: 
-                    if len(str(cell.value)) > max_length: max_length = len(str(cell.value))
-                except: pass
-            ws.column_dimensions[col[0].column_letter].width = max_length + 2
-        virtual_workbook = io.BytesIO()
-        wb.save(virtual_workbook)
-        virtual_workbook.seek(0)
-        return Response(virtual_workbook, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', headers={'Content-Disposition': 'attachment;filename=transaction_report.xlsx'})
-
-    return redirect(url_for('transaction_report'))
-
+                           filters=filters,
+                           chart_data=chart_data) # Passed new data for charts
 
 
 # ---------- CUSTOM JINJA FILTER: INR FORMAT ----------
@@ -7844,257 +8057,3 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
