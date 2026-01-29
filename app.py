@@ -6324,99 +6324,122 @@ def admin_evening_export_pdf():
 # ==============================
 #  PURCHASE REPORTS MODULE
 # ==============================
+# REPLACE your existing 'purchase_report' route with this FIXED version:
+
 @app.route("/purchase_report", methods=["GET", "POST"])
 def purchase_report():
-    if "loggedin" not in session: return redirect(url_for("login"))
+    if "loggedin" not in session:
+        return redirect(url_for("login"))
 
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
-    # ---- 1. Get Filters ----
-    start_date = request.args.get("start_date")
-    end_date = request.args.get("end_date")
-    supplier_id = request.args.get("supplier_id")
-    search_query = request.args.get("q", "").strip()
+    # ---- Filters ----
+    # For GET requests, we can also look at args if you want bookmarks to work
+    # But usually filters are POSTed. Let's support both for better UX.
+    start_date = request.form.get("start_date") or request.args.get("start_date")
+    end_date = request.form.get("end_date") or request.args.get("end_date")
+    supplier_id = request.form.get("supplier_id") or request.args.get("supplier_id")
 
-    # ---- 2. Fetch Data for Dropdown ----
+    # Fetch suppliers for dropdown
     cursor.execute("SELECT id, name FROM suppliers ORDER BY name ASC")
     suppliers = cursor.fetchall()
 
-    # ---- 3. Build Main Query ----
+    # 1. Base query for Table List
     sql = """
         SELECT 
             p.id,
             p.purchase_date,
             p.bill_number,
             p.total_amount,
-            s.name AS supplier_name,
-            (SELECT COUNT(*) FROM purchase_items pi WHERE pi.purchase_id = p.id) as item_count
+            s.name AS supplier_name
         FROM purchases p
         LEFT JOIN suppliers s ON s.id = p.supplier_id
         WHERE 1 = 1
     """
     params = []
 
-    # Apply Filters
+    # Apply filters
     if start_date:
-        sql += " AND p.purchase_date >= %s"
+        sql += " AND DATE(p.purchase_date) >= %s"
         params.append(start_date)
     if end_date:
-        sql += " AND p.purchase_date <= %s"
+        sql += " AND DATE(p.purchase_date) <= %s"
         params.append(end_date)
     if supplier_id and supplier_id != 'all':
         sql += " AND p.supplier_id = %s"
         params.append(supplier_id)
-    if search_query:
-        sql += " AND (s.name LIKE %s OR p.bill_number LIKE %s)"
-        params.extend([f"%{search_query}%", f"%{search_query}%"])
 
     sql += " ORDER BY p.purchase_date DESC"
 
     cursor.execute(sql, tuple(params))
     purchases = cursor.fetchall()
 
-    # ---- 4. Calculate KPI Summaries ----
-    total_spend = sum(float(x['total_amount']) for x in purchases)
-    total_orders = len(purchases)
-
-    # ---- 5. Analytics Data (Charts) ----
-    
-    # Monthly Trend (Using the same filters for accuracy)
-    chart_sql = """
+    # 2. Monthly summary for Trend Chart (Aggregated)
+    # Using same filters but grouping by month
+    monthly_sql = """
         SELECT 
-            DATE_FORMAT(p.purchase_date, '%%b-%%Y') AS month_label,
-            SUM(p.total_amount) AS total
+            DATE_FORMAT(p.purchase_date, '%%Y-%%m') AS month,
+            SUM(p.total_amount) AS total_purchase
         FROM purchases p
-        LEFT JOIN suppliers s ON s.id = p.supplier_id
-        WHERE 1=1
+        WHERE 1 = 1
     """
-    # Reuse the WHERE clauses from above manually or simplified for charts
-    # For simplicity in this snippet, we re-apply basic date filters to charts
-    c_params = []
-    if start_date: 
-        chart_sql += " AND p.purchase_date >= %s"
-        c_params.append(start_date)
-    if end_date: 
-        chart_sql += " AND p.purchase_date <= %s"
-        c_params.append(end_date)
-        
-    chart_sql += " GROUP BY DATE_FORMAT(p.purchase_date, '%%Y-%%m'), month_label ORDER BY p.purchase_date ASC"
+    monthly_params = []
     
-    cursor.execute(chart_sql, tuple(c_params))
-    monthly_data = cursor.fetchall()
+    # Re-apply filters for charts to keep them in sync
+    if start_date:
+        monthly_sql += " AND DATE(p.purchase_date) >= %s"
+        monthly_params.append(start_date)
+    if end_date:
+        monthly_sql += " AND DATE(p.purchase_date) <= %s"
+        monthly_params.append(end_date)
+    # Note: Supplier filter usually applies to trend too? Yes.
+    if supplier_id and supplier_id != 'all':
+        monthly_sql += " AND p.supplier_id = %s"
+        monthly_params.append(supplier_id)
 
-    # Supplier Breakdown
-    sup_sql = """
-        SELECT s.name as supplier_name, SUM(p.total_amount) as total
+    monthly_sql += " GROUP BY DATE_FORMAT(p.purchase_date, '%%Y-%%m') ORDER BY month ASC"
+
+    cursor.execute(monthly_sql, tuple(monthly_params))
+    # Fetch all and ensure values are floats (Decimal not JSON serializable sometimes)
+    monthly_data_raw = cursor.fetchall()
+    monthly_data = []
+    for row in monthly_data_raw:
+        monthly_data.append({
+            'month': row['month'],
+            'total_purchase': float(row['total_purchase'] or 0)
+        })
+
+    # 3. Supplier-wise totals for Pie Chart
+    supplier_sql = """
+        SELECT 
+            s.name AS supplier_name,
+            SUM(p.total_amount) AS total_purchase
         FROM purchases p
         LEFT JOIN suppliers s ON s.id = p.supplier_id
-        WHERE 1=1
+        WHERE 1 = 1
     """
-    if start_date: sup_sql += " AND p.purchase_date >= %s"
-    if end_date: sup_sql += " AND p.purchase_date <= %s"
-    
-    sup_sql += " GROUP BY s.name ORDER BY total DESC LIMIT 6"
-    cursor.execute(sup_sql, tuple(c_params))
-    supplier_data = cursor.fetchall()
+    supplier_params = []
+
+    if start_date:
+        supplier_sql += " AND DATE(p.purchase_date) >= %s"
+        supplier_params.append(start_date)
+    if end_date:
+        supplier_sql += " AND DATE(p.purchase_date) <= %s"
+        supplier_params.append(end_date)
+    if supplier_id and supplier_id != 'all':
+        supplier_sql += " AND p.supplier_id = %s"
+        supplier_params.append(supplier_id)
+
+    supplier_sql += " GROUP BY s.name ORDER BY total_purchase DESC"
+
+    cursor.execute(supplier_sql, tuple(supplier_params))
+    supplier_data_raw = cursor.fetchall()
+    supplier_data = []
+    for row in supplier_data_raw:
+        supplier_data.append({
+            'supplier_name': row['supplier_name'] or 'Unknown',
+            'total_purchase': float(row['total_purchase'] or 0)
+        })
 
     cursor.close()
 
@@ -6428,11 +6451,8 @@ def purchase_report():
         supplier_data=supplier_data,
         start_date=start_date,
         end_date=end_date,
-        selected_supplier=supplier_id,
-        search_query=search_query,
-        kpi={"total_spend": total_spend, "total_orders": total_orders}
+        selected_supplier=supplier_id
     )
-
 
 @app.route("/export_purchase_excel")
 def export_purchase_excel():
@@ -7716,6 +7736,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
