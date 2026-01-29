@@ -91,14 +91,12 @@
 </style>
 
 <!-- --- DATA CALCULATION LOGIC (JINJA) --- -->
-<!-- This ensures data is calculated before display -->
 {% set ns = namespace(total_val=0, total_count=0) %}
 {% for p in purchases %}
     {% set ns.total_val = ns.total_val + p.total_amount %}
     {% set ns.total_count = ns.total_count + 1 %}
 {% endfor %}
 
-<!-- Determine Top Supplier from Chart Data if available -->
 {% set top_supplier_name = "N/A" %}
 {% if supplier_data and supplier_data|length > 0 %}
     {% set top_supplier_name = supplier_data[0].supplier_name %}
@@ -166,7 +164,30 @@
         </div>
     </div>
 
-    <!-- 3. Filter Bar (Below Cards) -->
+    <!-- 3. Charts Section -->
+    <div class="row g-4 mb-4">
+        <!-- Yearly Purchase Trend (Updated Title) -->
+        <div class="col-lg-8">
+            <div class="chart-box">
+                <h5 class="fw-bold text-dark mb-4">Yearly Purchase Trend</h5>
+                <div style="height: 320px;">
+                    <canvas id="trendChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Supplier Distribution -->
+        <div class="col-lg-4">
+            <div class="chart-box">
+                <h5 class="fw-bold text-dark mb-4">Top Suppliers</h5>
+                <div style="height: 320px; display: flex; justify-content: center;">
+                    <canvas id="supplierChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. Filter Bar (Moved Here - Above Table) -->
     <div class="filter-box mb-4">
         <form method="POST" action="{{ url_for('purchase_report') }}" class="row g-3 align-items-end">
             <input type="hidden" name="type" value="monthly_summary">
@@ -203,29 +224,6 @@
                 </button>
             </div>
         </form>
-    </div>
-
-    <!-- 4. Charts Section -->
-    <div class="row g-4 mb-4">
-        <!-- Monthly Trend -->
-        <div class="col-lg-8">
-            <div class="chart-box">
-                <h5 class="fw-bold text-dark mb-4">Monthly Purchase Trend</h5>
-                <div style="height: 320px;">
-                    <canvas id="trendChart"></canvas>
-                </div>
-            </div>
-        </div>
-
-        <!-- Supplier Distribution -->
-        <div class="col-lg-4">
-            <div class="chart-box">
-                <h5 class="fw-bold text-dark mb-4">Top Suppliers</h5>
-                <div style="height: 320px; display: flex; justify-content: center;">
-                    <canvas id="supplierChart"></canvas>
-                </div>
-            </div>
-        </div>
     </div>
 
     <!-- 5. Data Table -->
@@ -270,33 +268,39 @@
 <!-- Scripts -->
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script>
-    // 1. Date Picker
+    // 1. Date Picker (Flatpickr)
     flatpickr(".date-picker", { dateFormat: "Y-m-d", allowInput: true });
 
-    // 2. Data from Backend (Using safe filter to prevent errors)
-    // FIX: Using '| safe' to output raw JSON string
+    // 2. Data from Backend
     const monthlyData = {{ monthly_data | tojson | safe }};
     const supplierData = {{ supplier_data | tojson | safe }};
 
-    // 3. Prepare Chart Data
-    // We assume backend sends 'month' like '2025-01' and 'total_purchase' as number
-    const trendLabels = monthlyData.map(d => {
-        if (!d.month) return "N/A";
-        const parts = d.month.split('-'); 
-        if(parts.length === 2) {
-            const date = new Date(parts[0], parts[1] - 1);
-            return date.toLocaleString('default', { month: 'short', year: 'numeric' });
-        }
-        return d.month;
-    });
+    // 3. Prepare Chart Data - Yearly Trend (All 12 Months)
+    const allMonths = [
+        "Jan", "Feb", "Mar", "Apr", "May", "Jun", 
+        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+    ];
     
-    // Ensure values are numbers
-    const trendValues = monthlyData.map(d => parseFloat(d.total_purchase) || 0);
+    // Initialize data array with 0s for all 12 months
+    const yearlyValues = new Array(12).fill(0);
+
+    // Map backend data to the 12-month array
+    monthlyData.forEach(d => {
+        if(d.month) {
+            const parts = d.month.split('-'); // e.g., "2026-01"
+            if(parts.length === 2) {
+                const monthIndex = parseInt(parts[1]) - 1; // 0 for Jan, 1 for Feb...
+                if(monthIndex >= 0 && monthIndex < 12) {
+                    yearlyValues[monthIndex] = parseFloat(d.total_purchase) || 0;
+                }
+            }
+        }
+    });
 
     const suppLabels = supplierData.map(d => d.supplier_name || "Unknown");
     const suppValues = supplierData.map(d => parseFloat(d.total_purchase) || 0);
 
-    // --- 1. TREND CHART (Gradient Area) ---
+    // --- 1. TREND CHART (Yearly Line Chart) ---
     const ctxTrend = document.getElementById('trendChart').getContext('2d');
     const grad = ctxTrend.createLinearGradient(0, 0, 0, 400);
     grad.addColorStop(0, 'rgba(78, 115, 223, 0.2)');
@@ -305,16 +309,16 @@
     new Chart(ctxTrend, {
         type: 'line',
         data: {
-            labels: trendLabels,
+            labels: allMonths,
             datasets: [{
-                label: 'Purchase Volume',
-                data: trendValues,
+                label: 'Purchase Amount',
+                data: yearlyValues,
                 borderColor: '#4e73df',
                 backgroundColor: grad,
                 pointBackgroundColor: '#fff',
                 pointBorderColor: '#4e73df',
-                pointRadius: 4,
-                pointHoverRadius: 6,
+                pointRadius: 5,
+                pointHoverRadius: 7,
                 fill: true,
                 tension: 0.4
             }]
@@ -334,7 +338,7 @@
             },
             scales: {
                 y: { beginAtZero: true, grid: { borderDash: [2] } },
-                x: { grid: { display: false } }
+                x: { grid: { display: false } } // Hide grid lines for X axis as requested
             }
         }
     });
