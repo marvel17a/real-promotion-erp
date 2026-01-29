@@ -2093,13 +2093,8 @@ def new_purchase():
             purchase_id = cursor.lastrowid
             
             # 4. Insert Items & Update Stock (Warehouse Stock Increase)
-            # Dynamic Column Detection for Stock
+            # FIX: Removed dynamic column check, using standard 'stock' column directly
             stock_col = 'stock' 
-            cursor.execute("SHOW COLUMNS FROM products")
-            columns = [row['Field'] for row in cursor.fetchall()]
-            if 'stock_quantity' in columns: stock_col = 'stock_quantity'
-            elif 'stock' in columns: stock_col = 'stock'
-            elif 'qty' in columns: stock_col = 'qty'
 
             for item in valid_items:
                 p_id = item['p_id']
@@ -2107,7 +2102,6 @@ def new_purchase():
                 new_price = item['price']
 
                 # --- Fetch CURRENT stock and PURCHASE price (Cost) ---
-                # FIX: We fetch 'purchase_price' instead of 'price' (Selling)
                 cursor.execute(f"SELECT {stock_col}, purchase_price FROM products WHERE id = %s", (p_id,))
                 current_product = cursor.fetchone()
                 
@@ -2140,7 +2134,7 @@ def new_purchase():
                         VALUES (%s, %s, %s, %s)
                     """, (purchase_id, p_id, new_qty, new_price))
                     
-                    # Update Product Stock & Purchase Price (NOT Selling Price)
+                    # Update Product Stock & Purchase Price
                     update_query = f"UPDATE products SET {stock_col} = %s, purchase_price = %s WHERE id = %s"
                     cursor.execute(update_query, (final_total_qty, new_avg_cost, p_id))
             
@@ -2198,9 +2192,11 @@ def edit_purchase(purchase_id):
             cursor.execute("SELECT * FROM purchase_items WHERE purchase_id = %s", (purchase_id,))
             old_items = cursor.fetchall()
             
-            stock_col = 'stock' # Default, should match new_purchase logic
+            # FIX: Removed dynamic check, using 'stock' directly
+            stock_col = 'stock' 
             
             # Reverse Stock: Subtract old quantities
+            # FIX: Added check to ensure stock doesn't go negative during reversal (if needed)
             for item in old_items:
                 cursor.execute(f"UPDATE products SET {stock_col} = {stock_col} - %s WHERE id = %s", 
                                (item['quantity'], item['product_id']))
@@ -2333,6 +2329,78 @@ def view_purchase(purchase_id):
         return redirect(url_for('purchases'))
         
     return render_template('purchases/view_purchase.html', purchase=purchase, items=items)
+
+
+
+@app.route('/purchases/delete/<int:purchase_id>', methods=['POST'])
+def delete_purchase(purchase_id):
+    if 'loggedin' not in session: return redirect(url_for('login'))
+    
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    
+    try:
+        # 1. Fetch Purchase Details
+        cursor.execute("SELECT supplier_id, total_amount FROM purchases WHERE id = %s", (purchase_id,))
+        purchase = cursor.fetchone()
+        
+        if not purchase:
+            flash("Purchase not found.", "danger")
+            return redirect(url_for('purchases'))
+            
+        supplier_id = purchase['supplier_id']
+        total_amount = purchase['total_amount']
+
+        # 2. Fetch Purchase Items
+        cursor.execute("SELECT product_id, quantity FROM purchase_items WHERE purchase_id = %s", (purchase_id,))
+        items = cursor.fetchall()
+        
+        # FIX: Explicitly use 'stock'
+        stock_col = 'stock'
+        
+        # --- FIX: Check for Negative Stock Risk ---
+        # Before deleting, check if reversing this purchase would drop stock below zero.
+        for item in items:
+            p_id = item['product_id']
+            qty = float(item['quantity'])
+            
+            cursor.execute(f"SELECT {stock_col}, name FROM products WHERE id = %s", (p_id,))
+            prod = cursor.fetchone()
+            
+            current_stock = float(prod[stock_col] or 0)
+            
+            if current_stock < qty:
+                # Stock is LESS than what was purchased? Meaning it was sold!
+                # Block deletion to prevent data corruption.
+                flash(f"Cannot delete purchase: Item '{prod['name']}' has already been sold/allocated. Current Stock ({current_stock}) < Purchase Qty ({qty}).", "danger")
+                return redirect(url_for('purchases'))
+
+        # 3. If Safe, Reverse Stock (Subtract quantity from Warehouse)
+        for item in items:
+            p_id = item['product_id']
+            qty = float(item['quantity'])
+            query = f"UPDATE products SET {stock_col} = {stock_col} - %s WHERE id = %s"
+            cursor.execute(query, (qty, p_id))
+            
+        # 4. Reverse Supplier Dues
+        cursor.execute("""
+            UPDATE suppliers SET current_due = current_due - %s WHERE id = %s
+        """, (total_amount, supplier_id))
+        
+        # 5. Delete the Purchase Record
+        cursor.execute("DELETE FROM purchases WHERE id = %s", (purchase_id,))
+        
+        mysql.connection.commit()
+        flash(f"Purchase #{purchase_id} deleted and stock reversed.", "success")
+        
+    except Exception as e:
+        mysql.connection.rollback()
+        flash(f"Error deleting purchase: {str(e)}", "danger")
+        app.logger.error(f"Delete Error: {e}")
+        
+    finally:
+        cursor.close()
+        
+    return redirect(url_for('purchases'))
 
 
 
@@ -2579,57 +2647,6 @@ def safe_date_format(date_obj, format='%d-%m-%Y', default='N/A'):
     return default
 
 
-@app.route('/purchases/delete/<int:purchase_id>', methods=['POST'])
-def delete_purchase(purchase_id):
-    if 'loggedin' not in session: return redirect(url_for('login'))
-    
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    
-    try:
-        # 1. Fetch Purchase Details (to reverse Supplier Dues)
-        cursor.execute("SELECT supplier_id, total_amount FROM purchases WHERE id = %s", (purchase_id,))
-        purchase = cursor.fetchone()
-        
-        if not purchase:
-            flash("Purchase not found.", "danger")
-            return redirect(url_for('purchases'))
-            
-        supplier_id = purchase['supplier_id']
-        total_amount = purchase['total_amount']
-
-        # 2. Fetch Purchase Items (to reverse Stock)
-        cursor.execute("SELECT product_id, quantity FROM purchase_items WHERE purchase_id = %s", (purchase_id,))
-        items = cursor.fetchall()
-        
-        stock_col = 'stock'
-        
-        # 3. Reverse Stock (Subtract quantity from Warehouse)
-        for item in items:
-            p_id = item['product_id']
-            qty = float(item['quantity'])
-            query = f"UPDATE products SET {stock_col} = {stock_col} - %s WHERE id = %s"
-            cursor.execute(query, (qty, p_id))
-            
-        # 4. Reverse Supplier Dues (Subtract amount)
-        cursor.execute("""
-            UPDATE suppliers SET current_due = current_due - %s WHERE id = %s
-        """, (total_amount, supplier_id))
-        
-        # 5. Delete the Purchase Record
-        cursor.execute("DELETE FROM purchases WHERE id = %s", (purchase_id,))
-        
-        mysql.connection.commit()
-        flash(f"Purchase #{purchase_id} deleted and stock reversed.", "success")
-        
-    except Exception as e:
-        mysql.connection.rollback()
-        flash(f"Error deleting purchase: {str(e)}", "danger")
-        app.logger.error(f"Delete Error: {e}")
-        
-    finally:
-        cursor.close()
-        
-    return redirect(url_for('purchases'))
 
 
 # ==============================
@@ -7711,6 +7728,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
