@@ -5,6 +5,9 @@
 
 <!-- Google Fonts: Inter -->
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<!-- Flatpickr CSS -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<link rel="stylesheet" type="text/css" href="https://npmcdn.com/flatpickr/dist/themes/airbnb.css">
 
 <style>
     :root {
@@ -133,6 +136,11 @@
         box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
     }
 
+    /* Flatpickr Customization */
+    .flatpickr-input {
+        background-color: #fff !important; /* Ensure white background */
+    }
+
     .btn-generate {
         background-color: var(--text-main);
         color: white;
@@ -246,11 +254,21 @@
                     <div class="row g-2">
                         <div class="col-6">
                             <label class="control-label">From Date</label>
-                            <input type="date" name="start_date" class="modern-input" value="{{ filters.start_date }}">
+                            <div class="input-group">
+                                <span class="input-group-text bg-white border-end-0 rounded-start-3 ps-3 text-muted">
+                                    <i class="fa-regular fa-calendar"></i>
+                                </span>
+                                <input type="text" name="start_date" id="start_date" class="form-control modern-input border-start-0 ps-2 flatpickr-date" value="{{ filters.start_date }}" placeholder="Select Date">
+                            </div>
                         </div>
                         <div class="col-6">
                             <label class="control-label">To Date</label>
-                            <input type="date" name="end_date" class="modern-input" value="{{ filters.end_date }}">
+                            <div class="input-group">
+                                <span class="input-group-text bg-white border-end-0 rounded-start-3 ps-3 text-muted">
+                                    <i class="fa-regular fa-calendar"></i>
+                                </span>
+                                <input type="text" name="end_date" id="end_date" class="form-control modern-input border-start-0 ps-2 flatpickr-date" value="{{ filters.end_date }}" placeholder="Select Date">
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -286,6 +304,9 @@
 
 </div>
 
+<!-- Flatpickr JS -->
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
 <!-- JavaScript for Filter Logic -->
 <script>
     function toggleFilters() {
@@ -305,9 +326,18 @@
         }
     }
 
-    // Run on load to set initial state
+    // Run on load to set initial state and init Flatpickr
     document.addEventListener('DOMContentLoaded', function() {
         toggleFilters();
+
+        // Initialize Flatpickr
+        flatpickr(".flatpickr-date", {
+            dateFormat: "d-m-Y", // Format sent to backend (standard ISO)
+            altInput: true,      // Show user-friendly format
+            altFormat: "j F, Y", // e.g., October 25, 2023
+            allowInput: true,
+            theme: "airbnb"      // Matches the loaded CSS theme
+        });
     });
 </script>
 
