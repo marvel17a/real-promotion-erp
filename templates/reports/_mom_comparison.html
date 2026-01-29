@@ -1,28 +1,72 @@
-<div class="row">
-    <div class="col-lg-5">
-        <div class="card report-card">
-             <div class="card-header"><h5 class="mb-0">Month-over-Month: {{ report_data.year }}</h5></div>
-             <div class="card-body">
-                {% for item in report_data.comparison %}
-                <div class="card mom-card mb-2 {% if item.change > 0 %}border-danger{% else %}border-success{% endif %}">
-                    <div class="card-body py-2 px-3 d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="mb-0">{{ item.month_name }}</h6>
-                            <strong class="h5">₹{{ (item.total | default(0)) | round(0) | int }}</strong>
-                        </div>
-                        <div class="text-end change-indicator {% if item.change > 0 %}text-danger{% elif item.change < 0 %}text-success{% endif %}">
-                           {% if item.change != 0 %}
-                           <i class="fas {% if item.change > 0 %}fa-arrow-up{% else %}fa-arrow-down{% endif %}"></i>
-                           {{ item.change | round(1) }}%
-                           {% endif %}
-                        </div>
-                    </div>
-                </div>
-                {% endfor %}
-             </div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<div class="control-center bg-white p-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h5 class="fw-bold mb-0">Month-over-Month Trend</h5>
+        <div class="d-flex gap-2">
+            <span class="badge bg-light text-dark border"><i class="fa-solid fa-arrow-up text-danger me-1"></i>Expense Up</span>
+            <span class="badge bg-light text-dark border"><i class="fa-solid fa-arrow-down text-success me-1"></i>Expense Down</span>
         </div>
     </div>
-    <div class="col-lg-7">
-        <div class="card report-card"><div class="card-body"><canvas id="momChart"></canvas></div></div>
+
+    <!-- Chart Container -->
+    <div style="height: 350px; width: 100%;">
+        <canvas id="momChart"></canvas>
+    </div>
+
+    <!-- Data Table below chart -->
+    <div class="row g-3 mt-4">
+        {% for item in report_data.comparison %}
+        <div class="col-md-3 col-sm-6">
+            <div class="p-3 border rounded-3 bg-light h-100">
+                <small class="text-muted text-uppercase fw-bold">{{ item.month_name }}</small>
+                <div class="d-flex justify-content-between align-items-end mt-2">
+                    <h5 class="mb-0 fw-bold">{{ item.total | inr }}</h5>
+                    {% if item.change != 0 %}
+                        <small class="{{ 'text-danger' if item.change > 0 else 'text-success' }} fw-bold">
+                            <i class="fa-solid {{ 'fa-caret-up' if item.change > 0 else 'fa-caret-down' }}"></i>
+                            {{ item.change | round(1) }}%
+                        </small>
+                    {% else %}
+                        <small class="text-muted">-</small>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
     </div>
 </div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const ctx = document.getElementById('momChart').getContext('2d');
+        
+        const labels = [{% for item in report_data.comparison %}"{{ item.month_name }}",{% endfor %}];
+        const data = [{% for item in report_data.comparison %}{{ item.total }},{% endfor %}];
+
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Total Expense',
+                    data: data,
+                    backgroundColor: '#4f46e5',
+                    borderRadius: 6,
+                    barThickness: 30
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true, grid: { borderDash: [2, 2] } },
+                    x: { grid: { display: false } }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+    });
+</script>
