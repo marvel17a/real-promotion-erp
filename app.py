@@ -2030,10 +2030,10 @@ def new_purchase():
             supplier_id = request.form['supplier_id']
             purchase_date_str = request.form['purchase_date']
             
-            # --- AUTO-GENERATE BILL NUMBER LOGIC ---
             bill_number = request.form.get('bill_number', '').strip()
             notes = request.form.get('notes', '')
             
+            # Auto-Generate Bill Number Logic
             if not bill_number:
                 try:
                     p_date_obj = datetime.strptime(purchase_date_str, '%Y-%m-%d')
@@ -2058,14 +2058,12 @@ def new_purchase():
                         except: pass
                 
                 bill_number = f"PO-{date_part}-{max_suffix + 1}"
-            # ---------------------------------------
             
             # 2. Item Arrays
             product_ids = request.form.getlist('product_id[]')
             quantities = request.form.getlist('quantity[]')
             prices = request.form.getlist('price[]')
             
-            # Calculate Grand Total
             total_amount = 0.0
             valid_items = []
             
@@ -2093,7 +2091,6 @@ def new_purchase():
             purchase_id = cursor.lastrowid
             
             # 4. Insert Items & Update Stock (Warehouse Stock Increase)
-            # FIX: Removed dynamic column check, using standard 'stock' column directly
             stock_col = 'stock' 
 
             for item in valid_items:
@@ -2101,42 +2098,16 @@ def new_purchase():
                 new_qty = item['qty']
                 new_price = item['price']
 
-                # --- Fetch CURRENT stock and PURCHASE price (Cost) ---
-                cursor.execute(f"SELECT {stock_col}, purchase_price FROM products WHERE id = %s", (p_id,))
-                current_product = cursor.fetchone()
+                # Insert Item
+                cursor.execute("""
+                    INSERT INTO purchase_items (purchase_id, product_id, quantity, purchase_price)
+                    VALUES (%s, %s, %s, %s)
+                """, (purchase_id, p_id, new_qty, new_price))
                 
-                if current_product:
-                    try: old_qty = float(current_product[stock_col] or 0)
-                    except: old_qty = 0.0
-                    
-                    try: old_cost = float(current_product['purchase_price'] or 0)
-                    except: old_cost = 0.0
-                    
-                    # Calculate New Total Quantity
-                    final_total_qty = old_qty + new_qty
-                    
-                    # --- Weighted Average Cost Logic ---
-                    if new_price > 0:
-                        total_old_value = old_qty * old_cost
-                        total_new_value = new_qty * new_price
-                        final_total_value = total_old_value + total_new_value
-                        
-                        if final_total_qty > 0:
-                            new_avg_cost = final_total_value / final_total_qty
-                        else:
-                            new_avg_cost = 0.0
-                    else:
-                        new_avg_cost = old_cost
-
-                    # Insert Item
-                    cursor.execute("""
-                        INSERT INTO purchase_items (purchase_id, product_id, quantity, purchase_price)
-                        VALUES (%s, %s, %s, %s)
-                    """, (purchase_id, p_id, new_qty, new_price))
-                    
-                    # Update Product Stock & Purchase Price
-                    update_query = f"UPDATE products SET {stock_col} = %s, purchase_price = %s WHERE id = %s"
-                    cursor.execute(update_query, (final_total_qty, new_avg_cost, p_id))
+                # --- UPDATE STOCK & PRICE LOGIC (LAST PURCHASE PRICE) ---
+                # No Average Calculation. Just set purchase_price = new_price
+                update_query = f"UPDATE products SET {stock_col} = {stock_col} + %s, purchase_price = %s WHERE id = %s"
+                cursor.execute(update_query, (new_qty, new_price, p_id))
             
             # 5. Update Supplier Dues
             cursor.execute("""
@@ -2168,13 +2139,13 @@ def new_purchase():
 # =====================================================================================
 # EDIT PURCHASE ROUTE (COMBINED GET & POST)
 # =====================================================================================
-
 @app.route('/purchases/edit/<int:purchase_id>', methods=['GET', 'POST'])
 def edit_purchase(purchase_id):
     if 'loggedin' not in session: return redirect(url_for('login'))
     
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
+    # --- POST: HANDLE UPDATE LOGIC ---
     if request.method == 'POST':
         try:
             # 1. Fetch OLD Purchase Data
@@ -2192,11 +2163,9 @@ def edit_purchase(purchase_id):
             cursor.execute("SELECT * FROM purchase_items WHERE purchase_id = %s", (purchase_id,))
             old_items = cursor.fetchall()
             
-            # FIX: Removed dynamic check, using 'stock' directly
             stock_col = 'stock' 
             
             # Reverse Stock: Subtract old quantities
-            # FIX: Added check to ensure stock doesn't go negative during reversal (if needed)
             for item in old_items:
                 cursor.execute(f"UPDATE products SET {stock_col} = {stock_col} - %s WHERE id = %s", 
                                (item['quantity'], item['product_id']))
@@ -2225,32 +2194,14 @@ def edit_purchase(purchase_id):
                     line_total = new_qty * new_price
                     new_total += line_total
                     
-                    # Update Weighted Average (Fetching Fresh Stock data after reversal)
-                    cursor.execute(f"SELECT {stock_col}, purchase_price FROM products WHERE id = %s", (p_id,))
-                    current_product = cursor.fetchone()
-                    
-                    try: old_qty = float(current_product[stock_col] or 0)
-                    except: old_qty = 0.0
-                    try: old_cost = float(current_product['purchase_price'] or 0)
-                    except: old_cost = 0.0
-
-                    final_total_qty = old_qty + new_qty
-                    
-                    if new_price > 0:
-                        total_old_value = old_qty * old_cost
-                        total_new_value = new_qty * new_price
-                        new_avg_cost = (total_old_value + total_new_value) / final_total_qty if final_total_qty > 0 else 0.0
-                    else:
-                        new_avg_cost = old_cost
-
                     cursor.execute("""
                         INSERT INTO purchase_items (purchase_id, product_id, quantity, purchase_price)
                         VALUES (%s, %s, %s, %s)
                     """, (purchase_id, p_id, new_qty, new_price))
                     
-                    # Update Stock & Purchase Price
-                    cursor.execute(f"UPDATE products SET {stock_col} = %s, purchase_price = %s WHERE id = %s", 
-                                   (final_total_qty, new_avg_cost, p_id))
+                    # Update Stock & Purchase Price (Last Price Logic)
+                    cursor.execute(f"UPDATE products SET {stock_col} = {stock_col} + %s, purchase_price = %s WHERE id = %s", 
+                                   (new_qty, new_price, p_id))
 
             # 6. Update Master Record
             cursor.execute("""
@@ -2277,7 +2228,7 @@ def edit_purchase(purchase_id):
             app.logger.error(f"Update Error: {e}")
             return redirect(url_for('purchases'))
             
-    # GET: Render Edit Form
+    # --- GET: RENDER EDIT FORM ---
     cursor.execute("SELECT * FROM purchases WHERE id = %s", (purchase_id,))
     purchase = cursor.fetchone()
     
@@ -2296,6 +2247,7 @@ def edit_purchase(purchase_id):
                            suppliers=suppliers, 
                            products=products, 
                            items=items)
+
 
 
 
@@ -3358,25 +3310,25 @@ def add_product():
     if request.method == 'POST':
         name = request.form.get('name')
         price = float(request.form.get('price') or 0)
+        # New Field: Purchase Price (Cost)
+        purchase_price = float(request.form.get('purchase_price') or 0)
         stock = int(request.form.get('stock') or 0)
         category_id = request.form.get('category_id') or None
-        if category_id == "":
-            category_id = None
+        if category_id == "": category_id = None
         low_stock_threshold = int(request.form.get('low_stock_threshold') or 10)
 
-        # Cloudinary upload
         image_url = None
         if 'image' in request.files and request.files['image'].filename:
             image = request.files['image']
             upload_res = cloudinary.uploader.upload(image, folder="erp_products")
             image_url = upload_res.get("secure_url") or upload_res.get("url")
 
-        # Insert Product
+        # Insert Product with Purchase Price
         cursor.execute("""
             INSERT INTO products
-            (name,price, stock, category_id, low_stock_threshold, image)
-            VALUES (%s,%s,%s,%s,%s,%s)
-        """, (name, price, stock, category_id, low_stock_threshold, image_url))
+            (name, price, purchase_price, stock, category_id, low_stock_threshold, image)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """, (name, price, purchase_price, stock, category_id, low_stock_threshold, image_url))
 
         mysql.connection.commit()
         cursor.close()
@@ -3390,8 +3342,6 @@ def add_product():
     cursor.close()
 
     return render_template("add_product.html", categories=categories)
-
-# Paste this REPLACE your existing 'edit_product' function in app.py
 
 @app.route('/edit_product/<int:product_id>', methods=['GET', 'POST'])
 def edit_product(product_id):
@@ -7728,6 +7678,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
