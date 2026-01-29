@@ -842,7 +842,6 @@ def delete_expense(id):
     cur.close()
     return redirect(url_for('expenses_list'))
 
-
 # REPLACE THE EXISTING 'exp_report' ROUTE WITH THIS BLOCK
 
 @app.route("/exp_report", methods=["GET"])
@@ -921,6 +920,10 @@ def exp_report():
             """, (m_start, m_end))
             top_items = cursor.fetchall()
             
+            # Convert Decimals to float for template consistency
+            for item in top_items:
+                item['sub_total'] = float(item['sub_total']) if item['sub_total'] else 0.0
+            
             report_data = {
                 "month_name": calendar.month_name[month],
                 "year": year,
@@ -960,7 +963,11 @@ def exp_report():
             """, (start_date_str, end_date_str))
             log = cursor.fetchall()
             
-            total_log = sum(float(r['amount']) for r in log)
+            # Safe float conversion
+            for item in log:
+                item['amount'] = float(item['amount']) if item['amount'] else 0.0
+            
+            total_log = sum(item['amount'] for item in log)
             
             report_data = {
                 "log": log,
@@ -985,7 +992,11 @@ def exp_report():
             """, (year,))
             cats = cursor.fetchall()
             
-            total_exp = sum(float(x['total_amount']) for x in cats)
+            # FIX: Convert Decimal to float to prevent TypeError in Jinja math
+            for cat in cats:
+                cat['total_amount'] = float(cat['total_amount']) if cat['total_amount'] else 0.0
+            
+            total_exp = sum(x['total_amount'] for x in cats)
             
             report_data = {
                 "by_category": cats,
@@ -1012,7 +1023,11 @@ def exp_report():
             """, (year,))
             subs = cursor.fetchall()
             
-            total_exp = sum(float(x['total_amount']) for x in subs)
+            # FIX: Convert Decimal to float
+            for sub in subs:
+                sub['total_amount'] = float(sub['total_amount']) if sub['total_amount'] else 0.0
+            
+            total_exp = sum(x['total_amount'] for x in subs)
             
             report_data = {
                 "by_subcategory": subs,
@@ -7829,6 +7844,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
