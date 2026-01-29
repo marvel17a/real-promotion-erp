@@ -2030,46 +2030,35 @@ def new_purchase():
             supplier_id = request.form['supplier_id']
             purchase_date_str = request.form['purchase_date']
             
-            # --- AUTO-GENERATE BILL NUMBER LOGIC (SMART SEQUENCE) ---
+            # --- AUTO-GENERATE BILL NUMBER LOGIC ---
             bill_number = request.form.get('bill_number', '').strip()
             notes = request.form.get('notes', '')
             
-            # Agar user ne Bill Number nahi dala, to hum PO-ddmmyy-X format use karenge
             if not bill_number:
-                # 1. Parse Date to get ddmmyy
                 try:
                     p_date_obj = datetime.strptime(purchase_date_str, '%Y-%m-%d')
-                    date_part = p_date_obj.strftime("%d%m%y") # e.g. 290126
+                    date_part = p_date_obj.strftime("%d%m%y")
                 except:
-                    # Fallback to today if date parse fails
                     p_date_obj = date.today()
                     date_part = p_date_obj.strftime("%d%m%y")
                 
-                # 2. Check DB for max existing suffix for THIS date
-                # Hum 'PO-290126-%' pattern search karenge
                 prefix = f"PO-{date_part}-"
                 query_pattern = prefix + "%"
-                
                 cursor.execute("SELECT bill_number FROM purchases WHERE bill_number LIKE %s ORDER BY id DESC", (query_pattern,))
                 existing_bills = cursor.fetchall()
                 
                 max_suffix = 0
                 for row in existing_bills:
                     bn = row['bill_number']
-                    # Extract the number part after the last dash
                     if bn.startswith(prefix):
                         try:
                             parts = bn.split('-')
                             suffix = int(parts[-1])
-                            if suffix > max_suffix:
-                                max_suffix = suffix
-                        except:
-                            pass # Ignore if format doesn't match exactly
+                            if suffix > max_suffix: max_suffix = suffix
+                        except: pass
                 
-                # 3. Generate New Bill Number
-                new_suffix = max_suffix + 1
-                bill_number = f"PO-{date_part}-{new_suffix}"
-            # -------------------------------------------------------
+                bill_number = f"PO-{date_part}-{max_suffix + 1}"
+            # ---------------------------------------
             
             # 2. Item Arrays
             product_ids = request.form.getlist('product_id[]')
@@ -2104,38 +2093,46 @@ def new_purchase():
             purchase_id = cursor.lastrowid
             
             # 4. Insert Items & Update Stock (Warehouse Stock Increase)
+            # Dynamic Column Detection for Stock
             stock_col = 'stock' 
-            
+            cursor.execute("SHOW COLUMNS FROM products")
+            columns = [row['Field'] for row in cursor.fetchall()]
+            if 'stock_quantity' in columns: stock_col = 'stock_quantity'
+            elif 'stock' in columns: stock_col = 'stock'
+            elif 'qty' in columns: stock_col = 'qty'
+
             for item in valid_items:
                 p_id = item['p_id']
                 new_qty = item['qty']
                 new_price = item['price']
 
-                # --- Fetch CURRENT stock and price ---
-                cursor.execute(f"SELECT {stock_col}, price FROM products WHERE id = %s", (p_id,))
+                # --- Fetch CURRENT stock and PURCHASE price (Cost) ---
+                # FIX: We fetch 'purchase_price' instead of 'price' (Selling)
+                cursor.execute(f"SELECT {stock_col}, purchase_price FROM products WHERE id = %s", (p_id,))
                 current_product = cursor.fetchone()
                 
                 if current_product:
                     try: old_qty = float(current_product[stock_col] or 0)
                     except: old_qty = 0.0
                     
-                    try: old_price = float(current_product['price'] or 0)
-                    except: old_price = 0.0
+                    try: old_cost = float(current_product['purchase_price'] or 0)
+                    except: old_cost = 0.0
                     
                     # Calculate New Total Quantity
                     final_total_qty = old_qty + new_qty
                     
-                    # --- Price Update Logic (Weighted Average) ---
+                    # --- Weighted Average Cost Logic ---
                     if new_price > 0:
-                        total_old_value = old_qty * old_price
+                        total_old_value = old_qty * old_cost
                         total_new_value = new_qty * new_price
                         final_total_value = total_old_value + total_new_value
                         
                         if final_total_qty > 0:
-                            new_avg_price = final_total_value / final_total_qty
-                        else: new_avg_price = 0.0
+                            new_avg_cost = final_total_value / final_total_qty
+                        else:
+                            new_avg_cost = 0.0
                     else:
-                        new_avg_price = old_price
+                        new_avg_cost = old_cost
 
                     # Insert Item
                     cursor.execute("""
@@ -2143,11 +2140,11 @@ def new_purchase():
                         VALUES (%s, %s, %s, %s)
                     """, (purchase_id, p_id, new_qty, new_price))
                     
-                    # Update Product
-                    update_query = f"UPDATE products SET {stock_col} = %s, price = %s WHERE id = %s"
-                    cursor.execute(update_query, (final_total_qty, new_avg_price, p_id))
+                    # Update Product Stock & Purchase Price (NOT Selling Price)
+                    update_query = f"UPDATE products SET {stock_col} = %s, purchase_price = %s WHERE id = %s"
+                    cursor.execute(update_query, (final_total_qty, new_avg_cost, p_id))
             
-            # 5. Update Supplier Dues (Add to debt)
+            # 5. Update Supplier Dues
             cursor.execute("""
                 UPDATE suppliers SET current_due = current_due + %s WHERE id = %s
             """, (total_amount, supplier_id))
@@ -2177,16 +2174,16 @@ def new_purchase():
 # =====================================================================================
 # EDIT PURCHASE ROUTE (COMBINED GET & POST)
 # =====================================================================================
+
 @app.route('/purchases/edit/<int:purchase_id>', methods=['GET', 'POST'])
 def edit_purchase(purchase_id):
     if 'loggedin' not in session: return redirect(url_for('login'))
     
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
-    # --- POST: HANDLE UPDATE LOGIC ---
     if request.method == 'POST':
         try:
-            # 1. Fetch OLD Purchase Data (to reverse stock and dues)
+            # 1. Fetch OLD Purchase Data
             cursor.execute("SELECT * FROM purchases WHERE id = %s", (purchase_id,))
             old_purchase = cursor.fetchone()
             
@@ -2197,11 +2194,11 @@ def edit_purchase(purchase_id):
             old_total = float(old_purchase['total_amount'])
             old_supplier_id = old_purchase['supplier_id']
             
-            # 2. Fetch OLD Items (to reverse stock)
+            # 2. Fetch OLD Items
             cursor.execute("SELECT * FROM purchase_items WHERE purchase_id = %s", (purchase_id,))
             old_items = cursor.fetchall()
             
-            stock_col = 'stock' 
+            stock_col = 'stock' # Default, should match new_purchase logic
             
             # Reverse Stock: Subtract old quantities
             for item in old_items:
@@ -2227,19 +2224,37 @@ def edit_purchase(purchase_id):
             for i in range(len(product_ids)):
                 if product_ids[i]:
                     p_id = product_ids[i]
-                    qty = float(quantities[i])
-                    price = float(prices[i])
-                    line_total = qty * price
+                    new_qty = float(quantities[i])
+                    new_price = float(prices[i])
+                    line_total = new_qty * new_price
                     new_total += line_total
                     
+                    # Update Weighted Average (Fetching Fresh Stock data after reversal)
+                    cursor.execute(f"SELECT {stock_col}, purchase_price FROM products WHERE id = %s", (p_id,))
+                    current_product = cursor.fetchone()
+                    
+                    try: old_qty = float(current_product[stock_col] or 0)
+                    except: old_qty = 0.0
+                    try: old_cost = float(current_product['purchase_price'] or 0)
+                    except: old_cost = 0.0
+
+                    final_total_qty = old_qty + new_qty
+                    
+                    if new_price > 0:
+                        total_old_value = old_qty * old_cost
+                        total_new_value = new_qty * new_price
+                        new_avg_cost = (total_old_value + total_new_value) / final_total_qty if final_total_qty > 0 else 0.0
+                    else:
+                        new_avg_cost = old_cost
+
                     cursor.execute("""
                         INSERT INTO purchase_items (purchase_id, product_id, quantity, purchase_price)
                         VALUES (%s, %s, %s, %s)
-                    """, (purchase_id, p_id, qty, price))
+                    """, (purchase_id, p_id, new_qty, new_price))
                     
-                    # Add new quantity back
-                    cursor.execute(f"UPDATE products SET {stock_col} = {stock_col} + %s, price = %s WHERE id = %s", 
-                                   (qty, price, p_id))
+                    # Update Stock & Purchase Price
+                    cursor.execute(f"UPDATE products SET {stock_col} = %s, purchase_price = %s WHERE id = %s", 
+                                   (final_total_qty, new_avg_cost, p_id))
 
             # 6. Update Master Record
             cursor.execute("""
@@ -2253,9 +2268,7 @@ def edit_purchase(purchase_id):
                 diff = new_total - old_total
                 cursor.execute("UPDATE suppliers SET current_due = current_due + %s WHERE id = %s", (diff, old_supplier_id))
             else:
-                # Revert old supplier (Subtract old total)
                 cursor.execute("UPDATE suppliers SET current_due = current_due - %s WHERE id = %s", (old_total, old_supplier_id))
-                # Add to new supplier (Add new total)
                 cursor.execute("UPDATE suppliers SET current_due = current_due + %s WHERE id = %s", (new_total, new_supplier_id))
             
             mysql.connection.commit()
@@ -2268,21 +2281,16 @@ def edit_purchase(purchase_id):
             app.logger.error(f"Update Error: {e}")
             return redirect(url_for('purchases'))
             
-    # --- GET: RENDER EDIT FORM ---
-    
-    # 1. Fetch Purchase
+    # GET: Render Edit Form
     cursor.execute("SELECT * FROM purchases WHERE id = %s", (purchase_id,))
     purchase = cursor.fetchone()
     
-    # 2. Fetch Suppliers
     cursor.execute("SELECT id, name FROM suppliers ORDER BY name")
     suppliers = cursor.fetchall()
     
-    # 3. Fetch Products
     cursor.execute("SELECT * FROM products ORDER BY name")
     products = cursor.fetchall()
     
-    # 4. Fetch Existing Items
     cursor.execute("SELECT * FROM purchase_items WHERE purchase_id = %s", (purchase_id,))
     items = cursor.fetchall()
     
@@ -2294,7 +2302,7 @@ def edit_purchase(purchase_id):
                            items=items)
 
 
-# REPLACE your existing 'view_purchase' route with this one:
+
 
 @app.route('/purchases/view/<int:purchase_id>')
 def view_purchase(purchase_id):
@@ -7703,6 +7711,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
