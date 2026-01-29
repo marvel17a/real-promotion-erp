@@ -2018,9 +2018,9 @@ def purchases():
 
 
 
-# =====================================================================================
+# =====================================================================================#
 # 5. NEW PURCHASE ROUTE (Updated to show only Active Products)
-# =====================================================================================
+# =====================================================================================#
 @app.route('/new_purchase', methods=['GET', 'POST'])
 def new_purchase():
     if 'loggedin' not in session: return redirect(url_for('login'))
@@ -2032,8 +2032,18 @@ def new_purchase():
             # 1. Master Data
             supplier_id = request.form['supplier_id']
             purchase_date = request.form['purchase_date']
-            bill_number = request.form.get('bill_number', '')
-            notes = request.form.get('notes', '') # Capture Notes
+            
+            # Get Bill Number & Notes
+            bill_number = request.form.get('bill_number', '').strip()
+            notes = request.form.get('notes', '')
+            
+            # --- AUTO-GENERATE BILL NUMBER LOGIC ---
+            # Agar user ne Bill Number nahi dala, to hum automatic generate karenge
+            if not bill_number:
+                # Format: PO-YYYYMMDD-HHMMSS (Example: PO-20260129-123045)
+                # Ye unique hoga kyunki isme second bhi include hai
+                bill_number = "PO-" + datetime.now().strftime("%Y%m%d-%H%M%S")
+            # ---------------------------------------
             
             # 2. Item Arrays
             product_ids = request.form.getlist('product_id[]')
@@ -2059,7 +2069,7 @@ def new_purchase():
                     total_amount += (qty * price)
                     valid_items.append({'p_id': product_ids[i], 'qty': qty, 'price': price})
             
-            # 3. Insert Master Purchase Record (Added notes)
+            # 3. Insert Master Purchase Record
             cursor.execute("""
                 INSERT INTO purchases (supplier_id, purchase_date, bill_number, total_amount, notes)
                 VALUES (%s, %s, %s, %s, %s)
@@ -2117,7 +2127,7 @@ def new_purchase():
             """, (total_amount, supplier_id))
             
             mysql.connection.commit()
-            flash(f"Purchase Order #{purchase_id} created successfully!", "success")
+            flash(f"Purchase Order #{purchase_id} created successfully! (Bill No: {bill_number})", "success")
             return redirect(url_for('purchases'))
             
         except Exception as e:
@@ -2135,6 +2145,7 @@ def new_purchase():
     
     cursor.close()
     return render_template('purchases/new_purchase.html', suppliers=suppliers, products=products)
+
 
 
 
@@ -7667,6 +7678,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
