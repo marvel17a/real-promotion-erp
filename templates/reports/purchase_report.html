@@ -39,7 +39,6 @@
     .kpi-purple { border-left-color: var(--primary-color); }
     .kpi-orange { border-left-color: var(--warning-color); }
     .kpi-green { border-left-color: var(--success-color); }
-    .kpi-blue { border-left-color: var(--info-color); }
     
     .kpi-icon {
         width: 50px; height: 50px;
@@ -99,8 +98,6 @@
     {% set ns.total_count = ns.total_count + 1 %}
 {% endfor %}
 
-{% set avg_val = ns.total_val / ns.total_count if ns.total_count > 0 else 0 %}
-
 <!-- Determine Top Supplier from Chart Data if available -->
 {% set top_supplier_name = "N/A" %}
 {% if supplier_data and supplier_data|length > 0 %}
@@ -125,10 +122,10 @@
         </div>
     </div>
 
-    <!-- 2. KPI Cards Row (Using Calculated Data) -->
+    <!-- 2. KPI Cards Row (3 Cards) -->
     <div class="row g-4 mb-4">
         <!-- Total Purchases -->
-        <div class="col-xl-3 col-md-6">
+        <div class="col-md-4">
             <div class="kpi-card kpi-border-left kpi-purple p-3">
                 <div class="d-flex align-items-center justify-content-between">
                     <div>
@@ -141,7 +138,7 @@
         </div>
 
         <!-- Total Orders -->
-        <div class="col-xl-3 col-md-6">
+        <div class="col-md-4">
             <div class="kpi-card kpi-border-left kpi-orange p-3">
                 <div class="d-flex align-items-center justify-content-between">
                     <div>
@@ -154,29 +151,16 @@
         </div>
 
         <!-- Top Supplier -->
-        <div class="col-xl-3 col-md-6">
+        <div class="col-md-4">
             <div class="kpi-card kpi-border-left kpi-green p-3">
                 <div class="d-flex align-items-center justify-content-between">
                     <div>
                         <div class="text-uppercase text-success fw-bold small mb-1">Top Supplier</div>
-                        <div class="h5 mb-0 fw-bold text-dark text-truncate" style="max-width: 150px;" title="{{ top_supplier_name }}">
+                        <div class="h5 mb-0 fw-bold text-dark text-truncate" style="max-width: 200px;" title="{{ top_supplier_name }}">
                             {{ top_supplier_name }}
                         </div>
                     </div>
                     <div class="kpi-icon bg-success text-success"><i class="fa-solid fa-trophy"></i></div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Avg Order Value -->
-        <div class="col-xl-3 col-md-6">
-            <div class="kpi-card kpi-border-left kpi-blue p-3">
-                <div class="d-flex align-items-center justify-content-between">
-                    <div>
-                        <div class="text-uppercase text-info fw-bold small mb-1">Avg. Order Value</div>
-                        <div class="h4 mb-0 fw-bold text-dark">{{ avg_val|inr }}</div>
-                    </div>
-                    <div class="kpi-icon bg-info text-info"><i class="fa-solid fa-chart-line"></i></div>
                 </div>
             </div>
         </div>
@@ -290,12 +274,14 @@
     flatpickr(".date-picker", { dateFormat: "Y-m-d", allowInput: true });
 
     // 2. Data from Backend (Using safe filter to prevent errors)
+    // FIX: Using '| safe' to output raw JSON string
     const monthlyData = {{ monthly_data | tojson | safe }};
     const supplierData = {{ supplier_data | tojson | safe }};
 
     // 3. Prepare Chart Data
+    // We assume backend sends 'month' like '2025-01' and 'total_purchase' as number
     const trendLabels = monthlyData.map(d => {
-        // Simple month formatter if data is YYYY-MM
+        if (!d.month) return "N/A";
         const parts = d.month.split('-'); 
         if(parts.length === 2) {
             const date = new Date(parts[0], parts[1] - 1);
@@ -303,12 +289,14 @@
         }
         return d.month;
     });
-    const trendValues = monthlyData.map(d => d.total_purchase);
+    
+    // Ensure values are numbers
+    const trendValues = monthlyData.map(d => parseFloat(d.total_purchase) || 0);
 
-    const suppLabels = supplierData.map(d => d.supplier_name);
-    const suppValues = supplierData.map(d => d.total_purchase);
+    const suppLabels = supplierData.map(d => d.supplier_name || "Unknown");
+    const suppValues = supplierData.map(d => parseFloat(d.total_purchase) || 0);
 
-    // 4. Trend Chart Config (Gradient Line)
+    // --- 1. TREND CHART (Gradient Area) ---
     const ctxTrend = document.getElementById('trendChart').getContext('2d');
     const grad = ctxTrend.createLinearGradient(0, 0, 0, 400);
     grad.addColorStop(0, 'rgba(78, 115, 223, 0.2)');
@@ -351,7 +339,7 @@
         }
     });
 
-    // 5. Supplier Chart Config (Doughnut with %)
+    // --- 2. SUPPLIER PIE CHART (Doughnut with %) ---
     const ctxSup = document.getElementById('supplierChart').getContext('2d');
     const colors = ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b'];
 
