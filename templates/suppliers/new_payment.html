@@ -4,59 +4,104 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/supplier.css') }}">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 
-<div class="container py-5 fade-in-up" style="max-width: 800px;">
+<style>
+    /* Premium Balance Badge */
+    .balance-badge {
+        padding: 10px 20px;
+        border-radius: 50px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: white;
+        border: 1px solid rgba(0,0,0,0.1);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+    }
+    .cash-ui { border-left: 5px solid #10b981; color: #065f46; background: #ecfdf5; }
+    .bank-ui { border-left: 5px solid #3b82f6; color: #1e40af; background: #eff6ff; }
     
-    <div class="d-flex align-items-center mb-4">
-        <a href="{{ url_for('supplier_ledger', supplier_id=supplier.id) }}" class="btn btn-light rounded-circle shadow-sm me-3" style="width: 40px; height: 40px; display:flex; align-items:center; justify-content:center;">
-            <i class="fa-solid fa-arrow-left"></i>
-        </a>
-        <div>
-            <h2 class="mb-0 fw-bold page-title">Record Payment</h2>
-            <p class="text-muted mb-0 small">Paying Supplier: <span class="text-primary fw-bold">{{ supplier.name }}</span></p>
+    .low-balance-warning {
+        border: 2px dashed #ef4444;
+        background: #fef2f2;
+        color: #b91c1c;
+        padding: 15px;
+        border-radius: 12px;
+        margin-top: 15px;
+        display: none;
+        animation: shake 0.5s;
+    }
+    @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+</style>
+
+<div class="container py-5 fade-in-up" style="max-width: 900px;">
+    
+    <!-- Header with Balance -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-center mb-5 gap-3">
+        <div class="d-flex align-items-center">
+            <a href="{{ url_for('supplier_ledger', supplier_id=supplier.id) }}" class="btn btn-light rounded-circle shadow-sm me-3">
+                <i class="fa-solid fa-arrow-left"></i>
+            </a>
+            <div>
+                <h2 class="mb-0 fw-bold page-title">Pay Supplier</h2>
+                <p class="text-muted mb-0 small">Vendor: <span class="text-primary fw-bold">{{ supplier.name }}</span></p>
+            </div>
+        </div>
+        
+        <!-- Live Balance Display -->
+        <div id="balanceDisplay" class="balance-badge cash-ui">
+            <i class="fa-solid fa-wallet fa-lg"></i>
+            <div>
+                <small class="d-block text-uppercase fw-bold opacity-50" style="font-size: 0.65rem;">Available Funds</small>
+                <span class="fs-5 fw-bold" id="balanceText">₹ {{ "{:,.2f}".format(cash_balance) }}</span>
+            </div>
         </div>
     </div>
 
-    <div class="glass-panel p-5">
-        <form method="POST" class="needs-validation" novalidate>
+    <div class="glass-panel p-5 shadow-lg rounded-4 bg-white">
+        <form method="POST" class="needs-validation" novalidate onsubmit="return validateBalance()">
             <div class="row g-4">
                 
                 <div class="col-md-6">
-                    <label class="form-label fw-bold text-muted small text-uppercase">Payment Date <span class="text-danger">*</span></label>
-                    <div class="input-group">
-                        <span class="input-group-text bg-white border-end-0"><i class="fa-regular fa-calendar"></i></span>
-                        <input type="text" class="form-control input-glass border-start-0 ps-0" id="payment_date" name="payment_date" value="{{ today_date }}" required>
-                    </div>
+                    <label class="form-label fw-bold text-muted small text-uppercase">Payment Date</label>
+                    <input type="text" class="form-control input-glass fw-bold" id="payment_date" name="payment_date" required>
                 </div>
 
                 <div class="col-md-6">
-                    <label class="form-label fw-bold text-muted small text-uppercase">Amount Paid (₹) <span class="text-danger">*</span></label>
-                    <div class="input-group">
-                        <span class="input-group-text bg-white border-end-0 fw-bold">₹</span>
-                        <input type="number" class="form-control input-glass border-start-0 ps-0 fs-5 fw-bold text-success" id="amount_paid" name="amount_paid" step="0.01" min="0.01" required placeholder="0.00">
-                    </div>
-                    <!-- Updated to use the calculated 'current_due' passed from backend -->
-                    <div class="form-text text-muted">Current Due: <span class="fw-bold text-danger">₹{{ "%.2f"|format(current_due or 0) }}</span></div>
+                    <label class="form-label fw-bold text-muted small text-uppercase">Total Due Amount</label>
+                    <div class="form-control bg-light border-0 fw-bold text-danger">₹ {{ "{:,.2f}".format(current_due) }}</div>
                 </div>
 
                 <div class="col-md-6">
                     <label class="form-label fw-bold text-muted small text-uppercase">Payment Mode</label>
-                    <select class="form-select input-glass" id="payment_mode" name="payment_mode">
-                        <option>Cash</option>
-                        <option>Bank Transfer</option>
-                        <option>UPI</option>
-                        <option>Cheque</option>
+                    <select class="form-select input-glass" id="payment_mode" name="payment_mode" onchange="updateBalanceView()">
+                        <option value="Cash" selected>Cash</option>
+                        <option value="Bank Transfer">Bank Transfer</option>
+                        <option value="UPI">UPI</option>
+                        <option value="Cheque">Cheque</option>
                     </select>
                 </div>
 
+                <div class="col-md-6">
+                    <label class="form-label fw-bold text-muted small text-uppercase">Amount Paying (₹)</label>
+                    <input type="number" class="form-control input-glass fw-bold text-primary" id="amount_paid" name="amount_paid" step="1" required oninput="checkFunds()">
+                </div>
+
                 <div class="col-12">
-                    <label class="form-label fw-bold text-muted small text-uppercase">Notes</label>
-                    <textarea class="form-control input-glass" id="notes" name="notes" rows="2" placeholder="Cheque No, Transaction ID, Invoice Ref..."></textarea>
+                    <div id="fundWarning" class="low-balance-warning">
+                        <i class="fa-solid fa-triangle-exclamation me-2"></i>
+                        <strong>Warning:</strong> You are exceeding the available balance in this mode. Balance will go negative.
+                    </div>
+                </div>
+
+                <div class="col-12">
+                    <label class="form-label fw-bold text-muted small text-uppercase">Notes / Reference</label>
+                    <textarea class="form-control input-glass" id="notes" name="notes" rows="3" placeholder="Cheque No, Transaction ID..."></textarea>
                 </div>
             </div>
 
-            <div class="mt-5 text-end">
-                <button type="submit" class="btn-glass-primary px-5 py-3 shadow-lg">
-                    <i class="fa-solid fa-check me-2"></i>Save Payment
+            <div class="mt-5 text-end border-top pt-4">
+                <button type="submit" class="btn btn-primary px-5 py-3 shadow-sm rounded-pill fw-bold">
+                    <i class="fa-solid fa-paper-plane me-2"></i> Confirm Payment
                 </button>
             </div>
         </form>
@@ -65,10 +110,41 @@
 
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script>
+    const cashBal = {{ cash_balance }};
+    const bankBal = {{ bank_balance }};
+
     flatpickr("#payment_date", {
         dateFormat: "d-m-Y",
         defaultDate: "today",
         allowInput: true
     });
+
+    function updateBalanceView() {
+        const mode = document.getElementById('payment_mode').value;
+        const badge = document.getElementById('balanceDisplay');
+        const text = document.getElementById('balanceText');
+        
+        if(mode === 'Cash') {
+            badge.className = 'balance-badge cash-ui';
+            text.innerText = "₹ " + cashBal.toLocaleString('en-IN', {minimumFractionDigits: 2});
+        } else {
+            badge.className = 'balance-badge bank-ui';
+            text.innerText = "₹ " + bankBal.toLocaleString('en-IN', {minimumFractionDigits: 2});
+        }
+        checkFunds();
+    }
+
+    function checkFunds() {
+        const mode = document.getElementById('payment_mode').value;
+        const entered = parseFloat(document.getElementById('amount_paid').value) || 0;
+        const available = (mode === 'Cash') ? cashBal : bankBal;
+        const warning = document.getElementById('fundWarning');
+
+        if(entered > available) {
+            warning.style.display = 'block';
+        } else {
+            warning.style.display = 'none';
+        }
+    }
 </script>
 {% endblock %}
