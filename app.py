@@ -843,6 +843,8 @@ def delete_expense(id):
     return redirect(url_for('expenses_list'))
 
 
+# REPLACE THE EXISTING 'exp_report' ROUTE WITH THIS BLOCK
+
 @app.route("/exp_report", methods=["GET"])
 def exp_report():
     if "loggedin" not in session:
@@ -850,17 +852,261 @@ def exp_report():
 
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
+    # --------------------------
+    # 1. CAPTURE FILTERS
+    # --------------------------
     report_type = request.args.get("type", "monthly_summary")
     now = datetime.now()
 
-    # Capture Filters
+    # Get Year/Month (Defaults to current)
+    try:
+        year = int(request.args.get("year") or now.year)
+        month = int(request.args.get("month") or now.month)
+    except ValueError:
+        year = now.year
+        month = now.month
+
+    # Get Date Range (Defaults to current month)
+    start_date_str = request.args.get("start_date")
+    end_date_str = request.args.get("end_date")
+
+    # Filter context for template
     filters = {
-        "year": request.args.get("year", now.year),
-        "month": request.args.get("month", f"{now.month:02d}"),
-        "start_date": request.args.get("start_date", now.strftime('%Y-%m-01')),
-        "end_date": request.args.get("end_date", now.strftime('%Y-%m-%d'))
+        "year": year,
+        "month": f"{month:02d}", 
+        "start_date": start_date_str,
+        "end_date": end_date_str
     }
 
+    report_data = {}
+
+    try:
+        # ==========================================
+        # TYPE 1: MONTHLY SUMMARY (Dashboard)
+        # ==========================================
+        if report_type == "monthly_summary":
+            # Calculate start/end of selected month
+            _, last_day = calendar.monthrange(year, month)
+            m_start = f"{year}-{month:02d}-01"
+            m_end = f"{year}-{month:02d}-{last_day}"
+            
+            # A. KPI Stats (From Expenses Header)
+            cursor.execute("""
+                SELECT 
+                    COALESCE(SUM(total_amount), 0) as total, 
+                    COUNT(expense_id) as count 
+                FROM expenses 
+                WHERE expense_date BETWEEN %s AND %s
+            """, (m_start, m_end))
+            summary = cursor.fetchone()
+            
+            total_spend = float(summary['total'])
+            tx_count = summary['count']
+            avg_ticket = total_spend / tx_count if tx_count > 0 else 0
+            
+            # B. Top Spending Subcategories (From Items)
+            cursor.execute("""
+                SELECT 
+                    sc.subcategory_name, 
+                    c.category_name, 
+                    SUM(ei.amount) as sub_total
+                FROM expense_items ei
+                JOIN expenses e ON ei.expense_id = e.expense_id
+                LEFT JOIN expensesubcategories sc ON ei.subcategory_id = sc.subcategory_id
+                LEFT JOIN expensecategories c ON ei.category_id = c.category_id
+                WHERE e.expense_date BETWEEN %s AND %s
+                GROUP BY sc.subcategory_id
+                ORDER BY sub_total DESC
+                LIMIT 5
+            """, (m_start, m_end))
+            top_items = cursor.fetchall()
+            
+            report_data = {
+                "month_name": calendar.month_name[month],
+                "year": year,
+                "summary": {
+                    "total": total_spend,
+                    "count": tx_count,
+                    "average": avg_ticket
+                },
+                "top_items": top_items
+            }
+
+        # ==========================================
+        # TYPE 2: DETAILED LOG (Date Range)
+        # ==========================================
+        elif report_type == "detailed_log":
+            # Fallback dates if empty
+            if not start_date_str: start_date_str = f"{year}-{month:02d}-01"
+            if not end_date_str: end_date_str = datetime.today().strftime('%Y-%m-%d')
+            
+            # Update filters for UI consistency
+            filters['start_date'] = start_date_str
+            filters['end_date'] = end_date_str
+
+            cursor.execute("""
+                SELECT 
+                    e.expense_date, 
+                    c.category_name, 
+                    sc.subcategory_name, 
+                    ei.amount, 
+                    COALESCE(ei.description, e.description) as description
+                FROM expense_items ei
+                JOIN expenses e ON ei.expense_id = e.expense_id
+                LEFT JOIN expensecategories c ON ei.category_id = c.category_id
+                LEFT JOIN expensesubcategories sc ON ei.subcategory_id = sc.subcategory_id
+                WHERE e.expense_date BETWEEN %s AND %s
+                ORDER BY e.expense_date DESC
+            """, (start_date_str, end_date_str))
+            log = cursor.fetchall()
+            
+            total_log = sum(float(r['amount']) for r in log)
+            
+            report_data = {
+                "log": log,
+                "summary": {"total": total_log}
+            }
+
+        # ==========================================
+        # TYPE 3: CATEGORY ANALYSIS (Pie Chart)
+        # ==========================================
+        elif report_type == "category_wise":
+            # Group by Main Category for the selected Year
+            cursor.execute("""
+                SELECT 
+                    c.category_name, 
+                    SUM(ei.amount) as total_amount
+                FROM expense_items ei
+                JOIN expenses e ON ei.expense_id = e.expense_id
+                LEFT JOIN expensecategories c ON ei.category_id = c.category_id
+                WHERE YEAR(e.expense_date) = %s
+                GROUP BY c.category_id
+                ORDER BY total_amount DESC
+            """, (year,))
+            cats = cursor.fetchall()
+            
+            total_exp = sum(float(x['total_amount']) for x in cats)
+            
+            report_data = {
+                "by_category": cats,
+                "total_expense": total_exp,
+                "summary": {"total": total_exp}
+            }
+
+        # ==========================================
+        # TYPE 4: SUB-CATEGORY DRILLDOWN
+        # ==========================================
+        elif report_type == "subcategory_wise":
+            cursor.execute("""
+                SELECT 
+                    sc.subcategory_name, 
+                    c.category_name,
+                    SUM(ei.amount) as total_amount
+                FROM expense_items ei
+                JOIN expenses e ON ei.expense_id = e.expense_id
+                LEFT JOIN expensesubcategories sc ON ei.subcategory_id = sc.subcategory_id
+                LEFT JOIN expensecategories c ON ei.category_id = c.category_id
+                WHERE YEAR(e.expense_date) = %s
+                GROUP BY sc.subcategory_id
+                ORDER BY total_amount DESC
+            """, (year,))
+            subs = cursor.fetchall()
+            
+            total_exp = sum(float(x['total_amount']) for x in subs)
+            
+            report_data = {
+                "by_subcategory": subs,
+                "summary": {"total": total_exp}
+            }
+
+        # ==========================================
+        # TYPE 5: MOM TREND (Bar Chart)
+        # ==========================================
+        elif report_type == "mom_comparison":
+            # Get monthly totals for the selected year
+            cursor.execute("""
+                SELECT 
+                    MONTH(e.expense_date) as month_num,
+                    SUM(e.total_amount) as total
+                FROM expenses e
+                WHERE YEAR(e.expense_date) = %s
+                GROUP BY MONTH(e.expense_date)
+            """, (year,))
+            results = {row['month_num']: float(row['total']) for row in cursor.fetchall()}
+            
+            comparison_list = []
+            total_year = 0
+            
+            for m in range(1, 13):
+                current_total = results.get(m, 0.0)
+                total_year += current_total
+                
+                # Logic for % Change vs Previous Month
+                prev_total = results.get(m-1, 0.0)
+                change = 0
+                if prev_total > 0:
+                    change = ((current_total - prev_total) / prev_total) * 100
+                elif m > 1 and current_total > 0:
+                    change = 100 # From 0 to something is effectively 100% up
+                
+                comparison_list.append({
+                    "month_name": calendar.month_abbr[m],
+                    "total": current_total,
+                    "change": change
+                })
+                
+            report_data = {
+                "year": year,
+                "comparison": comparison_list,
+                "summary": {"total": total_year}
+            }
+
+        # ==========================================
+        # TYPE 6: ANNUAL SUMMARY (Grid)
+        # ==========================================
+        elif report_type == "annual_summary":
+            cursor.execute("""
+                SELECT 
+                    MONTH(e.expense_date) as month_num,
+                    SUM(e.total_amount) as total
+                FROM expenses e
+                WHERE YEAR(e.expense_date) = %s
+                GROUP BY MONTH(e.expense_date)
+            """, (year,))
+            results = {row['month_num']: float(row['total']) for row in cursor.fetchall()}
+            
+            annual_list = []
+            grand_total = 0
+            
+            for m in range(1, 13):
+                val = results.get(m, 0.0)
+                grand_total += val
+                annual_list.append({
+                    "month_name": calendar.month_name[m],
+                    "total": val
+                })
+                
+            report_data = {
+                "year": year,
+                "annual": annual_list,
+                "grand_total": grand_total,
+                "summary": {"total": grand_total}
+            }
+
+    except Exception as e:
+        app.logger.error(f"Expense Report Error: {e}")
+        flash(f"Error generating report: {str(e)}", "danger")
+        # Prevent crash by sending empty structure
+        report_data = {
+            "summary": {"total": 0, "count": 0},
+            "top_items": [], "log": [], 
+            "by_category": [], "by_subcategory": [], 
+            "comparison": [], "annual": []
+        }
+
+    cursor.close()
+    
+    # Month list for dropdown
     months = [
         ("01", "January"), ("02", "February"), ("03", "March"),
         ("04", "April"), ("05", "May"), ("06", "June"),
@@ -868,53 +1114,14 @@ def exp_report():
         ("10", "October"), ("11", "November"), ("12", "December")
     ]
 
-    report_rows = []
-    
-    # 1. Logic for Monthly Summary
-    if report_type == "monthly_summary":
-        cursor.execute("""
-            SELECT e.expense_date, c.category_name as category, sc.subcategory_name as subcategory, 
-                   e.amount, e.description as remark
-            FROM expenses e
-            LEFT JOIN expensesubcategories sc ON e.subcategory_id = sc.subcategory_id
-            LEFT JOIN expensecategories c ON sc.category_id = c.category_id
-            WHERE YEAR(e.expense_date) = %s AND MONTH(e.expense_date) = %s
-            ORDER BY e.expense_date DESC
-        """, (filters["year"], filters["month"]))
-        report_rows = cursor.fetchall()
-
-    # 2. Logic for Detailed Log
-    elif report_type == "detailed_log":
-        cursor.execute("""
-            SELECT e.expense_date, c.category_name as category, sc.subcategory_name as subcategory, 
-                   e.amount, e.description as remark
-            FROM expenses e
-            LEFT JOIN expensesubcategories sc ON e.subcategory_id = sc.subcategory_id
-            LEFT JOIN expensecategories c ON sc.category_id = c.category_id
-            WHERE e.expense_date BETWEEN %s AND %s
-            ORDER BY e.expense_date DESC
-        """, (filters["start_date"], filters["end_date"]))
-        report_rows = cursor.fetchall()
-
-    # Calculate Summary for the Widget
-    total_val = sum(float(r.get('amount', 0) or r.get('total', 0)) for r in report_rows)
-
-    report_data = {
-        "summary": {
-            "total": total_val,
-            "count": len(report_rows)
-        }
-    }
-
-    cursor.close()
     return render_template(
         "reports/exp_report.html",
         report_type=report_type,
         filters=filters,
         months=months,
-        report_rows=report_rows,
         report_data=report_data
     )
+
 
 
 
@@ -7622,6 +7829,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
