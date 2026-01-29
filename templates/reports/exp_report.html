@@ -1,101 +1,200 @@
 {% extends 'admin_master.html' %}
-{% block title %}Expense Reports{% endblock %}
+{% block title %}Advanced Expense Analytics{% endblock %}
 
 {% block page_content %}
+<style>
+    :root {
+        --glass-bg: rgba(255, 255, 255, 0.95);
+        --accent-color: #4361ee;
+        --text-dark: #1e293b;
+    }
 
-<div class="container-fluid">
+    .report-container {
+        padding: 1.5rem;
+        background: #f8fafc;
+        min-height: 100vh;
+    }
 
-    <h2 class="fw-bold mb-4">
-        <i class="fa-solid fa-file-invoice-dollar me-2"></i> Expense Reports
-    </h2>
+    .page-header {
+        margin-bottom: 2rem;
+    }
 
-    <!-- FILTER CARD -->
-    <div class="card shadow-sm mb-4">
-        <div class="card-body">
+    .page-header h2 {
+        font-family: 'Inter', sans-serif;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        color: var(--text-dark);
+    }
 
+    .glass-card {
+        background: var(--glass-bg);
+        border: 1px solid rgba(0,0,0,0.05);
+        border-radius: 16px;
+        box-shadow: 0 10px 15px -3px rgba(0,0,0,0.07);
+        transition: transform 0.2s;
+    }
+
+    .filter-label {
+        font-size: 0.85rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        color: #64748b;
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+
+    .form-select, .form-control {
+        border-radius: 10px;
+        border: 1.5px solid #e2e8f0;
+        padding: 0.6rem 1rem;
+        font-weight: 500;
+    }
+
+    .btn-generate {
+        background: var(--accent-color);
+        color: white;
+        border-radius: 12px;
+        padding: 0.8rem 1.5rem;
+        font-weight: 600;
+        width: 100%;
+        border: none;
+        box-shadow: 0 4px 6px -1px rgba(67, 97, 238, 0.3);
+        transition: all 0.3s;
+    }
+
+    .btn-generate:hover {
+        background: #3730a3;
+        transform: translateY(-2px);
+        box-shadow: 0 10px 15px -3px rgba(67, 97, 238, 0.4);
+    }
+
+    .summary-widget {
+        background: white;
+        border-radius: 16px;
+        padding: 1.5rem;
+        text-align: center;
+        border-left: 5px solid var(--accent-color);
+    }
+
+    .summary-value {
+        font-size: 1.8rem;
+        font-weight: 800;
+        color: var(--text-dark);
+    }
+
+    /* Mobile specific tweaks */
+    @media (max-width: 768px) {
+        .page-header h2 { font-size: 1.5rem; }
+    }
+</style>
+
+<div class="report-container">
+    <div class="container-fluid">
+        
+        <div class="page-header d-md-flex justify-content-between align-items-center">
+            <div>
+                <h2 class="mb-1">Expense Intelligence</h2>
+                <p class="text-muted fw-medium">Monitor your business outflows and financial trends</p>
+            </div>
+            <div class="summary-widget shadow-sm d-none d-md-block">
+                <span class="filter-label">Net Outflow (Selected Period)</span>
+                <div class="summary-value text-primary">{{ report_data.summary.total | inr }}</div>
+            </div>
+        </div>
+
+        <div class="glass-card p-4 mb-5 border-0">
             <form id="report-filter-form" method="GET" action="{{ url_for('exp_report') }}">
-
-                <div class="row g-3 align-items-end">
-
-                    <!-- Report Type -->
-                    <div class="col-md-4">
-                        <label class="form-label fw-semibold">Report Type</label>
-                        <select name="type" id="report_type" class="form-select">
-                            <option value="monthly_summary" {{ 'selected' if report_type == 'monthly_summary' else '' }}>Monthly Summary</option>
-                            <option value="detailed_log" {{ 'selected' if report_type == 'detailed_log' else '' }}>Detailed Log</option>
-                            <option value="category_wise" {{ 'selected' if report_type == 'category_wise' else '' }}>Category-wise</option>
-                            <option value="subcategory_wise" {{ 'selected' if report_type == 'subcategory_wise' else '' }}>Subcategory-wise</option>
-                            <option value="mom_comparison" {{ 'selected' if report_type == 'mom_comparison' else '' }}>Month-over-Month</option>
-                            <option value="annual_summary" {{ 'selected' if report_type == 'annual_summary' else '' }}>Annual Summary</option>
+                <div class="row g-4 align-items-end">
+                    
+                    <div class="col-lg-3 col-md-6">
+                        <label class="filter-label">Analytics Mode</label>
+                        <select name="type" id="report_type" class="form-select shadow-none">
+                            <option value="monthly_summary" {{ 'selected' if report_type == 'monthly_summary' else '' }}>Monthly Snapshot</option>
+                            <option value="detailed_log" {{ 'selected' if report_type == 'detailed_log' else '' }}>Transaction Ledger</option>
+                            <option value="category_wise" {{ 'selected' if report_type == 'category_wise' else '' }}>Category Analysis</option>
+                            <option value="subcategory_wise" {{ 'selected' if report_type == 'subcategory_wise' else '' }}>Sub-Category Drilldown</option>
+                            <option value="mom_comparison" {{ 'selected' if report_type == 'mom_comparison' else '' }}>Month-over-Month Trend</option>
+                            <option value="annual_summary" {{ 'selected' if report_type == 'annual_summary' else '' }}>Annual Performance</option>
                         </select>
                     </div>
 
-                    <!-- MONTHLY FILTER -->
-                    <div id="filter-monthly" class="col-md-5 filter-section">
-                        <div class="row">
+                    <div id="filter-monthly" class="col-lg-6 filter-section">
+                        <div class="row g-2">
                             <div class="col-6">
-                                <label class="form-label fw-semibold">Year</label>
-                                <input type="number" name="year" class="form-control" value="{{ filters.year }}">
-                            </div>
-                            <div class="col-6">
-                                <label class="form-label fw-semibold">Month</label>
+                                <label class="filter-label">Month</label>
                                 <select name="month" class="form-select">
-                                    {% for num, name in months %}
-                                    <option value="{{ num }}" {{ 'selected' if num == filters.month else '' }}>{{ name }}</option>
+                                    {% for m_val, m_name in months %}
+                                    <option value="{{ m_val }}" {{ 'selected' if filters.month == m_val else '' }}>{{ m_name }}</option>
                                     {% endfor %}
                                 </select>
+                            </div>
+                            <div class="col-6">
+                                <label class="filter-label">Year</label>
+                                <input type="number" name="year" class="form-control" value="{{ filters.year }}">
                             </div>
                         </div>
                     </div>
 
-                    <!-- DATE RANGE FILTER -->
-                    <div id="filter-date-range" class="col-md-5 filter-section">
-                        <div class="row">
+                    <div id="filter-range" class="col-lg-6 d-none filter-section">
+                        <div class="row g-2">
                             <div class="col-6">
-                                <label class="form-label fw-semibold">Start Date</label>
+                                <label class="filter-label">From Date</label>
                                 <input type="date" name="start_date" class="form-control" value="{{ filters.start_date }}">
                             </div>
                             <div class="col-6">
-                                <label class="form-label fw-semibold">End Date</label>
+                                <label class="filter-label">To Date</label>
                                 <input type="date" name="end_date" class="form-control" value="{{ filters.end_date }}">
                             </div>
                         </div>
                     </div>
 
-                    <!-- ANNUAL FILTER -->
-                    <div id="filter-annual" class="col-md-5 filter-section">
-                        <label class="form-label fw-semibold">Year</label>
-                        <input type="number" name="year" class="form-control" value="{{ filters.year }}">
-                    </div>
-
-                    <div class="col-md-3">
-                        <button type="submit" class="btn btn-primary w-100">
-                            <i class="fa-solid fa-filter me-1"></i> Generate
+                    <div class="col-lg-3 col-md-12">
+                        <button type="submit" class="btn-generate">
+                            <i class="fa-solid fa-bolt me-2"></i>Generate Insights
                         </button>
                     </div>
 
                 </div>
             </form>
         </div>
-    </div>
 
-    <!-- REPORT CONTENT -->
-    <div id="report-content">
-        {% if report_type == 'monthly_summary' %}
-            {% include 'reports/_monthly_summary.html' %}
-        {% elif report_type == 'detailed_log' %}
-            {% include 'reports/_detailed_log.html' %}
-        {% elif report_type == 'category_wise' %}
-            {% include 'reports/_category_wise.html' %}
-        {% elif report_type == 'subcategory_wise' %}
-            {% include 'reports/_subcategory_wise.html' %}
-        {% elif report_type == 'mom_comparison' %}
-            {% include 'reports/_mom_comparison.html' %}
-        {% elif report_type == 'annual_summary' %}
-            {% include 'reports/_annual_summary.html' %}
-        {% endif %}
+        <div id="report-output" class="animate__animated animate__fadeIn">
+            {% if report_type == 'monthly_summary' %}
+                {% include 'reports/_monthly_summary.html' %}
+            {% elif report_type == 'detailed_log' %}
+                {% include 'reports/_detailed_log.html' %}
+            {% elif report_type == 'category_wise' %}
+                {% include 'reports/_category_wise.html' %}
+            {% elif report_type == 'subcategory_wise' %}
+                {% include 'reports/_subcategory_wise.html' %}
+            {% elif report_type == 'mom_comparison' %}
+                {% include 'reports/_mom_comparison.html' %}
+            {% elif report_type == 'annual_summary' %}
+                {% include 'reports/_annual_summary.html' %}
+            {% endif %}
+        </div>
     </div>
-
 </div>
 
+<script>
+    // Modern logic to swap filters without reloading
+    document.getElementById('report_type').addEventListener('change', function() {
+        const val = this.value;
+        const monthly = document.getElementById('filter-monthly');
+        const range = document.getElementById('filter-range');
+
+        if(val === 'detailed_log') {
+            monthly.classList.add('d-none');
+            range.classList.remove('d-none');
+        } else {
+            monthly.classList.remove('d-none');
+            range.classList.add('d-none');
+        }
+    });
+
+    // Auto-trigger UI state on page load
+    window.onload = function() {
+        document.getElementById('report_type').dispatchEvent(new Event('change'));
+    };
+</script>
 {% endblock %}
