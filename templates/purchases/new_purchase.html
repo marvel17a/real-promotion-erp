@@ -16,7 +16,7 @@
     <div class="glass-panel p-5">
         <form id="purchaseForm" method="POST" action="{{ url_for('new_purchase') }}" class="needs-validation" novalidate>
             
-            <!-- Master Details -->
+            <!-- Master Details (Notes removed from here) -->
             <div class="row g-4 mb-4">
                 <div class="col-md-4">
                     <label for="supplier_id" class="form-label fw-bold text-muted small text-uppercase">Supplier <span class="text-danger">*</span></label>
@@ -34,12 +34,6 @@
                 <div class="col-md-4">
                     <label for="bill_number" class="form-label fw-bold text-muted small text-uppercase">Bill Number</label>
                     <input type="text" class="form-control input-glass" id="bill_number" name="bill_number" placeholder="Optional">
-                </div>
-                
-                <!-- NEW: Notes Section -->
-                <div class="col-12">
-                    <label for="notes" class="form-label fw-bold text-muted small text-uppercase">Purchase Notes / Remarks</label>
-                    <textarea class="form-control input-glass" id="notes" name="notes" rows="2" placeholder="Any details about this purchase (e.g. Delivery terms, conditions)..."></textarea>
                 </div>
             </div>
 
@@ -61,7 +55,8 @@
                 </table>
             </div>
 
-            <div class="d-flex justify-content-between align-items-center mt-3">
+            <!-- Add Button & Grand Total -->
+            <div class="d-flex justify-content-between align-items-center mt-3 mb-5">
                 <button type="button" class="btn btn-light border shadow-sm text-primary fw-bold" id="addRowBtn">
                     <i class="fa-solid fa-plus me-2"></i>Add Item
                 </button>
@@ -72,7 +67,13 @@
                 </div>
             </div>
 
-            <hr class="my-5 opacity-10">
+            <!-- MOVED: Notes Section (Now below the table/totals) -->
+            <div class="mb-4">
+                <label for="notes" class="form-label fw-bold text-muted small text-uppercase">Purchase Notes / Remarks</label>
+                <textarea class="form-control input-glass" id="notes" name="notes" rows="3" placeholder="Enter any extra details, payment terms, or remarks here..."></textarea>
+            </div>
+
+            <hr class="my-4 opacity-10">
 
             <div class="text-end">
                 <button type="submit" class="btn btn-primary px-5 py-2 rounded-pill shadow-lg fw-bold">
