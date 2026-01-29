@@ -3,6 +3,8 @@
 {% block page_content %}
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- Add Google Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
 
 <!-- Premium Design CSS -->
 <style>
@@ -16,6 +18,8 @@
         --dark-color: #5a5c69;
         --body-bg: #f8f9fc;
         --card-bg: #ffffff;
+        --font-quicksand: 'Quicksand', sans-serif;
+        --font-rubik: 'Rubik', sans-serif;
     }
 
     body { background-color: var(--body-bg); font-family: 'Nunito', sans-serif; }
@@ -67,49 +71,84 @@
         position: relative;
     }
 
-    /* Table */
+    /* Table Styling Updates */
     .table-container {
         background: #fff;
         border-radius: 15px;
         box-shadow: 0 4px 15px rgba(0,0,0,0.03);
         overflow: hidden;
     }
+    
+    /* Header Font: Quicksand, Bold */
     .table thead th {
         background: #f8f9fc;
         color: var(--secondary-color);
-        font-weight: 700;
+        font-family: var(--font-quicksand);
+        font-weight: 700; 
         text-transform: uppercase;
-        font-size: 0.75rem;
+        font-size: 0.8rem;
         border-bottom: 2px solid #e3e6f0;
-        padding: 1rem;
+        padding: 1.2rem 1rem;
+        letter-spacing: 0.5px;
     }
+    
     .table tbody td {
         padding: 1rem;
         vertical-align: middle;
         color: var(--dark-color);
+        font-family: var(--font-rubik); /* Body Font: Rubik */
+        font-size: 0.95rem;
+    }
+
+    /* Specific Column Styling */
+    .td-date {
+        font-weight: 500;
+        color: #6c757d;
+    }
+    .td-supplier {
+        font-weight: 600;
+        color: #2c3e50;
+    }
+    .td-amount {
+        font-family: var(--font-quicksand);
+        font-weight: 700;
+        color: var(--primary-color);
+        font-size: 1rem;
     }
     
-    /* Action Buttons */
+    /* Action Buttons - Colorful */
     .btn-action-icon {
-        width: 32px;
-        height: 32px;
+        width: 34px;
+        height: 34px;
         border-radius: 50%;
         display: inline-flex;
         align-items: center;
         justify-content: center;
         transition: all 0.2s;
-        border: 1px solid transparent;
-        color: #858796;
+        border: none;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
     }
-    .btn-action-icon:hover {
-        background-color: #f8f9fc;
-        color: var(--primary-color);
-        border-color: #e3e6f0;
+    /* View Button: Blue/Info */
+    .btn-action-icon.view {
+        background-color: #e0f2fe;
+        color: #0284c7;
+    }
+    .btn-action-icon.view:hover {
+        background-color: #0284c7;
+        color: #fff;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(2, 132, 199, 0.2);
+    }
+    /* PDF Button: Red/Danger */
+    .btn-action-icon.pdf {
+        background-color: #fee2e2;
+        color: #dc2626;
     }
     .btn-action-icon.pdf:hover {
-        color: var(--danger-color);
-        background-color: #fff5f5;
-        border-color: #fcc;
+        background-color: #dc2626;
+        color: #fff;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(220, 38, 38, 0.2);
     }
 </style>
 
@@ -189,7 +228,7 @@
 
     <!-- 3. Charts Section -->
     <div class="row g-4 mb-4">
-        <!-- Yearly Purchase Trend (Updated Title) -->
+        <!-- Yearly Purchase Trend -->
         <div class="col-lg-8">
             <div class="chart-box">
                 <h5 class="fw-bold text-dark mb-4">Yearly Purchase Trend</h5>
@@ -210,7 +249,7 @@
         </div>
     </div>
 
-    <!-- 4. Filter Bar (Moved Here - Above Table) -->
+    <!-- 4. Filter Bar (Above Table) -->
     <div class="filter-box mb-4">
         <form method="POST" action="{{ url_for('purchase_report') }}" class="row g-3 align-items-end">
             <input type="hidden" name="type" value="monthly_summary">
@@ -252,7 +291,7 @@
     <!-- 5. Data Table -->
     <div class="table-container mb-5">
         <div class="p-3 border-bottom bg-white d-flex align-items-center justify-content-between">
-            <h6 class="m-0 fw-bold text-primary">Detailed Purchase History</h6>
+            <h6 class="m-0 fw-bold text-primary" style="font-family: var(--font-quicksand);">Detailed Purchase History</h6>
         </div>
         <div class="table-responsive">
             <table class="table mb-0 table-hover">
@@ -262,25 +301,25 @@
                         <th>Bill No.</th>
                         <th>Supplier</th>
                         <th class="text-end">Total Amount</th>
-                        <th class="text-center pe-4">Actions</th> <!-- Added Action Header -->
+                        <th class="text-center pe-4">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for p in purchases %}
                     <tr>
-                        <td class="ps-4 fw-medium">
+                        <td class="ps-4 td-date">
                             {% if p.purchase_date %}
                                 {{ p.purchase_date.strftime('%d-%b-%Y') }}
                             {% else %} - {% endif %}
                         </td>
                         <td><span class="badge bg-light text-dark border">{{ p.bill_number or 'N/A' }}</span></td>
-                        <td>{{ p.supplier_name }}</td>
-                        <td class="text-end fw-bold text-dark">{{ p.total_amount|inr }}</td>
+                        <td class="td-supplier">{{ p.supplier_name }}</td>
+                        <td class="text-end td-amount">{{ p.total_amount|inr }}</td>
                         
-                        <!-- Added Action Column -->
+                        <!-- Colorful Action Buttons -->
                         <td class="text-center pe-4">
                             <div class="d-flex justify-content-center gap-2">
-                                <a href="{{ url_for('view_purchase', purchase_id=p.id) }}" class="btn-action-icon" title="View Details">
+                                <a href="{{ url_for('view_purchase', purchase_id=p.id) }}" class="btn-action-icon view" title="View Details">
                                     <i class="fa-regular fa-eye"></i>
                                 </a>
                                 <a href="{{ url_for('purchase_pdf', purchase_id=p.id) }}" class="btn-action-icon pdf" title="Download PDF">
@@ -306,7 +345,7 @@
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script>
     // 1. Date Picker (Flatpickr)
-    flatpickr(".date-picker", { dateFormat: "d-m-Y", allowInput: true });
+    flatpickr(".date-picker", { dateFormat: "Y-m-d", allowInput: true });
 
     // 2. Data from Backend
     const monthlyData = {{ monthly_data | tojson | safe }};
