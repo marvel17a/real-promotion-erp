@@ -1,25 +1,77 @@
-<div class="row">
-    <div class="col-lg-7">
-        <div class="card report-card">
-            <div class="card-header"><h5 class="mb-0">Expenses by Main Category</h5></div>
-            <div class="card-body">
+<!-- Chart.js CDN (Load here if not in master) -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<div class="row g-4">
+    <!-- Chart Section -->
+    <div class="col-lg-5 order-lg-2">
+        <div class="control-center bg-white h-100 d-flex flex-column align-items-center justify-content-center p-4" style="min-height: 400px;">
+            <h6 class="text-muted text-uppercase fw-bold mb-4">Distribution</h6>
+            <div style="width: 100%; max-width: 350px;">
+                <canvas id="categoryChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- List Section -->
+    <div class="col-lg-7 order-lg-1">
+        <div class="control-center bg-white h-100 p-0 overflow-hidden">
+            <div class="p-4 border-bottom">
+                <h5 class="fw-bold mb-0">Expenses by Category</h5>
+            </div>
+            
+            <div class="list-group list-group-flush">
                 {% for row in report_data.by_category %}
-                <div class="mb-3">
-                    <div class="d-flex justify-content-between">
-                        <span>{{ row.category_name }}</span>
-                        <strong>₹{{ (row.total_amount | default(0)) | round(0) | int }}</strong>
-                    </div>
-                    <div class="progress mt-1" style="height: 10px;">
-                        <div class="progress-bar" role="progressbar" style="width: {{ (row.total_amount / report_data.total_expense * 100) if report_data.total_expense else 0 }}%;"></div>
+                <div class="list-group-item p-4 d-flex align-items-center justify-content-between border-bottom-0">
+                    <div class="flex-grow-1 me-4">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="fw-bold text-dark">{{ row.category_name }}</span>
+                            <span class="fw-bold">{{ row.total_amount | inr }}</span>
+                        </div>
+                        <!-- Progress Bar -->
+                        {% set pct = (row.total_amount / report_data.total_expense * 100) if report_data.total_expense else 0 %}
+                        <div class="progress" style="height: 6px; border-radius: 10px;">
+                            <div class="progress-bar bg-primary" role="progressbar" style="width: {{ pct }}%; opacity: 0.8;"></div>
+                        </div>
+                        <small class="text-muted mt-1 d-block">{{ pct | round(1) }}% of total</small>
                     </div>
                 </div>
                 {% else %}
-                <p class="text-center">No expenses found.</p>
+                <div class="text-center py-5 text-muted">No data available.</div>
                 {% endfor %}
             </div>
         </div>
     </div>
-    <div class="col-lg-5">
-        <div class="card report-card"><div class="card-body"><canvas id="categoryChart"></canvas></div></div>
-    </div>
 </div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const ctx = document.getElementById('categoryChart').getContext('2d');
+        
+        // Prepare Data from Jinja
+        const labels = [{% for row in report_data.by_category %}"{{ row.category_name }}",{% endfor %}];
+        const data = [{% for row in report_data.by_category %}{{ row.total_amount }},{% endfor %}];
+        
+        // FinTech Colors
+        const colors = ['#4f46e5', '#06b6d4', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: data,
+                    backgroundColor: colors,
+                    borderWidth: 0,
+                    hoverOffset: 10
+                }]
+            },
+            options: {
+                responsive: true,
+                cutout: '75%', // Thinner ring
+                plugins: {
+                    legend: { display: false } // Hide legend on chart, we have the list
+                }
+            }
+        });
+    });
+</script>
