@@ -345,7 +345,7 @@
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script>
     // 1. Date Picker (Flatpickr)
-    flatpickr(".date-picker", { dateFormat: "Y-m-d", allowInput: true });
+    flatpickr(".date-picker", { dateFormat: "d-m-Y", allowInput: true });
 
     // 2. Data from Backend
     const monthlyData = {{ monthly_data | tojson | safe }};
