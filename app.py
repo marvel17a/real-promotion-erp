@@ -1840,7 +1840,7 @@ def record_payment(supplier_id):
     
     current_due = (float(supplier['opening_balance']) + t_purch + t_adj) - t_paid
 
-    # 2. Fetch Company Balance (For UI & Validation)
+    # 2. Fetch Global Company Balance (For UI Display)
     # Income
     cur.execute("SELECT SUM(cash_money) as c, SUM(online_money) as b FROM evening_settle WHERE status='final'")
     eve = cur.fetchone()
@@ -1852,20 +1852,21 @@ def record_payment(supplier_id):
     total_cash_in = float((eve['c'] or 0) + (off['c'] or 0) + (emp_in['c'] or 0))
     total_bank_in = float((eve['b'] or 0) + (off['b'] or 0) + (emp_in['b'] or 0))
 
-    # Expense (Vouchers + Emp Debits + Supplier Payments - handled via Emp Debits or Separate?)
-    # To keep it simple and unified: We will treat Supplier Payment as a DEBIT in employee_transactions 
-    # assigned to a dummy 'System' ID or just filter by description if needed.
-    # BETTER: Let's count 'supplier_payments' directly in the Balance Calculation logic in expense_dash separately.
-    # BUT user asked to record deduction HERE. So we will ADD a transaction record.
-    
+    # Expenses (Vouchers + Emp Debits + Supplier Payments)
     cur.execute("SELECT SUM(CASE WHEN payment_method='Cash' THEN amount ELSE 0 END) as c, SUM(CASE WHEN payment_method!='Cash' THEN amount ELSE 0 END) as b FROM expense_items")
     exp_out = cur.fetchone()
+    
     cur.execute("SELECT SUM(CASE WHEN payment_mode='Cash' THEN amount ELSE 0 END) as c, SUM(CASE WHEN payment_mode!='Cash' THEN amount ELSE 0 END) as b FROM employee_transactions WHERE type='debit'")
     emp_out = cur.fetchone()
     
-    # Calculate available
-    cash_bal = total_cash_in - float(exp_out['c'] or 0) - float(emp_out['c'] or 0)
-    bank_bal = total_bank_in - float(exp_out['b'] or 0) - float(emp_out['b'] or 0)
+    cur.execute("SELECT SUM(CASE WHEN payment_mode='Cash' THEN amount_paid ELSE 0 END) as c, SUM(CASE WHEN payment_mode!='Cash' THEN amount_paid ELSE 0 END) as b FROM supplier_payments")
+    supp_out = cur.fetchone()
+
+    total_cash_out = float(exp_out['c'] or 0) + float(emp_out['c'] or 0) + float(supp_out['c'] or 0)
+    total_bank_out = float(exp_out['b'] or 0) + float(emp_out['b'] or 0) + float(supp_out['b'] or 0)
+    
+    cash_bal = total_cash_in - total_cash_out
+    bank_bal = total_bank_in - total_bank_out
 
     if request.method == 'POST':
         try:
@@ -1878,7 +1879,7 @@ def record_payment(supplier_id):
             try: payment_date = datetime.strptime(date_raw, '%d-%m-%Y').strftime('%Y-%m-%d')
             except: payment_date = date_raw
 
-            # 1. Record Supplier Payment
+            # 1. Record Supplier Payment Only (No Employee Transaction Insert)
             cur.execute("""
                 INSERT INTO supplier_payments (supplier_id, amount_paid, payment_date, payment_mode, notes, created_at)
                 VALUES (%s, %s, %s, %s, %s, NOW())
@@ -1887,19 +1888,8 @@ def record_payment(supplier_id):
             # 2. Update Supplier Due
             cur.execute("UPDATE suppliers SET current_due = current_due - %s WHERE id = %s", (amt, supplier_id))
 
-            # 3. DEDUCT MONEY FROM COMPANY (Insert into employee_transactions as 'debit')
-            # We use a special description to identify it. 
-            # Note: You might want a specific 'System' employee ID (e.g., 1) or allow NULL if DB permits.
-            # Assuming ID 1 is Admin/Root. If not, replace 1 with a valid ID or handle dynamically.
-            admin_id = 1 
-            sys_note = f"Supplier Payment: {supplier['name']}"
-            cur.execute("""
-                INSERT INTO employee_transactions (employee_id, transaction_date, type, amount, payment_mode, description, created_at)
-                VALUES (%s, %s, 'debit', %s, %s, %s, NOW())
-            """, (admin_id, payment_date, amt, pay_mode, sys_note))
-
             mysql.connection.commit()
-            flash(f"Payment of ₹{amt} recorded. Balance updated.", "success")
+            flash(f"Payment of ₹{amt} recorded successfully.", "success")
             return redirect(url_for('supplier_ledger', supplier_id=supplier_id))
 
         except Exception as e:
@@ -1910,11 +1900,9 @@ def record_payment(supplier_id):
     return render_template('suppliers/new_payment.html', 
                          supplier=supplier, 
                          current_due=current_due, 
-                         cash_balance=cash_bal,
+                         cash_balance=cash_bal, 
                          bank_balance=bank_bal,
                          today=date.today().strftime('%d-%m-%Y'))
-
-
 
 @app.route('/supplier/payment/delete/<int:payment_id>', methods=['POST'])
 def delete_supplier_payment(payment_id):
@@ -1922,7 +1910,6 @@ def delete_supplier_payment(payment_id):
     
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     try:
-        # Get details before deleting
         cur.execute("SELECT * FROM supplier_payments WHERE id = %s", (payment_id,))
         pay = cur.fetchone()
         
@@ -1930,24 +1917,14 @@ def delete_supplier_payment(payment_id):
             supplier_id = pay['supplier_id']
             amount = pay['amount_paid']
             
-            # 1. Reverse Supplier Due (Add back)
+            # 1. Reverse Supplier Due
             cur.execute("UPDATE suppliers SET current_due = current_due + %s WHERE id = %s", (amount, supplier_id))
             
-            # 2. Reverse Company Deduction (Delete the transaction entry)
-            # We match by amount, date, and description pattern to be safe
-            # Or ideally, store transaction_id in supplier_payments if schema allowed. 
-            # For now, approximate match is safest without schema change.
-            cur.execute("""
-                DELETE FROM employee_transactions 
-                WHERE amount = %s AND payment_mode = %s AND description LIKE %s 
-                LIMIT 1
-            """, (amount, pay['payment_mode'], f"%Supplier Payment:%"))
-            
-            # 3. Delete Payment Record
+            # 2. Delete Payment Record
             cur.execute("DELETE FROM supplier_payments WHERE id = %s", (payment_id,))
             
             mysql.connection.commit()
-            flash('Payment deleted and money refunded to balance.', 'warning')
+            flash('Payment deleted. Balance restored.', 'warning')
             return redirect(url_for('supplier_ledger', supplier_id=supplier_id))
             
     except Exception as e:
@@ -1956,6 +1933,8 @@ def delete_supplier_payment(payment_id):
     
     cur.close()
     return redirect(url_for('suppliers'))
+
+
 
 @app.route('/suppliers/delete/<int:supplier_id>', methods=['POST'])
 def delete_supplier(supplier_id):
@@ -7733,6 +7712,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
