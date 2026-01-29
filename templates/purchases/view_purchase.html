@@ -46,18 +46,8 @@
             </div>
         </div>
 
-        <!-- NEW: Notes Section -->
-        {% if purchase.notes %}
-        <div class="mb-5">
-            <small class="text-uppercase text-muted fw-bold mb-2 d-block">Notes / Remarks</small>
-            <div class="p-3 bg-light rounded-3 border">
-                <p class="mb-0 text-dark" style="white-space: pre-wrap;">{{ purchase.notes }}</p>
-            </div>
-        </div>
-        {% endif %}
-
         <!-- Items Table -->
-        <div class="table-responsive rounded-3 border mb-0">
+        <div class="table-responsive rounded-3 border mb-4">
             <table class="table table-borderless mb-0">
                 <thead class="bg-light">
                     <tr class="text-uppercase small text-muted">
@@ -87,6 +77,16 @@
                 </tfoot>
             </table>
         </div>
+
+        <!-- MOVED: Notes Section (Now below Grand Total) -->
+        {% if purchase.notes %}
+        <div class="mt-4">
+            <small class="text-uppercase text-muted fw-bold mb-2 d-block">Notes / Remarks</small>
+            <div class="p-3 bg-light rounded-3 border">
+                <p class="mb-0 text-dark" style="white-space: pre-wrap;">{{ purchase.notes }}</p>
+            </div>
+        </div>
+        {% endif %}
 
     </div>
 </div>
