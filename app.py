@@ -7835,6 +7835,9 @@ def _fetch_transaction_data(filters):
 # ==========================================
 # TRANSACTION REPORT PDF CLASS
 # ==========================================
+# ==========================================
+# TRANSACTION REPORT PDF CLASS (Professional Design)
+# ==========================================
 class TransactionPDF(FPDF):
     def __init__(self):
         super().__init__()
@@ -7879,27 +7882,59 @@ class TransactionPDF(FPDF):
         self.set_font('Arial', 'I', 8)
         self.set_text_color(128, 128, 128)
         self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
-        self.cell(0, 10, f'Generated: {date.today().strftime("%d-%m-%Y")}', 0, 0, 'R')
+        # Signature Image on Left
+        sig_path = os.path.join(app.root_path, 'static', 'img', 'signature.png')
+        if os.path.exists(sig_path):
+            # Place signature near bottom left, above footer text
+            self.image(sig_path, x=10, y=270, w=35) 
+            self.set_xy(10, 282)
+            self.set_font('Arial', 'B', 8)
+            self.cell(40, 4, "Authorized Signature", 0, 0, 'L')
 
-    def add_filters_info(self, filters):
+    def add_filters_info(self, filters, employee_details=None):
         self.set_font('Arial', '', 10)
         self.set_text_color(0, 0, 0)
         
+        # Period Info
         period = filters.get('period', 'All')
         start = filters.get('start_date')
         end = filters.get('end_date')
         
-        info_text = f"Period: {period.replace('_', ' ').title()}"
+        period_text = f"Report Period: {period.replace('_', ' ').title()}"
         if start and end:
-            info_text += f" ({start} to {end})"
+            period_text += f" ({start} to {end})"
+        
+        self.cell(0, 6, period_text, 0, 1, 'L')
+        
+        # Employee Details (If filtered by one employee)
+        if employee_details:
+            self.ln(2)
+            self.set_font('Arial', 'B', 11)
+            self.cell(0, 6, "Employee Profile:", 0, 1, 'L')
             
-        self.cell(0, 6, info_text, 0, 1, 'L')
+            self.set_font('Arial', '', 10)
+            self.cell(25, 6, "Name:", 0, 0)
+            self.set_font('Arial', 'B', 10)
+            self.cell(60, 6, str(employee_details['name']), 0, 0)
+            
+            self.set_font('Arial', '', 10)
+            self.cell(20, 6, "Mobile:", 0, 0)
+            self.set_font('Arial', 'B', 10)
+            self.cell(40, 6, str(employee_details.get('phone', 'N/A')), 0, 1)
+            
+            if employee_details.get('position_name'):
+                self.set_font('Arial', '', 10)
+                self.cell(25, 6, "Position:", 0, 0)
+                self.set_font('Arial', 'B', 10)
+                self.cell(60, 6, str(employee_details['position_name']), 0, 1)
+                
         self.ln(5)
 
     def add_table(self, transactions):
         # Header
-        cols = ["Date", "Employee", "Description", "Credit (Due)", "Debit (Given)"]
-        widths = [25, 45, 60, 30, 30]
+        cols = ["#", "Date", "Time", "Employee", "Description", "Credit", "Debit"]
+        # Widths: 10, 22, 20, 40, 48, 25, 25 = 190
+        widths = [10, 22, 20, 40, 48, 25, 25]
         
         self.set_font('Arial', 'B', 9)
         self.set_fill_color(26, 35, 126) 
@@ -7920,9 +7955,22 @@ class TransactionPDF(FPDF):
         total_credit = 0
         total_debit = 0
         
-        for t in transactions:
-            d_str = t['transaction_date'].strftime('%d-%m-%Y')
+        for idx, t in enumerate(transactions):
+            # Date/Time Parsing
+            if t['transaction_date']:
+                 d_str = t['transaction_date'].strftime('%d-%m-%Y')
+            else: d_str = "-"
             
+            t_str = "-"
+            if t.get('created_at'):
+                if isinstance(t['created_at'], datetime):
+                     t_str = t['created_at'].strftime('%I:%M %p')
+                elif isinstance(t['created_at'], timedelta):
+                     t_str = (datetime.min + t['created_at']).strftime('%I:%M %p')
+                else:
+                     try: t_str = datetime.strptime(str(t['created_at']), '%Y-%m-%d %H:%M:%S').strftime('%I:%M %p')
+                     except: t_str = str(t['created_at'])
+
             credit_amt = "-"
             debit_amt = "-"
             
@@ -7935,31 +7983,42 @@ class TransactionPDF(FPDF):
                 total_debit += val
                 debit_amt = f"{val:.2f}"
 
-            self.cell(widths[0], 7, d_str, 1, 0, 'C', fill)
-            self.cell(widths[1], 7, str(t['employee_name']), 1, 0, 'L', fill)
-            self.cell(widths[2], 7, str(t['description'] or ''), 1, 0, 'L', fill)
-            self.cell(widths[3], 7, credit_amt, 1, 0, 'R', fill)
-            self.cell(widths[4], 7, debit_amt, 1, 1, 'R', fill)
-            fill = not fill
+            self.cell(widths[0], 7, str(idx+1), 1, 0, 'C', fill)
+            self.cell(widths[1], 7, d_str, 1, 0, 'C', fill)
+            self.cell(widths[2], 7, t_str, 1, 0, 'C', fill)
             
-        # Totals
+            # Safe text for employee name
+            emp_name = str(t['employee_name'])[:20] 
+            self.cell(widths[3], 7, emp_name, 1, 0, 'L', fill)
+            
+            # Description (truncated if too long)
+            desc = str(t['description'] or '')[:30]
+            self.cell(widths[4], 7, desc, 1, 0, 'L', fill)
+            
+            self.cell(widths[5], 7, credit_amt, 1, 0, 'R', fill)
+            self.cell(widths[6], 7, debit_amt, 1, 1, 'R', fill)
+            
+            fill = not fill
+            self.ln()
+            
+        # Totals Row
         self.set_font('Arial', 'B', 9)
-        self.cell(widths[0]+widths[1]+widths[2], 8, "TOTALS", 1, 0, 'R', True)
-        self.cell(widths[3], 8, f"{total_credit:.2f}", 1, 0, 'R', True)
-        self.cell(widths[4], 8, f"{total_debit:.2f}", 1, 1, 'R', True)
+        self.cell(sum(widths[:5]), 8, "TOTALS", 1, 0, 'R', True)
+        self.cell(widths[5], 8, f"{total_credit:.2f}", 1, 0, 'R', True)
+        self.cell(widths[6], 8, f"{total_debit:.2f}", 1, 1, 'R', True)
         self.ln(10)
         
-        # Net Flow
+        # Net Flow Box
         net = total_debit - total_credit
         status = "Payable (Company Owes)" if net < 0 else "Receivable (Employee Owes)"
         
+        self.set_x(10)
         self.set_font('Arial', 'B', 11)
         self.set_text_color(0, 0, 0)
-        self.cell(0, 10, f"Net Cash Flow: {abs(net):.2f} - {status}", 0, 1, 'R')
-
+        self.cell(0, 8, f"Net Position: {abs(net):.2f} - {status}", 0, 1, 'R')
 
 # =========================================================
-#  TRANSACTION REPORT VIEW ROUTE (Fixed Filters)
+#  TRANSACTION REPORT VIEW ROUTE
 # =========================================================
 @app.route('/transaction-report', methods=['GET', 'POST'])
 def transaction_report():
@@ -7970,7 +8029,7 @@ def transaction_report():
     employees = cur.fetchall()
     cur.close()
 
-    # Default filters (Ensure none are None to prevent template errors)
+    # Default filters (Ensure none are None)
     filters = {
         'period': 'this_month', 
         'employee_id': 'all', 
@@ -7986,16 +8045,11 @@ def transaction_report():
 
     transactions = _fetch_transaction_data(filters)
     
-    # Calculate Totals
     total_debit = sum(float(t['amount']) for t in transactions if t['type'] == 'debit')
     total_credit = sum(float(t['amount']) for t in transactions if t['type'] == 'credit')
     net_flow = total_debit - total_credit
 
-    chart_data = {
-        'debit': total_debit,
-        'credit': total_credit,
-        'net': net_flow
-    }
+    chart_data = { 'debit': total_debit, 'credit': total_credit, 'net': net_flow }
 
     return render_template('reports/transaction_report.html',
                            employees=employees,
@@ -8009,9 +8063,9 @@ def transaction_report():
 
 
 # =========================================================
-#  DOWNLOAD TRANSACTION REPORT ROUTE
+#  DOWNLOAD TRANSACTION REPORT ROUTE (Corrected Endpoint)
 # =========================================================
-@app.route('/download-transaction-report')
+@app.route('/download_transaction_report')
 def download_transaction_report():
     if "loggedin" not in session: return redirect(url_for("login"))
     
@@ -8026,19 +8080,37 @@ def download_transaction_report():
     report_format = request.args.get('format', 'pdf')
     transactions = _fetch_transaction_data(filters)
     
+    # Check if we need specific employee details for the PDF header
+    emp_details = None
+    if filters['employee_id'] != 'all':
+        cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        # Fetch detailed info including position name
+        cur.execute("""
+            SELECT e.name, e.phone, p.position_name 
+            FROM employees e 
+            LEFT JOIN employee_positions p ON e.position_id = p.id 
+            WHERE e.id = %s
+        """, (filters['employee_id'],))
+        emp_details = cur.fetchone()
+        cur.close()
+    
     if report_format == 'pdf':
         try:
             pdf = TransactionPDF()
             pdf.alias_nb_pages()
             pdf.add_page()
-            pdf.add_filters_info(filters)
+            pdf.add_filters_info(filters, emp_details) # Pass employee details
             pdf.add_table(transactions)
             
             pdf_string = pdf.output(dest='S').encode('latin-1')
             buffer = io.BytesIO(pdf_string)
             buffer.seek(0)
             
-            return send_file(buffer, as_attachment=True, download_name=f"Transaction_Report_{date.today()}.pdf", mimetype='application/pdf')
+            filename = f"Transaction_Report_{date.today()}.pdf"
+            if emp_details:
+                filename = f"{emp_details['name'].replace(' ', '_')}_Report.pdf"
+                
+            return send_file(buffer, as_attachment=True, download_name=filename, mimetype='application/pdf')
             
         except Exception as e:
             app.logger.error(f"PDF Error: {e}")
@@ -8051,8 +8123,7 @@ def download_transaction_report():
             ws = wb.active
             ws.title = "Transactions"
             
-            # Headers
-            headers = ['Date', 'Employee', 'Description', 'Credit (Due)', 'Debit (Given)']
+            headers = ['Date', 'Time', 'Employee', 'Description', 'Credit (Due)', 'Debit (Given)']
             ws.append(headers)
             for cell in ws[1]: cell.font = Font(bold=True)
             
@@ -8060,8 +8131,15 @@ def download_transaction_report():
                 c_amt = float(t['amount']) if t['type'] == 'credit' else 0
                 d_amt = float(t['amount']) if t['type'] == 'debit' else 0
                 
+                # Time handling for Excel
+                t_str = ""
+                if t.get('created_at'):
+                    if isinstance(t['created_at'], datetime): t_str = t['created_at'].strftime('%I:%M %p')
+                    else: t_str = str(t['created_at'])
+
                 ws.append([
                     t['transaction_date'].strftime('%Y-%m-%d'),
+                    t_str,
                     t['employee_name'],
                     t['description'],
                     c_amt,
@@ -8079,6 +8157,8 @@ def download_transaction_report():
              app.logger.error(f"Excel Error: {e}")
              flash(f"Error generating Excel: {e}", "danger")
              return redirect(url_for('transaction_report'))
+
+    return redirect(url_for('transaction_report'))
 
     return redirect(url_for('transaction_report'))
 
@@ -8100,6 +8180,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
