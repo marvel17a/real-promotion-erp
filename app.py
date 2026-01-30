@@ -7833,9 +7833,6 @@ def _fetch_transaction_data(filters):
 
 
 # ==========================================
-# TRANSACTION REPORT PDF CLASS
-# ==========================================
-# ==========================================
 # TRANSACTION REPORT PDF CLASS (Professional Design)
 # ==========================================
 class TransactionPDF(FPDF):
@@ -7882,14 +7879,6 @@ class TransactionPDF(FPDF):
         self.set_font('Arial', 'I', 8)
         self.set_text_color(128, 128, 128)
         self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
-        # Signature Image on Left
-        sig_path = os.path.join(app.root_path, 'static', 'img', 'signature.png')
-        if os.path.exists(sig_path):
-            # Place signature near bottom left, above footer text
-            self.image(sig_path, x=10, y=270, w=35) 
-            self.set_xy(10, 282)
-            self.set_font('Arial', 'B', 8)
-            self.cell(40, 4, "Authorized Signature", 0, 0, 'L')
 
     def add_filters_info(self, filters, employee_details=None):
         self.set_font('Arial', '', 10)
@@ -7931,10 +7920,10 @@ class TransactionPDF(FPDF):
         self.ln(5)
 
     def add_table(self, transactions):
-        # Header
-        cols = ["#", "Date", "Time", "Employee", "Description", "Credit", "Debit"]
-        # Widths: 10, 22, 20, 40, 48, 25, 25 = 190
-        widths = [10, 22, 20, 40, 48, 25, 25]
+        # Header - Merged Date & Time into "Date/Time"
+        cols = ["#", "Date/Time", "Employee", "Description", "Credit", "Debit"]
+        # Widths: 10, 35, 40, 50, 27, 28 = 190
+        widths = [10, 35, 40, 50, 27, 28]
         
         self.set_font('Arial', 'B', 9)
         self.set_fill_color(26, 35, 126) 
@@ -7956,20 +7945,26 @@ class TransactionPDF(FPDF):
         total_debit = 0
         
         for idx, t in enumerate(transactions):
-            # Date/Time Parsing
+            # Date/Time Parsing & Merging
+            dt_str = "-"
             if t['transaction_date']:
-                 d_str = t['transaction_date'].strftime('%d-%m-%Y')
-            else: d_str = "-"
-            
-            t_str = "-"
-            if t.get('created_at'):
-                if isinstance(t['created_at'], datetime):
-                     t_str = t['created_at'].strftime('%I:%M %p')
-                elif isinstance(t['created_at'], timedelta):
-                     t_str = (datetime.min + t['created_at']).strftime('%I:%M %p')
-                else:
-                     try: t_str = datetime.strptime(str(t['created_at']), '%Y-%m-%d %H:%M:%S').strftime('%I:%M %p')
-                     except: t_str = str(t['created_at'])
+                 d_part = t['transaction_date'].strftime('%d-%m-%Y')
+                 
+                 # Time part
+                 t_part = ""
+                 if t.get('created_at'):
+                    if isinstance(t['created_at'], datetime):
+                        t_part = t['created_at'].strftime('%I:%M %p')
+                    elif isinstance(t['created_at'], timedelta):
+                        t_part = (datetime.min + t['created_at']).strftime('%I:%M %p')
+                    else:
+                        try: t_part = datetime.strptime(str(t['created_at']), '%Y-%m-%d %H:%M:%S').strftime('%I:%M %p')
+                        except: pass
+                 
+                 if t_part:
+                     dt_str = f"{d_part}\n{t_part}"
+                 else:
+                     dt_str = d_part
 
             credit_amt = "-"
             debit_amt = "-"
@@ -7982,30 +7977,61 @@ class TransactionPDF(FPDF):
                 val = float(t['amount'])
                 total_debit += val
                 debit_amt = f"{val:.2f}"
-
-            self.cell(widths[0], 7, str(idx+1), 1, 0, 'C', fill)
-            self.cell(widths[1], 7, d_str, 1, 0, 'C', fill)
-            self.cell(widths[2], 7, t_str, 1, 0, 'C', fill)
             
-            # Safe text for employee name
+            # Save x, y for height calculation
+            x_start = self.get_x()
+            y_start = self.get_y()
+            
+            # Calculate max height needed for this row (based on multi-line text)
+            # Description is the most likely to wrap
+            desc_text = str(t['description'] or '')
+            
+            # Check if page break needed before printing row
+            if self.get_y() > 250:
+                self.add_page()
+                # Reprint header
+                self.set_font('Arial', 'B', 9)
+                self.set_fill_color(26, 35, 126) 
+                self.set_text_color(255, 255, 255)
+                for i, col in enumerate(cols):
+                    self.cell(widths[i], 8, col, 1, 0, 'C', True)
+                self.ln()
+                self.set_font('Arial', '', 8)
+                self.set_text_color(0, 0, 0)
+                y_start = self.get_y() # Reset Y
+            
+            # We use MultiCell for potentially long text (Employee, Desc) and Date/Time
+            # But we need uniform row height. 
+            # Simplified approach: Fix height to 10 for date/time dual line
+            row_height = 10 
+            
+            self.cell(widths[0], row_height, str(idx+1), 1, 0, 'C', fill)
+            
+            # Date/Time (MultiCell simulation or just simple text with newlines replaced if FPDF supports it, 
+            # standard FPDF cell doesn't do newlines well without MultiCell. 
+            # Hack: Use single line string "Date | Time" or keep simple)
+            # Let's use single line "DD-MM-YY HH:MM" to keep it clean in one box
+            dt_single_line = dt_str.replace('\n', ' ')
+            self.cell(widths[1], row_height, dt_single_line, 1, 0, 'C', fill)
+            
+            # Employee
             emp_name = str(t['employee_name'])[:20] 
-            self.cell(widths[3], 7, emp_name, 1, 0, 'L', fill)
+            self.cell(widths[2], row_height, emp_name, 1, 0, 'L', fill)
             
-            # Description (truncated if too long)
-            desc = str(t['description'] or '')[:30]
-            self.cell(widths[4], 7, desc, 1, 0, 'L', fill)
+            # Description
+            desc = desc_text[:35] # Truncate to fit single line clean
+            self.cell(widths[3], row_height, desc, 1, 0, 'L', fill)
             
-            self.cell(widths[5], 7, credit_amt, 1, 0, 'R', fill)
-            self.cell(widths[6], 7, debit_amt, 1, 1, 'R', fill)
+            self.cell(widths[4], row_height, credit_amt, 1, 0, 'R', fill)
+            self.cell(widths[5], row_height, debit_amt, 1, 1, 'R', fill)
             
             fill = not fill
-            self.ln()
             
         # Totals Row
         self.set_font('Arial', 'B', 9)
-        self.cell(sum(widths[:5]), 8, "TOTALS", 1, 0, 'R', True)
-        self.cell(widths[5], 8, f"{total_credit:.2f}", 1, 0, 'R', True)
-        self.cell(widths[6], 8, f"{total_debit:.2f}", 1, 1, 'R', True)
+        self.cell(sum(widths[:4]), 8, "TOTALS", 1, 0, 'R', True)
+        self.cell(widths[4], 8, f"{total_credit:.2f}", 1, 0, 'R', True)
+        self.cell(widths[5], 8, f"{total_debit:.2f}", 1, 1, 'R', True)
         self.ln(10)
         
         # Net Flow Box
@@ -8016,6 +8042,29 @@ class TransactionPDF(FPDF):
         self.set_font('Arial', 'B', 11)
         self.set_text_color(0, 0, 0)
         self.cell(0, 8, f"Net Position: {abs(net):.2f} - {status}", 0, 1, 'R')
+        
+        # Add Signature at the end (Right Side)
+        self.add_signature()
+
+    def add_signature(self):
+        # Ensure space
+        if self.get_y() > 240: self.add_page()
+        self.ln(10)
+        y_pos = self.get_y()
+        
+        sig_path = os.path.join(app.root_path, 'static', 'img', 'signature.png')
+        if os.path.exists(sig_path):
+            # Place signature on RIGHT side
+            # Page width ~210mm. Right margin ~10mm. Image width 40. 
+            # x = 210 - 10 - 40 = 160 approx.
+            self.image(sig_path, x=150, y=y_pos, w=40)
+            
+        self.set_xy(140, y_pos + 25)
+        self.set_font('Arial', 'B', 10)
+        self.set_text_color(0, 0, 0)
+        self.cell(60, 5, "Authorized Signature", 0, 1, 'C')
+        
+        self.ln(10)
 
 # =========================================================
 #  TRANSACTION REPORT VIEW ROUTE
@@ -8160,9 +8209,7 @@ def download_transaction_report():
 
     return redirect(url_for('transaction_report'))
 
-    return redirect(url_for('transaction_report'))
-
-# ---------- CUSTOM JINJA FILTER: INR FORMAT ----------
+# ---------- CUSTOM JINJA FILTER: INR FORMAT ----------#
 @app.template_filter("inr")
 def inr_format(value):
     """Format number as Indian Rupees."""
@@ -8180,6 +8227,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
