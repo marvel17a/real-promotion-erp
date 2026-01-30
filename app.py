@@ -7748,24 +7748,158 @@ def _fetch_transaction_data(filters):
             
     return transactions
 
+
+# ==========================================
+# TRANSACTION REPORT PDF CLASS
+# ==========================================
+class TransactionPDF(FPDF):
+    def __init__(self):
+        super().__init__()
+        self.company_name = "REAL PROMOTION"
+        self.slogan = "SINCE 2005"
+        self.address_lines = [
+            "Real Promotion, G/12, Tulsimangalam Complex,",
+            "B/h. Trimurti Complex, Ghodiya Bazar,",
+            "Nadiad-387001, Gujarat, India"
+        ]
+        self.contact = "+91 96623 22476 | help@realpromotion.in"
+
+    def header(self):
+        # Company Header
+        self.set_font('Arial', 'B', 24)
+        self.set_text_color(26, 35, 126) # Dark Blue
+        self.cell(0, 10, self.company_name, 0, 1, 'C')
+        
+        self.set_font('Arial', 'B', 10)
+        self.set_text_color(100, 100, 100) # Grey
+        self.cell(0, 5, self.slogan, 0, 1, 'C')
+        self.ln(2)
+        
+        self.set_font('Arial', '', 9)
+        self.set_text_color(50, 50, 50)
+        for line in self.address_lines:
+            self.cell(0, 4, line, 0, 1, 'C')
+        self.cell(0, 4, self.contact, 0, 1, 'C')
+        
+        self.ln(5)
+        self.set_draw_color(200, 200, 200)
+        self.line(10, self.get_y(), 200, self.get_y())
+        self.ln(5)
+
+        self.set_font('Arial', 'B', 16)
+        self.set_text_color(0, 0, 0)
+        self.cell(0, 10, "TRANSACTION REPORT", 0, 1, 'C')
+        self.ln(5)
+
+    def footer(self):
+        self.set_y(-15)
+        self.set_font('Arial', 'I', 8)
+        self.set_text_color(128, 128, 128)
+        self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
+        self.cell(0, 10, f'Generated: {date.today().strftime("%d-%m-%Y")}', 0, 0, 'R')
+
+    def add_filters_info(self, filters):
+        self.set_font('Arial', '', 10)
+        self.set_text_color(0, 0, 0)
+        
+        period = filters.get('period', 'All')
+        start = filters.get('start_date')
+        end = filters.get('end_date')
+        
+        info_text = f"Period: {period.replace('_', ' ').title()}"
+        if start and end:
+            info_text += f" ({start} to {end})"
+            
+        self.cell(0, 6, info_text, 0, 1, 'L')
+        self.ln(5)
+
+    def add_table(self, transactions):
+        # Header
+        cols = ["Date", "Employee", "Description", "Credit (Due)", "Debit (Given)"]
+        widths = [25, 45, 60, 30, 30]
+        
+        self.set_font('Arial', 'B', 9)
+        self.set_fill_color(26, 35, 126) 
+        self.set_text_color(255, 255, 255)
+        self.set_draw_color(0, 0, 0)
+        self.set_line_width(0.3)
+        
+        for i, col in enumerate(cols):
+            self.cell(widths[i], 8, col, 1, 0, 'C', True)
+        self.ln()
+        
+        # Rows
+        self.set_font('Arial', '', 8)
+        self.set_text_color(0, 0, 0)
+        fill = False
+        self.set_fill_color(245, 245, 245)
+        
+        total_credit = 0
+        total_debit = 0
+        
+        for t in transactions:
+            d_str = t['transaction_date'].strftime('%d-%m-%Y')
+            
+            credit_amt = "-"
+            debit_amt = "-"
+            
+            if t['type'] == 'credit':
+                val = float(t['amount'])
+                total_credit += val
+                credit_amt = f"{val:.2f}"
+            else:
+                val = float(t['amount'])
+                total_debit += val
+                debit_amt = f"{val:.2f}"
+
+            self.cell(widths[0], 7, d_str, 1, 0, 'C', fill)
+            self.cell(widths[1], 7, str(t['employee_name']), 1, 0, 'L', fill)
+            self.cell(widths[2], 7, str(t['description'] or ''), 1, 0, 'L', fill)
+            self.cell(widths[3], 7, credit_amt, 1, 0, 'R', fill)
+            self.cell(widths[4], 7, debit_amt, 1, 1, 'R', fill)
+            fill = not fill
+            
+        # Totals
+        self.set_font('Arial', 'B', 9)
+        self.cell(widths[0]+widths[1]+widths[2], 8, "TOTALS", 1, 0, 'R', True)
+        self.cell(widths[3], 8, f"{total_credit:.2f}", 1, 0, 'R', True)
+        self.cell(widths[4], 8, f"{total_debit:.2f}", 1, 1, 'R', True)
+        self.ln(10)
+        
+        # Net Flow
+        net = total_debit - total_credit
+        status = "Payable (Company Owes)" if net < 0 else "Receivable (Employee Owes)"
+        
+        self.set_font('Arial', 'B', 11)
+        self.set_text_color(0, 0, 0)
+        self.cell(0, 10, f"Net Cash Flow: {abs(net):.2f} - {status}", 0, 1, 'R')
+
+
 # =========================================================
-#  TRANSACTION REPORT ROUTE (Updated with Chart Data)
+#  TRANSACTION REPORT VIEW ROUTE (Fixed Filters)
 # =========================================================
 @app.route('/transaction-report', methods=['GET', 'POST'])
 def transaction_report():
-    """Renders the interactive transaction analysis page."""
+    if "loggedin" not in session: return redirect(url_for("login"))
+    
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     cur.execute("SELECT id, name FROM employees WHERE status = 'active' ORDER BY name ASC")
     employees = cur.fetchall()
     cur.close()
 
-    filters = {'period': 'this_month', 'employee_id': 'all', 'start_date': '', 'end_date': ''}
+    # Default filters (Ensure none are None to prevent template errors)
+    filters = {
+        'period': 'this_month', 
+        'employee_id': 'all', 
+        'start_date': '', 
+        'end_date': ''
+    }
     
     if request.method == 'POST':
-        filters['period'] = request.form.get('period')
-        filters['employee_id'] = request.form.get('employee_id')
-        filters['start_date'] = request.form.get('start_date')
-        filters['end_date'] = request.form.get('end_date')
+        filters['period'] = request.form.get('period') or 'this_month'
+        filters['employee_id'] = request.form.get('employee_id') or 'all'
+        filters['start_date'] = request.form.get('start_date') or ''
+        filters['end_date'] = request.form.get('end_date') or ''
 
     transactions = _fetch_transaction_data(filters)
     
@@ -7774,7 +7908,6 @@ def transaction_report():
     total_credit = sum(float(t['amount']) for t in transactions if t['type'] == 'credit')
     net_flow = total_debit - total_credit
 
-    # Prepare Data for Chart.js
     chart_data = {
         'debit': total_debit,
         'credit': total_credit,
@@ -7789,8 +7922,82 @@ def transaction_report():
                            total_credit=total_credit,
                            net_flow=net_flow,
                            filters=filters,
-                           chart_data=chart_data) # Passed new data for charts
+                           chart_data=chart_data)
 
+
+# =========================================================
+#  DOWNLOAD TRANSACTION REPORT ROUTE
+# =========================================================
+@app.route('/download-transaction-report')
+def download_transaction_report():
+    if "loggedin" not in session: return redirect(url_for("login"))
+    
+    # Get filters from URL args
+    filters = {
+        'period': request.args.get('period', 'this_month'),
+        'employee_id': request.args.get('employee_id', 'all'),
+        'start_date': request.args.get('start_date', ''),
+        'end_date': request.args.get('end_date', '')
+    }
+    
+    report_format = request.args.get('format', 'pdf')
+    transactions = _fetch_transaction_data(filters)
+    
+    if report_format == 'pdf':
+        try:
+            pdf = TransactionPDF()
+            pdf.alias_nb_pages()
+            pdf.add_page()
+            pdf.add_filters_info(filters)
+            pdf.add_table(transactions)
+            
+            pdf_string = pdf.output(dest='S').encode('latin-1')
+            buffer = io.BytesIO(pdf_string)
+            buffer.seek(0)
+            
+            return send_file(buffer, as_attachment=True, download_name=f"Transaction_Report_{date.today()}.pdf", mimetype='application/pdf')
+            
+        except Exception as e:
+            app.logger.error(f"PDF Error: {e}")
+            flash(f"Error generating PDF: {e}", "danger")
+            return redirect(url_for('transaction_report'))
+
+    elif report_format == 'excel':
+        try:
+            wb = openpyxl.Workbook()
+            ws = wb.active
+            ws.title = "Transactions"
+            
+            # Headers
+            headers = ['Date', 'Employee', 'Description', 'Credit (Due)', 'Debit (Given)']
+            ws.append(headers)
+            for cell in ws[1]: cell.font = Font(bold=True)
+            
+            for t in transactions:
+                c_amt = float(t['amount']) if t['type'] == 'credit' else 0
+                d_amt = float(t['amount']) if t['type'] == 'debit' else 0
+                
+                ws.append([
+                    t['transaction_date'].strftime('%Y-%m-%d'),
+                    t['employee_name'],
+                    t['description'],
+                    c_amt,
+                    d_amt
+                ])
+                
+            buffer = io.BytesIO()
+            wb.save(buffer)
+            buffer.seek(0)
+            
+            return send_file(buffer, as_attachment=True, download_name=f"Transaction_Report_{date.today()}.xlsx", 
+                             mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+                             
+        except Exception as e:
+             app.logger.error(f"Excel Error: {e}")
+             flash(f"Error generating Excel: {e}", "danger")
+             return redirect(url_for('transaction_report'))
+
+    return redirect(url_for('transaction_report'))
 
 # ---------- CUSTOM JINJA FILTER: INR FORMAT ----------
 @app.template_filter("inr")
@@ -7810,4 +8017,5 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
