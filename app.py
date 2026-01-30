@@ -844,10 +844,22 @@ def delete_expense(id):
 
 
 
+# ... existing imports ...
 
-# ==========================================
-# 1. FIXED EXPENSE REPORT ROUTE
-# ==========================================
+# Helper to ensure dates are always YYYY-MM-DD for MySQL
+def ensure_mysql_date(date_str):
+    if not date_str: return None
+    try:
+        # Try parsing dd-mm-yyyy (Common frontend format)
+        return datetime.strptime(date_str, '%d-%m-%Y').strftime('%Y-%m-%d')
+    except ValueError:
+        try:
+            # Try parsing yyyy-mm-dd (Standard MySQL format)
+            datetime.strptime(date_str, '%Y-%m-%d')
+            return date_str
+        except ValueError:
+            return date_str # Return as-is if unknown format
+
 @app.route("/exp_report", methods=["GET"])
 def exp_report():
     if "loggedin" not in session:
@@ -866,35 +878,38 @@ def exp_report():
         year = now.year
         month = now.month
 
-    # Defaults for Detailed Log
-    start_date_str = request.args.get("start_date")
-    end_date_str = request.args.get("end_date")
-    
-    # If Date Range is empty, default to current month range
-    if not start_date_str:
-        start_date_str = f"{year}-{month:02d}-01"
-    if not end_date_str:
-        _, last_day = calendar.monthrange(year, month)
-        end_date_str = f"{year}-{month:02d}-{last_day}"
+    # Get raw strings from URL
+    raw_start = request.args.get("start_date")
+    raw_end = request.args.get("end_date")
 
+    # Convert to MySQL format (YYYY-MM-DD)
+    start_date_mysql = ensure_mysql_date(raw_start)
+    end_date_mysql = ensure_mysql_date(raw_end)
+
+    # Defaults: If no date provided, use current Month ranges
+    if not start_date_mysql:
+        start_date_mysql = f"{year}-{month:02d}-01"
+    if not end_date_mysql:
+        _, last_day = calendar.monthrange(year, month)
+        end_date_mysql = f"{year}-{month:02d}-{last_day}"
+
+    # Filters dictionary to pass back to template (Keep raw format for UI inputs)
     filters = {
         "year": year,
         "month": f"{month:02d}", 
-        "start_date": start_date_str,
-        "end_date": end_date_str
+        "start_date": raw_start or start_date_mysql, # Keep what user typed or default
+        "end_date": raw_end or end_date_mysql
     }
 
     report_data = {}
 
     try:
-        # --- LOGIC: MONTHLY SUMMARY ---
+        # --- TYPE 1: MONTHLY SUMMARY ---
         if report_type == "monthly_summary":
-            # Calculate month bounds explicitly for accuracy
             _, last_day = calendar.monthrange(year, month)
             m_start = f"{year}-{month:02d}-01"
             m_end = f"{year}-{month:02d}-{last_day}"
             
-            # KPI from Parent Table (Truth Source)
             cursor.execute("""
                 SELECT COALESCE(SUM(total_amount), 0) as total, COUNT(expense_id) as count 
                 FROM expenses WHERE expense_date BETWEEN %s AND %s
@@ -905,15 +920,16 @@ def exp_report():
             tx_count = summary['count']
             avg_ticket = total_spend / tx_count if tx_count > 0 else 0
             
-            # Top Spending Subcategories
             cursor.execute("""
-                SELECT sc.subcategory_name, c.category_name, SUM(ei.amount) as sub_total
+                SELECT COALESCE(sc.subcategory_name, 'General') as subcategory_name, 
+                       COALESCE(c.category_name, 'Other') as category_name, 
+                       SUM(ei.amount) as sub_total
                 FROM expense_items ei
                 JOIN expenses e ON ei.expense_id = e.expense_id
                 LEFT JOIN expensesubcategories sc ON ei.subcategory_id = sc.subcategory_id
                 LEFT JOIN expensecategories c ON ei.category_id = c.category_id
                 WHERE e.expense_date BETWEEN %s AND %s
-                GROUP BY sc.subcategory_id
+                GROUP BY ei.subcategory_id
                 ORDER BY sub_total DESC LIMIT 5
             """, (m_start, m_end))
             top_items = [dict(row, sub_total=float(row['sub_total'])) for row in cursor.fetchall()]
@@ -925,9 +941,9 @@ def exp_report():
                 "top_items": top_items
             }
 
-        # --- LOGIC: DETAILED LOG (Fixed) ---
+        # --- TYPE 2: DETAILED LOG (FIXED) ---
         elif report_type == "detailed_log":
-            # Query joins Items -> Parent -> Categories
+            # Using MySQL formatted dates
             cursor.execute("""
                 SELECT 
                     e.expense_date, 
@@ -935,28 +951,29 @@ def exp_report():
                     COALESCE(sc.subcategory_name, '-') as subcategory_name, 
                     ei.amount, 
                     COALESCE(ei.description, e.description) as description,
-                    e.payment_method
+                    COALESCE(e.payment_method, 'Cash') as payment_method
                 FROM expense_items ei
                 JOIN expenses e ON ei.expense_id = e.expense_id
                 LEFT JOIN expensecategories c ON ei.category_id = c.category_id
                 LEFT JOIN expensesubcategories sc ON ei.subcategory_id = sc.subcategory_id
                 WHERE e.expense_date BETWEEN %s AND %s
                 ORDER BY e.expense_date DESC, e.expense_id DESC
-            """, (filters['start_date'], filters['end_date']))
+            """, (start_date_mysql, end_date_mysql))
+            
             log = cursor.fetchall()
             
-            # Ensure floats
+            total_log = 0.0
             for item in log:
-                item['amount'] = float(item['amount']) if item['amount'] else 0.0
-            
-            total_log = sum(item['amount'] for item in log)
+                amt = float(item['amount']) if item['amount'] else 0.0
+                item['amount'] = amt
+                total_log += amt
             
             report_data = {
                 "log": log,
                 "summary": {"total": total_log}
             }
 
-        # --- LOGIC: CATEGORY ANALYSIS ---
+        # --- TYPE 3: CATEGORY ANALYSIS ---
         elif report_type == "category_wise":
             cursor.execute("""
                 SELECT c.category_name, SUM(ei.amount) as total_amount
@@ -976,7 +993,35 @@ def exp_report():
                 "summary": {"total": total_exp}
             }
 
-        # --- LOGIC: MOM COMPARISON ---
+        # --- TYPE 4: SUB-CATEGORY DRILLDOWN (FIXED) ---
+        elif report_type == "subcategory_wise":
+            cursor.execute("""
+                SELECT 
+                    COALESCE(sc.subcategory_name, 'General/Other') as subcategory_name, 
+                    COALESCE(c.category_name, 'Uncategorized') as category_name,
+                    SUM(ei.amount) as total_amount
+                FROM expense_items ei
+                JOIN expenses e ON ei.expense_id = e.expense_id
+                LEFT JOIN expensesubcategories sc ON ei.subcategory_id = sc.subcategory_id
+                LEFT JOIN expensecategories c ON ei.category_id = c.category_id
+                WHERE YEAR(e.expense_date) = %s
+                GROUP BY ei.subcategory_id, ei.category_id
+                ORDER BY total_amount DESC
+            """, (year,))
+            subs = cursor.fetchall()
+            
+            # Ensure float conversion
+            for sub in subs:
+                sub['total_amount'] = float(sub['total_amount']) if sub['total_amount'] else 0.0
+                
+            total_exp = sum(x['total_amount'] for x in subs)
+            
+            report_data = {
+                "by_subcategory": subs,
+                "summary": {"total": total_exp}
+            }
+
+        # --- TYPE 5: MOM COMPARISON ---
         elif report_type == "mom_comparison":
             cursor.execute("""
                 SELECT MONTH(e.expense_date) as month_num, SUM(e.total_amount) as total
@@ -992,7 +1037,12 @@ def exp_report():
                 curr = results.get(m, 0.0)
                 total_year += curr
                 prev = results.get(m-1, 0.0)
-                change = ((curr - prev) / prev * 100) if prev > 0 else (100 if curr > 0 and m > 1 else 0)
+                
+                change = 0
+                if prev > 0:
+                    change = ((curr - prev) / prev) * 100
+                elif curr > 0 and m > 1:
+                    change = 100
                 
                 comparison.append({
                     "month_name": calendar.month_abbr[m], 
@@ -1006,16 +1056,49 @@ def exp_report():
                 "summary": {"total": total_year}
             }
 
-        # (Add other types similarly...)
-        
-        # Fallback for empty structures to prevent template crashes
-        if 'summary' not in report_data:
-            report_data['summary'] = {'total': 0}
+        # --- TYPE 6: ANNUAL SUMMARY (FIXED) ---
+        elif report_type == "annual_summary":
+            # Using Header table for Annual Overview to ensure accuracy
+            cursor.execute("""
+                SELECT 
+                    MONTH(e.expense_date) as month_num, 
+                    SUM(e.total_amount) as total
+                FROM expenses e
+                WHERE YEAR(e.expense_date) = %s
+                GROUP BY MONTH(e.expense_date)
+            """, (year,))
+            
+            rows = cursor.fetchall()
+            # Map month number to total
+            results = {row['month_num']: float(row['total']) for row in rows}
+            
+            annual_list = []
+            grand_total = 0.0
+            
+            # Ensure all 12 months are present in the list
+            for m in range(1, 13):
+                val = results.get(m, 0.0)
+                grand_total += val
+                annual_list.append({
+                    "month_name": calendar.month_name[m],
+                    "total": val
+                })
+                
+            report_data = {
+                "year": year,
+                "annual": annual_list,
+                "grand_total": grand_total,
+                "summary": {"total": grand_total}
+            }
 
     except Exception as e:
         app.logger.error(f"Report Error: {e}")
         flash(f"Error generating report: {e}", "danger")
-        report_data = {"summary": {"total": 0}, "log": [], "top_items": []}
+        # Prevent template crash
+        report_data = {
+            "summary": {"total": 0, "count": 0}, 
+            "log": [], "top_items": [], "annual": [], "by_subcategory": []
+        }
 
     cursor.close()
     
@@ -8017,5 +8100,6 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
