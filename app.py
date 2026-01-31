@@ -3983,68 +3983,6 @@ def export_sales_pdf():
     return send_file(filename, as_attachment=True)
 
 
-@app.route("/monthly_sales_dashboard")
-def monthly_sales_dashboard():
-    if "loggedin" not in session:
-        return redirect(url_for("login"))
-
-    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-
-    selected_year = request.args.get("year")
-    start_month = request.args.get("start_month")
-    end_month = request.args.get("end_month")
-
-    cursor.execute("SELECT DISTINCT YEAR(sale_date) AS year FROM sales ORDER BY year DESC")
-    year_list = [row["year"] for row in cursor.fetchall()]
-
-    if not selected_year:
-        selected_year = year_list[0]
-
-    params = [selected_year]
-    month_filter = ""
-
-    if start_month and end_month:
-        month_filter = " AND MONTH(sale_date) BETWEEN %s AND %s "
-        params.extend([start_month, end_month])
-
-    cursor.execute(f"""
-        SELECT 
-            DATE_FORMAT(sale_date, '%Y-%m') AS month,
-            SUM(quantity) AS total_qty,
-            SUM(quantity * price) AS total_revenue
-        FROM sales
-        WHERE YEAR(sale_date) = %s
-        {month_filter}
-        GROUP BY DATE_FORMAT(sale_date, '%Y-%m')
-        ORDER BY month ASC
-    """, params)
-    monthly_data = cursor.fetchall()
-
-    cursor.execute(f"""
-        SELECT 
-            pc.category_name,
-            SUM(s.quantity) AS total_qty
-        FROM sales s
-        LEFT JOIN products p ON p.id = s.product_id
-        LEFT JOIN product_categories pc ON pc.id = p.category_id
-        WHERE YEAR(s.sale_date) = %s
-        {month_filter}
-        GROUP BY pc.category_name
-        ORDER BY total_qty DESC
-    """, params)
-    category_data = cursor.fetchall()
-
-    cursor.close()
-
-    return render_template(
-        "monthly_sales_dashboard.html",
-        monthly_data=monthly_data,
-        category_data=category_data,
-        year_list=year_list,
-        selected_year=int(selected_year),
-        start_month=start_month,
-        end_month=end_month
-    )
 
 
 # ============================
@@ -8334,6 +8272,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
