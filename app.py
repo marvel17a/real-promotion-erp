@@ -7868,6 +7868,9 @@ def _fetch_transaction_data(filters):
 # ==========================================
 # TRANSACTION REPORT PDF CLASS (Time & Formatting Fixed)
 # ==========================================
+# ==========================================
+# TRANSACTION REPORT PDF CLASS (Time & Formatting Fixed)
+# ==========================================
 class TransactionPDF(FPDF):
     def __init__(self):
         super().__init__()
@@ -7987,36 +7990,36 @@ class TransactionPDF(FPDF):
         
         for idx, t in enumerate(transactions):
             # 1. Date Part
-            if t['transaction_date']:
+            d_part = "-"
+            if t.get('transaction_date'):
                  d_part = t['transaction_date'].strftime('%d-%m-%Y')
-            else:
-                 d_part = "-"
                  
-            # 2. Time Part (Simplified Logic)
-            # Assuming created_at might be None, timedelta, datetime, or string
-            raw_time = t.get('created_at')
+            # 2. Time Part (Robust Parsing)
             t_part = ""
+            raw_time = t.get('created_at')
             
             if raw_time:
-                # If it's a timedelta (common in MySQL for TIME type), add to dummy date
-                if isinstance(raw_time, timedelta):
-                    raw_time = (datetime.min + raw_time).time()
+                # Case A: Already a datetime object
+                if isinstance(raw_time, datetime):
+                    t_part = raw_time.strftime('%I:%M %p')
                 
-                # If it's a string, try to parse
-                if isinstance(raw_time, str):
+                # Case B: Timedelta (Duration from midnight) - Common in MySQL TIME columns
+                elif isinstance(raw_time, timedelta):
+                    # Add duration to a dummy date to format it
+                    dummy_dt = datetime.min + raw_time
+                    t_part = dummy_dt.strftime('%I:%M %p')
+                
+                # Case C: String format
+                elif isinstance(raw_time, str):
                     try:
-                        raw_time = datetime.strptime(raw_time, '%H:%M:%S').time()
+                        # Try parsing full datetime string
+                        t_part = datetime.strptime(raw_time, '%Y-%m-%d %H:%M:%S').strftime('%I:%M %p')
                     except:
                         try:
-                            raw_time = datetime.strptime(raw_time, '%Y-%m-%d %H:%M:%S').time()
+                            # Try parsing just time string "14:30:00"
+                            t_part = datetime.strptime(raw_time, '%H:%M:%S').strftime('%I:%M %p')
                         except:
-                            t_part = str(raw_time) # Fallback to raw string
-                
-                # If we have a time object (from datetime or parsed)
-                if hasattr(raw_time, 'strftime'):
-                     t_part = raw_time.strftime('%I:%M %p')
-                elif isinstance(raw_time, datetime):
-                     t_part = raw_time.strftime('%I:%M %p')
+                            t_part = "" # Could not parse
 
             # Combine Date & Time with a separator for visual clarity
             dt_str = f"{d_part}  {t_part}" if t_part else d_part
@@ -8094,7 +8097,6 @@ class TransactionPDF(FPDF):
         self.set_text_color(0, 0, 0)
         self.cell(60, 5, "Authorized Signature", 0, 1, 'C')
         self.ln(10)
-
 
 # =========================================================
 #  TRANSACTION REPORT VIEW ROUTE
@@ -8254,6 +8256,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
