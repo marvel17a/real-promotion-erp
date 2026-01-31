@@ -877,6 +877,72 @@ def category_man():
 
 
 
+
+@app.route('/delete_category/<int:category_id>', methods=['POST'])
+def delete_category(category_id):
+    if 'loggedin' not in session: return redirect(url_for('login'))
+    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    
+    try:
+        # 1. Check if used in Expense Items
+        cur.execute("SELECT COUNT(*) as cnt FROM expense_items WHERE category_id = %s", (category_id,))
+        if cur.fetchone()['cnt'] > 0:
+            flash("Cannot delete: Expenses exist under this Main Category.", "danger")
+            return redirect(url_for('category_man'))
+
+        # 2. Check if has Sub-categories
+        cur.execute("SELECT COUNT(*) as cnt FROM expensesubcategories WHERE category_id = %s", (category_id,))
+        if cur.fetchone()['cnt'] > 0:
+             flash("Cannot delete: This category contains sub-categories. Delete them first.", "warning")
+             return redirect(url_for('category_man'))
+
+        # 3. Safe to delete
+        cur.execute("DELETE FROM expensecategories WHERE category_id = %s", (category_id,))
+        mysql.connection.commit()
+        flash("Main Category deleted successfully.", "success")
+        
+    except Exception as e:
+        mysql.connection.rollback()
+        flash(f"Error: {e}", "danger")
+    finally:
+        cur.close()
+        
+    return redirect(url_for('category_man'))
+
+
+@app.route('/delete_subcategory/<int:subcategory_id>', methods=['POST'])
+def delete_subcategory(subcategory_id):
+    if 'loggedin' not in session: return redirect(url_for('login'))
+    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    
+    try:
+        # 1. Check if used in Expense Items (New System)
+        cur.execute("SELECT COUNT(*) as cnt FROM expense_items WHERE subcategory_id = %s", (subcategory_id,))
+        if cur.fetchone()['cnt'] > 0:
+            flash("Cannot delete: Expenses exist for this Item.", "danger")
+            return redirect(url_for('category_man'))
+            
+        # 2. Check usage in Expenses (Legacy Check)
+        cur.execute("SELECT COUNT(*) as cnt FROM expenses WHERE subcategory_id = %s", (subcategory_id,))
+        if cur.fetchone()['cnt'] > 0:
+            flash("Cannot delete: Linked to a voucher in expenses table.", "danger")
+            return redirect(url_for('category_man'))
+
+        # 3. Safe to delete
+        cur.execute("DELETE FROM expensesubcategories WHERE subcategory_id = %s", (subcategory_id,))
+        mysql.connection.commit()
+        flash("Sub-Category deleted successfully.", "success")
+        
+    except Exception as e:
+        mysql.connection.rollback()
+        flash(f"Error: {e}", "danger")
+    finally:
+        cur.close()
+        
+    return redirect(url_for('category_man'))
+
+
+
 @app.route('/view_expense/<int:expense_id>')
 def view_expense(expense_id):
     if 'loggedin' not in session: return redirect(url_for('login'))
@@ -3032,7 +3098,7 @@ class PurchasePDFGenerator(FPDF):
         
         # Right: PO Details
         self.set_xy(120, y)
-        self.set_font('Arial', 'B', 11)
+        self.set_font('Arial', 'B', 11)  
         self.cell(0, 6, "Order Details:", 0, 1)
         
         # Use helper or string conversion for date
@@ -7102,7 +7168,7 @@ def daily_sales():
                            total_units=total_units,
                            total_transactions=total_transactions)
 
-# REPLACE your existing 'employee_performance' route in app.py
+# REPLACE your existing 'employee_performance' route in app.py with this updated version:
 
 @app.route('/reports/employee_performance', methods=['GET', 'POST'])
 def employee_performance():
@@ -7145,35 +7211,42 @@ def employee_performance():
     try:
         db_cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
         
-        # UNIFIED QUERY: Evening Sales + Office Sales
-        # Logic: Group by Name. Pick the Image if available (MAX will pick non-null string if present).
+        # UNIFIED QUERY: Evening Sales + Office Sales (grouped by employee)
+        # Logic: 
+        # 1. Evening Sales: Net Revenue = (total_amount - discount)
+        # 2. Office Sales: Net Revenue = final_amount (which is sub_total - discount)
+        # We group by employee name to merge field and counter sales if names match.
+        
         sql = """
             SELECT 
-                COALESCE(e_name, 'Office/Admin') AS employee_name,
-                MAX(e_image) as e_image,
-                SUM(qty) AS total_units_sold,
-                SUM(line_total) AS total_sales_amount
+                COALESCE(emp_name_final, 'Office/Admin') AS employee_name,
+                MAX(emp_image_final) as employee_image,
+                SUM(net_rev) as total_sales_amount,
+                SUM(units) as total_units_sold
             FROM (
-                -- Field Sales
+                -- Field Sales (Evening Settle)
                 SELECT 
-                    e.name as e_name, e.image as e_image,
-                    ei.sold_qty as qty, (ei.sold_qty * ei.unit_price) as line_total
-                FROM evening_item ei
-                JOIN evening_settle es ON ei.settle_id = es.id
+                    e.name as emp_name_final,
+                    e.image as emp_image_final,
+                    (es.total_amount - es.discount) as net_rev,
+                    (SELECT COALESCE(SUM(sold_qty),0) FROM evening_item WHERE settle_id=es.id) as units
+                FROM evening_settle es
                 JOIN employees e ON es.employee_id = e.id
                 WHERE es.date BETWEEN %s AND %s AND es.status = 'final'
                 
                 UNION ALL
                 
-                -- Counter Sales
+                -- Counter Sales (Office Sales)
+                -- Attempt to link sales_person name to employee table for image, else NULL
                 SELECT 
-                    os.sales_person as e_name, NULL as e_image,
-                    osi.qty, osi.total_price as line_total
-                FROM office_sale_items osi
-                JOIN office_sales os ON osi.sale_id = os.id
+                    os.sales_person as emp_name_final,
+                    (SELECT image FROM employees WHERE name = os.sales_person LIMIT 1) as emp_image_final,
+                    os.final_amount as net_rev,
+                    (SELECT COALESCE(SUM(qty),0) FROM office_sale_items WHERE sale_id=os.id) as units
+                FROM office_sales os
                 WHERE os.sale_date BETWEEN %s AND %s
-            ) as sales_data
-            GROUP BY e_name
+            ) as combined_data
+            GROUP BY emp_name_final
             ORDER BY total_sales_amount DESC
         """
         
@@ -7184,8 +7257,8 @@ def employee_performance():
             rev = float(r['total_sales_amount'] or 0)
             qty = int(r['total_units_sold'] or 0)
             
-            # Use resolve_img to handle None/Null images correctly
-            img_path = resolve_img(r['e_image'])
+            # Use helper to resolve image path (Cloudinary or Local)
+            img_path = resolve_img(r['employee_image'])
             
             performance_data.append({
                 'employee_name': r['employee_name'],
@@ -8319,6 +8392,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
