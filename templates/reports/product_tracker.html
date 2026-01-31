@@ -1,0 +1,304 @@
+{% extends 'admin_master.html' %}
+{% block page_content %}
+<style>
+    :root {
+        --primary: #4f46e5;
+        --secondary: #0ea5e9;
+        --success: #10b981;
+        --warning: #f59e0b;
+        --danger: #ef4444;
+        --dark: #0f172a;
+    }
+    
+    body { background-color: #f8fafc; font-family: 'Poppins', sans-serif; }
+
+    /* Header Styling */
+    .page-header {
+        background: white;
+        padding: 20px 30px;
+        border-radius: 20px;
+        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+        margin-bottom: 30px;
+        border: 1px solid #e2e8f0;
+    }
+
+    /* Product Card Styling */
+    .prod-card {
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 20px;
+        overflow: hidden;
+        transition: transform 0.3s, box-shadow 0.3s;
+        height: 100%;
+    }
+    .prod-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 30px rgba(0,0,0,0.08);
+    }
+
+    .prod-img-box {
+        height: 180px;
+        background: #f1f5f9;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+    }
+    .prod-img {
+        max-height: 80%;
+        max-width: 80%;
+        object-fit: contain;
+        filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));
+    }
+    
+    .stock-badge {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        background: rgba(255,255,255,0.9);
+        padding: 5px 12px;
+        border-radius: 30px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: var(--dark);
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+
+    .card-body { padding: 20px; }
+
+    /* Stat Grid inside Card */
+    .stat-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin: 15px 0;
+    }
+    .mini-stat {
+        background: #f8fafc;
+        padding: 10px;
+        border-radius: 12px;
+        text-align: center;
+    }
+    .mini-stat small { font-size: 0.65rem; text-transform: uppercase; color: #64748b; font-weight: 700; }
+    .mini-stat div { font-weight: 800; font-size: 1.1rem; color: var(--dark); }
+
+    /* Employee Holder List */
+    .holder-list {
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.3s ease-out;
+        background: #f8fafc;
+        border-radius: 12px;
+    }
+    .holder-list.open {
+        max-height: 300px; /* Limit height and scroll if needed */
+        overflow-y: auto;
+        margin-top: 15px;
+        padding: 5px;
+        border: 1px solid #e2e8f0;
+    }
+    
+    .holder-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px;
+        background: white;
+        border-radius: 10px;
+        margin-bottom: 5px;
+        border: 1px solid #f1f5f9;
+    }
+    .emp-avatar {
+        width: 35px; height: 35px; border-radius: 50%; object-fit: cover; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .btn-toggle {
+        width: 100%;
+        background: var(--primary);
+        color: white;
+        border: none;
+        padding: 10px;
+        border-radius: 12px;
+        font-weight: 600;
+        font-size: 0.85rem;
+        transition: 0.2s;
+    }
+    .btn-toggle:hover { background: #4338ca; }
+    .btn-toggle.active { background: var(--dark); }
+
+</style>
+
+<div class="container-fluid py-4 fade-in-up">
+    
+    <!-- Top Bar -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-center mb-4 gap-3">
+        <div>
+            <h3 class="fw-bold text-dark m-0"><i class="fas fa-boxes-stacked me-2 text-primary"></i>Live Inventory Tracker</h3>
+            <p class="text-muted small m-0">Real-time tracking of warehouse vs field stock.</p>
+        </div>
+        <div class="d-flex gap-3">
+            <div class="input-group shadow-sm" style="max-width: 300px;">
+                <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
+                <input type="text" id="searchBox" class="form-control border-start-0" placeholder="Search product...">
+            </div>
+            <a href="{{ url_for('inventory_master') }}" class="btn btn-light border shadow-sm rounded-pill fw-bold">
+                <i class="fas fa-arrow-left me-2"></i> Master
+            </a>
+        </div>
+    </div>
+
+    <!-- Stats Summary Row -->
+    <div class="row g-4 mb-5">
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm p-3 rounded-4 bg-white h-100 border-start border-4 border-primary">
+                <div class="d-flex align-items-center">
+                    <div class="p-3 bg-primary bg-opacity-10 rounded-circle text-primary me-3"><i class="fas fa-warehouse fa-lg"></i></div>
+                    <div>
+                        <p class="text-muted small fw-bold text-uppercase mb-0">Total Warehouse Stock</p>
+                        <h3 class="fw-bold m-0 text-dark" id="totalWarehouse">0</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm p-3 rounded-4 bg-white h-100 border-start border-4 border-warning">
+                <div class="d-flex align-items-center">
+                    <div class="p-3 bg-warning bg-opacity-10 rounded-circle text-warning me-3"><i class="fas fa-truck-fast fa-lg"></i></div>
+                    <div>
+                        <p class="text-muted small fw-bold text-uppercase mb-0">Total Field Stock (Employees)</p>
+                        <h3 class="fw-bold m-0 text-dark" id="totalField">0</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm p-3 rounded-4 bg-white h-100 border-start border-4 border-success">
+                <div class="d-flex align-items-center">
+                    <div class="p-3 bg-success bg-opacity-10 rounded-circle text-success me-3"><i class="fas fa-chart-line fa-lg"></i></div>
+                    <div>
+                        <p class="text-muted small fw-bold text-uppercase mb-0">Total Lifetime Sold</p>
+                        <h3 class="fw-bold m-0 text-dark" id="totalSold">0</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Products Grid -->
+    <div class="row g-4" id="productsGrid">
+        {% for p in products %}
+        <div class="col-md-6 col-lg-4 col-xl-3 product-item" data-name="{{ p.info.name }}">
+            <div class="prod-card shadow-sm">
+                <!-- Image & Stock Badge -->
+                <div class="prod-img-box">
+                    <img src="{{ p.image }}" class="prod-img" alt="{{ p.info.name }}">
+                    <div class="stock-badge">
+                        <i class="fas fa-warehouse text-primary me-1"></i> {{ p.warehouse_qty }}
+                    </div>
+                </div>
+
+                <div class="card-body">
+                    <h6 class="fw-bold text-dark text-truncate" title="{{ p.info.name }}">{{ p.info.name }}</h6>
+                    <p class="text-muted small mb-3">Rate: ₹{{ "{:,.2f}".format(p.info.price) }}</p>
+
+                    <!-- Stats Grid -->
+                    <div class="stat-grid">
+                        <div class="mini-stat">
+                            <small class="text-warning">On Field</small>
+                            <div class="field-qty-counter">{{ p.field_total }}</div>
+                        </div>
+                        <div class="mini-stat">
+                            <small class="text-success">Sold</small>
+                            <div class="sold-qty-counter">{{ p.total_sold }}</div>
+                        </div>
+                    </div>
+
+                    <!-- Action Button -->
+                    {% if p.holders|length > 0 %}
+                    <button class="btn-toggle" onclick="toggleHolders(this)">
+                        <i class="fas fa-users me-2"></i> View Holders ({{ p.holders|length }})
+                    </button>
+                    <!-- Expandable List -->
+                    <div class="holder-list custom-scrollbar">
+                        {% for h in p.holders %}
+                        <div class="holder-item">
+                            <div class="d-flex align-items-center">
+                                <img src="{{ h.image }}" class="emp-avatar me-2">
+                                <span class="small fw-bold text-dark">{{ h.name }}</span>
+                            </div>
+                            <span class="badge bg-dark rounded-pill">{{ h.qty }} pcs</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <button class="btn-toggle bg-light text-muted" disabled style="cursor: default;">
+                        <i class="fas fa-user-slash me-2"></i> No Stock on Field
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Empty State -->
+    <div id="noResults" class="text-center py-5 d-none">
+        <img src="https://cdn-icons-png.flaticon.com/512/7486/7486747.png" width="80" class="opacity-25 mb-3">
+        <h5 class="text-muted">No products found.</h5>
+    </div>
+
+</div>
+
+<script>
+    // 1. Toggle Accordion
+    function toggleHolders(btn) {
+        const list = btn.nextElementSibling;
+        btn.classList.toggle('active');
+        
+        if (list.style.maxHeight && list.style.maxHeight !== '0px') {
+            list.style.maxHeight = '0px';
+            list.classList.remove('open');
+        } else {
+            list.style.maxHeight = list.scrollHeight + "px";
+            list.classList.add('open');
+        }
+    }
+
+    // 2. Search & Stats Logic
+    document.addEventListener('DOMContentLoaded', () => {
+        const searchBox = document.getElementById('searchBox');
+        const items = document.querySelectorAll('.product-item');
+        
+        // Calculate Totals for Header
+        let wTotal = 0, fTotal = 0, sTotal = 0;
+        
+        {% for p in products %}
+            wTotal += {{ p.warehouse_qty }};
+            fTotal += {{ p.field_total }};
+            sTotal += {{ p.total_sold }};
+        {% endfor %}
+
+        document.getElementById('totalWarehouse').innerText = wTotal.toLocaleString();
+        document.getElementById('totalField').innerText = fTotal.toLocaleString();
+        document.getElementById('totalSold').innerText = sTotal.toLocaleString();
+
+        // Search Filter
+        searchBox.addEventListener('keyup', (e) => {
+            const term = e.target.value.toLowerCase();
+            let hasVisible = false;
+
+            items.forEach(item => {
+                const name = item.getAttribute('data-name').toLowerCase();
+                if(name.includes(term)) {
+                    item.style.display = '';
+                    hasVisible = true;
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+
+            document.getElementById('noResults').classList.toggle('d-none', hasVisible);
+        });
+    });
+</script>
+{% endblock %}
