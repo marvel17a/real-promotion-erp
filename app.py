@@ -7866,10 +7866,7 @@ def _fetch_transaction_data(filters):
 
 
 # ==========================================
-# TRANSACTION REPORT PDF CLASS (Time & Formatting Fixed)
-# ==========================================
-# ==========================================
-# TRANSACTION REPORT PDF CLASS (Time & Formatting Fixed)
+# TRANSACTION REPORT PDF CLASS (Final Layout Fix)
 # ==========================================
 class TransactionPDF(FPDF):
     def __init__(self):
@@ -7953,12 +7950,11 @@ class TransactionPDF(FPDF):
                 self.set_font('Arial', 'B', 10)
                 self.cell(60, 6, str(employee_details['position_name']), 0, 1)
             
-            # --- Generated Time ---
+            # Generated Time
             self.ln(6) 
             self.set_font('Arial', '', 9)
             self.cell(25, 6, "Generated:", 0, 0)
             self.set_font('Arial', 'I', 9)
-            # IST Time
             ist_now = datetime.utcnow() + timedelta(hours=5, minutes=30)
             self.cell(60, 6, ist_now.strftime('%d-%b-%Y %I:%M %p'), 0, 1)
 
@@ -7967,13 +7963,14 @@ class TransactionPDF(FPDF):
     def add_table(self, transactions):
         # Header
         cols = ["#", "Date/Time", "Employee", "Description", "Credit", "Debit"]
-        widths = [10, 35, 40, 50, 27, 28]
+        # Widths: 10, 40, 40, 45, 27, 28 = 190
+        widths = [10, 40, 40, 45, 27, 28]
         
         self.set_font('Arial', 'B', 9)
         self.set_fill_color(26, 35, 126) 
         self.set_text_color(255, 255, 255)
-        self.set_draw_color(0, 0, 0)
-        self.set_line_width(0.3)
+        self.set_draw_color(200, 200, 200) # Light grey grid lines
+        self.set_line_width(0.1)
         
         for i, col in enumerate(cols):
             self.cell(widths[i], 8, col, 1, 0, 'C', True)
@@ -7983,46 +7980,35 @@ class TransactionPDF(FPDF):
         self.set_font('Arial', '', 8)
         self.set_text_color(0, 0, 0)
         fill = False
-        self.set_fill_color(245, 245, 245)
         
         total_credit = 0
         total_debit = 0
         
         for idx, t in enumerate(transactions):
-            # 1. Date Part
-            d_part = "-"
-            if t.get('transaction_date'):
+            # Row Background Logic (Zebra Striping)
+            if fill:
+                self.set_fill_color(245, 245, 245)
+            else:
+                self.set_fill_color(255, 255, 255)
+
+            # 1. Date/Time Parsing
+            if t['transaction_date']:
                  d_part = t['transaction_date'].strftime('%d-%m-%Y')
+            else: d_part = "-"
                  
-            # 2. Time Part (Robust Parsing)
             t_part = ""
             raw_time = t.get('created_at')
-            
             if raw_time:
-                # Case A: Already a datetime object
                 if isinstance(raw_time, datetime):
                     t_part = raw_time.strftime('%I:%M %p')
-                
-                # Case B: Timedelta (Duration from midnight) - Common in MySQL TIME columns
                 elif isinstance(raw_time, timedelta):
-                    # Add duration to a dummy date to format it
-                    dummy_dt = datetime.min + raw_time
-                    t_part = dummy_dt.strftime('%I:%M %p')
-                
-                # Case C: String format
-                elif isinstance(raw_time, str):
-                    try:
-                        # Try parsing full datetime string
-                        t_part = datetime.strptime(raw_time, '%Y-%m-%d %H:%M:%S').strftime('%I:%M %p')
-                    except:
-                        try:
-                            # Try parsing just time string "14:30:00"
-                            t_part = datetime.strptime(raw_time, '%H:%M:%S').strftime('%I:%M %p')
-                        except:
-                            t_part = "" # Could not parse
-
-            # Combine Date & Time with a separator for visual clarity
-            dt_str = f"{d_part}  {t_part}" if t_part else d_part
+                    t_part = (datetime.min + raw_time).strftime('%I:%M %p')
+                else:
+                    try: t_part = datetime.strptime(str(raw_time), '%Y-%m-%d %H:%M:%S').strftime('%I:%M %p')
+                    except: pass
+            
+            # Combine Date & Time
+            dt_str = f"{d_part}\n{t_part}" if t_part else d_part
 
             # Financials
             credit_amt = "-"
@@ -8036,13 +8022,18 @@ class TransactionPDF(FPDF):
                 total_debit += val
                 debit_amt = f"{val:.2f}"
             
-            # Text Truncation
+            # Safe Strings
             desc_text = str(t['description'] or '')[:35]
             emp_name = str(t['employee_name'])[:20] 
+
+            # Calculate Height needed (Date might be 2 lines)
+            # Standard cell height is 6, but date/time needs 10 to look good
+            row_h = 10 
 
             # Check Page Break
             if self.get_y() > 250:
                 self.add_page()
+                # Reprint Header
                 self.set_font('Arial', 'B', 9)
                 self.set_fill_color(26, 35, 126) 
                 self.set_text_color(255, 255, 255)
@@ -8051,20 +8042,31 @@ class TransactionPDF(FPDF):
                 self.ln()
                 self.set_font('Arial', '', 8)
                 self.set_text_color(0, 0, 0)
-
-            # Print Row - Fixed Height 8 to reduce spacing
-            self.cell(widths[0], 8, str(idx+1), 1, 0, 'C', fill)
-            self.cell(widths[1], 8, dt_str, 1, 0, 'C', fill)
-            self.cell(widths[2], 8, emp_name, 1, 0, 'L', fill)
-            self.cell(widths[3], 8, desc_text, 1, 0, 'L', fill)
-            self.cell(widths[4], 8, credit_amt, 1, 0, 'R', fill)
-            self.cell(widths[5], 8, debit_amt, 1, 1, 'R', fill)
+            
+            # --- PRINT ROW CELLS ---
+            # Save X and Y
+            x_start = self.get_x()
+            y_start = self.get_y()
+            
+            # Draw Cells with uniform height and fill
+            self.cell(widths[0], row_h, str(idx+1), 1, 0, 'C', True)
+            
+            # Date/Time is Multiline effectively, but let's just use regular cell with newline hack
+            # FPDF cell doesn't render \n unless MultiCell used. 
+            # Switching to compact format "DD-MM-YY HH:MM" to keep single line & fix spacing
+            compact_dt = f"{d_part} {t_part}" if t_part else d_part
+            self.cell(widths[1], row_h, compact_dt, 1, 0, 'C', True)
+            
+            self.cell(widths[2], row_h, emp_name, 1, 0, 'L', True)
+            self.cell(widths[3], row_h, desc_text, 1, 0, 'L', True)
+            self.cell(widths[4], row_h, credit_amt, 1, 0, 'R', True)
+            self.cell(widths[5], row_h, debit_amt, 1, 1, 'R', True) # End of line
             
             fill = not fill
-            self.ln() # Ensure simple line break
             
         # Totals Row
         self.set_font('Arial', 'B', 9)
+        self.set_fill_color(230, 230, 230)
         self.cell(sum(widths[:4]), 8, "TOTALS", 1, 0, 'R', True)
         self.cell(widths[4], 8, f"{total_credit:.2f}", 1, 0, 'R', True)
         self.cell(widths[5], 8, f"{total_debit:.2f}", 1, 1, 'R', True)
@@ -8089,7 +8091,6 @@ class TransactionPDF(FPDF):
         
         sig_path = os.path.join(app.root_path, 'static', 'img', 'signature.png')
         if os.path.exists(sig_path):
-            # Right Side Signature
             self.image(sig_path, x=150, y=y_pos, w=40)
             
         self.set_xy(140, y_pos + 25)
@@ -8097,6 +8098,100 @@ class TransactionPDF(FPDF):
         self.set_text_color(0, 0, 0)
         self.cell(60, 5, "Authorized Signature", 0, 1, 'C')
         self.ln(10)
+
+# =========================================================
+#  DOWNLOAD TRANSACTION REPORT ROUTE
+# =========================================================
+@app.route('/download_transaction_report')
+def download_transaction_report():
+    if "loggedin" not in session: return redirect(url_for("login"))
+    
+    filters = {
+        'period': request.args.get('period', 'this_month'),
+        'employee_id': request.args.get('employee_id', 'all'),
+        'start_date': request.args.get('start_date', ''),
+        'end_date': request.args.get('end_date', '')
+    }
+    
+    report_format = request.args.get('format', 'pdf')
+    transactions = _fetch_transaction_data(filters)
+    
+    emp_details = None
+    if filters['employee_id'] != 'all':
+        cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        cur.execute("""
+            SELECT e.name, e.phone, p.position_name 
+            FROM employees e 
+            LEFT JOIN employee_positions p ON e.position_id = p.id 
+            WHERE e.id = %s
+        """, (filters['employee_id'],))
+        emp_details = cur.fetchone()
+        cur.close()
+    
+    if report_format == 'pdf':
+        try:
+            pdf = TransactionPDF()
+            pdf.alias_nb_pages()
+            pdf.add_page()
+            pdf.add_filters_info(filters, emp_details)
+            pdf.add_table(transactions)
+            
+            pdf_string = pdf.output(dest='S').encode('latin-1')
+            buffer = io.BytesIO(pdf_string)
+            buffer.seek(0)
+            
+            filename = f"Transaction_Report_{date.today()}.pdf"
+            if emp_details:
+                filename = f"{emp_details['name'].replace(' ', '_')}_Report.pdf"
+                
+            return send_file(buffer, as_attachment=True, download_name=filename, mimetype='application/pdf')
+            
+        except Exception as e:
+            app.logger.error(f"PDF Error: {e}")
+            flash(f"Error generating PDF: {e}", "danger")
+            return redirect(url_for('transaction_report'))
+
+    elif report_format == 'excel':
+        try:
+            wb = openpyxl.Workbook()
+            ws = wb.active
+            ws.title = "Transactions"
+            
+            headers = ['Date', 'Time', 'Employee', 'Description', 'Credit (Due)', 'Debit (Given)']
+            ws.append(headers)
+            for cell in ws[1]: cell.font = Font(bold=True)
+            
+            for t in transactions:
+                c_amt = float(t['amount']) if t['type'] == 'credit' else 0
+                d_amt = float(t['amount']) if t['type'] == 'debit' else 0
+                
+                t_str = ""
+                if t.get('created_at'):
+                    if isinstance(t['created_at'], datetime): t_str = t['created_at'].strftime('%I:%M %p')
+                    else: t_str = str(t['created_at'])
+
+                ws.append([
+                    t['transaction_date'].strftime('%Y-%m-%d'),
+                    t_str,
+                    t['employee_name'],
+                    t['description'],
+                    c_amt,
+                    d_amt
+                ])
+                
+            buffer = io.BytesIO()
+            wb.save(buffer)
+            buffer.seek(0)
+            
+            return send_file(buffer, as_attachment=True, download_name=f"Transaction_Report_{date.today()}.xlsx", 
+                             mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+                             
+        except Exception as e:
+             app.logger.error(f"Excel Error: {e}")
+             flash(f"Error generating Excel: {e}", "danger")
+             return redirect(url_for('transaction_report'))
+
+    return redirect(url_for('transaction_report'))
 
 # =========================================================
 #  TRANSACTION REPORT VIEW ROUTE
@@ -8140,103 +8235,6 @@ def transaction_report():
                            filters=filters)
 
 
-# =========================================================
-#  DOWNLOAD TRANSACTION REPORT ROUTE (Corrected Endpoint)
-# =========================================================
-@app.route('/download_transaction_report')
-def download_transaction_report():
-    if "loggedin" not in session: return redirect(url_for("login"))
-    
-    # Get filters from URL args
-    filters = {
-        'period': request.args.get('period', 'this_month'),
-        'employee_id': request.args.get('employee_id', 'all'),
-        'start_date': request.args.get('start_date', ''),
-        'end_date': request.args.get('end_date', '')
-    }
-    
-    report_format = request.args.get('format', 'pdf')
-    transactions = _fetch_transaction_data(filters)
-    
-    # Check if we need specific employee details for the PDF header
-    emp_details = None
-    if filters['employee_id'] != 'all':
-        cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-        # Fetch detailed info including position name
-        cur.execute("""
-            SELECT e.name, e.phone, p.position_name 
-            FROM employees e 
-            LEFT JOIN employee_positions p ON e.position_id = p.id 
-            WHERE e.id = %s
-        """, (filters['employee_id'],))
-        emp_details = cur.fetchone()
-        cur.close()
-    
-    if report_format == 'pdf':
-        try:
-            pdf = TransactionPDF()
-            pdf.alias_nb_pages()
-            pdf.add_page()
-            pdf.add_filters_info(filters, emp_details) # Pass employee details
-            pdf.add_table(transactions)
-            
-            pdf_string = pdf.output(dest='S').encode('latin-1')
-            buffer = io.BytesIO(pdf_string)
-            buffer.seek(0)
-            
-            filename = f"Transaction_Report_{date.today()}.pdf"
-            if emp_details:
-                filename = f"{emp_details['name'].replace(' ', '_')}_Report.pdf"
-                
-            return send_file(buffer, as_attachment=True, download_name=filename, mimetype='application/pdf')
-            
-        except Exception as e:
-            app.logger.error(f"PDF Error: {e}")
-            flash(f"Error generating PDF: {e}", "danger")
-            return redirect(url_for('transaction_report'))
-
-    elif report_format == 'excel':
-        try:
-            wb = openpyxl.Workbook()
-            ws = wb.active
-            ws.title = "Transactions"
-            
-            headers = ['Date', 'Time', 'Employee', 'Description', 'Credit (Due)', 'Debit (Given)']
-            ws.append(headers)
-            for cell in ws[1]: cell.font = Font(bold=True)
-            
-            for t in transactions:
-                c_amt = float(t['amount']) if t['type'] == 'credit' else 0
-                d_amt = float(t['amount']) if t['type'] == 'debit' else 0
-                
-                # Time handling for Excel
-                t_str = ""
-                if t.get('created_at'):
-                    if isinstance(t['created_at'], datetime): t_str = t['created_at'].strftime('%I:%M %p')
-                    else: t_str = str(t['created_at'])
-
-                ws.append([
-                    t['transaction_date'].strftime('%Y-%m-%d'),
-                    t_str,
-                    t['employee_name'],
-                    t['description'],
-                    c_amt,
-                    d_amt
-                ])
-                
-            buffer = io.BytesIO()
-            wb.save(buffer)
-            buffer.seek(0)
-            
-            return send_file(buffer, as_attachment=True, download_name=f"Transaction_Report_{date.today()}.xlsx", 
-                             mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-                             
-        except Exception as e:
-             app.logger.error(f"Excel Error: {e}")
-             flash(f"Error generating Excel: {e}", "danger")
-             return redirect(url_for('transaction_report'))
-
-    return redirect(url_for('transaction_report'))
 
 # ---------- CUSTOM JINJA FILTER: INR FORMAT ----------#
 @app.template_filter("inr")
@@ -8256,6 +8254,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
