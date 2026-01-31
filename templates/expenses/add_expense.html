@@ -237,11 +237,11 @@
                 <div class="card premium-card p-4 mb-4">
                     <div class="row g-4 mb-4">
                         <div class="col-12 col-md-6">
-                            <label class="form-label" text-dark>EXPENSE DATE</label>
+                            <label class="form-label text-dark">EXPENSE DATE</label>
                             <input type="text" name="expense_date" id="datePicker" class="form-control border-0 bg-light fw-bold" required>
                         </div>
                         <div class="col-12 col-md-6">
-                            <label class="form-label" text-dark>MAIN CATEGORY </label>
+                            <label class="form-label text-dark">MAIN CATEGORY </label>
                             <select name="main_category_id" id="mainCat" class="form-select border-0 bg-light fw-bold" onchange="initVoucher()" required>
                                 <option value="" disabled selected>Choose Category...</option>
                                 {% for cat in categories %}
@@ -288,7 +288,7 @@
                 <div class="row g-4">
                     <div class="col-12 col-md-6">
                         <div class="card premium-card p-4 h-100">
-                            <h6 class="fw-bold mb-3 small text-muted text-uppercase" text-dark> Supporting Document </h6>
+                            <h6 class="fw-bold mb-3 small text-muted text-uppercase text-dark"> Supporting Document </h6>
                             <div class="upload-zone shadow-sm" onclick="document.getElementById('fileInp').click()">
                                 <i class="fas fa-cloud-arrow-up fa-2x text-primary opacity-50 mb-2"></i>
                                 <p class="m-0 fw-bold small text-dark">Upload Bill Image</p>
@@ -498,6 +498,7 @@
     }
 </script>
 {% endblock %}
+
 
 
 
