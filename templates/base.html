@@ -11,214 +11,244 @@
     
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
     
-    <link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Outfit:wght@500;700;800&display=swap" rel="stylesheet" />
 
     <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}" />
 
     <style>
-        /* --- MODERN DASHBOARD OVERRIDES --- */
+        /* --- GLOBAL VARIABLES --- */
         :root {
-            --primary-color: #6366f1; /* Indigo */
-            --accent-color: #0ea5e9;  /* Sky Blue */
-            --bg-color: #f3f4f6;      /* Light Gray */
+            /* Trending Gradient for Header */
+            --header-bg: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); /* Indigo to Violet */
+            --footer-bg: #1e1b4b; /* Dark Indigo */
+            
+            /* Colors */
+            --text-nav: #ffffff;
+            --icon-color: #22d3ee; /* Bright Cyan (Eye Catchy) */
+            --bg-body: #f1f5f9;
             --card-bg: #ffffff;
-            --text-dark: #1e293b;
-            --nav-height: 70px;
+            --primary-btn: #4f46e5;
         }
 
         body {
-            font-family: 'Urbanist', sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-dark);
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-body);
             min-height: 100vh;
             display: flex;
             flex-direction: column;
             overflow-x: hidden;
         }
 
-        /* --- REDESIGNED NAVBAR --- */
-        /* Kept 'glass-effect' class name but changed style to Solid White + Shadow */
-        .glass-effect {
-            background: rgba(255, 255, 255, 0.95) !important;
-            backdrop-filter: blur(10px);
-            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
-            border-bottom: 1px solid rgba(0,0,0,0.05);
-            padding: 0.8rem 0;
-            height: var(--nav-height);
+        h1, h2, h3, h4, h5, h6, .navbar-brand {
+            font-family: 'Outfit', sans-serif;
         }
 
+        /* --- VIBRANT HEADER --- */
+        .navbar-custom {
+            background: var(--header-bg);
+            box-shadow: 0 4px 20px rgba(79, 70, 229, 0.25);
+            padding: 0.8rem 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        /* Brand Styling */
         .navbar-brand {
-            font-weight: 800;
-            letter-spacing: -0.5px;
-            color: #0f172a !important;
+            color: #fff !important;
+            font-weight: 800; /* Extra Bold */
+            letter-spacing: 0.5px;
+            font-size: 1.4rem;
+            text-transform: uppercase;
         }
 
         .small-tag {
-            background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            font-size: 0.7rem;
+            background: rgba(255,255,255,0.2);
+            color: #fff;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.65rem;
             font-weight: 700;
-            text-transform: uppercase;
             margin-left: 8px;
+            vertical-align: middle;
         }
 
-        /* Nav Links */
+        /* Nav Links - BOLD & COLORFUL ICONS */
         .nav-link {
-            color: #64748b !important;
-            font-weight: 600;
+            color: rgba(255, 255, 255, 0.9) !important;
+            font-weight: 700 !important; /* Requested Bold */
             font-size: 0.95rem;
-            padding: 0.5rem 1.2rem !important;
+            padding: 0.6rem 1.2rem !important;
             border-radius: 50px;
             transition: all 0.3s ease;
-        }
-
-        .nav-link:hover, .nav-link.active {
-            color: var(--primary-color) !important;
-            background: #e0e7ff;
+            display: flex;
+            align-items: center;
         }
 
         .nav-link i {
-            margin-right: 6px;
-            color: var(--primary-color);
+            color: var(--icon-color); /* Bright Cyan Icon */
+            font-size: 1.1rem;
+            margin-right: 8px;
+            filter: drop-shadow(0 0 5px rgba(34, 211, 238, 0.4)); /* Glow effect on icon */
+            transition: transform 0.3s ease;
         }
 
-        /* --- MAIN CONTENT (FULL WIDTH) --- */
-        /* This class replaced .container to remove empty side space */
-        .container-fluid-custom {
-            width: 100%;
-            padding-right: 2rem;
-            padding-left: 2rem;
-            margin-right: auto;
-            margin-left: auto;
-        }
-
-        /* Redefining .glass-card to be a Clean Dashboard Panel */
-        .glass-card {
-            background: var(--card-bg);
-            border-radius: 16px;
-            border: 1px solid #e2e8f0; /* Subtle border instead of glass */
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03); /* Soft shadow */
-            position: relative;
-            overflow: hidden;
-            width: 100%; /* Ensures it fills the container */
-        }
-
-        /* --- BUTTONS --- */
-        .btn-glass-primary {
-            background: var(--primary-color);
-            color: white;
-            border-radius: 8px;
-            padding: 8px 20px;
-            font-weight: 600;
-            box-shadow: 0 4px 14px 0 rgba(99, 102, 241, 0.39);
-            border: none;
-            transition: transform 0.2s;
-        }
-        
-        .btn-glass-primary:hover {
-            background: #4f46e5;
+        .nav-link:hover {
+            background: rgba(255, 255, 255, 0.15);
+            color: #fff !important;
             transform: translateY(-2px);
-            color: white;
         }
 
-        .theme-toggle {
-            background: #f1f5f9;
-            border: 1px solid #e2e8f0;
-            color: #64748b;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+        .nav-link:hover i {
+            transform: scale(1.2); /* Icon pops on hover */
+            color: #fff;
         }
 
-        /* --- FOOTER --- */
-        footer {
-            background: white;
-            border-top: 1px solid #e2e8f0;
-        }
-        
-        /* Dropdown Styling */
+        /* Dropdown Menu */
         .dropdown-menu {
             border: none;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
             border-radius: 12px;
-            padding: 10px;
+            margin-top: 10px !important;
+            overflow: hidden;
         }
         .dropdown-item {
-            border-radius: 8px;
-            padding: 8px 15px;
-            font-weight: 500;
+            font-weight: 600;
+            padding: 10px 20px;
+            color: #334155;
         }
         .dropdown-item:hover {
             background: #f1f5f9;
-            color: var(--primary-color);
+            color: var(--primary-btn);
         }
 
-        /* Background Shapes (Subtle Gradients now) */
-        .bg-shape {
+        /* --- FULL WIDTH CONTENT --- */
+        .container-fluid-custom {
+            width: 100%;
+            padding-left: 2%;
+            padding-right: 2%;
+        }
+
+        .glass-card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            border: 1px solid #e2e8f0;
+            width: 100%;
+            position: relative;
+            z-index: 2;
+        }
+
+        /* --- BUTTONS --- */
+        .btn-header-action {
+            background: #fff;
+            color: #4f46e5;
+            font-weight: 700;
+            border: none;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        .btn-header-action:hover {
+            background: #f8fafc;
+            color: #4338ca;
+            transform: translateY(-2px);
+        }
+
+        /* --- FOOTER (Eye Catchy Dark) --- */
+        footer {
+            background: var(--footer-bg);
+            color: #fff;
+            padding: 2rem 0;
+            margin-top: auto;
+            border-top: 4px solid var(--icon-color); /* Bright top border */
+        }
+        
+        .footer-link {
+            color: rgba(255,255,255,0.7);
+            text-decoration: none;
+            transition: 0.3s;
+        }
+        .footer-link:hover {
+            color: var(--icon-color);
+        }
+
+        .social-circle a {
+            width: 38px;
+            height: 38px;
+            background: rgba(255,255,255,0.1);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            color: #fff;
+            margin: 0 5px;
+            transition: 0.3s;
+        }
+        .social-circle a:hover {
+            background: var(--icon-color);
+            color: #000;
+            transform: rotate(360deg);
+        }
+
+        /* --- BACKGROUND DECORATION --- */
+        .bg-decoration {
             position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 300px;
+            background: linear-gradient(180deg, #e0e7ff 0%, rgba(241,245,249,0) 100%);
             z-index: -1;
-            filter: blur(100px);
-            opacity: 0.4;
         }
-        .shape-1 { top: -10%; left: -10%; width: 50vw; height: 50vw; background: #c7d2fe; border-radius: 50%; }
-        .shape-2 { bottom: -10%; right: -10%; width: 40vw; height: 40vw; background: #bae6fd; border-radius: 50%; }
-        .shape-3 { display: none; } /* Simplified */
-
-        /* Mobile Responsive */
-        @media (max-width: 991px) {
-            .container-fluid-custom { padding: 0 1rem; }
-            .glass-card { padding: 1.5rem !important; }
+        
+        @media(max-width: 991px) {
             .navbar-collapse {
-                background: white;
+                background: #4f46e5; /* Solid color for mobile menu */
                 padding: 1rem;
-                border-radius: 0 0 16px 16px;
-                border-top: 1px solid #eee;
-                box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+                border-radius: 0 0 15px 15px;
             }
         }
     </style>
 </head>
 <body>
 
-    <div class="bg-shape shape-1"></div>
-    <div class="bg-shape shape-2"></div>
+    <div class="bg-decoration"></div>
 
-    <nav class="navbar navbar-expand-lg fixed-top glass-effect" id="mainNavbar">
+    <nav class="navbar navbar-expand-lg fixed-top navbar-custom" id="mainNavbar">
         <div class="container-fluid px-4">
             
             <a class="navbar-brand d-flex align-items-center" href="/index">
-                <div class="brand-icon-wrapper me-2">
-                    <img src="{{ url_for('static', filename='uploads/logo-removebg-preview.png') }}" alt="RP" height="38">
+                <div class="brand-icon-wrapper me-2 bg-white rounded-circle p-1 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                    <img src="{{ url_for('static', filename='uploads/logo-removebg-preview.png') }}" alt="RP" style="height: 28px; width: auto;">
                 </div>
-                <div class="d-flex align-items-baseline">
-                    <span class="fw-bold">REAL PROMOTION</span>
+                <div>
+                    REAL PROMOTION
                     <span class="small-tag">ERP</span>
                 </div>
             </a>
 
             <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#glassNav">
-                <i class="fa-solid fa-bars text-dark"></i>
+                <i class="fa-solid fa-bars text-white fs-3"></i>
             </button>
 
             <div class="collapse navbar-collapse" id="glassNav">
-                <ul class="navbar-nav mx-auto mb-2 mb-lg-0 gap-1">
+                <ul class="navbar-nav mx-auto mb-2 mb-lg-0 gap-2">
                     <li class="nav-item">
-                        <a class="nav-link" href="/dashboard"><i class="fa-solid fa-grid-2"></i> Dashboard</a>
+                        <a class="nav-link" href="/dashboard">
+                            <i class="fa-solid fa-chart-line"></i> Dashboard
+                        </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="/inventory"><i class="fa-solid fa-box"></i> Inventory</a>
+                        <a class="nav-link" href="/inventory">
+                            <i class="fa-solid fa-boxes-stacked"></i> Inventory
+                        </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="/employees"><i class="fa-solid fa-user-group"></i> Staff</a>
+                        <a class="nav-link" href="/employees">
+                            <i class="fa-solid fa-users-gear"></i> Staff
+                        </a>
                     </li>
                     
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                            <i class="fa-solid fa-file-invoice"></i> Orders
+                            <i class="fa-solid fa-clipboard-list"></i> Orders
                         </a>
                         <ul class="dropdown-menu animate slideIn">
                             <li><a class="dropdown-item" href="{{ url_for('morning') }}">☀️ Morning Order</a></li>
@@ -227,30 +257,38 @@
                         </ul>
                     </li>
 
-                    <li class="nav-item"><a class="nav-link" href="/office_sales"><i class="fa-solid fa-chart-line"></i> Sales</a></li>
-                    <li class="nav-item"><a class="nav-link" href="/expenses_list"><i class="fa-solid fa-wallet"></i> Expenses</a></li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/office_sales">
+                            <i class="fa-solid fa-sack-dollar"></i> Sales
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/expenses_list">
+                            <i class="fa-solid fa-file-invoice-dollar"></i> Expenses
+                        </a>
+                    </li>
                 </ul>
 
                 <div class="d-flex align-items-center gap-3 mt-3 mt-lg-0">
-                    <button class="btn theme-toggle" id="themeToggle" title="Switch Theme">
+                    <button class="btn btn-sm btn-outline-light border-2 rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;" id="themeToggle">
                         <i class="fa-solid fa-moon" id="themeIcon"></i>
                     </button>
  
-                    <a href="admin_master" class="btn btn-glass-primary">
-                        <i class="fa-solid fa-shield-cat me-1"></i> Admin
+                    <a href="admin_master" class="btn btn-header-action rounded-pill px-4">
+                        <i class="fa-solid fa-shield-halved me-1"></i> Admin
                     </a>
                 </div>
             </div>
         </div>
     </nav>
 
-    <main class="container-fluid-custom py-4" style="margin-top: 80px;">
+    <main class="container-fluid-custom py-4" style="margin-top: 85px;">
         
         {% with messages = get_flashed_messages() %}
             {% if messages %}
-                <div class="alert alert-info border-0 shadow-sm rounded-3 mb-4 d-flex align-items-center" role="alert" data-aos="fade-down">
-                    <i class="fa-solid fa-circle-info me-2 fs-5"></i>
-                    <div class="flex-grow-1">
+                <div class="alert alert-light border shadow-sm rounded-3 mb-4 d-flex align-items-center" role="alert" data-aos="fade-down">
+                    <i class="fa-solid fa-bell text-warning me-3 fs-4"></i>
+                    <div class="fw-bold text-dark flex-grow-1">
                         {% for msg in messages %}
                             <div>{{ msg }}</div>
                         {% endfor %}
@@ -260,28 +298,36 @@
             {% endif %}
         {% endwith %}
 
-        <div class="glass-card p-4 p-lg-5 fade-in-up w-100">
+        <div class="glass-card p-4 p-lg-5 fade-in-up" data-aos="fade-up">
             {% block content %}{% endblock %}
         </div>
     </main>
 
-    <footer class="mt-auto py-4">
+    <footer>
         <div class="container text-center">
-            <div class="row align-items-center gy-3">
+            <div class="row align-items-center gy-4">
                 <div class="col-md-4 text-md-start">
-                    <h6 class="fw-bold mb-0 text-dark">REAL PROMOTION</h6>
-                    <small class="text-muted">Since 2005</small>
+                    <h5 class="fw-bold mb-1 tracking-wide">REAL PROMOTION</h5>
+                    <p class="mb-0 small text-white-50">Empowering Business Since 2005</p>
                 </div>
+                
                 <div class="col-md-4">
-                    <div class="social-glass d-flex justify-content-center gap-3">
-                        <a href="#" class="text-muted"><i class="fab fa-facebook-f"></i></a>
-                        <a href="#" class="text-muted"><i class="fab fa-twitter"></i></a>
-                        <a href="#" class="text-muted"><i class="fab fa-instagram"></i></a>
+                    <div class="social-circle">
+                        <a href="#"><i class="fab fa-facebook-f"></i></a>
+                        <a href="#"><i class="fab fa-twitter"></i></a>
+                        <a href="#"><i class="fab fa-instagram"></i></a>
+                        <a href="#"><i class="fab fa-linkedin-in"></i></a>
                     </div>
                 </div>
+                
                 <div class="col-md-4 text-md-end">
-                    <small class="text-muted">help@realpromotion.in</small>
+                    <a href="mailto:help@realpromotion.in" class="footer-link fw-bold">
+                        <i class="fa-regular fa-envelope me-2"></i> help@realpromotion.in
+                    </a>
                 </div>
+            </div>
+            <div class="border-top border-secondary mt-4 pt-3">
+                <small class="text-white-50">&copy; 2026 Real Promotion ERP Systems. All Rights Reserved.</small>
             </div>
         </div>
     </footer>
