@@ -104,7 +104,7 @@ def parse_date_input(date_str):
         return date_str
 
 
-# REPLACE your existing 'monthly_sales_dashboard' route with this UPDATED version:
+# REPLACE your existing 'monthly_sales_dashboard' route with this COMPREHENSIVE version:
 
 @app.route("/monthly_sales_dashboard")
 def monthly_sales_dashboard():
@@ -115,98 +115,120 @@ def monthly_sales_dashboard():
 
     # 1. Get Filters
     selected_year = request.args.get("year")
-    start_month = request.args.get("start_month")
-    end_month = request.args.get("end_month")
+    try:
+        selected_year = int(selected_year)
+    except:
+        selected_year = datetime.now().year
 
-    # 2. Get Available Years
-    cursor.execute("SELECT DISTINCT YEAR(sale_date) AS year FROM sales ORDER BY year DESC")
-    year_list = [row["year"] for row in cursor.fetchall()]
+    # 2. Get Available Years (Check both tables)
+    cursor.execute("""
+        SELECT YEAR(date) as y FROM evening_settle UNION 
+        SELECT YEAR(sale_date) as y FROM office_sales 
+        ORDER BY y DESC
+    """)
+    years = cursor.fetchall()
+    year_list = [r['y'] for r in years] if years else [selected_year]
 
-    if not selected_year and year_list:
-        selected_year = year_list[0]
-    elif not selected_year:
-        selected_year = date.today().year
-
-    # 3. Base Query Parameters
-    params = [selected_year]
-    month_filter = ""
-
-    if start_month and end_month:
-        month_filter = " AND MONTH(sale_date) BETWEEN %s AND %s "
-        params.extend([start_month, end_month])
-
-    # 4. Fetch Monthly Data (Grouped by Month)
-    cursor.execute(f"""
+    # 3. UNIFIED QUERY: Combine Evening Sales + Office Sales
+    # This ensures ALL data is shown
+    base_query = f"""
         SELECT 
-            DATE_FORMAT(sale_date, '%%Y-%%m') AS month,
-            SUM(quantity) AS total_qty,
-            SUM(quantity * price) AS total_revenue
-        FROM sales
-        WHERE YEAR(sale_date) = %s
-        {month_filter}
-        GROUP BY DATE_FORMAT(sale_date, '%%Y-%%m')
-        ORDER BY month ASC
-    """, tuple(params))
+            DATE_FORMAT(date_val, '%%Y-%%m') as month_key,
+            DATE_FORMAT(date_val, '%%b %%Y') as month_label,
+            SUM(qty) as total_qty,
+            SUM(line_total) as total_revenue
+        FROM (
+            -- Evening Sales
+            SELECT es.date as date_val, ei.sold_qty as qty, (ei.sold_qty * ei.unit_price) as line_total
+            FROM evening_item ei
+            JOIN evening_settle es ON ei.settle_id = es.id
+            WHERE es.status = 'final' AND YEAR(es.date) = %s
+            
+            UNION ALL
+            
+            -- Office Sales
+            SELECT os.sale_date as date_val, osi.qty, osi.total_price as line_total
+            FROM office_sale_items osi
+            JOIN office_sales os ON osi.sale_id = os.id
+            WHERE YEAR(os.sale_date) = %s
+        ) as combined_sales
+        GROUP BY month_key, month_label
+        ORDER BY month_key ASC
+    """
+    
+    cursor.execute(base_query, (selected_year, selected_year))
     monthly_data_raw = cursor.fetchall()
-    
-    # Convert Decimals to float for JSON serialization
+
+    # Process Data for Charts/Cards
     monthly_data = []
-    total_revenue_period = 0.0
-    total_units_period = 0
-    
+    total_revenue = 0.0
+    total_units = 0
+    best_month_val = 0
+    best_month_name = "-"
+
     for row in monthly_data_raw:
         rev = float(row['total_revenue'] or 0)
         qty = int(row['total_qty'] or 0)
+        
         monthly_data.append({
-            'month': row['month'],
-            'total_qty': qty,
-            'total_revenue': rev
+            'month': row['month_label'],
+            'raw_date': row['month_key'],
+            'revenue': rev,
+            'units': qty
         })
-        total_revenue_period += rev
-        total_units_period += qty
+        
+        total_revenue += rev
+        total_units += qty
+        
+        if rev > best_month_val:
+            best_month_val = rev
+            best_month_name = row['month_label']
 
-    # Calculate Average Monthly Revenue
-    num_months = len(monthly_data)
-    avg_monthly_revenue = total_revenue_period / num_months if num_months > 0 else 0.0
+    avg_monthly = total_revenue / len(monthly_data) if monthly_data else 0.0
 
-    # 5. Fetch Category Data
-    cursor.execute(f"""
+    # 4. Top Selling Products (Unified)
+    prod_query = f"""
         SELECT 
-            COALESCE(pc.category_name, 'Uncategorized') as category_name,
-            SUM(s.quantity) AS total_qty
-        FROM sales s
-        LEFT JOIN products p ON p.id = s.product_id
-        LEFT JOIN product_categories pc ON pc.id = p.category_id
-        WHERE YEAR(s.sale_date) = %s
-        {month_filter}
-        GROUP BY pc.category_name
+            p.name as product_name,
+            SUM(qty) as total_qty,
+            SUM(line_total) as total_revenue
+        FROM (
+            SELECT ei.product_id, ei.sold_qty as qty, (ei.sold_qty * ei.unit_price) as line_total
+            FROM evening_item ei
+            JOIN evening_settle es ON ei.settle_id = es.id
+            WHERE es.status = 'final' AND YEAR(es.date) = %s
+            
+            UNION ALL
+            
+            SELECT osi.product_id, osi.qty, osi.total_price as line_total
+            FROM office_sale_items osi
+            JOIN office_sales os ON osi.sale_id = os.id
+            WHERE YEAR(os.sale_date) = %s
+        ) as u
+        JOIN products p ON u.product_id = p.id
+        GROUP BY p.id, p.name
         ORDER BY total_qty DESC
-    """, tuple(params))
-    category_data_raw = cursor.fetchall()
-    
-    category_data = []
-    for row in category_data_raw:
-        category_data.append({
-            'category_name': row['category_name'],
-            'total_qty': int(row['total_qty'] or 0)
-        })
+        LIMIT 5
+    """
+    cursor.execute(prod_query, (selected_year, selected_year))
+    top_products = cursor.fetchall()
 
     cursor.close()
 
     return render_template(
         "reports/monthly_sales_dashboard.html",
-        monthly_data=monthly_data,
-        category_data=category_data,
         year_list=year_list,
-        selected_year=int(selected_year),
-        start_month=start_month,
-        end_month=end_month,
-        # Pass calculated stats to template
-        total_revenue_period=total_revenue_period,
-        total_units_period=total_units_period,
-        avg_monthly_revenue=avg_monthly_revenue
+        selected_year=selected_year,
+        monthly_data=monthly_data,
+        top_products=top_products,
+        kpi={
+            'revenue': total_revenue,
+            'units': total_units,
+            'avg': avg_monthly,
+            'best_month': best_month_name,
+            'best_val': best_month_val
+        }
     )
-
 
 
 # --- VIEW EVENING SETTLEMENT DETAILS ---
@@ -8272,6 +8294,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
