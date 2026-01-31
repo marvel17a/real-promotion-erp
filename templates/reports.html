@@ -7,19 +7,22 @@
 
 <style>
     :root {
-        /* Modern Dark Theme Variables */
-        --bg-body: #0f172a;       /* Deep Slate Blue Background */
-        --bg-card: #1e293b;       /* Lighter Slate for Cards */
-        --text-primary: #f8fafc;  /* White Text */
-        --text-secondary: #94a3b8; /* Muted Blue-Grey Text */
+        /* Modern Light Theme Variables */
+        --bg-body: #f1f5f9;       /* Light Slate Background */
+        --bg-card: #ffffff;       /* White Cards */
+        --text-primary: #1e293b;  /* Dark Slate Text */
+        --text-secondary: #64748b; /* Muted Text */
         
-        --accent-primary: #6366f1; /* Indigo */
+        --accent-primary: #4f46e5; /* Indigo */
         --accent-success: #10b981; /* Emerald */
         --accent-warning: #f59e0b; /* Amber */
         --accent-danger: #ef4444;  /* Red */
         
-        --card-hover-border: rgba(99, 102, 241, 0.5);
-        --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+        --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        --shadow-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        
+        --transition: all 0.2s ease-in-out;
     }
 
     body {
@@ -30,15 +33,15 @@
 
     .dashboard-wrapper {
         padding: 2rem;
-        max-width: 1600px;
+        max-width: 1400px; /* Slightly narrower for medium feel */
         margin: 0 auto;
     }
 
     /* Header Section */
     .dashboard-header {
-        margin-bottom: 3rem;
+        margin-bottom: 2.5rem;
         padding-bottom: 1rem;
-        border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+        border-bottom: 2px solid #e2e8f0;
         display: flex;
         justify-content: space-between;
         align-items: center;
@@ -48,28 +51,26 @@
 
     .header-title h1 {
         font-family: 'Poppins', sans-serif;
-        font-size: 2.25rem;
+        font-size: 2rem;
         font-weight: 700;
         margin: 0;
-        background: linear-gradient(to right, #fff, #94a3b8);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
+        color: var(--text-primary);
     }
 
     .header-desc {
         color: var(--text-secondary);
-        margin-top: 0.5rem;
-        font-size: 1rem;
+        margin-top: 0.25rem;
+        font-size: 0.95rem;
     }
 
     /* Section Styling */
     .section-title {
-        font-size: 0.875rem;
+        font-size: 0.8rem;
         text-transform: uppercase;
-        letter-spacing: 0.1em;
+        letter-spacing: 0.05em;
         color: var(--text-secondary);
-        margin-bottom: 1.5rem;
-        margin-top: 2.5rem;
+        margin-bottom: 1.25rem;
+        margin-top: 2rem;
         font-weight: 700;
         display: flex;
         align-items: center;
@@ -80,87 +81,65 @@
         content: '';
         flex: 1;
         height: 1px;
-        background: rgba(148, 163, 184, 0.2);
+        background: #cbd5e1;
     }
 
-    /* Grid Layout */
+    /* Responsive Grid Layout - Medium Cards */
     .grid-container {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        /* Responsive columns: min 260px width, fill remaining space */
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
         gap: 1.5rem;
     }
 
-    /* Modern Card */
+    /* Medium Card Design */
     .analytics-card {
         background-color: var(--bg-card);
-        border: 1px solid rgba(255, 255, 255, 0.05);
-        border-radius: 16px;
-        padding: 1.75rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px; /* Slightly smaller radius */
+        padding: 1.5rem;     /* Medium padding */
         position: relative;
-        overflow: hidden;
         text-decoration: none;
         transition: var(--transition);
         display: flex;
         flex-direction: column;
-        height: 100%;
-    }
-
-    .analytics-card::before {
-        content: '';
-        position: absolute;
-        top: 0; left: 0; width: 100%; height: 100%;
-        background: linear-gradient(135deg, rgba(255,255,255,0.03) 0%, transparent 100%);
-        opacity: 0;
-        transition: var(--transition);
+        height: 100%; /* Uniform height */
+        box-shadow: var(--shadow-sm);
     }
 
     .analytics-card:hover {
-        transform: translateY(-5px);
-        border-color: var(--card-hover-border);
-        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
-    }
-
-    .analytics-card:hover::before {
-        opacity: 1;
+        transform: translateY(-4px);
+        box-shadow: var(--shadow-hover);
+        border-color: var(--accent-primary);
     }
 
     /* Icon Box */
     .icon-box {
-        width: 50px;
-        height: 50px;
-        border-radius: 12px;
+        width: 42px; /* Medium icon size */
+        height: 42px;
+        border-radius: 10px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 1.5rem;
-        margin-bottom: 1.25rem;
-        position: relative;
-        z-index: 1;
+        font-size: 1.25rem;
+        margin-bottom: 1rem;
     }
 
-    /* Theme Variations */
-    .theme-indigo .icon-box { background: rgba(99, 102, 241, 0.15); color: #818cf8; }
-    .theme-indigo:hover .icon-box { background: #6366f1; color: white; }
-
-    .theme-emerald .icon-box { background: rgba(16, 185, 129, 0.15); color: #34d399; }
-    .theme-emerald:hover .icon-box { background: #10b981; color: white; }
-
-    .theme-amber .icon-box { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
-    .theme-amber:hover .icon-box { background: #f59e0b; color: white; }
-
-    .theme-rose .icon-box { background: rgba(239, 68, 68, 0.15); color: #f87171; }
-    .theme-rose:hover .icon-box { background: #ef4444; color: white; }
+    /* Theme Variations - Light & Clean */
+    .theme-indigo .icon-box { background: #e0e7ff; color: #4f46e5; }
+    .theme-emerald .icon-box { background: #d1fae5; color: #059669; }
+    .theme-amber .icon-box { background: #fef3c7; color: #d97706; }
+    .theme-rose .icon-box { background: #ffe4e6; color: #e11d48; }
+    .theme-blue .icon-box { background: #dbeafe; color: #2563eb; }
 
     /* Card Content */
     .card-content {
-        position: relative;
-        z-index: 1;
         flex-grow: 1;
     }
 
     .card-header-text {
         font-family: 'Poppins', sans-serif;
-        font-size: 1.25rem;
+        font-size: 1.1rem; /* Medium heading */
         font-weight: 600;
         color: var(--text-primary);
         margin-bottom: 0.5rem;
@@ -168,80 +147,61 @@
 
     .card-body-text {
         color: var(--text-secondary);
-        font-size: 0.9rem;
-        line-height: 1.6;
+        font-size: 0.85rem; /* Medium body text */
+        line-height: 1.5;
     }
 
     /* Action Footer */
     .card-footer {
-        margin-top: 1.5rem;
+        margin-top: 1.25rem;
         display: flex;
         align-items: center;
-        justify-content: space-between;
-        font-size: 0.85rem;
+        justify-content: flex-start;
+        gap: 0.5rem;
+        font-size: 0.8rem;
         font-weight: 600;
-        color: var(--text-secondary);
-        position: relative;
-        z-index: 1;
+        color: var(--accent-primary);
         transition: var(--transition);
     }
 
-    .analytics-card:hover .card-footer {
-        color: var(--text-primary);
-    }
-
     .arrow-icon {
-        transform: translateX(-5px);
-        opacity: 0;
         transition: var(--transition);
     }
 
     .analytics-card:hover .arrow-icon {
-        transform: translateX(0);
-        opacity: 1;
-    }
-
-    /* Animation Classes */
-    .fade-up { animation: fadeUp 0.6s ease-out forwards; opacity: 0; }
-    .delay-1 { animation-delay: 0.1s; }
-    .delay-2 { animation-delay: 0.2s; }
-    .delay-3 { animation-delay: 0.3s; }
-
-    @keyframes fadeUp {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
+        transform: translateX(4px);
     }
 
     /* Responsive Tweaks */
     @media (max-width: 768px) {
         .dashboard-wrapper { padding: 1rem; }
-        .header-title h1 { font-size: 1.75rem; }
+        .grid-container { grid-template-columns: 1fr; } /* Stack on mobile */
     }
 </style>
 
 <div class="dashboard-wrapper">
     
     <!-- Dashboard Header -->
-    <div class="dashboard-header fade-up">
+    <div class="dashboard-header">
         <div>
             <div class="header-title">
                 <h1>Reports Hub</h1>
             </div>
-            <p class="header-desc">Access real-time insights, track performance, and manage operations.</p>
+            <p class="header-desc">Business intelligence and operational insights.</p>
         </div>
         <div class="header-date">
-            <span class="badge bg-secondary bg-opacity-25 text-light px-3 py-2 rounded-pill fw-normal">
-                <i class="fa-regular fa-calendar me-2"></i> Today's Overview
+            <span class="badge bg-white text-dark border shadow-sm px-3 py-2 rounded-pill fw-normal">
+                <i class="fa-regular fa-calendar me-2 text-muted"></i> Today's Overview
             </span>
         </div>
     </div>
 
     <!-- 1. FINANCIAL REPORTS -->
-    <div class="section-title fade-up delay-1">
+    <div class="section-title">
         <i class="fa-solid fa-chart-pie text-primary"></i> Financial Analysis
     </div>
 
-    <div class="grid-container fade-up delay-1">
+    <div class="grid-container">
         
         <!-- Daily Snapshot -->
         <a href="{{ url_for('daily_summary') }}" class="analytics-card theme-indigo">
@@ -250,7 +210,7 @@
             </div>
             <div class="card-content">
                 <h3 class="card-header-text">Daily Snapshot</h3>
-                <p class="card-body-text">Comprehensive overview of today's sales, expenses, and net cash flow position.</p>
+                <p class="card-body-text">Overview of sales, expenses, and net cash flow.</p>
             </div>
             <div class="card-footer">
                 <span>View Summary</span>
@@ -265,7 +225,7 @@
             </div>
             <div class="card-content">
                 <h3 class="card-header-text">Profitability</h3>
-                <p class="card-body-text">Analyze revenue versus operational costs to calculate accurate Net Profit margins.</p>
+                <p class="card-body-text">Analyze revenue vs costs for Net Profit.</p>
             </div>
             <div class="card-footer">
                 <span>Analyze Profit</span>
@@ -280,7 +240,7 @@
             </div>
             <div class="card-content">
                 <h3 class="card-header-text">Expense Log</h3>
-                <p class="card-body-text">Detailed categorization and breakdown of all operational outflows and petty cash.</p>
+                <p class="card-body-text">Detailed categorization of operational outflows.</p>
             </div>
             <div class="card-footer">
                 <span>Track Expenses</span>
@@ -295,7 +255,7 @@
             </div>
             <div class="card-content">
                 <h3 class="card-header-text">Ledger History</h3>
-                <p class="card-body-text">Complete record of employee transactions, credits, debits, and balances.</p>
+                <p class="card-body-text">Employee transactions, credits, and balances.</p>
             </div>
             <div class="card-footer">
                 <span>View Ledger</span>
@@ -306,11 +266,11 @@
     </div>
 
     <!-- 2. SALES PERFORMANCE -->
-    <div class="section-title fade-up delay-2">
+    <div class="section-title">
         <i class="fa-solid fa-arrow-trend-up text-success"></i> Sales Performance
     </div>
 
-    <div class="grid-container fade-up delay-2">
+    <div class="grid-container">
         
         <!-- Monthly Trends -->
         <a href="{{ url_for('monthly_sales_dashboard') }}" class="analytics-card theme-emerald">
@@ -319,7 +279,7 @@
             </div>
             <div class="card-content">
                 <h3 class="card-header-text">Monthly Trends</h3>
-                <p class="card-body-text">Visual growth charts tracking seasonal performance and monthly revenue targets.</p>
+                <p class="card-body-text">Growth charts tracking seasonal performance.</p>
             </div>
             <div class="card-footer">
                 <span>View Trends</span>
@@ -334,7 +294,7 @@
             </div>
             <div class="card-content">
                 <h3 class="card-header-text">Detailed Sales</h3>
-                <p class="card-body-text">Granular item-wise list of every sale made today, including time and pricing details.</p>
+                <p class="card-body-text">Item-wise list of every sale made today.</p>
             </div>
             <div class="card-footer">
                 <span>Check Sales</span>
@@ -349,7 +309,7 @@
             </div>
             <div class="card-content">
                 <h3 class="card-header-text">Top Sellers</h3>
-                <p class="card-body-text">Identify your best-performing products by sales volume and total revenue generated.</p>
+                <p class="card-body-text">Best-performing products by volume and revenue.</p>
             </div>
             <div class="card-footer">
                 <span>See Rankings</span>
@@ -360,20 +320,20 @@
     </div>
 
     <!-- 3. OPERATIONS & STAFF -->
-    <div class="section-title fade-up delay-3">
+    <div class="section-title">
         <i class="fa-solid fa-box-open text-warning"></i> Operations
     </div>
 
-    <div class="grid-container fade-up delay-3">
+    <div class="grid-container">
         
         <!-- Procurement -->
-        <a href="{{ url_for('purchase_report') }}" class="analytics-card theme-indigo">
+        <a href="{{ url_for('purchase_report') }}" class="analytics-card theme-blue">
             <div class="icon-box">
                 <i class="fa-solid fa-truck-fast"></i>
             </div>
             <div class="card-content">
-                <h3 class="card-header-text">Purchases </h3>
-                <p class="card-body-text">Complete log of supplier purchases, dates, bills, and inventory restocking history.</p>
+                <h3 class="card-header-text">Procurement</h3>
+                <p class="card-body-text">Supplier purchases, bills, and inventory logs.</p>
             </div>
             <div class="card-footer">
                 <span>View Purchases</span>
@@ -388,7 +348,7 @@
             </div>
             <div class="card-content">
                 <h3 class="card-header-text">Staff Ranking</h3>
-                <p class="card-body-text">Employee performance leaderboard based on sales metrics and targets achieved.</p>
+                <p class="card-body-text">Performance leaderboard based on sales metrics.</p>
             </div>
             <div class="card-footer">
                 <span>Evaluate Staff</span>
