@@ -6978,36 +6978,99 @@ def reports():
     return render_template("/reports.html")
 
 
+# REPLACE your existing 'daily_summary' route in app.py
 
 @app.route('/reports/daily_summary', methods=['GET', 'POST'])
 def daily_summary():
-    report_date = date.today().isoformat()
-    summary_data = None
-    if request.method == 'POST':
-        report_date = request.form.get('report_date')
-        try:
-            db_cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-            db_cursor.execute("SELECT SUM(total_amount) as total_sales FROM evening_settle WHERE date = %s", (report_date,))
-            sales_result = db_cursor.fetchone()
-            total_sales = sales_result['total_sales'] or 0
-            db_cursor.execute("SELECT SUM(amount) as total_expenses FROM expenses WHERE expense_date = %s", (report_date,))
-            expenses_result = db_cursor.fetchone()
-            total_expenses = expenses_result['total_expenses'] or 0
-            db_cursor.close()
-            summary_data = {
-                "total_sales": total_sales,
-                "total_expenses": total_expenses,
-                "net_cash_flow": total_sales - total_expenses
-            }
-        except Exception as e:
-            flash(f"An error occurred while generating the report: {e}", "danger")
+    if "loggedin" not in session: return redirect(url_for("login"))
     
+    report_date = request.form.get('report_date') or date.today().isoformat()
+    
+    summary_data = {
+        "cash_in": 0.0,
+        "cash_out": 0.0,
+        "net_flow": 0.0,
+        "breakdown": {
+            "evening_sales": 0.0,
+            "office_sales": 0.0,
+            "emp_credit": 0.0,
+            "expenses": 0.0,
+            "emp_debit": 0.0,
+            "supplier_pay": 0.0
+        },
+        "office_sales_list": []
+    }
+
+    db_cursor = None
+    try:
+        db_cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        
+        # 1. CASH IN
+        # A. Evening Sales (Net = Total - Discount)
+        # Note: We consider Cash + Online as total money IN for the day
+        db_cursor.execute("""
+            SELECT SUM(total_amount - discount) as val 
+            FROM evening_settle WHERE date = %s AND status='final'
+        """, (report_date,))
+        summary_data['breakdown']['evening_sales'] = float(db_cursor.fetchone()['val'] or 0)
+
+        # B. Office Sales (Net = Final Amount)
+        db_cursor.execute("SELECT SUM(final_amount) as val FROM office_sales WHERE sale_date = %s", (report_date,))
+        summary_data['breakdown']['office_sales'] = float(db_cursor.fetchone()['val'] or 0)
+
+        # C. Employee Credit (Money Received from Emp)
+        db_cursor.execute("SELECT SUM(amount) as val FROM employee_transactions WHERE transaction_date = %s AND type='credit'", (report_date,))
+        summary_data['breakdown']['emp_credit'] = float(db_cursor.fetchone()['val'] or 0)
+
+        # 2. CASH OUT
+        # A. Expenses
+        db_cursor.execute("SELECT SUM(amount) as val FROM expenses WHERE expense_date = %s", (report_date,))
+        summary_data['breakdown']['expenses'] = float(db_cursor.fetchone()['val'] or 0)
+
+        # B. Employee Debit (Money Given to Emp)
+        db_cursor.execute("SELECT SUM(amount) as val FROM employee_transactions WHERE transaction_date = %s AND type='debit'", (report_date,))
+        summary_data['breakdown']['emp_debit'] = float(db_cursor.fetchone()['val'] or 0)
+
+        # C. Supplier Payments
+        db_cursor.execute("SELECT SUM(amount_paid) as val FROM supplier_payments WHERE payment_date = %s", (report_date,))
+        summary_data['breakdown']['supplier_pay'] = float(db_cursor.fetchone()['val'] or 0)
+
+        # 3. Totals
+        summary_data['cash_in'] = (
+            summary_data['breakdown']['evening_sales'] + 
+            summary_data['breakdown']['office_sales'] + 
+            summary_data['breakdown']['emp_credit']
+        )
+        
+        summary_data['cash_out'] = (
+            summary_data['breakdown']['expenses'] + 
+            summary_data['breakdown']['emp_debit'] + 
+            summary_data['breakdown']['supplier_pay']
+        )
+        
+        summary_data['net_flow'] = summary_data['cash_in'] - summary_data['cash_out']
+
+        # 4. Detailed Office Sales List (Net of Discount)
+        db_cursor.execute("""
+            SELECT id, customer_name, sub_total, discount, final_amount, sales_person
+            FROM office_sales 
+            WHERE sale_date = %s
+            ORDER BY id DESC
+        """, (report_date,))
+        summary_data['office_sales_list'] = db_cursor.fetchall()
+
+    except Exception as e:
+        flash(f"Error generating summary: {e}", "danger")
+    finally:
+        if db_cursor: db_cursor.close()
+
     report_date_obj = date.fromisoformat(report_date)
     report_date_str = report_date_obj.strftime('%d %B, %Y')
+    
     return render_template('reports/daily_summary.html', 
-                           report_date=report_date, 
+                           report_date=report_date,
                            report_date_str=report_date_str,
-                           summary_data=summary_data)
+                           data=summary_data)
 
 
 @app.route('/reports/daily_summary/pdf/<report_date>')
@@ -8392,6 +8455,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
