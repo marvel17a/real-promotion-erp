@@ -7809,11 +7809,8 @@ def _fetch_transaction_data(filters):
             t['employee_image'] = resolve_img(t['employee_image'])
             
     return transactions
-
 # ==========================================
-# TRANSACTION REPORT PDF CLASS (Time & Header Fixed)
-# ==========================================
-# TRANSACTION REPORT PDF CLASS (Time & Header Fixed)
+# TRANSACTION REPORT PDF CLASS (Time & Formatting Fixed)
 # ==========================================
 class TransactionPDF(FPDF):
     def __init__(self):
@@ -8045,6 +8042,8 @@ class TransactionPDF(FPDF):
         self.cell(60, 5, "Authorized Signature", 0, 1, 'C')
         self.ln(10)
 
+
+
 # =========================================================
 #  TRANSACTION REPORT VIEW ROUTE
 # =========================================================
@@ -8206,6 +8205,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
