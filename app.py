@@ -7203,7 +7203,7 @@ def report_employee_performance_pdf(start_date, end_date):
         if db_cursor:
             db_cursor.close()
 
-# REPLACE your existing 'product_perfrm' route with this updated version:
+# REPLACE your existing 'product_perfrm' route in app.py with this updated version:
 
 @app.route('/reports/product_perfrm', methods=['GET', 'POST'])
 def product_perfrm():
@@ -7213,11 +7213,12 @@ def product_perfrm():
     end_date_obj = date.today()
     start_date_obj = end_date_obj - timedelta(days=29)
     
+    # Get raw input
     start_date_str = request.form.get('start_date') or request.args.get('start_date')
     end_date_str = request.form.get('end_date') or request.args.get('end_date')
     sort_by = request.form.get('sort_by') or request.args.get('sort_by') or 'revenue'
 
-    # Parse Dates
+    # Robust Date Parsing
     if start_date_str:
         try: start_date_obj = datetime.strptime(start_date_str, '%d-%m-%Y').date()
         except: 
@@ -7230,10 +7231,11 @@ def product_perfrm():
             try: end_date_obj = date.fromisoformat(end_date_str)
             except: pass
 
-    # Format for SQL and Display
+    # SQL Format (YYYY-MM-DD)
     sql_start = start_date_obj.strftime('%Y-%m-%d')
     sql_end = end_date_obj.strftime('%Y-%m-%d')
     
+    # Display Format (DD-MM-YYYY)
     display_start = start_date_obj.strftime('%d-%m-%Y')
     display_end = end_date_obj.strftime('%d-%m-%Y')
 
@@ -7243,12 +7245,11 @@ def product_perfrm():
     try:
         db_cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
         
-        # Determine Sort Order
         order_clause = "ORDER BY total_revenue DESC"
         if sort_by == 'quantity':
             order_clause = "ORDER BY total_units_sold DESC"
         
-        # UNIFIED QUERY: Evening Sales + Office Sales
+        # Unified Query: Evening + Office Sales
         sql = f"""
             SELECT 
                 p.name AS product_name,
@@ -7256,7 +7257,6 @@ def product_perfrm():
                 SUM(qty) AS total_units_sold,
                 SUM(line_total) AS total_revenue
             FROM (
-                -- Field Sales
                 SELECT ei.product_id, ei.sold_qty as qty, (ei.sold_qty * ei.unit_price) as line_total
                 FROM evening_item ei
                 JOIN evening_settle es ON ei.settle_id = es.id
@@ -7264,7 +7264,6 @@ def product_perfrm():
                 
                 UNION ALL
                 
-                -- Counter Sales
                 SELECT osi.product_id, osi.qty, osi.total_price as line_total
                 FROM office_sale_items osi
                 JOIN office_sales os ON osi.sale_id = os.id
@@ -7276,11 +7275,15 @@ def product_perfrm():
         """
         
         db_cursor.execute(sql, (sql_start, sql_end, sql_start, sql_end))
-        product_data = db_cursor.fetchall()
-        
-        # Process images
-        for p in product_data:
-            p['image'] = resolve_img(p['image'])
+        # Fetch as list of dicts for JSON compatibility
+        rows = db_cursor.fetchall()
+        for r in rows:
+            product_data.append({
+                'product_name': r['product_name'],
+                'image': resolve_img(r['image']),
+                'total_units_sold': int(r['total_units_sold'] or 0),
+                'total_revenue': float(r['total_revenue'] or 0)
+            })
 
     except Exception as e:
         flash(f"Error fetching product performance: {e}", "danger")
@@ -7801,10 +7804,6 @@ def delete_transaction(transaction_id):
 #  HELPER: FETCH TRANSACTION DATA (Updated for Modern UI)
 # =========================================================
 def _fetch_transaction_data(filters):
-    """
-    A private helper function to query the database based on a dictionary of filters.
-    Returns a list of transactions with Employee Images.
-    """
     cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
     where_clauses = []
@@ -7830,10 +7829,9 @@ def _fetch_transaction_data(filters):
         where_clauses.append("t.employee_id = %s")
         params.append(employee_id)
 
-    # Build and execute the final query
-    # ADDED: e.image as employee_image
+    # ADDED: payment_mode, created_at
     sql = """
-        SELECT t.transaction_date, t.type, t.amount, t.description, 
+        SELECT t.id, t.transaction_date, t.created_at, t.type, t.amount, t.description, t.payment_mode,
                e.name as employee_name, e.image as employee_image
         FROM employee_transactions t
         JOIN employees e ON t.employee_id = e.id
@@ -7846,12 +7844,26 @@ def _fetch_transaction_data(filters):
     transactions = cur.fetchall()
     cur.close()
 
-    # Process Images using the existing resolve_img helper
+    # Process Images
     for t in transactions:
         if 'employee_image' in t:
             t['employee_image'] = resolve_img(t['employee_image'])
+        
+        # Format Time for Template
+        t_str = "-"
+        raw_time = t.get('created_at')
+        if raw_time:
+            if isinstance(raw_time, datetime):
+                t_str = raw_time.strftime('%I:%M %p')
+            elif isinstance(raw_time, timedelta):
+                t_str = (datetime.min + raw_time).strftime('%I:%M %p')
+            else:
+                try: t_str = datetime.strptime(str(raw_time), '%Y-%m-%d %H:%M:%S').strftime('%I:%M %p')
+                except: t_str = str(raw_time)
+        t['formatted_time'] = t_str
             
     return transactions
+
 
 # ==========================================
 # TRANSACTION REPORT PDF CLASS (Time & Formatting Fixed)
@@ -8096,7 +8108,6 @@ def transaction_report():
     employees = cur.fetchall()
     cur.close()
 
-    # Default filters (Ensure none are None)
     filters = {
         'period': 'this_month', 
         'employee_id': 'all', 
@@ -8112,11 +8123,10 @@ def transaction_report():
 
     transactions = _fetch_transaction_data(filters)
     
+    # --- 1. Basic Totals ---
     total_debit = sum(float(t['amount']) for t in transactions if t['type'] == 'debit')
     total_credit = sum(float(t['amount']) for t in transactions if t['type'] == 'credit')
     net_flow = total_debit - total_credit
-
-    chart_data = { 'debit': total_debit, 'credit': total_credit, 'net': net_flow }
 
     return render_template('reports/transaction_report.html',
                            employees=employees,
@@ -8125,8 +8135,7 @@ def transaction_report():
                            total_debit=total_debit,
                            total_credit=total_credit,
                            net_flow=net_flow,
-                           filters=filters,
-                           chart_data=chart_data)
+                           filters=filters)
 
 
 # =========================================================
@@ -8245,6 +8254,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
