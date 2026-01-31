@@ -4,7 +4,7 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
 
 <style>
     :root {
@@ -38,23 +38,22 @@
     .kpi-card:hover { transform: translateY(-5px); }
     
     .kpi-title { font-family: var(--font-heading); font-size: 0.8rem; text-transform: uppercase; color: #64748b; font-weight: 700; letter-spacing: 0.5px; }
-    .kpi-val { font-size: 1.3rem; font-weight: 800; color: #1e293b; margin-top: 8px; margin-bottom: 2px; }
+    .kpi-val { font-size: 1.5rem; font-weight: 800; color: #1e293b; margin-top: 8px; }
     .kpi-sub { font-size: 0.85rem; color: #94a3b8; font-weight: 500; }
     
-    .kpi-blue { border-left-color: #3b82f6; }
-    .kpi-purple { border-left-color: #8b5cf6; }
+    .kpi-gold { border-left-color: #f59e0b; } /* Top Sales */
+    .kpi-teal { border-left-color: #14b8a6; } /* Top Units */
+    .kpi-indigo { border-left-color: #6366f1; } /* Total Rev */
     
     .kpi-icon {
         position: absolute; right: 20px; top: 20px;
-        width: 45px; height: 45px;
+        width: 50px; height: 50px;
         border-radius: 12px;
         display: flex; align-items: center; justify-content: center;
-        font-size: 1.5rem;
+        font-size: 1.8rem; opacity: 0.15;
     }
-    .icon-blue { background: #eff6ff; color: #3b82f6; }
-    .icon-purple { background: #f5f3ff; color: #8b5cf6; }
 
-    /* Chart */
+    /* Charts */
     .chart-container {
         background: var(--card-white);
         border-radius: 16px;
@@ -63,7 +62,7 @@
         margin-bottom: 2rem;
         height: 100%;
     }
-    .chart-title { font-family: var(--font-heading); font-weight: 700; color: #334155; margin-bottom: 1.5rem; text-align: center; }
+    .chart-title { font-family: var(--font-heading); font-weight: 700; color: #334155; margin-bottom: 1rem; }
 
     /* Table */
     .modern-table thead th {
@@ -84,13 +83,14 @@
         border-bottom: 1px solid #f1f5f9;
         font-weight: 500;
     }
-    .product-img { width: 40px; height: 40px; border-radius: 8px; object-fit: cover; margin-right: 12px; border: 1px solid #e2e8f0; }
+    .emp-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; margin-right: 12px; border: 2px solid #e2e8f0; }
+    
     .rank-badge {
-        width: 30px; height: 30px; border-radius: 50%;
+        width: 32px; height: 32px; border-radius: 50%;
         display: flex; align-items: center; justify-content: center;
-        background: #f1f5f9; color: #64748b; font-weight: 700; font-size: 0.8rem;
+        background: #f1f5f9; color: #64748b; font-weight: 700; font-size: 0.9rem;
     }
-    .rank-1 { background: #fef3c7; color: #d97706; }
+    .rank-1 { background: #fef3c7; color: #d97706; box-shadow: 0 2px 5px rgba(245, 158, 11, 0.2); }
     .rank-2 { background: #e0e7ff; color: #4338ca; }
     .rank-3 { background: #ffedd5; color: #c2410c; }
 
@@ -101,12 +101,17 @@
     <!-- Header -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h3 class="fw-bold text-dark mb-0" style="font-family: var(--font-heading);">Product Performance</h3>
-            <p class="text-muted small fw-bold mb-0">Top selling products by Revenue & Volume</p>
+            <h3 class="fw-bold text-dark mb-0" style="font-family: var(--font-heading);">Employee Performance</h3>
+            <p class="text-muted small fw-bold mb-0">Sales analysis & rankings</p>
         </div>
-        <a href="{{ url_for('reports') }}" class="btn btn-light btn-sm rounded-pill px-3 border shadow-sm fw-bold">
-            <i class="fa-solid fa-arrow-left me-2"></i> Back
-        </a>
+        <div>
+            <a href="{{ url_for('report_employee_performance_pdf', start_date=start_date, end_date=end_date) }}" class="btn btn-danger btn-sm rounded-pill px-3 shadow-sm fw-bold me-2">
+                <i class="fa-solid fa-file-pdf me-2"></i> PDF
+            </a>
+            <a href="{{ url_for('reports') }}" class="btn btn-light btn-sm rounded-pill px-3 border shadow-sm fw-bold">
+                <i class="fa-solid fa-arrow-left me-2"></i> Back
+            </a>
+        </div>
     </div>
 
     <!-- Filter Bar -->
@@ -114,104 +119,125 @@
         <form method="POST" class="row g-3 align-items-end">
             <div class="col-md-3">
                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">Start Date</label>
-                <input type="text" name="start_date" class="form-control date-picker fw-bold" value="{{ start_date }}">
+                <div class="input-group">
+                    <span class="input-group-text bg-white border-end-0"><i class="fa-solid fa-calendar text-muted"></i></span>
+                    <input type="text" name="start_date" class="form-control border-start-0 date-picker fw-bold" value="{{ start_date }}">
+                </div>
             </div>
             <div class="col-md-3">
                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">End Date</label>
-                <input type="text" name="end_date" class="form-control date-picker fw-bold" value="{{ end_date }}">
+                <div class="input-group">
+                    <span class="input-group-text bg-white border-end-0"><i class="fa-solid fa-calendar text-muted"></i></span>
+                    <input type="text" name="end_date" class="form-control border-start-0 date-picker fw-bold" value="{{ end_date }}">
+                </div>
             </div>
-            <div class="col-md-3">
-                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Sort By</label>
-                <select name="sort_by" class="form-select fw-bold">
-                    <option value="revenue" {% if sort_by == 'revenue' %}selected{% endif %}>Revenue (High to Low)</option>
-                    <option value="quantity" {% if sort_by == 'quantity' %}selected{% endif %}>Volume (High to Low)</option>
-                </select>
-            </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <button type="submit" class="btn btn-primary w-100 fw-bold shadow-sm">Analyze</button>
             </div>
         </form>
     </div>
 
-    {% if product_data %}
+    {% if performance_data %}
         
-        {% set top_qty = product_data|sort(attribute='total_units_sold', reverse=True)|first %}
-        {% set top_rev = product_data|sort(attribute='total_revenue', reverse=True)|first %}
-
-        <!-- KPI Summary -->
+        <!-- KPIs Logic -->
+        {% set top_sales = performance_data|first %}
+        {% set top_units = performance_data|sort(attribute='total_units_sold', reverse=True)|first %}
+        
+        <!-- KPI Cards -->
         <div class="row g-4 mb-4">
-            <div class="col-md-6">
-                <div class="kpi-card kpi-blue">
-                    <div class="kpi-title">Highest Revenue</div>
-                    <div class="kpi-val">{{ top_rev.product_name }}</div>
-                    <div class="kpi-sub">{{ top_rev.total_revenue|inr }}</div>
-                    <div class="kpi-icon icon-blue"><i class="fa-solid fa-sack-dollar"></i></div>
+            <!-- 1. Top Revenue -->
+            <div class="col-md-4">
+                <div class="kpi-card kpi-gold">
+                    <div class="kpi-title">Top Salesman (Revenue)</div>
+                    <div class="d-flex align-items-center mt-2">
+                        <!-- Image Display -->
+                        <img src="{{ top_sales.employee_image }}" class="rounded-circle me-3 border" width="50" height="50" style="object-fit:cover;">
+                        <div>
+                            <div class="kpi-val text-dark">{{ top_sales.employee_name }}</div>
+                            <div class="kpi-sub text-success">{{ top_sales.total_sales_amount|inr }}</div>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-trophy kpi-icon text-warning"></i>
                 </div>
             </div>
-            <div class="col-md-6">
-                <div class="kpi-card kpi-purple">
-                    <div class="kpi-title">Most Sold (Units)</div>
-                    <div class="kpi-val">{{ top_qty.product_name }}</div>
-                    <div class="kpi-sub">{{ top_qty.total_units_sold }} Units</div>
-                    <div class="kpi-icon icon-purple"><i class="fa-solid fa-box-open"></i></div>
+
+            <!-- 2. Most Units (FIXED: Added Image) -->
+            <div class="col-md-4">
+                <div class="kpi-card kpi-teal">
+                    <div class="kpi-title">Most Units Sold</div>
+                    <div class="d-flex align-items-center mt-2">
+                        <!-- Added Image Here -->
+                        <img src="{{ top_units.employee_image }}" class="rounded-circle me-3 border" width="50" height="50" style="object-fit:cover;">
+                        <div>
+                            <div class="kpi-val text-dark">{{ top_units.employee_name }}</div>
+                            <div class="kpi-sub text-primary">{{ top_units.total_units_sold }} Units</div>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-box-open kpi-icon text-info"></i>
+                </div>
+            </div>
+
+            <!-- 3. Total Revenue -->
+            <div class="col-md-4">
+                <div class="kpi-card kpi-indigo">
+                    <div class="kpi-title">Total Period Revenue</div>
+                    <div class="kpi-val text-primary">{{ total_revenue|inr }}</div>
+                    <div class="kpi-sub">{{ total_units }} Total Units Sold</div>
+                    <i class="fa-solid fa-chart-line kpi-icon text-primary"></i>
                 </div>
             </div>
         </div>
 
-        <!-- Charts Section: Market Share (Percentages) -->
+        <!-- Charts Section -->
         <div class="row g-4 mb-4">
-            <div class="col-md-6">
+            <!-- Bar Chart: Revenue Comparison -->
+            <div class="col-lg-8">
                 <div class="chart-container">
-                    <h5 class="chart-title">Revenue Share (%)</h5>
-                    <div style="height: 300px; position: relative;">
-                        <canvas id="revShareChart"></canvas>
+                    <h5 class="chart-title">Revenue Comparison</h5>
+                    <div style="height: 320px;">
+                        <canvas id="revenueChart"></canvas>
                     </div>
                 </div>
             </div>
-            <div class="col-md-6">
+            <!-- Pie Chart: Contribution -->
+            <div class="col-lg-4">
                 <div class="chart-container">
-                    <h5 class="chart-title">Sales Volume Share (%)</h5>
-                    <div style="height: 300px; position: relative;">
-                        <canvas id="qtyShareChart"></canvas>
+                    <!-- Updated Title to specify basis -->
+                    <h5 class="chart-title">Sales Contribution (%)</h5>
+                    <p class="text-muted text-center small mb-3">Based on Total Revenue Generated</p>
+                    <div style="height: 280px; position: relative;">
+                        <canvas id="shareChart"></canvas>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Bar Chart: Performance -->
-        <div class="chart-container">
-            <h5 class="chart-title text-start ms-2">Top 10 Performers (Values)</h5>
-            <div style="height: 350px;">
-                <canvas id="perfChart"></canvas>
-            </div>
-        </div>
-
-        <!-- Table -->
+        <!-- Data Table -->
         <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-5">
             <div class="table-responsive">
                 <table class="table modern-table mb-0">
                     <thead>
                         <tr>
                             <th class="ps-4 text-center">Rank</th>
-                            <th>Product</th>
+                            <th>Employee</th>
                             <th class="text-center">Units Sold</th>
-                            <th class="text-end pe-4">Revenue</th>
+                            <th class="text-end pe-4">Total Revenue</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for p in product_data %}
+                        {% for emp in performance_data %}
                         <tr>
                             <td class="ps-4 text-center">
                                 <span class="rank-badge rank-{{ loop.index }}">{{ loop.index }}</span>
                             </td>
                             <td>
                                 <div class="d-flex align-items-center">
-                                    <img src="{{ p.image }}" class="product-img" alt="img">
-                                    <span class="fw-bold text-dark">{{ p.product_name }}</span>
+                                    <img src="{{ emp.employee_image }}" class="emp-avatar" alt="img">
+                                    <span class="fw-bold text-dark">{{ emp.employee_name }}</span>
                                 </div>
                             </td>
-                            <td class="text-center fw-bold">{{ p.total_units_sold }}</td>
-                            <td class="text-end pe-4 fw-bold text-success">{{ p.total_revenue|inr }}</td>
+                            <td class="text-center fw-bold">{{ emp.total_units_sold }}</td>
+                            <td class="text-end pe-4 fw-bolder text-success">{{ emp.total_sales_amount|inr }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -221,8 +247,8 @@
 
     {% else %}
         <div class="text-center py-5">
-            <div class="mb-3 opacity-25"><i class="fa-solid fa-chart-simple fa-3x"></i></div>
-            <h6 class="text-muted fw-bold">No data found.</h6>
+            <div class="mb-3 opacity-25"><i class="fa-solid fa-user-xmark fa-3x"></i></div>
+            <h6 class="text-muted fw-bold">No performance data found for this period.</h6>
         </div>
     {% endif %}
 
@@ -232,112 +258,68 @@
     document.addEventListener("DOMContentLoaded", function() {
         flatpickr(".date-picker", { dateFormat: "d-m-Y", allowInput: true });
 
-        {% if product_data %}
-            const rawData = {{ product_data | tojson | safe }};
-            // Take Top 8 for Pie Charts to avoid clutter
-            const top8 = rawData.slice(0, 8);
-            const otherData = rawData.slice(8);
-            
-            // Calculate Others
-            if(otherData.length > 0) {
-                const otherRev = otherData.reduce((acc, curr) => acc + curr.total_revenue, 0);
-                const otherQty = otherData.reduce((acc, curr) => acc + curr.total_units_sold, 0);
-                top8.push({ product_name: 'Others', total_revenue: otherRev, total_units_sold: otherQty });
-            }
+        {% if performance_data %}
+            const rawData = {{ performance_data | tojson | safe }};
+            const labels = rawData.map(d => d.employee_name);
+            const revenues = rawData.map(d => d.total_sales_amount);
+            const units = rawData.map(d => d.total_units_sold);
 
-            const pieLabels = top8.map(d => d.product_name);
-            const pieRev = top8.map(d => d.total_revenue);
-            const pieQty = top8.map(d => d.total_units_sold);
-
-            const colors = ['#4361ee', '#3f37c9', '#4895ef', '#4cc9f0', '#7209b7', '#b5179e', '#f72585', '#999999', '#cccccc'];
-
-            // 1. Revenue Share Chart (Pie)
-            new Chart(document.getElementById('revShareChart'), {
-                type: 'doughnut',
-                data: {
-                    labels: pieLabels,
-                    datasets: [{
-                        data: pieRev,
-                        backgroundColor: colors,
-                        borderWidth: 0,
-                        hoverOffset: 10
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    cutout: '65%',
-                    plugins: {
-                        legend: { position: 'right', labels: { boxWidth: 12, font: {size: 11} } },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    let val = context.raw;
-                                    let total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                    let pct = ((val / total) * 100).toFixed(1) + '%';
-                                    return ` ${context.label}: ${pct} (₹${val.toLocaleString()})`;
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-
-            // 2. Quantity Share Chart (Pie)
-            new Chart(document.getElementById('qtyShareChart'), {
-                type: 'doughnut',
-                data: {
-                    labels: pieLabels,
-                    datasets: [{
-                        data: pieQty,
-                        backgroundColor: colors,
-                        borderWidth: 0,
-                        hoverOffset: 10
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    cutout: '65%',
-                    plugins: {
-                        legend: { position: 'right', labels: { boxWidth: 12, font: {size: 11} } },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    let val = context.raw;
-                                    let total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                    let pct = ((val / total) * 100).toFixed(1) + '%';
-                                    return ` ${context.label}: ${pct} (${val} Units)`;
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-
-            // 3. Bar Chart (Top 10 raw values)
-            const top10 = rawData.slice(0, 10);
-            const barLabels = top10.map(d => d.product_name);
-            const barRev = top10.map(d => d.total_revenue);
-            const barQty = top10.map(d => d.total_units_sold);
-
-            new Chart(document.getElementById('perfChart'), {
+            // 1. Revenue Bar Chart
+            new Chart(document.getElementById('revenueChart'), {
                 type: 'bar',
                 data: {
-                    labels: barLabels,
-                    datasets: [
-                        { label: 'Revenue', data: barRev, backgroundColor: '#4361ee', borderRadius: 5, yAxisID: 'y' },
-                        { label: 'Units', data: barQty, backgroundColor: 'rgba(76, 201, 240, 0.4)', borderRadius: 5, yAxisID: 'y1' }
-                    ]
+                    labels: labels,
+                    datasets: [{
+                        label: 'Revenue (₹)',
+                        data: revenues,
+                        backgroundColor: '#6366f1',
+                        borderRadius: 6,
+                        barPercentage: 0.6
+                    }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    interaction: { mode: 'index', intersect: false },
+                    plugins: { legend: { display: false } },
                     scales: {
-                        y: { type: 'linear', display: true, position: 'left', grid: { borderDash: [4, 4] } },
-                        y1: { type: 'linear', display: true, position: 'right', grid: { drawOnChartArea: false } },
+                        y: { 
+                            grid: { borderDash: [4, 4] },
+                            ticks: { callback: v => '₹' + v/1000 + 'k' } 
+                        },
                         x: { grid: { display: false } }
+                    }
+                }
+            });
+
+            // 2. Share Doughnut Chart (Based on Revenue)
+            new Chart(document.getElementById('shareChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: revenues, // Using Revenue Data
+                        backgroundColor: ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#64748b'],
+                        borderWidth: 0,
+                        hoverOffset: 10
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '70%',
+                    plugins: {
+                        legend: { position: 'bottom', labels: { boxWidth: 10 } },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let val = context.raw;
+                                    let total = context.chart._metasets[context.datasetIndex].total;
+                                    let pct = ((val / total) * 100).toFixed(1) + '%';
+                                    // Explicitly show it's Revenue Share
+                                    return ` ${context.label}: ${pct} (Rev Share)`;
+                                }
+                            }
+                        }
                     }
                 }
             });
