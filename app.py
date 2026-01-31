@@ -7102,49 +7102,111 @@ def daily_sales():
                            total_units=total_units,
                            total_transactions=total_transactions)
 
+
+# REPLACE your existing 'employee_performance' route in app.py with this updated version:
+
 @app.route('/reports/employee_performance', methods=['GET', 'POST'])
 def employee_performance():
-    end_date = date.today()
-    start_date = end_date - timedelta(days=29)
+    if "loggedin" not in session: return redirect(url_for("login"))
+    
+    # Defaults
+    end_date_obj = date.today()
+    start_date_obj = end_date_obj - timedelta(days=29)
+    
+    # Get raw input
+    start_date_str = request.form.get('start_date') or request.args.get('start_date')
+    end_date_str = request.form.get('end_date') or request.args.get('end_date')
+
+    # Robust Date Parsing
+    if start_date_str:
+        try: start_date_obj = datetime.strptime(start_date_str, '%d-%m-%Y').date()
+        except: 
+            try: start_date_obj = date.fromisoformat(start_date_str)
+            except: pass
+            
+    if end_date_str:
+        try: end_date_obj = datetime.strptime(end_date_str, '%d-%m-%Y').date()
+        except:
+            try: end_date_obj = date.fromisoformat(end_date_str)
+            except: pass
+
+    # SQL Format (YYYY-MM-DD)
+    sql_start = start_date_obj.strftime('%Y-%m-%d')
+    sql_end = end_date_obj.strftime('%Y-%m-%d')
+    
+    # Display Format (DD-MM-YYYY)
+    display_start = start_date_obj.strftime('%d-%m-%Y')
+    display_end = end_date_obj.strftime('%d-%m-%Y')
+
     performance_data = []
-    if request.method == 'POST':
-        start_date_str = request.form.get('start_date')
-        end_date_str = request.form.get('end_date')
-        start_date = date.fromisoformat(start_date_str)
-        end_date = date.fromisoformat(end_date_str)
+    total_period_revenue = 0.0
+    total_period_units = 0
+    db_cursor = None
+    
+    try:
+        db_cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
         
-        db_cursor = None
-        try:
-            db_cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-            sql = """
-                SELECT
-                    e.name AS employee_name,
-                    SUM(ei.sold_qty) AS total_units_sold,
-                    SUM(ei.sold_qty * ei.unit_price) AS total_sales_amount
+        # UNIFIED QUERY: Evening Sales + Office Sales (grouped by employee)
+        # Note: Office sales might have 'Office' as employee name if sales_person is null
+        sql = """
+            SELECT 
+                COALESCE(e_name, 'Office/Admin') AS employee_name,
+                e_image,
+                SUM(qty) AS total_units_sold,
+                SUM(line_total) AS total_sales_amount
+            FROM (
+                -- Field Sales
+                SELECT 
+                    e.name as e_name, e.image as e_image,
+                    ei.sold_qty as qty, (ei.sold_qty * ei.unit_price) as line_total
                 FROM evening_item ei
                 JOIN evening_settle es ON ei.settle_id = es.id
                 JOIN employees e ON es.employee_id = e.id
-                WHERE es.date BETWEEN %s AND %s
-                GROUP BY e.id, e.name
-                ORDER BY total_sales_amount DESC
-            """
-            db_cursor.execute(sql, (start_date, end_date))
-            performance_data = db_cursor.fetchall()
-        except Exception as e:
-            flash(f"An error occurred while generating the report: {e}", "danger")
-        finally:
-            if db_cursor:
-                db_cursor.close()
+                WHERE es.date BETWEEN %s AND %s AND es.status = 'final'
+                
+                UNION ALL
+                
+                -- Counter Sales
+                SELECT 
+                    os.sales_person as e_name, NULL as e_image,
+                    osi.qty, osi.total_price as line_total
+                FROM office_sale_items osi
+                JOIN office_sales os ON osi.sale_id = os.id
+                WHERE os.sale_date BETWEEN %s AND %s
+            ) as sales_data
+            GROUP BY e_name, e_image
+            ORDER BY total_sales_amount DESC
+        """
+        
+        db_cursor.execute(sql, (sql_start, sql_end, sql_start, sql_end))
+        rows = db_cursor.fetchall()
+        
+        for r in rows:
+            rev = float(r['total_sales_amount'] or 0)
+            qty = int(r['total_units_sold'] or 0)
+            
+            performance_data.append({
+                'employee_name': r['employee_name'],
+                'employee_image': resolve_img(r['e_image']), # Use helper for image
+                'total_units_sold': qty,
+                'total_sales_amount': rev
+            })
+            
+            total_period_revenue += rev
+            total_period_units += qty
 
-    start_date_str = start_date.strftime('%d %b, %Y')
-    end_date_str = end_date.strftime('%d %b, %Y')
+    except Exception as e:
+        flash(f"Error fetching employee performance: {e}", "danger")
+        app.logger.error(f"Emp Perf Error: {e}")
+    finally:
+        if db_cursor: db_cursor.close()
+
     return render_template('reports/employee_performance.html', 
-                           start_date=start_date.isoformat(), 
-                           end_date=end_date.isoformat(),
-                           start_date_str=start_date_str,
-                           end_date_str=end_date_str,
-                           performance_data=performance_data)
-
+                           start_date=display_start,
+                           end_date=display_end,
+                           performance_data=performance_data,
+                           total_revenue=total_period_revenue,
+                           total_units=total_period_units)
 
 @app.route('/reports/employee_performance/pdf/<start_date>/<end_date>')
 def report_employee_performance_pdf(start_date, end_date):
@@ -8254,6 +8316,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
