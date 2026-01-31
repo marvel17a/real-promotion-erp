@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>REAL PROMOTION | ERP</title>
+    <title>REAL PROMOTION</title>
     
     <link href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css" rel="stylesheet" />
     
@@ -11,264 +11,173 @@
     
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
     
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
     <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}" />
 
     <style>
+        /* --- MODERN DASHBOARD OVERRIDES --- */
         :root {
-            --primary-color: #4f46e5;
-            --secondary-color: #ec4899;
-            --glass-bg: rgba(255, 255, 255, 0.75);
-            --glass-border: 1px solid rgba(255, 255, 255, 0.5);
-            --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
-            --text-main: #1f2937;
-            --text-muted: #6b7280;
-            --navbar-height: 80px;
-        }
-
-        [data-theme="dark"] {
-            --glass-bg: rgba(17, 24, 39, 0.75);
-            --glass-border: 1px solid rgba(255, 255, 255, 0.1);
-            --text-main: #f3f4f6;
-            --text-muted: #9ca3af;
+            --primary-color: #6366f1; /* Indigo */
+            --accent-color: #0ea5e9;  /* Sky Blue */
+            --bg-color: #f3f4f6;      /* Light Gray */
+            --card-bg: #ffffff;
+            --text-dark: #1e293b;
+            --nav-height: 70px;
         }
 
         body {
-            font-family: 'Inter', sans-serif;
-            background: linear-gradient(135deg, #f0f4ff 0%, #e0e7ff 100%);
-            color: var(--text-main);
+            font-family: 'Urbanist', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-dark);
             min-height: 100vh;
             display: flex;
             flex-direction: column;
             overflow-x: hidden;
-            transition: background 0.3s ease;
         }
 
-        h1, h2, h3, h4, h5, h6, .navbar-brand {
-            font-family: 'Outfit', sans-serif;
-        }
-
-        /* --- Animated Background Shapes --- */
-        .bg-shape {
-            position: fixed;
-            border-radius: 50%;
-            filter: blur(80px);
-            z-index: -1;
-            opacity: 0.6;
-            animation: float 10s infinite alternate;
-        }
-
-        .shape-1 {
-            width: 400px;
-            height: 400px;
-            background: #6366f1;
-            top: -100px;
-            left: -100px;
-        }
-
-        .shape-2 {
-            width: 300px;
-            height: 300px;
-            background: #ec4899;
-            bottom: -50px;
-            right: -50px;
-            animation-delay: -2s;
-        }
-
-        .shape-3 {
-            width: 200px;
-            height: 200px;
-            background: #14b8a6;
-            top: 40%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            animation-delay: -4s;
-        }
-
-        @keyframes float {
-            0% { transform: translate(0, 0); }
-            100% { transform: translate(20px, 40px); }
-        }
-
-        /* --- Glass Navbar --- */
+        /* --- REDESIGNED NAVBAR --- */
+        /* Kept 'glass-effect' class name but changed style to Solid White + Shadow */
         .glass-effect {
-            background: var(--glass-bg);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border-bottom: var(--glass-border);
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-            padding: 1rem 0;
-            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.95) !important;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+            padding: 0.8rem 0;
+            height: var(--nav-height);
         }
 
         .navbar-brand {
-            font-weight: 700;
-            font-size: 1.25rem;
-            color: var(--text-main) !important;
-        }
-
-        .brand-icon-wrapper img {
-            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));
-            transition: transform 0.3s;
-        }
-        
-        .navbar-brand:hover .brand-icon-wrapper img {
-            transform: rotate(10deg);
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            color: #0f172a !important;
         }
 
         .small-tag {
-            font-size: 0.65rem;
-            letter-spacing: 2px;
-            color: var(--primary-color);
-            text-transform: uppercase;
+            background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-size: 0.7rem;
             font-weight: 700;
+            text-transform: uppercase;
+            margin-left: 8px;
         }
 
-        /* Navigation Links */
+        /* Nav Links */
         .nav-link {
-            color: var(--text-main) !important;
-            font-weight: 500;
-            padding: 0.5rem 1rem !important;
-            border-radius: 8px;
-            transition: all 0.2s ease;
-            position: relative;
+            color: #64748b !important;
+            font-weight: 600;
+            font-size: 0.95rem;
+            padding: 0.5rem 1.2rem !important;
+            border-radius: 50px;
+            transition: all 0.3s ease;
         }
 
         .nav-link:hover, .nav-link.active {
-            background: rgba(79, 70, 229, 0.1);
             color: var(--primary-color) !important;
-            transform: translateY(-2px);
+            background: #e0e7ff;
         }
 
         .nav-link i {
             margin-right: 6px;
-            color: var(--secondary-color);
-        }
-
-        /* Dropdown */
-        .glass-dropdown {
-            background: var(--glass-bg);
-            backdrop-filter: blur(16px);
-            border: var(--glass-border);
-            box-shadow: var(--glass-shadow);
-            border-radius: 12px;
-            margin-top: 10px;
-            padding: 0.5rem;
-        }
-
-        .dropdown-item {
-            color: var(--text-main);
-            border-radius: 6px;
-            padding: 8px 16px;
-            font-size: 0.95rem;
-        }
-
-        .dropdown-item:hover {
-            background: rgba(79, 70, 229, 0.1);
             color: var(--primary-color);
         }
 
-        /* --- Buttons & Toggles --- */
-        .theme-toggle {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            border: var(--glass-border);
-            background: rgba(255,255,255,0.2);
-            color: var(--text-main);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.3s;
+        /* --- MAIN CONTENT (FULL WIDTH) --- */
+        /* This class replaced .container to remove empty side space */
+        .container-fluid-custom {
+            width: 100%;
+            padding-right: 2rem;
+            padding-left: 2rem;
+            margin-right: auto;
+            margin-left: auto;
         }
 
-        .theme-toggle:hover {
-            background: var(--primary-color);
-            color: white;
-            transform: rotate(15deg);
-        }
-
-        .btn-glass-primary {
-            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-            border: none;
-            color: white;
-            font-weight: 600;
-            padding: 0.5rem 1.5rem;
-            box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3);
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-
-        .btn-glass-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(79, 70, 229, 0.4);
-            color: white;
-        }
-
-        /* --- Content Cards --- */
+        /* Redefining .glass-card to be a Clean Dashboard Panel */
         .glass-card {
-            background: var(--glass-bg);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: var(--glass-border);
-            border-radius: 20px;
-            box-shadow: var(--glass-shadow);
+            background: var(--card-bg);
+            border-radius: 16px;
+            border: 1px solid #e2e8f0; /* Subtle border instead of glass */
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03); /* Soft shadow */
             position: relative;
             overflow: hidden;
+            width: 100%; /* Ensures it fills the container */
         }
 
-        /* Flash Messages */
-        .glass-alert {
-            background: rgba(255, 255, 255, 0.9);
-            border-left: 4px solid var(--secondary-color);
-            padding: 1rem;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-            display: flex;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-
-        /* Footer */
-        footer {
-            border-top: var(--glass-border);
-            margin-top: auto;
-        }
-
-        .social-glass a {
-            width: 36px;
-            height: 36px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            background: rgba(255,255,255,0.2);
-            border-radius: 50%;
-            margin: 0 5px;
-            color: var(--text-main);
-            transition: 0.3s;
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-
-        .social-glass a:hover {
+        /* --- BUTTONS --- */
+        .btn-glass-primary {
             background: var(--primary-color);
             color: white;
-            transform: translateY(-3px);
+            border-radius: 8px;
+            padding: 8px 20px;
+            font-weight: 600;
+            box-shadow: 0 4px 14px 0 rgba(99, 102, 241, 0.39);
+            border: none;
+            transition: transform 0.2s;
         }
         
-        /* Mobile Navbar Tweaks */
+        .btn-glass-primary:hover {
+            background: #4f46e5;
+            transform: translateY(-2px);
+            color: white;
+        }
+
+        .theme-toggle {
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            color: #64748b;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* --- FOOTER --- */
+        footer {
+            background: white;
+            border-top: 1px solid #e2e8f0;
+        }
+        
+        /* Dropdown Styling */
+        .dropdown-menu {
+            border: none;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            border-radius: 12px;
+            padding: 10px;
+        }
+        .dropdown-item {
+            border-radius: 8px;
+            padding: 8px 15px;
+            font-weight: 500;
+        }
+        .dropdown-item:hover {
+            background: #f1f5f9;
+            color: var(--primary-color);
+        }
+
+        /* Background Shapes (Subtle Gradients now) */
+        .bg-shape {
+            position: fixed;
+            z-index: -1;
+            filter: blur(100px);
+            opacity: 0.4;
+        }
+        .shape-1 { top: -10%; left: -10%; width: 50vw; height: 50vw; background: #c7d2fe; border-radius: 50%; }
+        .shape-2 { bottom: -10%; right: -10%; width: 40vw; height: 40vw; background: #bae6fd; border-radius: 50%; }
+        .shape-3 { display: none; } /* Simplified */
+
+        /* Mobile Responsive */
         @media (max-width: 991px) {
+            .container-fluid-custom { padding: 0 1rem; }
+            .glass-card { padding: 1.5rem !important; }
             .navbar-collapse {
-                background: var(--glass-bg);
-                backdrop-filter: blur(20px);
+                background: white;
                 padding: 1rem;
-                border-radius: 12px;
-                margin-top: 10px;
-                border: var(--glass-border);
-                box-shadow: var(--glass-shadow);
-            }
-            .d-flex.align-items-center.gap-3 {
-                margin-top: 1rem;
-                justify-content: space-between;
+                border-radius: 0 0 16px 16px;
+                border-top: 1px solid #eee;
+                box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
             }
         }
     </style>
@@ -277,115 +186,101 @@
 
     <div class="bg-shape shape-1"></div>
     <div class="bg-shape shape-2"></div>
-    <div class="bg-shape shape-3"></div>
 
     <nav class="navbar navbar-expand-lg fixed-top glass-effect" id="mainNavbar">
-        <div class="container-fluid px-lg-5 px-3">
+        <div class="container-fluid px-4">
             
             <a class="navbar-brand d-flex align-items-center" href="/index">
-                <div class="brand-icon-wrapper me-3">
-                    <img src="{{ url_for('static', filename='uploads/logo-removebg-preview.png') }}" alt="RP" height="40">
+                <div class="brand-icon-wrapper me-2">
+                    <img src="{{ url_for('static', filename='uploads/logo-removebg-preview.png') }}" alt="RP" height="38">
                 </div>
-                <div class="d-flex flex-column lh-1">
-                    <span class="fw-bold tracking-wide">REAL PROMOTION</span>
-                    <span class="small-tag mt-1">ERP SYSTEM</span>
+                <div class="d-flex align-items-baseline">
+                    <span class="fw-bold">REAL PROMOTION</span>
+                    <span class="small-tag">ERP</span>
                 </div>
             </a>
 
-            <button class="navbar-toggler border-0 shadow-none" type="button" data-bs-toggle="collapse" data-bs-target="#glassNav">
-                <span class="fa-solid fa-bars-staggered fs-4" style="color: var(--text-main);"></span>
+            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#glassNav">
+                <i class="fa-solid fa-bars text-dark"></i>
             </button>
 
             <div class="collapse navbar-collapse" id="glassNav">
                 <ul class="navbar-nav mx-auto mb-2 mb-lg-0 gap-1">
                     <li class="nav-item">
-                        <a class="nav-link" href="/dashboard"><i class="fa-solid fa-chart-pie"></i> Dashboard</a>
+                        <a class="nav-link" href="/dashboard"><i class="fa-solid fa-grid-2"></i> Dashboard</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="/inventory"><i class="fa-solid fa-boxes-stacked"></i> Inventory</a>
+                        <a class="nav-link" href="/inventory"><i class="fa-solid fa-box"></i> Inventory</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="/employees"><i class="fa-solid fa-users-viewfinder"></i> Staff</a>
+                        <a class="nav-link" href="/employees"><i class="fa-solid fa-user-group"></i> Staff</a>
                     </li>
                     
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                            <i class="fa-solid fa-clipboard-check"></i> Orders
+                            <i class="fa-solid fa-file-invoice"></i> Orders
                         </a>
-                        <ul class="dropdown-menu glass-dropdown animate slideIn">
+                        <ul class="dropdown-menu animate slideIn">
                             <li><a class="dropdown-item" href="{{ url_for('morning') }}">☀️ Morning Order</a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="{{ url_for('evening') }}">🌙 Evening Settlement</a></li>
                         </ul>
                     </li>
 
-                    <li class="nav-item"><a class="nav-link" href="/office_sales"><i class="fa-solid fa-cash-register"></i> Sales</a></li>
-                    <li class="nav-item"><a class="nav-link" href="/expenses_list"><i class="fa-solid fa-receipt"></i> Expenses</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/office_sales"><i class="fa-solid fa-chart-line"></i> Sales</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/expenses_list"><i class="fa-solid fa-wallet"></i> Expenses</a></li>
                 </ul>
 
-                <div class="d-flex align-items-center gap-3">
-                    
+                <div class="d-flex align-items-center gap-3 mt-3 mt-lg-0">
                     <button class="btn theme-toggle" id="themeToggle" title="Switch Theme">
                         <i class="fa-solid fa-moon" id="themeIcon"></i>
                     </button>
  
-                    <a href="admin_master" class="btn btn-glass-primary rounded-pill d-flex align-items-center gap-2">
-                        <i class="fa-solid fa-shield-halved"></i> Admin
+                    <a href="admin_master" class="btn btn-glass-primary">
+                        <i class="fa-solid fa-shield-cat me-1"></i> Admin
                     </a>
                 </div>
             </div>
         </div>
     </nav>
 
-    <main class="container py-5 mt-5">
-        <div class="py-3"></div>
-
+    <main class="container-fluid-custom py-4" style="margin-top: 80px;">
+        
         {% with messages = get_flashed_messages() %}
             {% if messages %}
-                <div class="glass-alert fade-in-down" data-aos="fade-down">
-                    <div class="d-flex align-items-center flex-grow-1">
-                        <div class="p-2 rounded-circle bg-white bg-opacity-25 me-3 text-primary">
-                            <i class="fa-solid fa-bell"></i>
-                        </div>
-                        <div class="d-flex flex-column">
+                <div class="alert alert-info border-0 shadow-sm rounded-3 mb-4 d-flex align-items-center" role="alert" data-aos="fade-down">
+                    <i class="fa-solid fa-circle-info me-2 fs-5"></i>
+                    <div class="flex-grow-1">
                         {% for msg in messages %}
-                            <span class="fw-medium">{{ msg }}</span>
+                            <div>{{ msg }}</div>
                         {% endfor %}
-                        </div>
                     </div>
-                    <button type="button" class="btn-close ms-2" onclick="this.closest('.glass-alert').remove()"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 </div>
             {% endif %}
         {% endwith %}
 
-        <div class="glass-card p-4 p-lg-5 fade-in-up" data-aos="fade-up" data-aos-duration="800">
+        <div class="glass-card p-4 p-lg-5 fade-in-up w-100">
             {% block content %}{% endblock %}
         </div>
     </main>
 
-    <footer class="glass-effect py-4 position-relative">
-        <div class="container">
+    <footer class="mt-auto py-4">
+        <div class="container text-center">
             <div class="row align-items-center gy-3">
-                <div class="col-md-4 text-center text-md-start">
-                    <div class="d-flex align-items-center justify-content-center justify-content-md-start gap-2">
-                        <span class="fw-bold fs-5 tracking-tight">REAL PROMOTION</span>
-                    </div>
-                    <small class="text-muted d-block mt-1">&copy; 2005 - 2026 ERP Systems</small>
+                <div class="col-md-4 text-md-start">
+                    <h6 class="fw-bold mb-0 text-dark">REAL PROMOTION</h6>
+                    <small class="text-muted">Since 2005</small>
                 </div>
-                
-                <div class="col-md-4 text-center">
-                    <div class="social-glass">
-                        <a href="#"><i class="fab fa-facebook-f"></i></a>
-                        <a href="#"><i class="fab fa-twitter"></i></a>
-                        <a href="#"><i class="fab fa-instagram"></i></a>
-                        <a href="#"><i class="fab fa-linkedin-in"></i></a>
+                <div class="col-md-4">
+                    <div class="social-glass d-flex justify-content-center gap-3">
+                        <a href="#" class="text-muted"><i class="fab fa-facebook-f"></i></a>
+                        <a href="#" class="text-muted"><i class="fab fa-twitter"></i></a>
+                        <a href="#" class="text-muted"><i class="fab fa-instagram"></i></a>
                     </div>
                 </div>
-                
-                <div class="col-md-4 text-center text-md-end">
-                    <a href="mailto:help@realpromotion.in" class="text-decoration-none text-muted fw-medium hover-primary">
-                        <i class="fa-regular fa-envelope me-2"></i>help@realpromotion.in
-                    </a>
+                <div class="col-md-4 text-md-end">
+                    <small class="text-muted">help@realpromotion.in</small>
                 </div>
             </div>
         </div>
@@ -393,15 +288,9 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
-    
-    <script>
-        AOS.init({
-            duration: 800,
-            once: true,
-            offset: 50
-        });
-    </script>
-    
     <script src="{{ url_for('static', filename='js/base.js') }}"></script>
+    <script>
+        AOS.init({ duration: 800, once: true });
+    </script>
 </body>
 </html>
