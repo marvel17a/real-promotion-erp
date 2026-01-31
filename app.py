@@ -6996,15 +6996,35 @@ def report_daily_summary_pdf(report_date):
 # =========================================================
 # DAILY SALES REPORT (Updated for Net Revenue)
 # =========================================================
+# REPLACE your existing 'daily_sales' route in app.py with this FIXED version:
+
 @app.route('/reports/daily_sales', methods=['GET', 'POST'])
 def daily_sales():
     if "loggedin" not in session: return redirect(url_for("login"))
     
-    report_date = request.form.get('report_date') or date.today().isoformat()
+    # 1. Get raw date from request (default to today)
+    raw_date = request.form.get('report_date') or date.today().strftime('%d-%m-%Y')
+    
+    # 2. Parse Date Correctly (Handle dd-mm-yyyy from frontend)
+    # Using existing helper 'parse_date' or manual logic
+    try:
+        # Try parsing dd-mm-yyyy first (Common in your frontend)
+        report_date_obj = datetime.strptime(raw_date, '%d-%m-%Y').date()
+    except ValueError:
+        try:
+            # Fallback to yyyy-mm-dd
+            report_date_obj = date.fromisoformat(raw_date)
+        except ValueError:
+            # Last resort: Today
+            report_date_obj = date.today()
+    
+    # Standard format for SQL (yyyy-mm-dd) and Display (dd-mm-yyyy)
+    sql_date = report_date_obj.strftime('%Y-%m-%d')
+    report_date_str = report_date_obj.strftime('%d-%m-%Y')
     
     sales_data = []
-    grand_total = 0.0 # This will be Gross for the table list
-    net_total_revenue = 0.0 # This will be the true Net Revenue (Gross - Discounts)
+    grand_total = 0.0 
+    net_total_revenue = 0.0
     total_units = 0
     total_transactions = 0
 
@@ -7012,8 +7032,7 @@ def daily_sales():
     try:
         db_cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
         
-        # 1. Fetch Item Details (This shows Gross Amount per item)
-        # We cannot deduct discount per item easily here for display, so table shows Gross.
+        # 3. Fetch Item Details
         sql_items = """
             SELECT 
                 'Field Sale' as type,
@@ -7044,14 +7063,14 @@ def daily_sales():
 
             ORDER BY type, employee_name
         """
-        db_cursor.execute(sql_items, (report_date, report_date))
+        db_cursor.execute(sql_items, (sql_date, sql_date))
         sales_data = db_cursor.fetchall()
         
         for item in sales_data:
-            grand_total += float(item['total_amount']) # Gross Sum
+            grand_total += float(item['total_amount'])
             total_units += int(item['qty'])
             
-        # 2. Calculate Actual Net Revenue (Subtracting Discounts from Header Tables)
+        # 4. Calculate Actual Net Revenue
         sql_net = """
             SELECT SUM(net_val) as true_revenue, COUNT(*) as tx_count FROM (
                 SELECT (total_amount - discount) as net_val FROM evening_settle 
@@ -7061,7 +7080,7 @@ def daily_sales():
                 WHERE sale_date = %s
             ) as t
         """
-        db_cursor.execute(sql_net, (report_date, report_date))
+        db_cursor.execute(sql_net, (sql_date, sql_date))
         net_res = db_cursor.fetchone()
         
         if net_res:
@@ -7070,19 +7089,15 @@ def daily_sales():
             
     except Exception as e:
         flash(f"Error fetching daily sales: {e}", "danger")
+        app.logger.error(f"Daily Sales Error: {e}")
     finally:
         if db_cursor: db_cursor.close()
-
-    report_date_obj = date.fromisoformat(report_date)
-    report_date_str = report_date_obj.strftime('%d %B, %Y')
     
     return render_template('reports/daily_sales.html', 
-                           report_date=report_date,
-                           report_date_str=report_date_str,
+                           report_date=report_date_str, # Pass back formatted string for input
+                           report_date_str=report_date_str, # For display title
                            sales_data=sales_data,
-                           # Pass Net Total for KPI Card
                            grand_total=net_total_revenue, 
-                           # Pass Gross Total for Table Footer if you want, or keep consistent
                            table_total=grand_total,
                            total_units=total_units,
                            total_transactions=total_transactions)
@@ -7795,10 +7810,8 @@ def _fetch_transaction_data(filters):
             
     return transactions
 
-
 # ==========================================
-# TRANSACTION REPORT PDF CLASS (Professional Design)
-# ==========================================
+# TRANSACTION REPORT PDF CLASS (Time & Header Fixed)
 # ==========================================
 # TRANSACTION REPORT PDF CLASS (Time & Header Fixed)
 # ==========================================
@@ -8193,6 +8206,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
