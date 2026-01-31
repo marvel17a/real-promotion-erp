@@ -103,24 +103,21 @@ def parse_date_input(date_str):
         # Return as-is if it fails (might already be correct or None)
         return date_str
 
-
-# REPLACE your existing 'monthly_sales_dashboard' route with this COMPREHENSIVE version:
-
+# =========================================================
+# MONTHLY SALES DASHBOARD (Updated for Net Revenue)
+# =========================================================
 @app.route("/monthly_sales_dashboard")
 def monthly_sales_dashboard():
-    if "loggedin" not in session:
-        return redirect(url_for("login"))
+    if "loggedin" not in session: return redirect(url_for("login"))
 
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
 
     # 1. Get Filters
     selected_year = request.args.get("year")
-    try:
-        selected_year = int(selected_year)
-    except:
-        selected_year = datetime.now().year
+    try: selected_year = int(selected_year)
+    except: selected_year = datetime.now().year
 
-    # 2. Get Available Years (Check both tables)
+    # 2. Get Available Years
     cursor.execute("""
         SELECT YEAR(date) as y FROM evening_settle UNION 
         SELECT YEAR(sale_date) as y FROM office_sales 
@@ -129,27 +126,31 @@ def monthly_sales_dashboard():
     years = cursor.fetchall()
     year_list = [r['y'] for r in years] if years else [selected_year]
 
-    # 3. UNIFIED QUERY: Combine Evening Sales + Office Sales
-    # This ensures ALL data is shown
+    # 3. UNIFIED QUERY (Net Revenue = Total - Discount)
+    # Fetching from HEADER tables (evening_settle, office_sales) is more accurate for Net Revenue
     base_query = f"""
         SELECT 
             DATE_FORMAT(date_val, '%%Y-%%m') as month_key,
             DATE_FORMAT(date_val, '%%b %%Y') as month_label,
-            SUM(qty) as total_qty,
-            SUM(line_total) as total_revenue
+            SUM(qty_count) as total_qty,
+            SUM(net_amt) as total_revenue
         FROM (
-            -- Evening Sales
-            SELECT es.date as date_val, ei.sold_qty as qty, (ei.sold_qty * ei.unit_price) as line_total
-            FROM evening_item ei
-            JOIN evening_settle es ON ei.settle_id = es.id
+            -- Evening Sales (Field)
+            SELECT 
+                es.date as date_val, 
+                (SELECT SUM(sold_qty) FROM evening_item WHERE settle_id=es.id) as qty_count,
+                (es.total_amount - es.discount) as net_amt
+            FROM evening_settle es
             WHERE es.status = 'final' AND YEAR(es.date) = %s
             
             UNION ALL
             
-            -- Office Sales
-            SELECT os.sale_date as date_val, osi.qty, osi.total_price as line_total
-            FROM office_sale_items osi
-            JOIN office_sales os ON osi.sale_id = os.id
+            -- Office Sales (Counter)
+            SELECT 
+                os.sale_date as date_val, 
+                (SELECT SUM(qty) FROM office_sale_items WHERE sale_id=os.id) as qty_count,
+                (os.final_amount) as net_amt -- final_amount is already (sub_total - discount)
+            FROM office_sales os
             WHERE YEAR(os.sale_date) = %s
         ) as combined_sales
         GROUP BY month_key, month_label
@@ -159,7 +160,7 @@ def monthly_sales_dashboard():
     cursor.execute(base_query, (selected_year, selected_year))
     monthly_data_raw = cursor.fetchall()
 
-    # Process Data for Charts/Cards
+    # Process Data
     monthly_data = []
     total_revenue = 0.0
     total_units = 0
@@ -186,21 +187,22 @@ def monthly_sales_dashboard():
 
     avg_monthly = total_revenue / len(monthly_data) if monthly_data else 0.0
 
-    # 4. Top Selling Products (Unified)
+    # 4. Top Selling Products (Qty remains same, Revenue approx)
+    # Note: Product-wise revenue is hard to net-off with header discounts accurately without complex proportioning.
+    # For Top Products, we will show Gross Revenue (Qty * Price) as an indicator, or just rank by Qty.
     prod_query = f"""
         SELECT 
             p.name as product_name,
-            SUM(qty) as total_qty,
-            SUM(line_total) as total_revenue
+            SUM(qty) as total_qty
         FROM (
-            SELECT ei.product_id, ei.sold_qty as qty, (ei.sold_qty * ei.unit_price) as line_total
+            SELECT ei.product_id, ei.sold_qty as qty
             FROM evening_item ei
             JOIN evening_settle es ON ei.settle_id = es.id
             WHERE es.status = 'final' AND YEAR(es.date) = %s
             
             UNION ALL
             
-            SELECT osi.product_id, osi.qty, osi.total_price as line_total
+            SELECT osi.product_id, osi.qty
             FROM office_sale_items osi
             JOIN office_sales os ON osi.sale_id = os.id
             WHERE YEAR(os.sale_date) = %s
@@ -6990,17 +6992,19 @@ def report_daily_summary_pdf(report_date):
             db_cursor.close()
 
 
-# REPLACE your existing 'daily_sales' route with this UNIFIED version:
 
+# =========================================================
+# DAILY SALES REPORT (Updated for Net Revenue)
+# =========================================================
 @app.route('/reports/daily_sales', methods=['GET', 'POST'])
 def daily_sales():
     if "loggedin" not in session: return redirect(url_for("login"))
     
-    # Default to today
     report_date = request.form.get('report_date') or date.today().isoformat()
     
     sales_data = []
-    grand_total = 0.0
+    grand_total = 0.0 # This will be Gross for the table list
+    net_total_revenue = 0.0 # This will be the true Net Revenue (Gross - Discounts)
     total_units = 0
     total_transactions = 0
 
@@ -7008,16 +7012,16 @@ def daily_sales():
     try:
         db_cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
         
-        # UNIFIED QUERY: Evening Sales + Office Sales
-        sql = """
+        # 1. Fetch Item Details (This shows Gross Amount per item)
+        # We cannot deduct discount per item easily here for display, so table shows Gross.
+        sql_items = """
             SELECT 
                 'Field Sale' as type,
                 e.name AS employee_name,
                 p.name AS product_name,
                 ei.sold_qty as qty,
                 ei.unit_price,
-                (ei.sold_qty * ei.unit_price) AS total_amount,
-                es.date as sale_date
+                (ei.sold_qty * ei.unit_price) AS total_amount
             FROM evening_item ei
             JOIN evening_settle es ON ei.settle_id = es.id
             JOIN products p ON ei.product_id = p.id
@@ -7032,8 +7036,7 @@ def daily_sales():
                 p.name AS product_name,
                 osi.qty as qty,
                 osi.unit_price,
-                osi.total_price AS total_amount,
-                os.sale_date as sale_date
+                osi.total_price AS total_amount
             FROM office_sale_items osi
             JOIN office_sales os ON osi.sale_id = os.id
             JOIN products p ON osi.product_id = p.id
@@ -7041,22 +7044,35 @@ def daily_sales():
 
             ORDER BY type, employee_name
         """
-        
-        db_cursor.execute(sql, (report_date, report_date))
+        db_cursor.execute(sql_items, (report_date, report_date))
         sales_data = db_cursor.fetchall()
         
-        # Calculate stats for KPI cards
         for item in sales_data:
-            grand_total += float(item['total_amount'])
+            grand_total += float(item['total_amount']) # Gross Sum
             total_units += int(item['qty'])
-            total_transactions += 1
+            
+        # 2. Calculate Actual Net Revenue (Subtracting Discounts from Header Tables)
+        sql_net = """
+            SELECT SUM(net_val) as true_revenue, COUNT(*) as tx_count FROM (
+                SELECT (total_amount - discount) as net_val FROM evening_settle 
+                WHERE date = %s AND status = 'final'
+                UNION ALL
+                SELECT final_amount as net_val FROM office_sales 
+                WHERE sale_date = %s
+            ) as t
+        """
+        db_cursor.execute(sql_net, (report_date, report_date))
+        net_res = db_cursor.fetchone()
+        
+        if net_res:
+            net_total_revenue = float(net_res['true_revenue'] or 0)
+            total_transactions = int(net_res['tx_count'] or 0)
             
     except Exception as e:
         flash(f"Error fetching daily sales: {e}", "danger")
     finally:
         if db_cursor: db_cursor.close()
 
-    # Formats for display
     report_date_obj = date.fromisoformat(report_date)
     report_date_str = report_date_obj.strftime('%d %B, %Y')
     
@@ -7064,10 +7080,12 @@ def daily_sales():
                            report_date=report_date,
                            report_date_str=report_date_str,
                            sales_data=sales_data,
-                           grand_total=grand_total,
+                           # Pass Net Total for KPI Card
+                           grand_total=net_total_revenue, 
+                           # Pass Gross Total for Table Footer if you want, or keep consistent
+                           table_total=grand_total,
                            total_units=total_units,
                            total_transactions=total_transactions)
-
 
 @app.route('/reports/employee_performance', methods=['GET', 'POST'])
 def employee_performance():
@@ -7781,6 +7799,9 @@ def _fetch_transaction_data(filters):
 # ==========================================
 # TRANSACTION REPORT PDF CLASS (Professional Design)
 # ==========================================
+# ==========================================
+# TRANSACTION REPORT PDF CLASS (Time & Header Fixed)
+# ==========================================
 class TransactionPDF(FPDF):
     def __init__(self):
         super().__init__()
@@ -7841,7 +7862,7 @@ class TransactionPDF(FPDF):
         
         self.cell(0, 6, period_text, 0, 1, 'L')
         
-        # Employee Details (If filtered by one employee)
+        # Employee Details
         if employee_details:
             self.ln(2)
             self.set_font('Arial', 'B', 11)
@@ -7862,13 +7883,21 @@ class TransactionPDF(FPDF):
                 self.cell(25, 6, "Position:", 0, 0)
                 self.set_font('Arial', 'B', 10)
                 self.cell(60, 6, str(employee_details['position_name']), 0, 1)
-                
+            
+            # --- NEW: Generated Time below Mobile ---
+            self.ln(6) 
+            self.set_font('Arial', '', 9)
+            self.cell(25, 6, "Generated:", 0, 0)
+            self.set_font('Arial', 'I', 9)
+            # IST Time
+            ist_now = datetime.utcnow() + timedelta(hours=5, minutes=30)
+            self.cell(60, 6, ist_now.strftime('%d-%b-%Y %I:%M %p'), 0, 1)
+
         self.ln(5)
 
     def add_table(self, transactions):
-        # Header - Merged Date & Time into "Date/Time"
+        # Header
         cols = ["#", "Date/Time", "Employee", "Description", "Credit", "Debit"]
-        # Widths: 10, 35, 40, 50, 27, 28 = 190
         widths = [10, 35, 40, 50, 27, 28]
         
         self.set_font('Arial', 'B', 9)
@@ -7891,30 +7920,47 @@ class TransactionPDF(FPDF):
         total_debit = 0
         
         for idx, t in enumerate(transactions):
-            # Date/Time Parsing & Merging
-            dt_str = "-"
+            # 1. Date Part
+            d_part = "-"
             if t['transaction_date']:
                  d_part = t['transaction_date'].strftime('%d-%m-%Y')
                  
-                 # Time part
-                 t_part = ""
-                 if t.get('created_at'):
-                    if isinstance(t['created_at'], datetime):
-                        t_part = t['created_at'].strftime('%I:%M %p')
-                    elif isinstance(t['created_at'], timedelta):
-                        t_part = (datetime.min + t['created_at']).strftime('%I:%M %p')
-                    else:
-                        try: t_part = datetime.strptime(str(t['created_at']), '%Y-%m-%d %H:%M:%S').strftime('%I:%M %p')
-                        except: pass
-                 
-                 if t_part:
-                     dt_str = f"{d_part}\n{t_part}"
-                 else:
-                     dt_str = d_part
+            # 2. Time Part (Robust Parsing)
+            t_part = ""
+            raw_time = t.get('created_at')
+            
+            if raw_time:
+                # Case A: Already a datetime object
+                if isinstance(raw_time, datetime):
+                    t_part = raw_time.strftime('%I:%M %p')
+                
+                # Case B: Timedelta (Duration from midnight) - Common in MySQL TIME columns
+                elif isinstance(raw_time, timedelta):
+                    # Add duration to a dummy date to format it
+                    dummy_dt = datetime.min + raw_time
+                    t_part = dummy_dt.strftime('%I:%M %p')
+                
+                # Case C: String format
+                elif isinstance(raw_time, str):
+                    try:
+                        # Try parsing full datetime string
+                        t_part = datetime.strptime(raw_time, '%Y-%m-%d %H:%M:%S').strftime('%I:%M %p')
+                    except:
+                        try:
+                            # Try parsing just time string "14:30:00"
+                            t_part = datetime.strptime(raw_time, '%H:%M:%S').strftime('%I:%M %p')
+                        except:
+                            t_part = "" # Could not parse
 
+            # Combine Date & Time
+            if t_part:
+                dt_str = f"{d_part}  {t_part}"
+            else:
+                dt_str = d_part
+
+            # Financials
             credit_amt = "-"
             debit_amt = "-"
-            
             if t['type'] == 'credit':
                 val = float(t['amount'])
                 total_credit += val
@@ -7924,18 +7970,13 @@ class TransactionPDF(FPDF):
                 total_debit += val
                 debit_amt = f"{val:.2f}"
             
-            # Save x, y for height calculation
-            x_start = self.get_x()
-            y_start = self.get_y()
-            
-            # Calculate max height needed for this row (based on multi-line text)
-            # Description is the most likely to wrap
-            desc_text = str(t['description'] or '')
-            
-            # Check if page break needed before printing row
+            # Description truncation
+            desc_text = str(t['description'] or '')[:35]
+            emp_name = str(t['employee_name'])[:20] 
+
+            # Check Page Break
             if self.get_y() > 250:
                 self.add_page()
-                # Reprint header
                 self.set_font('Arial', 'B', 9)
                 self.set_fill_color(26, 35, 126) 
                 self.set_text_color(255, 255, 255)
@@ -7944,34 +7985,17 @@ class TransactionPDF(FPDF):
                 self.ln()
                 self.set_font('Arial', '', 8)
                 self.set_text_color(0, 0, 0)
-                y_start = self.get_y() # Reset Y
-            
-            # We use MultiCell for potentially long text (Employee, Desc) and Date/Time
-            # But we need uniform row height. 
-            # Simplified approach: Fix height to 10 for date/time dual line
-            row_height = 10 
-            
-            self.cell(widths[0], row_height, str(idx+1), 1, 0, 'C', fill)
-            
-            # Date/Time (MultiCell simulation or just simple text with newlines replaced if FPDF supports it, 
-            # standard FPDF cell doesn't do newlines well without MultiCell. 
-            # Hack: Use single line string "Date | Time" or keep simple)
-            # Let's use single line "DD-MM-YY HH:MM" to keep it clean in one box
-            dt_single_line = dt_str.replace('\n', ' ')
-            self.cell(widths[1], row_height, dt_single_line, 1, 0, 'C', fill)
-            
-            # Employee
-            emp_name = str(t['employee_name'])[:20] 
-            self.cell(widths[2], row_height, emp_name, 1, 0, 'L', fill)
-            
-            # Description
-            desc = desc_text[:35] # Truncate to fit single line clean
-            self.cell(widths[3], row_height, desc, 1, 0, 'L', fill)
-            
-            self.cell(widths[4], row_height, credit_amt, 1, 0, 'R', fill)
-            self.cell(widths[5], row_height, debit_amt, 1, 1, 'R', fill)
+
+            # Print Row
+            self.cell(widths[0], 8, str(idx+1), 1, 0, 'C', fill)
+            self.cell(widths[1], 8, dt_str, 1, 0, 'C', fill)
+            self.cell(widths[2], 8, emp_name, 1, 0, 'L', fill)
+            self.cell(widths[3], 8, desc_text, 1, 0, 'L', fill)
+            self.cell(widths[4], 8, credit_amt, 1, 0, 'R', fill)
+            self.cell(widths[5], 8, debit_amt, 1, 1, 'R', fill)
             
             fill = not fill
+            self.ln()
             
         # Totals Row
         self.set_font('Arial', 'B', 9)
@@ -7989,27 +8013,23 @@ class TransactionPDF(FPDF):
         self.set_text_color(0, 0, 0)
         self.cell(0, 8, f"Net Position: {abs(net):.2f} - {status}", 0, 1, 'R')
         
-        # Add Signature at the end (Right Side)
+        # Signature
         self.add_signature()
 
     def add_signature(self):
-        # Ensure space
         if self.get_y() > 240: self.add_page()
         self.ln(10)
         y_pos = self.get_y()
         
         sig_path = os.path.join(app.root_path, 'static', 'img', 'signature.png')
         if os.path.exists(sig_path):
-            # Place signature on RIGHT side
-            # Page width ~210mm. Right margin ~10mm. Image width 40. 
-            # x = 210 - 10 - 40 = 160 approx.
+            # Right Side Signature
             self.image(sig_path, x=150, y=y_pos, w=40)
             
         self.set_xy(140, y_pos + 25)
         self.set_font('Arial', 'B', 10)
         self.set_text_color(0, 0, 0)
         self.cell(60, 5, "Authorized Signature", 0, 1, 'C')
-        
         self.ln(10)
 
 # =========================================================
@@ -8173,6 +8193,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
