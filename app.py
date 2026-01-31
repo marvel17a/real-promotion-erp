@@ -104,6 +104,110 @@ def parse_date_input(date_str):
         return date_str
 
 
+# REPLACE your existing 'monthly_sales_dashboard' route with this UPDATED version:
+
+@app.route("/monthly_sales_dashboard")
+def monthly_sales_dashboard():
+    if "loggedin" not in session:
+        return redirect(url_for("login"))
+
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+
+    # 1. Get Filters
+    selected_year = request.args.get("year")
+    start_month = request.args.get("start_month")
+    end_month = request.args.get("end_month")
+
+    # 2. Get Available Years
+    cursor.execute("SELECT DISTINCT YEAR(sale_date) AS year FROM sales ORDER BY year DESC")
+    year_list = [row["year"] for row in cursor.fetchall()]
+
+    if not selected_year and year_list:
+        selected_year = year_list[0]
+    elif not selected_year:
+        selected_year = date.today().year
+
+    # 3. Base Query Parameters
+    params = [selected_year]
+    month_filter = ""
+
+    if start_month and end_month:
+        month_filter = " AND MONTH(sale_date) BETWEEN %s AND %s "
+        params.extend([start_month, end_month])
+
+    # 4. Fetch Monthly Data (Grouped by Month)
+    cursor.execute(f"""
+        SELECT 
+            DATE_FORMAT(sale_date, '%%Y-%%m') AS month,
+            SUM(quantity) AS total_qty,
+            SUM(quantity * price) AS total_revenue
+        FROM sales
+        WHERE YEAR(sale_date) = %s
+        {month_filter}
+        GROUP BY DATE_FORMAT(sale_date, '%%Y-%%m')
+        ORDER BY month ASC
+    """, tuple(params))
+    monthly_data_raw = cursor.fetchall()
+    
+    # Convert Decimals to float for JSON serialization
+    monthly_data = []
+    total_revenue_period = 0.0
+    total_units_period = 0
+    
+    for row in monthly_data_raw:
+        rev = float(row['total_revenue'] or 0)
+        qty = int(row['total_qty'] or 0)
+        monthly_data.append({
+            'month': row['month'],
+            'total_qty': qty,
+            'total_revenue': rev
+        })
+        total_revenue_period += rev
+        total_units_period += qty
+
+    # Calculate Average Monthly Revenue
+    num_months = len(monthly_data)
+    avg_monthly_revenue = total_revenue_period / num_months if num_months > 0 else 0.0
+
+    # 5. Fetch Category Data
+    cursor.execute(f"""
+        SELECT 
+            COALESCE(pc.category_name, 'Uncategorized') as category_name,
+            SUM(s.quantity) AS total_qty
+        FROM sales s
+        LEFT JOIN products p ON p.id = s.product_id
+        LEFT JOIN product_categories pc ON pc.id = p.category_id
+        WHERE YEAR(s.sale_date) = %s
+        {month_filter}
+        GROUP BY pc.category_name
+        ORDER BY total_qty DESC
+    """, tuple(params))
+    category_data_raw = cursor.fetchall()
+    
+    category_data = []
+    for row in category_data_raw:
+        category_data.append({
+            'category_name': row['category_name'],
+            'total_qty': int(row['total_qty'] or 0)
+        })
+
+    cursor.close()
+
+    return render_template(
+        "reports/monthly_sales_dashboard.html",
+        monthly_data=monthly_data,
+        category_data=category_data,
+        year_list=year_list,
+        selected_year=int(selected_year),
+        start_month=start_month,
+        end_month=end_month,
+        # Pass calculated stats to template
+        total_revenue_period=total_revenue_period,
+        total_units_period=total_units_period,
+        avg_monthly_revenue=avg_monthly_revenue
+    )
+
+
 
 # --- VIEW EVENING SETTLEMENT DETAILS ---
 @app.route('/evening/view/<int:settle_id>')
@@ -7393,6 +7497,9 @@ def product_sales():
             db_cursor.close()
 
 
+
+
+
 # ================================================  Employee Ledger Routes =======================================================
 # ... existing imports ...
 
@@ -8227,6 +8334,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
