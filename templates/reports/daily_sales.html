@@ -1,80 +1,206 @@
 {% extends "admin_master.html" %}
 
 {% block page_content %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/report.css') }}">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2 class="mb-0"><i class="fa-solid fa-receipt me-2 text-info"></i> Detailed Daily Sales</h2>
-    <a href="{{ url_for('reports') }}" class="btn btn-sm btn-outline-secondary"><i class="fa-solid fa-arrow-left me-1"></i> Back to Reports </a>
-</div>
+<style>
+    :root {
+        --font-heading: 'Quicksand', sans-serif;
+        --font-body: 'Rubik', sans-serif;
+        --card-bg: #ffffff;
+        --light-bg: #f8f9fa;
+    }
 
-<!-- Filter Card -->
-<div class="card filter-card shadow-sm mb-4">
-    <div class="card-body">
+    body { font-family: var(--font-body); background-color: var(--light-bg); }
+
+    /* Top Stats Cards */
+    .stat-card {
+        background: var(--card-bg);
+        border-radius: 16px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+        border: 1px solid rgba(0,0,0,0.04);
+        position: relative;
+        overflow: hidden;
+        height: 100%;
+    }
+    .stat-label { font-family: var(--font-heading); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; color: #6c757d; font-weight: 600; }
+    .stat-value { font-size: 1.8rem; font-weight: 700; color: #2d3748; margin-top: 0.5rem; }
+    .stat-icon { position: absolute; right: 15px; top: 15px; font-size: 2rem; opacity: 0.15; }
+    
+    .card-purple { border-bottom: 4px solid #6f42c1; }
+    .card-purple .stat-icon { color: #6f42c1; }
+    
+    .card-blue { border-bottom: 4px solid #0d6efd; }
+    .card-blue .stat-icon { color: #0d6efd; }
+    
+    .card-green { border-bottom: 4px solid #198754; }
+    .card-green .stat-icon { color: #198754; }
+
+    /* Filter Bar */
+    .filter-bar {
+        background: var(--card-bg);
+        border-radius: 12px;
+        padding: 1.25rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+        margin-bottom: 2rem;
+    }
+
+    /* Table */
+    .table-card {
+        background: var(--card-bg);
+        border-radius: 16px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+        overflow: hidden;
+    }
+    .modern-table thead th {
+        background: #f8f9fa;
+        color: #6c757d;
+        font-family: var(--font-heading);
+        font-weight: 700;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        padding: 1rem;
+        border-bottom: 2px solid #e9ecef;
+    }
+    .modern-table tbody td {
+        padding: 1rem;
+        vertical-align: middle;
+        font-size: 0.95rem;
+        border-bottom: 1px solid #f1f3f5;
+    }
+    .badge-soft { padding: 5px 10px; border-radius: 8px; font-size: 0.75rem; font-weight: 600; }
+    .bg-field { background-color: #e0cffc; color: #6610f2; }
+    .bg-office { background-color: #cfe2ff; color: #084298; }
+
+</style>
+
+<div class="container-fluid py-4 fade-in-up">
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold text-dark mb-1" style="font-family: var(--font-heading);">Daily Sales Report</h2>
+            <p class="text-muted small mb-0">Detailed breakdown of sales for {{ report_date_str }}</p>
+        </div>
+        <div>
+            <a href="{{ url_for('report_daily_sales_pdf', report_date=report_date) }}" class="btn btn-danger btn-sm rounded-pill px-3 fw-bold shadow-sm">
+                <i class="fa-solid fa-file-pdf me-2"></i>Download PDF
+            </a>
+            <a href="{{ url_for('reports') }}" class="btn btn-light btn-sm rounded-pill px-3 border shadow-sm ms-2">
+                <i class="fa-solid fa-arrow-left me-2"></i>Back
+            </a>
+        </div>
+    </div>
+
+    <!-- Filter Bar -->
+    <div class="filter-bar">
         <form method="POST" class="row g-3 align-items-end">
             <div class="col-md-4">
-                <label for="report_date" class="form-label fw-bold">Select Date</label>
-                <input type="date" class="form-control" id="report_date" name="report_date" value="{{ report_date }}">
+                <label class="form-label small fw-bold text-muted text-uppercase">Select Date</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-white border-end-0"><i class="fa-solid fa-calendar-day text-muted"></i></span>
+                    <input type="text" name="report_date" class="form-control border-start-0 date-picker" value="{{ report_date }}" placeholder="Pick a date">
+                </div>
             </div>
-            <div class="col-md-4">
-                <button type="submit" class="btn btn-primary"><i class="fa-solid fa-search me-1"></i> Generate Report</button>
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-primary w-100 fw-bold shadow-sm">
+                    <i class="fa-solid fa-filter me-2"></i>Generate Report
+                </button>
             </div>
         </form>
     </div>
-</div>
 
-<!-- Results Section -->
-{% if sales_data is defined %}
-<div class="card shadow-sm">
-    <div class="card-header bg-light d-flex justify-content-between align-items-center">
-        <h5 class="mb-0">Sales for: <span class="text-primary">{{ report_date_str }}</span></h5>
-        <a href="{{ url_for('report_daily_sales_pdf', report_date=report_date) }}" class="btn btn-sm btn-danger">
-            <i class="fa-solid fa-file-pdf me-1"></i> Download as PDF
-        </a>
+    {% if sales_data %}
+    <!-- KPI Cards -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-4">
+            <div class="stat-card card-green">
+                <div class="stat-label">Total Revenue</div>
+                <div class="stat-value text-success">{{ grand_total|inr }}</div>
+                <i class="fa-solid fa-indian-rupee-sign stat-icon"></i>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card card-blue">
+                <div class="stat-label">Total Units Sold</div>
+                <div class="stat-value text-primary">{{ total_units }}</div>
+                <i class="fa-solid fa-box-open stat-icon"></i>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card card-purple">
+                <div class="stat-label">Transactions</div>
+                <div class="stat-value text-purple" style="color: #6f42c1;">{{ total_transactions }}</div>
+                <i class="fa-solid fa-receipt stat-icon"></i>
+            </div>
+        </div>
     </div>
-    <div class="card-body">
+
+    <!-- Data Table -->
+    <div class="table-card">
+        <div class="p-3 border-bottom bg-white">
+            <h6 class="m-0 fw-bold text-dark" style="font-family: var(--font-heading);">Sales Ledger</h6>
+        </div>
         <div class="table-responsive">
-            <table class="table table-hover align-middle">
+            <table class="table modern-table mb-0">
                 <thead>
                     <tr>
-                        <th>#</th>
-                        <th class="text-start">Product</th>
-                        <th class="text-start">Sold By (Employee)</th>
-                        <th class="text-center">Quantity Sold</th>
+                        <th class="ps-4">#</th>
+                        <th>Type</th>
+                        <th>Product</th>
+                        <th>Sold By</th>
+                        <th class="text-center">Qty</th>
                         <th class="text-end">Unit Price</th>
-                        <th class="text-end">Total Amount</th>
+                        <th class="text-end pe-4">Total</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for item in sales_data %}
                     <tr>
-                        <td>{{ loop.index }}</td>
-                        <td class="text-start">{{ item.product_name }}</td>
-                        <td class="text-start">{{ item.employee_name }}</td>
-                        <td class="text-center">{{ item.sold_qty }}</td>
-                        <td class="text-end">₹{{ "%.2f"|format(item.unit_price) }}</td>
-                        <td class="text-end fw-bold">₹{{ "%.2f"|format(item.total_amount) }}</td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="6" class="text-center p-4">No sales data found for the selected date.</td>
+                        <td class="ps-4 text-muted">{{ loop.index }}</td>
+                        <td>
+                            {% if item.type == 'Field Sale' %}
+                                <span class="badge-soft bg-field">Field</span>
+                            {% else %}
+                                <span class="badge-soft bg-office">Counter</span>
+                            {% endif %}
+                        </td>
+                        <td class="fw-bold text-dark">{{ item.product_name }}</td>
+                        <td class="text-secondary">{{ item.employee_name }}</td>
+                        <td class="text-center fw-bold">{{ item.qty }}</td>
+                        <td class="text-end text-muted">{{ item.unit_price|inr }}</td>
+                        <td class="text-end pe-4 fw-bold text-success">{{ item.total_amount|inr }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
-                {% if sales_data %}
-                <tfoot class="table-light">
+                <tfoot class="bg-light">
                     <tr>
-                        <td colspan="5" class="text-end fw-bold">Grand Total Sales</td>
-                        <td class="text-end fw-bolder fs-5">₹{{ "%.2f"|format(grand_total) }}</td>
+                        <td colspan="6" class="text-end pe-4 py-3 text-uppercase fw-bold text-muted small">Grand Total</td>
+                        <td class="text-end pe-4 py-3 fw-bold fs-5 text-dark">{{ grand_total|inr }}</td>
                     </tr>
                 </tfoot>
-                {% endif %}
             </table>
         </div>
     </div>
-</div>
-{% else %}
-    <div class="alert alert-info">Please select a date and click "Generate Report" to view detailed sales.</div>
-{% endif %}
+    {% else %}
+        <!-- Empty State -->
+        <div class="text-center py-5">
+            <div class="mb-3 opacity-25">
+                <i class="fa-solid fa-clipboard-list fa-4x text-secondary"></i>
+            </div>
+            <h5 class="text-muted fw-bold">No sales data found for this date.</h5>
+            <p class="text-muted small">Try selecting a different date from the filter above.</p>
+        </div>
+    {% endif %}
 
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        flatpickr(".date-picker", { dateFormat: "Y-m-d", allowInput: true });
+    });
+</script>
 {% endblock %}
