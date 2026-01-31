@@ -1,298 +1,277 @@
 {% extends "admin_master.html" %}
 
 {% block page_content %}
+<!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
-<!-- Custom Styles for Dashboard -->
 <style>
     :root {
-        --primary-color: #4361ee;
-        --secondary-color: #3f37c9;
-        --success-color: #4cc9f0;
-        --warning-color: #f72585;
-        --light-bg: #f8f9fa;
-        --card-bg: #ffffff;
-        --font-heading: 'Quicksand', sans-serif;
-        --font-body: 'Rubik', sans-serif;
+        --font-main: 'Outfit', sans-serif;
+        --color-bg: #f3f4f6;
+        --color-card: #ffffff;
+        --color-primary: #6366f1; /* Indigo */
+        --color-success: #10b981; /* Emerald */
+        --color-warning: #f59e0b; /* Amber */
+        --color-purple: #8b5cf6;  /* Violet */
+        --color-dark: #1e293b;
+        --color-gray: #64748b;
     }
 
     body {
-        background-color: var(--light-bg);
-        font-family: var(--font-body);
+        background-color: var(--color-bg);
+        font-family: var(--font-main);
+        color: var(--color-dark);
     }
 
-    .fade-in-up { animation: fadeInUp 0.6s ease-out; }
-    @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    .fade-in { animation: fadeIn 0.6s ease-in-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-    /* Filter Bar */
-    .filter-bar {
-        background: var(--card-bg);
-        padding: 1.5rem;
+    /* Top Control Bar */
+    .control-bar {
+        background: var(--color-card);
         border-radius: 16px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.03);
-        margin-bottom: 2rem;
-        border: 1px solid rgba(0,0,0,0.02);
-    }
-
-    /* KPI Cards */
-    .kpi-card {
-        background: var(--card-bg);
-        border-radius: 16px;
-        padding: 1.5rem;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.04);
-        border: 1px solid rgba(0,0,0,0.02);
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
-        height: 100%;
-        position: relative;
-        overflow: hidden;
-    }
-    .kpi-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 10px 25px rgba(0,0,0,0.08);
-    }
-    .kpi-icon-bg {
-        position: absolute;
-        right: -10px;
-        bottom: -10px;
-        font-size: 5rem;
-        opacity: 0.05;
-        transform: rotate(-15deg);
-    }
-    .kpi-label {
-        font-family: var(--font-heading);
-        font-weight: 600;
-        color: #6c757d;
-        text-transform: uppercase;
-        font-size: 0.75rem;
-        letter-spacing: 0.5px;
-    }
-    .kpi-value {
-        font-family: var(--font-heading);
-        font-weight: 700;
-        color: #2d3748;
-        font-size: 1.75rem;
-        margin-top: 0.5rem;
-    }
-
-    /* Chart Containers */
-    .chart-card {
-        background: var(--card-bg);
-        border-radius: 16px;
-        padding: 1.5rem;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.04);
-        margin-bottom: 2rem;
-        height: 100%;
-    }
-    .chart-header {
+        padding: 1.2rem;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 1.5rem;
-    }
-    .chart-title {
-        font-family: var(--font-heading);
-        font-weight: 700;
-        color: #2d3748;
-        font-size: 1.1rem;
-        margin: 0;
+        margin-bottom: 2rem;
+        border: 1px solid rgba(0,0,0,0.03);
     }
 
-    /* Data Table */
-    .table-card {
-        background: var(--card-bg);
-        border-radius: 16px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.04);
-        overflow: hidden;
+    .page-title h3 { margin: 0; font-weight: 700; color: var(--color-dark); font-size: 1.5rem; }
+    .page-title p { margin: 0; color: var(--color-gray); font-size: 0.9rem; }
+
+    .year-filter select {
+        background-color: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 0.6rem 2.5rem 0.6rem 1rem;
+        font-weight: 600;
+        color: var(--color-dark);
+        cursor: pointer;
     }
-    .custom-table thead th {
-        background-color: #f1f5f9;
-        color: #64748b;
-        font-family: var(--font-heading);
+
+    /* KPI Cards - Modern Solid Style */
+    .stat-card {
+        border-radius: 20px;
+        padding: 1.5rem;
+        color: #fff;
+        position: relative;
+        overflow: hidden;
+        height: 100%;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        transition: transform 0.3s ease;
+    }
+    .stat-card:hover { transform: translateY(-5px); }
+    
+    .stat-card.blue   { background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); }
+    .stat-card.green  { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
+    .stat-card.orange { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
+    .stat-card.purple { background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%); }
+
+    .stat-icon {
+        position: absolute;
+        right: -10px; bottom: -10px;
+        font-size: 5rem;
+        opacity: 0.15;
+        transform: rotate(-10deg);
+    }
+
+    .stat-label { font-size: 0.85rem; font-weight: 500; opacity: 0.9; text-transform: uppercase; letter-spacing: 0.5px; }
+    .stat-value { font-size: 2rem; font-weight: 700; margin-top: 0.5rem; line-height: 1; }
+
+    /* Chart Containers */
+    .dashboard-card {
+        background: var(--color-card);
+        border-radius: 20px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        height: 100%;
+        border: 1px solid rgba(0,0,0,0.02);
+    }
+    .card-heading {
+        font-size: 1.1rem;
         font-weight: 700;
+        color: var(--color-dark);
+        margin-bottom: 1.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    /* Modern Table */
+    .modern-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+    .modern-table th {
+        background: #f8fafc;
+        color: var(--color-gray);
+        font-weight: 600;
+        font-size: 0.8rem;
         text-transform: uppercase;
-        font-size: 0.75rem;
-        padding: 1rem 1.5rem;
+        padding: 1rem;
         border-bottom: 2px solid #e2e8f0;
     }
-    .custom-table tbody td {
-        padding: 1rem 1.5rem;
-        vertical-align: middle;
-        color: #475569;
-        font-size: 0.9rem;
+    .modern-table td {
+        padding: 1rem;
         border-bottom: 1px solid #f1f5f9;
+        font-size: 0.95rem;
+        font-weight: 500;
     }
-    .custom-table tr:hover td {
-        background-color: #f8fafc;
+    .modern-table tr:hover td { background-color: #f8fafc; }
+    
+    .trend-badge {
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
     }
+    .trend-up { background-color: #dcfce7; color: #166534; }
+    .trend-down { background-color: #fee2e2; color: #991b1b; }
+    .trend-flat { background-color: #f1f5f9; color: #475569; }
+
 </style>
 
-<div class="container-fluid py-4 fade-in-up">
-
-    <!-- 1. Page Header -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h2 class="fw-bold text-dark mb-1" style="font-family: var(--font-heading);">Monthly Sales Insights</h2>
-            <p class="text-muted small mb-0">Visual analysis of sales performance and growth trends.</p>
+<div class="container-fluid py-4 fade-in">
+    
+    <!-- 1. Top Control Bar -->
+    <div class="control-bar">
+        <div class="page-title">
+            <h3>Sales Dashboard</h3>
+            <p>Financial Year Performance & Growth Analysis</p>
         </div>
-        <div class="badge bg-primary bg-opacity-10 text-primary px-3 py-2 rounded-pill fw-bold">
-            <i class="fa-regular fa-calendar me-2"></i> Year: {{ selected_year }}
-        </div>
-    </div>
-
-    <!-- 2. Filter Section -->
-    <div class="filter-bar">
-        <form class="row g-3 align-items-end" method="get">
-            <div class="col-md-3">
-                <label class="form-label small fw-bold text-muted text-uppercase">Select Year</label>
-                <div class="input-group">
-                    <span class="input-group-text bg-light border-end-0"><i class="fa-solid fa-calendar-days text-muted"></i></span>
-                    <select name="year" class="form-select border-start-0 bg-light" onchange="this.form.submit()">
-                        {% for y in year_list %}
-                        <option value="{{ y }}" {% if selected_year == y %}selected{% endif %}>{{ y }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <label class="form-label small fw-bold text-muted text-uppercase">Start Month</label>
-                <select name="start_month" class="form-select">
-                    <option value="">-- All Months --</option>
-                    {% for m in range(1,13) %}
-                    <option value="{{ m }}" {% if start_month|int == m %}selected{% endif %}>{{ m }} - {{ ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][m-1] }}</option>
+        <form method="GET" class="d-flex align-items-center gap-3">
+            <div class="year-filter">
+                <select name="year" onchange="this.form.submit()">
+                    {% for y in year_list %}
+                        <option value="{{ y }}" {% if selected_year == y %}selected{% endif %}>Year: {{ y }}</option>
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-md-3">
-                <label class="form-label small fw-bold text-muted text-uppercase">End Month</label>
-                <select name="end_month" class="form-select">
-                    <option value="">-- All Months --</option>
-                    {% for m in range(1,13) %}
-                    <option value="{{ m }}" {% if end_month|int == m %}selected{% endif %}>{{ m }} - {{ ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][m-1] }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-md-3">
-                <button type="submit" class="btn btn-primary w-100 fw-bold shadow-sm" style="padding: 0.6rem;">
-                    <i class="fa-solid fa-filter me-2"></i> Apply Analysis
-                </button>
-            </div>
+            <button type="button" class="btn btn-outline-primary btn-sm rounded-pill px-3" onclick="window.print()">
+                <i class="fa-solid fa-print me-2"></i> Print Report
+            </button>
         </form>
     </div>
 
-    <!-- CALCULATION LOGIC -->
-    {% set ns = namespace(total_revenue=0, total_units=0) %}
-    {% for row in monthly_data %}
-        {% set ns.total_revenue = ns.total_revenue + row.total_revenue %}
-        {% set ns.total_units = ns.total_units + row.total_qty %}
-    {% endfor %}
-    {% set avg_monthly_rev = ns.total_revenue / monthly_data|length if monthly_data|length > 0 else 0 %}
-
-    <!-- 3. KPI Overview Cards -->
-    <div class="row g-4 mb-4">
-        <!-- Total Revenue -->
-        <div class="col-md-4">
-            <div class="kpi-card border-bottom border-4 border-primary">
-                <div class="kpi-label">Total Revenue (Selected Period)</div>
-                <div class="kpi-value text-primary">{{ ns.total_revenue|inr }}</div>
-                <i class="fa-solid fa-coins kpi-icon-bg text-primary"></i>
+    <!-- 2. KPI Cards -->
+    <div class="row g-4 mb-5">
+        <!-- Revenue -->
+        <div class="col-xl-3 col-md-6">
+            <div class="stat-card blue">
+                <div class="stat-label">Total Revenue</div>
+                <div class="stat-value">{{ kpi.revenue|inr }}</div>
+                <i class="fa-solid fa-sack-dollar stat-icon"></i>
             </div>
         </div>
-        <!-- Units Sold -->
-        <div class="col-md-4">
-            <div class="kpi-card border-bottom border-4 border-success">
-                <div class="kpi-label">Total Units Sold</div>
-                <div class="kpi-value text-success">{{ ns.total_units }} <span class="fs-6 text-muted fw-normal">Units</span></div>
-                <i class="fa-solid fa-boxes-stacked kpi-icon-bg text-success"></i>
+        <!-- Units -->
+        <div class="col-xl-3 col-md-6">
+            <div class="stat-card green">
+                <div class="stat-label">Total Units Sold</div>
+                <div class="stat-value">{{ kpi.units }}</div>
+                <i class="fa-solid fa-box-open stat-icon"></i>
             </div>
         </div>
-        <!-- Avg Monthly Revenue -->
-        <div class="col-md-4">
-            <div class="kpi-card border-bottom border-4 border-warning">
-                <div class="kpi-label">Average Monthly Sales</div>
-                <div class="kpi-value text-warning">{{ avg_monthly_rev|inr }}</div>
-                <i class="fa-solid fa-chart-line kpi-icon-bg text-warning"></i>
+        <!-- Average -->
+        <div class="col-xl-3 col-md-6">
+            <div class="stat-card purple">
+                <div class="stat-label">Avg. Monthly Sales</div>
+                <div class="stat-value">{{ kpi.avg|inr }}</div>
+                <i class="fa-solid fa-chart-area stat-icon"></i>
+            </div>
+        </div>
+        <!-- Best Month -->
+        <div class="col-xl-3 col-md-6">
+            <div class="stat-card orange">
+                <div class="stat-label">Best Performing Month</div>
+                <div class="stat-value" style="font-size: 1.5rem; margin-top: 1rem;">
+                    {{ kpi.best_month }}
+                    <div style="font-size: 0.8rem; font-weight: 400; opacity: 0.9;">{{ kpi.best_val|inr }}</div>
+                </div>
+                <i class="fa-solid fa-trophy stat-icon"></i>
             </div>
         </div>
     </div>
 
-    <!-- 4. Visual Growth Charts -->
+    <!-- 3. Charts Section -->
     <div class="row g-4 mb-5">
-        <!-- Main Combo Chart: Revenue vs Quantity -->
+        <!-- Main Growth Chart -->
         <div class="col-lg-8">
-            <div class="chart-card">
-                <div class="chart-header">
-                    <h5 class="chart-title">Monthly Sales Performance</h5>
-                    <span class="badge bg-light text-dark border">Rev vs Qty</span>
+            <div class="dashboard-card">
+                <div class="card-heading">
+                    <span>Monthly Growth Trend</span>
+                    <span class="badge bg-light text-primary border">Revenue vs Units</span>
                 </div>
                 <div style="height: 350px;">
-                    <canvas id="monthlyComboChart"></canvas>
+                    <canvas id="growthChart"></canvas>
                 </div>
             </div>
         </div>
 
-        <!-- Category Distribution -->
+        <!-- Top Products Doughnut -->
         <div class="col-lg-4">
-            <div class="chart-card">
-                <div class="chart-header">
-                    <h5 class="chart-title">Sales by Category</h5>
+            <div class="dashboard-card">
+                <div class="card-heading">
+                    <span>Top Selling Products</span>
+                    <small class="text-muted">By Qty</small>
                 </div>
-                <div style="height: 300px; display: flex; justify-content: center;">
-                    <canvas id="categoryChart"></canvas>
+                <div style="height: 300px; position: relative;">
+                    <canvas id="productChart"></canvas>
                 </div>
-                <div class="mt-3 text-center">
-                    <small class="text-muted">Breakdown by Quantity Sold</small>
-                </div>
+                <!-- Custom Legend Container (optional) -->
+                <div id="productLegend" class="mt-3"></div>
             </div>
         </div>
     </div>
 
-    <!-- 5. Detailed Breakdown Table -->
+    <!-- 4. Detailed Data Table -->
     <div class="row">
         <div class="col-12">
-            <div class="table-card">
-                <div class="p-3 border-bottom bg-white d-flex align-items-center justify-content-between">
-                    <h6 class="m-0 fw-bold text-dark" style="font-family: var(--font-heading);">Monthly Breakdown Data</h6>
-                    <button class="btn btn-sm btn-outline-secondary" onclick="window.print()"><i class="fa-solid fa-print me-1"></i> Print</button>
+            <div class="dashboard-card p-0 overflow-hidden">
+                <div class="p-4 border-bottom bg-white">
+                    <h5 class="fw-bold mb-0 text-dark">Detailed Monthly Breakdown</h5>
                 </div>
                 <div class="table-responsive">
-                    <table class="table custom-table mb-0">
+                    <table class="modern-table">
                         <thead>
                             <tr>
-                                <th>Month</th>
+                                <th class="ps-4">Month</th>
                                 <th class="text-center">Units Sold</th>
-                                <th class="text-end">Revenue Generated</th>
-                                <th class="text-center">Performance</th> <!-- Visual Indicator -->
+                                <th class="text-end">Revenue</th>
+                                <th class="text-center pe-4">Trend (vs Prev)</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {% set ns_prev = namespace(val=0) %}
+                            {% set ns = namespace(prev_rev=0) %}
                             {% for row in monthly_data %}
                             <tr>
-                                <td class="fw-bold">{{ row.month }}</td>
+                                <td class="ps-4 fw-bold text-dark">{{ row.month }}</td>
                                 <td class="text-center">
-                                    <span class="badge bg-light text-dark border px-3">{{ row.total_qty }}</span>
+                                    <span class="badge bg-light text-dark border px-3 py-2">{{ row.units }}</span>
                                 </td>
-                                <td class="text-end fw-bold text-primary">{{ row.total_revenue|inr }}</td>
-                                <td class="text-center">
+                                <td class="text-end fw-bold text-primary">{{ row.revenue|inr }}</td>
+                                
+                                <!-- Trend Logic -->
+                                <td class="text-center pe-4">
                                     {% if loop.first %}
-                                        <span class="text-muted small">-</span>
+                                        <span class="trend-badge trend-flat">-</span>
                                     {% else %}
-                                        {% set diff = row.total_revenue - ns_prev.val %}
+                                        {% set diff = row.revenue - ns.prev_rev %}
                                         {% if diff > 0 %}
-                                            <span class="text-success small fw-bold"><i class="fa-solid fa-arrow-trend-up me-1"></i> Growth</span>
+                                            <span class="trend-badge trend-up"><i class="fa-solid fa-arrow-trend-up"></i> Up</span>
                                         {% elif diff < 0 %}
-                                            <span class="text-danger small fw-bold"><i class="fa-solid fa-arrow-trend-down me-1"></i> Drop</span>
+                                            <span class="trend-badge trend-down"><i class="fa-solid fa-arrow-trend-down"></i> Down</span>
                                         {% else %}
-                                            <span class="text-muted small">Stable</span>
+                                            <span class="trend-badge trend-flat">Stable</span>
                                         {% endif %}
                                     {% endif %}
                                 </td>
                             </tr>
-                            {% set ns_prev.val = row.total_revenue %}
+                            {% set ns.prev_rev = row.revenue %}
                             {% else %}
                             <tr>
-                                <td colspan="4" class="text-center py-5 text-muted">No sales data found for selected period.</td>
+                                <td colspan="4" class="text-center py-5 text-muted">No sales data found for {{ selected_year }}.</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -304,56 +283,50 @@
 
 </div>
 
-<!-- Chart JS Logic -->
+<!-- DATA & SCRIPTS -->
 <script>
-    // Data from Backend
+    // 1. Prepare Data
     const monthlyData = {{ monthly_data | tojson | safe }};
-    const categoryData = {{ category_data | tojson | safe }};
+    const topProducts = {{ top_products | tojson | safe }};
 
-    // Prepare Arrays
-    const months = monthlyData.map(m => {
-        // Format Month string (e.g., 2025-01 -> Jan 25)
-        const d = new Date(m.month + '-01');
-        return d.toLocaleString('default', { month: 'short', year: '2-digit' });
-    });
-    const qtyData = monthlyData.map(m => m.total_qty);
-    const revenueData = monthlyData.map(m => m.total_revenue);
+    const labels = monthlyData.map(d => d.month);
+    const revenueData = monthlyData.map(d => d.revenue);
+    const unitData = monthlyData.map(d => d.units);
 
-    // --- 1. COMBO CHART (Revenue & Qty) ---
-    const ctxCombo = document.getElementById('monthlyComboChart').getContext('2d');
+    // 2. Growth Chart (Line + Bar)
+    const ctxGrowth = document.getElementById('growthChart').getContext('2d');
     
-    // Gradient for Revenue Line
-    const gradRev = ctxCombo.createLinearGradient(0, 0, 0, 400);
-    gradRev.addColorStop(0, 'rgba(67, 97, 238, 0.4)');
-    gradRev.addColorStop(1, 'rgba(67, 97, 238, 0.0)');
+    // Gradient for Line
+    const gradient = ctxGrowth.createLinearGradient(0, 0, 0, 400);
+    gradient.addColorStop(0, 'rgba(99, 102, 241, 0.5)'); // Primary color
+    gradient.addColorStop(1, 'rgba(99, 102, 241, 0.0)');
 
-    new Chart(ctxCombo, {
+    new Chart(ctxGrowth, {
         type: 'line',
         data: {
-            labels: months,
+            labels: labels,
             datasets: [
                 {
                     label: 'Revenue (₹)',
                     data: revenueData,
-                    borderColor: '#4361ee',
-                    backgroundColor: gradRev,
+                    borderColor: '#6366f1',
+                    backgroundColor: gradient,
                     borderWidth: 3,
-                    pointBackgroundColor: '#fff',
-                    pointBorderColor: '#4361ee',
-                    pointRadius: 5,
-                    fill: true,
                     tension: 0.4,
+                    fill: true,
+                    pointRadius: 4,
+                    pointBackgroundColor: '#fff',
+                    pointBorderColor: '#6366f1',
                     yAxisID: 'y'
                 },
                 {
-                    label: 'Quantity Sold',
-                    data: qtyData,
+                    label: 'Units Sold',
+                    data: unitData,
                     type: 'bar',
-                    backgroundColor: 'rgba(76, 201, 240, 0.3)',
-                    borderColor: '#4cc9f0',
+                    backgroundColor: 'rgba(16, 185, 129, 0.2)', // Green low opacity
+                    borderColor: '#10b981',
                     borderWidth: 1,
                     borderRadius: 4,
-                    barPercentage: 0.4,
                     yAxisID: 'y1'
                 }
             ]
@@ -365,13 +338,13 @@
             plugins: {
                 legend: { position: 'top' },
                 tooltip: {
-                    backgroundColor: 'rgba(30, 41, 59, 0.9)',
+                    backgroundColor: '#1e293b',
                     padding: 12,
                     callbacks: {
                         label: function(context) {
                             let label = context.dataset.label || '';
                             if (label.includes('Revenue')) {
-                                return label + ': ₹' + context.raw.toLocaleString('en-IN');
+                                return label + ': ' + context.raw.toLocaleString('en-IN', {style: 'currency', currency: 'INR'});
                             }
                             return label + ': ' + context.raw;
                         }
@@ -383,8 +356,8 @@
                     type: 'linear',
                     display: true,
                     position: 'left',
-                    grid: { borderDash: [4, 4] },
-                    ticks: { callback: function(value) { return '₹' + value/1000 + 'k'; } }
+                    grid: { borderDash: [4, 4], color: '#f1f5f9' },
+                    ticks: { callback: function(val) { return '₹' + val/1000 + 'k'; } }
                 },
                 y1: {
                     type: 'linear',
@@ -393,36 +366,33 @@
                     grid: { drawOnChartArea: false },
                     title: { display: true, text: 'Units' }
                 },
-                x: {
-                    grid: { display: false }
-                }
+                x: { grid: { display: false } }
             }
         }
     });
 
-    // --- 2. CATEGORY DOUGHNUT CHART ---
-    const catLabels = categoryData.map(c => c.category_name || 'Uncategorized');
-    const catValues = categoryData.map(c => c.total_qty);
-    const catColors = ['#4361ee', '#3f37c9', '#4cc9f0', '#f72585', '#7209b7', '#4895ef'];
+    // 3. Top Products Chart (Doughnut)
+    const ctxProd = document.getElementById('productChart').getContext('2d');
+    const prodNames = topProducts.map(p => p.product_name);
+    const prodQty = topProducts.map(p => p.total_qty);
 
-    const ctxCat = document.getElementById('categoryChart').getContext('2d');
-    new Chart(ctxCat, {
+    new Chart(ctxProd, {
         type: 'doughnut',
         data: {
-            labels: catLabels,
+            labels: prodNames,
             datasets: [{
-                data: catValues,
-                backgroundColor: catColors,
+                data: prodQty,
+                backgroundColor: ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#3b82f6'],
                 borderWidth: 0,
-                hoverOffset: 8
+                hoverOffset: 10
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            cutout: '70%',
+            cutout: '75%',
             plugins: {
-                legend: { position: 'bottom', labels: { boxWidth: 12, padding: 15, font: { size: 11 } } },
+                legend: { position: 'bottom', labels: { boxWidth: 12, padding: 15 } },
                 tooltip: {
                     callbacks: {
                         label: function(context) {
