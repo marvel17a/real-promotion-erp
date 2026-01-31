@@ -3,86 +3,72 @@
 {% block page_content %}
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
 
 <style>
     :root {
         --font-heading: 'Quicksand', sans-serif;
         --font-body: 'Rubik', sans-serif;
-        --card-bg: #ffffff;
-        --light-bg: #f8f9fa;
+        --bg-light: #f8f9fa;
+        --card-white: #ffffff;
     }
+    body { font-family: var(--font-body); background-color: var(--bg-light); }
 
-    body { font-family: var(--font-body); background-color: var(--light-bg); }
-
-    /* Top Stats Cards - Colorful & Engaging */
+    /* KPI Cards - Vibrant & Bold */
     .stat-card {
         border-radius: 16px;
         padding: 1.5rem;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.06);
         border: none;
         position: relative;
         overflow: hidden;
+        color: white;
+        transition: transform 0.2s;
         height: 100%;
         display: flex;
         flex-direction: column;
         justify-content: center;
-        color: #fff;
-        transition: transform 0.3s ease;
     }
-    
-    .stat-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 8px 25px rgba(0,0,0,0.1);
-    }
+    .stat-card:hover { transform: translateY(-5px); }
 
-    /* Gradients */
-    .card-green { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
-    .card-blue { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); }
-    .card-purple { background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); }
+    /* Modern Gradients */
+    .bg-gradient-green { background: linear-gradient(135deg, #059669 0%, #34d399 100%); }
+    .bg-gradient-blue { background: linear-gradient(135deg, #2563eb 0%, #60a5fa 100%); }
+    .bg-gradient-pink { background: linear-gradient(135deg, #be185d 0%, #f472b6 100%); } /* For Discount */
 
     .stat-label { 
         font-family: var(--font-heading); 
-        font-size: 0.85rem; 
         text-transform: uppercase; 
-        letter-spacing: 0.8px; 
-        opacity: 0.9;
+        font-size: 0.85rem; 
         font-weight: 700; 
+        letter-spacing: 1px;
+        opacity: 0.9;
         margin-bottom: 0.5rem;
     }
+    .stat-value { font-size: 2rem; font-weight: 800; line-height: 1; }
     
-    .stat-value { 
-        font-size: 1.8rem; 
-        font-weight: 800; 
-        line-height: 1.2;
+    .stat-icon {
+        position: absolute; right: 15px; top: 50%;
+        transform: translateY(-50%) rotate(-10deg);
+        font-size: 3.5rem; opacity: 0.15;
     }
-    
-    .stat-icon { 
-        position: absolute; 
-        right: 15px; 
-        top: 50%;
-        transform: translateY(-50%) rotate(-10deg); 
-        font-size: 2.5rem; 
-        opacity: 0.2; 
-    }
-    
+
     /* Filter Bar */
     .filter-bar {
-        background: var(--card-bg);
-        border-radius: 16px;
+        background: var(--card-white);
+        border-radius: 12px;
         padding: 1.25rem;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.03);
         margin-bottom: 2rem;
     }
 
-    /* Table */
-    .table-card {
-        background: var(--card-bg);
+    /* Table Styling */
+    .table-container {
+        background: var(--card-white);
         border-radius: 16px;
         box-shadow: 0 4px 15px rgba(0,0,0,0.03);
         overflow: hidden;
     }
-    
     .modern-table thead th {
         background: #f1f5f9;
         color: #475569;
@@ -90,24 +76,21 @@
         font-weight: 800;
         text-transform: uppercase;
         font-size: 0.8rem;
-        padding: 1rem 1.2rem;
+        padding: 1rem;
         border-bottom: 2px solid #e2e8f0;
-        letter-spacing: 0.5px;
     }
-    
     .modern-table tbody td {
-        padding: 1rem 1.2rem;
+        padding: 0.9rem 1rem;
         vertical-align: middle;
         font-size: 0.95rem;
         font-weight: 500;
-        border-bottom: 1px solid #f1f3f5;
-        color: #334155;
+        border-bottom: 1px solid #f8fafc;
+        color: #1e293b;
     }
+    .badge-soft { padding: 5px 12px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; }
+    .bg-field { background: #e0e7ff; color: #4338ca; }
+    .bg-counter { background: #dcfce7; color: #15803d; }
     
-    .badge-soft { padding: 5px 10px; border-radius: 8px; font-size: 0.75rem; font-weight: 700; }
-    .bg-field { background-color: #e0cffc; color: #6610f2; }
-    .bg-office { background-color: #cfe2ff; color: #084298; }
-
 </style>
 
 <div class="container-fluid py-4 fade-in-up">
@@ -116,74 +99,78 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h3 class="fw-bold text-dark mb-0" style="font-family: var(--font-heading);">Daily Sales Report</h3>
-            <p class="text-muted small mb-0 fw-bold">Detailed breakdown for {{ report_date_str }}</p>
+            <p class="text-muted fw-bold small mb-0">{{ report_date_str }}</p>
         </div>
         <div>
+            <a href="{{ url_for('report_daily_sales_pdf', report_date=report_date) }}" class="btn btn-danger btn-sm rounded-pill px-4 fw-bold shadow-sm">
+                <i class="fa-solid fa-file-pdf me-2"></i> Download PDF
+            </a>
             <a href="{{ url_for('reports') }}" class="btn btn-light btn-sm rounded-pill px-3 border shadow-sm ms-2 fw-bold">
-                <i class="fa-solid fa-arrow-left me-2"></i>Back
+                <i class="fa-solid fa-arrow-left me-2"></i> Back
             </a>
         </div>
     </div>
 
     <!-- Filter Bar -->
     <div class="filter-bar">
-        <form method="POST" class="row g-3 align-items-end">
+        <form method="POST" class="row g-2 align-items-end">
             <div class="col-md-3">
                 <label class="form-label small fw-bold text-muted text-uppercase mb-1">Select Date</label>
                 <div class="input-group input-group-sm">
                     <span class="input-group-text bg-white border-end-0"><i class="fa-solid fa-calendar-day text-muted"></i></span>
-                    <input type="text" name="report_date" class="form-control border-start-0 date-picker fw-bold" value="{{ report_date }}" placeholder="Pick a date">
+                    <input type="text" name="report_date" class="form-control border-start-0 date-picker fw-bold" value="{{ report_date }}">
                 </div>
             </div>
             <div class="col-md-2">
-                <button type="submit" class="btn btn-primary btn-sm w-100 fw-bold shadow-sm">
-                    <i class="fa-solid fa-filter me-2"></i>Generate
-                </button>
+                <button type="submit" class="btn btn-primary w-100 fw-bold shadow-sm">Generate</button>
             </div>
         </form>
     </div>
 
     {% if sales_data %}
-    <!-- KPI Cards (Colorful & Bold) -->
+    <!-- KPI Cards -->
     <div class="row g-4 mb-4">
+        <!-- 1. Net Revenue -->
         <div class="col-md-4">
-            <div class="stat-card card-green">
-                <div class="stat-label">Net Revenue (After Disc.)</div>
+            <div class="stat-card bg-gradient-green">
+                <div class="stat-label">Net Revenue</div>
                 <div class="stat-value">{{ grand_total|inr }}</div>
                 <i class="fa-solid fa-indian-rupee-sign stat-icon"></i>
             </div>
         </div>
+        <!-- 2. Total Units -->
         <div class="col-md-4">
-            <div class="stat-card card-blue">
+            <div class="stat-card bg-gradient-blue">
                 <div class="stat-label">Total Units Sold</div>
                 <div class="stat-value">{{ total_units }}</div>
                 <i class="fa-solid fa-box-open stat-icon"></i>
             </div>
         </div>
+        <!-- 3. Total Discount (New) -->
         <div class="col-md-4">
-            <div class="stat-card card-purple">
-                <div class="stat-label">Transactions</div>
-                <div class="stat-value" style="color: #fff;">{{ total_transactions }}</div>
-                <i class="fa-solid fa-receipt stat-icon"></i>
+            <div class="stat-card bg-gradient-pink">
+                <div class="stat-label">Total Discount Given</div>
+                <div class="stat-value">{{ total_discount|inr }}</div>
+                <i class="fa-solid fa-tags stat-icon"></i>
             </div>
         </div>
     </div>
 
-    <!-- Data Table -->
-    <div class="table-card">
-        <div class="p-3 border-bottom bg-white d-flex align-items-center justify-content-between">
-            <h6 class="m-0 fw-bold text-dark text-uppercase small" style="letter-spacing: 1px;">Sales Ledger</h6>
+    <!-- Table -->
+    <div class="table-container">
+        <div class="p-3 border-bottom bg-white">
+            <h6 class="m-0 fw-bold text-dark text-uppercase small" style="font-family: var(--font-heading); letter-spacing: 1px;">Sales Ledger (Item Breakdown)</h6>
         </div>
         <div class="table-responsive">
             <table class="table modern-table mb-0">
                 <thead>
                     <tr>
-                        <th class="ps-4" style="width: 60px;">#</th>
+                        <th class="ps-4" style="width:50px;">#</th>
                         <th>Type</th>
                         <th>Product Name</th>
                         <th class="text-center">Qty</th>
                         <th class="text-end">Unit Price</th>
-                        <th class="text-end pe-4">Total</th>
+                        <th class="text-end pe-4">Gross Total</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -192,23 +179,23 @@
                         <td class="ps-4 text-muted fw-bold">{{ loop.index }}</td>
                         <td>
                             {% if item.type == 'Field Sale' %}
-                                <span class="badge-soft bg-field">Field Sale</span>
+                                <span class="badge-soft bg-field">Field</span>
                             {% else %}
-                                <span class="badge-soft bg-office">Office Sale</span>
+                                <span class="badge-soft bg-counter">Counter</span>
                             {% endif %}
                         </td>
                         <td class="fw-bold text-dark">{{ item.product_name }}</td>
                         <td class="text-center fw-bold">{{ item.qty }}</td>
                         <td class="text-end text-muted fw-bold">{{ item.unit_price|inr }}</td>
-                        <td class="text-end pe-4 fw-bolder text-success">{{ item.total_amount|inr }}</td>
+                        <td class="text-end pe-4 fw-bolder text-secondary">{{ item.total_amount|inr }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
-                <tfoot class="bg-light border-top">
-                    <tr>
-                        <td colspan="3" class="text-end pe-4 py-3 text-uppercase fw-bolder text-secondary">Total:</td>
+                <tfoot class="bg-light">
+                    <tr style="border-top: 2px solid #e2e8f0;">
+                        <td colspan="3" class="text-end pe-3 py-3 text-uppercase fw-bold text-secondary">Totals:</td>
                         <td class="text-center py-3 fw-bolder fs-6 text-dark">{{ total_units }}</td>
-                        <td class="text-end pe-4 py-3 fw-bolder text-secondary">Gross:</td>
+                        <td class="text-end pe-3 py-3 fw-bold text-secondary">Gross Sum:</td>
                         <td class="text-end pe-4 py-3 fw-bolder fs-6 text-dark">{{ table_total|inr }}</td>
                     </tr>
                 </tfoot>
@@ -216,13 +203,9 @@
         </div>
     </div>
     {% else %}
-        <!-- Empty State -->
         <div class="text-center py-5">
-            <div class="mb-3 opacity-25">
-                <i class="fa-solid fa-clipboard-list fa-4x text-secondary"></i>
-            </div>
-            <h5 class="text-muted fw-bold">No sales data found for this date.</h5>
-            <p class="text-muted small">Try selecting a different date from the filter above.</p>
+            <div class="mb-3 opacity-25"><i class="fa-solid fa-clipboard-list fa-4x text-secondary"></i></div>
+            <h6 class="fw-bold text-muted">No sales data found for this date.</h6>
         </div>
     {% endif %}
 
@@ -230,12 +213,7 @@
 
 <script>
     document.addEventListener("DOMContentLoaded", function() {
-        // Updated Date Format to dd-mm-yyyy
-        flatpickr(".date-picker", { 
-            dateFormat: "d-m-Y", 
-            allowInput: true 
-        });
+        flatpickr(".date-picker", { dateFormat: "d-m-Y", allowInput: true });
     });
 </script>
 {% endblock %}
-
