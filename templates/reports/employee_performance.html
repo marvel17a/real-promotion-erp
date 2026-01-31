@@ -1,72 +1,320 @@
 {% extends "admin_master.html" %}
 
 {% block page_content %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/reports_common.css') }}">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2 class="mb-0"><i class="fa-solid fa-ranking-star me-2 text-warning"></i> Employee Performance</h2>
-    <a href="{{ url_for('reports') }}" class="btn btn-sm btn-outline-secondary"><i class="fa-solid fa-arrow-left me-1"></i> Back to Reports</a>
-</div>
+<style>
+    :root {
+        --font-heading: 'Quicksand', sans-serif;
+        --font-body: 'Rubik', sans-serif;
+        --bg-light: #f8f9fa;
+        --card-white: #ffffff;
+    }
+    body { font-family: var(--font-body); background-color: var(--bg-light); }
 
-<!-- Filter Card -->
-<div class="card filter-card shadow-sm mb-4">
-    <div class="card-body">
+    /* Filter Bar */
+    .filter-bar {
+        background: var(--card-white);
+        border-radius: 16px;
+        padding: 1.25rem;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+        margin-bottom: 2rem;
+    }
+
+    /* KPI Cards */
+    .kpi-card {
+        background: var(--card-white);
+        border-radius: 16px;
+        padding: 1.5rem;
+        height: 100%;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+        position: relative;
+        border-left: 5px solid transparent;
+        transition: transform 0.2s;
+    }
+    .kpi-card:hover { transform: translateY(-5px); }
+    
+    .kpi-title { font-family: var(--font-heading); font-size: 0.8rem; text-transform: uppercase; color: #64748b; font-weight: 700; letter-spacing: 0.5px; }
+    .kpi-val { font-size: 1.5rem; font-weight: 800; color: #1e293b; margin-top: 8px; }
+    .kpi-sub { font-size: 0.85rem; color: #94a3b8; font-weight: 500; }
+    
+    .kpi-gold { border-left-color: #f59e0b; } /* Top Sales */
+    .kpi-teal { border-left-color: #14b8a6; } /* Top Units */
+    .kpi-indigo { border-left-color: #6366f1; } /* Total Rev */
+    
+    .kpi-icon {
+        position: absolute; right: 20px; top: 20px;
+        width: 50px; height: 50px;
+        border-radius: 12px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.8rem; opacity: 0.15;
+    }
+
+    /* Charts */
+    .chart-container {
+        background: var(--card-white);
+        border-radius: 16px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+        margin-bottom: 2rem;
+        height: 100%;
+    }
+    .chart-title { font-family: var(--font-heading); font-weight: 700; color: #334155; margin-bottom: 1rem; }
+
+    /* Table */
+    .modern-table thead th {
+        background: #f8fafc;
+        color: #475569;
+        font-family: var(--font-heading);
+        font-weight: 700;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        padding: 1rem;
+        border-bottom: 2px solid #e2e8f0;
+    }
+    .modern-table tbody td {
+        padding: 1rem;
+        vertical-align: middle;
+        font-size: 0.95rem;
+        color: #334155;
+        border-bottom: 1px solid #f1f5f9;
+        font-weight: 500;
+    }
+    .emp-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; margin-right: 12px; border: 2px solid #e2e8f0; }
+    
+    .rank-badge {
+        width: 32px; height: 32px; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        background: #f1f5f9; color: #64748b; font-weight: 700; font-size: 0.9rem;
+    }
+    .rank-1 { background: #fef3c7; color: #d97706; box-shadow: 0 2px 5px rgba(245, 158, 11, 0.2); }
+    .rank-2 { background: #e0e7ff; color: #4338ca; }
+    .rank-3 { background: #ffedd5; color: #c2410c; }
+
+</style>
+
+<div class="container-fluid py-4 fade-in-up">
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h3 class="fw-bold text-dark mb-0" style="font-family: var(--font-heading);">Employee Performance</h3>
+            <p class="text-muted small fw-bold mb-0">Sales analysis & rankings</p>
+        </div>
+        <div>
+            <a href="{{ url_for('report_employee_performance_pdf', start_date=start_date, end_date=end_date) }}" class="btn btn-danger btn-sm rounded-pill px-3 shadow-sm fw-bold me-2">
+                <i class="fa-solid fa-file-pdf me-2"></i> PDF
+            </a>
+            <a href="{{ url_for('reports') }}" class="btn btn-light btn-sm rounded-pill px-3 border shadow-sm fw-bold">
+                <i class="fa-solid fa-arrow-left me-2"></i> Back
+            </a>
+        </div>
+    </div>
+
+    <!-- Filter Bar -->
+    <div class="filter-bar">
         <form method="POST" class="row g-3 align-items-end">
-            <div class="col-md-4">
-                <label for="start_date" class="form-label fw-bold">Start Date</label>
-                <input type="date" class="form-control" id="start_date" name="start_date" value="{{ start_date }}">
+            <div class="col-md-3">
+                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Start Date</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-white border-end-0"><i class="fa-solid fa-calendar text-muted"></i></span>
+                    <input type="text" name="start_date" class="form-control border-start-0 date-picker fw-bold" value="{{ start_date }}">
+                </div>
             </div>
-            <div class="col-md-4">
-                <label for="end_date" class="form-label fw-bold">End Date</label>
-                <input type="date" class="form-control" id="end_date" name="end_date" value="{{ end_date }}">
+            <div class="col-md-3">
+                <label class="form-label small fw-bold text-muted text-uppercase mb-1">End Date</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-white border-end-0"><i class="fa-solid fa-calendar text-muted"></i></span>
+                    <input type="text" name="end_date" class="form-control border-start-0 date-picker fw-bold" value="{{ end_date }}">
+                </div>
             </div>
-            <div class="col-md-4">
-                <button type="submit" class="btn btn-primary"><i class="fa-solid fa-search me-1"></i> Generate Report</button>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary w-100 fw-bold shadow-sm">Analyze</button>
             </div>
         </form>
     </div>
-</div>
 
-<!-- Results Section -->
-{% if performance_data is defined %}
-<div class="card shadow-sm">
-    <div class="card-header bg-light d-flex justify-content-between align-items-center">
-        <h5 class="mb-0">Performance from <span class="text-primary">{{ start_date_str }}</span> to <span class="text-primary">{{ end_date_str }}</span></h5>
-        <a href="{{ url_for('report_employee_performance_pdf', start_date=start_date, end_date=end_date) }}" class="btn btn-sm btn-danger">
-            <i class="fa-solid fa-file-pdf me-1"></i> Download as PDF
-        </a>
-    </div>
-    <div class="card-body">
-        <div class="table-responsive">
-            <table class="table table-hover align-middle">
-                <thead>
-                    <tr>
-                        <th>Rank</th>
-                        <th class="text-start">Employee</th>
-                        <th class="text-center">Total Units Sold</th>
-                        <th class="text-end">Total Sales Amount</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for emp in performance_data %}
-                    <tr>
-                        <td><span class="badge bg-primary rounded-pill fs-6">{{ loop.index }}</span></td>
-                        <td class="text-start fw-bold">{{ emp.employee_name }}</td>
-                        <td class="text-center">{{ emp.total_units_sold }}</td>
-                        <td class="text-end fw-bolder text-success fs-5">₹{{ "%.2f"|format(emp.total_sales_amount) }}</td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="4" class="text-center p-4">No sales data found for the selected date range.</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+    {% if performance_data %}
+        
+        <!-- KPIs Logic -->
+        {% set top_sales = performance_data|first %}
+        {% set top_units = performance_data|sort(attribute='total_units_sold', reverse=True)|first %}
+        
+        <!-- KPI Cards -->
+        <div class="row g-4 mb-4">
+            <div class="col-md-4">
+                <div class="kpi-card kpi-gold">
+                    <div class="kpi-title">Top Salesman (Revenue)</div>
+                    <div class="d-flex align-items-center mt-2">
+                        {% if top_sales.employee_image %}
+                        <img src="{{ top_sales.employee_image }}" class="rounded-circle me-3" width="50" height="50" style="object-fit:cover;">
+                        {% endif %}
+                        <div>
+                            <div class="kpi-val text-dark">{{ top_sales.employee_name }}</div>
+                            <div class="kpi-sub text-success">{{ top_sales.total_sales_amount|inr }}</div>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-trophy kpi-icon text-warning"></i>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="kpi-card kpi-teal">
+                    <div class="kpi-title">Most Units Sold</div>
+                    <div class="d-flex align-items-center mt-2">
+                        <div>
+                            <div class="kpi-val text-dark">{{ top_units.employee_name }}</div>
+                            <div class="kpi-sub text-primary">{{ top_units.total_units_sold }} Units</div>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-box-open kpi-icon text-info"></i>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="kpi-card kpi-indigo">
+                    <div class="kpi-title">Total Period Revenue</div>
+                    <div class="kpi-val text-primary">{{ total_revenue|inr }}</div>
+                    <div class="kpi-sub">{{ total_units }} Total Units Sold</div>
+                    <i class="fa-solid fa-chart-line kpi-icon text-primary"></i>
+                </div>
+            </div>
         </div>
-    </div>
-</div>
-{% else %}
-    <div class="alert alert-info">Please select a date range and click "Generate Report" to view employee performance.</div>
-{% endif %}
 
+        <!-- Charts Section -->
+        <div class="row g-4 mb-4">
+            <!-- Bar Chart: Revenue Comparison -->
+            <div class="col-lg-8">
+                <div class="chart-container">
+                    <h5 class="chart-title">Revenue Comparison</h5>
+                    <div style="height: 320px;">
+                        <canvas id="revenueChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            <!-- Pie Chart: Contribution -->
+            <div class="col-lg-4">
+                <div class="chart-container">
+                    <h5 class="chart-title">Sales Contribution (%)</h5>
+                    <div style="height: 300px; position: relative;">
+                        <canvas id="shareChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Data Table -->
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-5">
+            <div class="table-responsive">
+                <table class="table modern-table mb-0">
+                    <thead>
+                        <tr>
+                            <th class="ps-4 text-center">Rank</th>
+                            <th>Employee</th>
+                            <th class="text-center">Units Sold</th>
+                            <th class="text-end pe-4">Total Revenue</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for emp in performance_data %}
+                        <tr>
+                            <td class="ps-4 text-center">
+                                <span class="rank-badge rank-{{ loop.index }}">{{ loop.index }}</span>
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <img src="{{ emp.employee_image }}" class="emp-avatar" alt="img">
+                                    <span class="fw-bold text-dark">{{ emp.employee_name }}</span>
+                                </div>
+                            </td>
+                            <td class="text-center fw-bold">{{ emp.total_units_sold }}</td>
+                            <td class="text-end pe-4 fw-bolder text-success">{{ emp.total_sales_amount|inr }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    {% else %}
+        <div class="text-center py-5">
+            <div class="mb-3 opacity-25"><i class="fa-solid fa-user-xmark fa-3x"></i></div>
+            <h6 class="text-muted fw-bold">No performance data found for this period.</h6>
+        </div>
+    {% endif %}
+
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        flatpickr(".date-picker", { dateFormat: "d-m-Y", allowInput: true });
+
+        {% if performance_data %}
+            const rawData = {{ performance_data | tojson | safe }};
+            const labels = rawData.map(d => d.employee_name);
+            const revenues = rawData.map(d => d.total_sales_amount);
+            const units = rawData.map(d => d.total_units_sold);
+
+            // 1. Revenue Bar Chart
+            new Chart(document.getElementById('revenueChart'), {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Revenue (₹)',
+                        data: revenues,
+                        backgroundColor: '#6366f1',
+                        borderRadius: 6,
+                        barPercentage: 0.6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { 
+                            grid: { borderDash: [4, 4] },
+                            ticks: { callback: v => '₹' + v/1000 + 'k' } 
+                        },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+
+            // 2. Share Doughnut Chart
+            new Chart(document.getElementById('shareChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: revenues,
+                        backgroundColor: ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#64748b'],
+                        borderWidth: 0,
+                        hoverOffset: 10
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '70%',
+                    plugins: {
+                        legend: { position: 'right', labels: { boxWidth: 10 } },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let val = context.raw;
+                                    let total = context.chart._metasets[context.datasetIndex].total;
+                                    let pct = ((val / total) * 100).toFixed(1) + '%';
+                                    return ` ${context.label}: ${pct}`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        {% endif %}
+    });
+</script>
 {% endblock %}
