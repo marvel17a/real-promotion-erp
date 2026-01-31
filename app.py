@@ -7059,50 +7059,45 @@ def report_daily_summary_pdf(report_date):
 
 
 
-# =========================================================
+# =========================================================#
 # DAILY SALES REPORT (Updated for Net Revenue)
-# =========================================================
-# REPLACE your existing 'daily_sales' route in app.py with this FIXED version:
+# =========================================================#
+# REPLACE your existing 'daily_sales' route in app.py with this UPDATED version:
 
 @app.route('/reports/daily_sales', methods=['GET', 'POST'])
 def daily_sales():
     if "loggedin" not in session: return redirect(url_for("login"))
     
-    # 1. Get raw date from request (default to today)
+    # 1. Get raw date (default to today)
     raw_date = request.form.get('report_date') or date.today().strftime('%d-%m-%Y')
     
-    # 2. Parse Date Correctly (Handle dd-mm-yyyy from frontend)
-    # Using existing helper 'parse_date' or manual logic
+    # 2. Parse Date Correctly
     try:
-        # Try parsing dd-mm-yyyy first (Common in your frontend)
         report_date_obj = datetime.strptime(raw_date, '%d-%m-%Y').date()
     except ValueError:
         try:
-            # Fallback to yyyy-mm-dd
             report_date_obj = date.fromisoformat(raw_date)
         except ValueError:
-            # Last resort: Today
             report_date_obj = date.today()
     
-    # Standard format for SQL (yyyy-mm-dd) and Display (dd-mm-yyyy)
+    # SQL & Display formats
     sql_date = report_date_obj.strftime('%Y-%m-%d')
     report_date_str = report_date_obj.strftime('%d-%m-%Y')
     
     sales_data = []
-    grand_total = 0.0 
-    net_total_revenue = 0.0
+    grand_total = 0.0      # This is Gross Total for Table sum
+    net_total_revenue = 0.0 # This is Actual Money Earned (Net)
+    total_discount = 0.0    # NEW: Total Discount Given
     total_units = 0
-    total_transactions = 0
 
     db_cursor = None
     try:
         db_cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
         
-        # 3. Fetch Item Details
+        # A. Fetch Item Details (For Table)
         sql_items = """
             SELECT 
                 'Field Sale' as type,
-                e.name AS employee_name,
                 p.name AS product_name,
                 ei.sold_qty as qty,
                 ei.unit_price,
@@ -7110,14 +7105,12 @@ def daily_sales():
             FROM evening_item ei
             JOIN evening_settle es ON ei.settle_id = es.id
             JOIN products p ON ei.product_id = p.id
-            JOIN employees e ON es.employee_id = e.id
             WHERE es.date = %s AND ei.sold_qty > 0 AND es.status = 'final'
 
             UNION ALL
 
             SELECT 
                 'Counter Sale' as type,
-                COALESCE(os.sales_person, 'Office') AS employee_name,
                 p.name AS product_name,
                 osi.qty as qty,
                 osi.unit_price,
@@ -7127,7 +7120,7 @@ def daily_sales():
             JOIN products p ON osi.product_id = p.id
             WHERE os.sale_date = %s
 
-            ORDER BY type, employee_name
+            ORDER BY type, product_name
         """
         db_cursor.execute(sql_items, (sql_date, sql_date))
         sales_data = db_cursor.fetchall()
@@ -7135,14 +7128,22 @@ def daily_sales():
         for item in sales_data:
             grand_total += float(item['total_amount'])
             total_units += int(item['qty'])
-            
-        # 4. Calculate Actual Net Revenue
+
+        # B. Calculate Net Revenue & Total Discount (From Header Tables)
+        # Using Header tables is accurate because discount is applied on the whole bill.
         sql_net = """
-            SELECT SUM(net_val) as true_revenue, COUNT(*) as tx_count FROM (
-                SELECT (total_amount - discount) as net_val FROM evening_settle 
+            SELECT 
+                SUM(net_val) as true_revenue, 
+                SUM(disc_val) as total_disc 
+            FROM (
+                SELECT (total_amount - discount) as net_val, discount as disc_val 
+                FROM evening_settle 
                 WHERE date = %s AND status = 'final'
+                
                 UNION ALL
-                SELECT final_amount as net_val FROM office_sales 
+                
+                SELECT final_amount as net_val, discount as disc_val 
+                FROM office_sales 
                 WHERE sale_date = %s
             ) as t
         """
@@ -7151,24 +7152,23 @@ def daily_sales():
         
         if net_res:
             net_total_revenue = float(net_res['true_revenue'] or 0)
-            total_transactions = int(net_res['tx_count'] or 0)
-            
+            total_discount = float(net_res['total_disc'] or 0) # Capture Discount
+
     except Exception as e:
         flash(f"Error fetching daily sales: {e}", "danger")
         app.logger.error(f"Daily Sales Error: {e}")
     finally:
         if db_cursor: db_cursor.close()
-    
+
     return render_template('reports/daily_sales.html', 
-                           report_date=report_date_str, # Pass back formatted string for input
-                           report_date_str=report_date_str, # For display title
+                           report_date=report_date_str, 
+                           report_date_str=report_date_str,
                            sales_data=sales_data,
                            grand_total=net_total_revenue, 
+                           total_discount=total_discount, # Pass Discount
                            table_total=grand_total,
-                           total_units=total_units,
-                           total_transactions=total_transactions)
+                           total_units=total_units)
 
-# REPLACE your existing 'employee_performance' route in app.py with this updated version:
 
 @app.route('/reports/employee_performance', methods=['GET', 'POST'])
 def employee_performance():
@@ -8392,6 +8392,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
