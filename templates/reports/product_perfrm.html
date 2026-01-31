@@ -1,86 +1,317 @@
 {% extends "admin_master.html" %}
 
 {% block page_content %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/reports_common.css') }}">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2 class="mb-0"><i class="fa-solid fa-ranking-star me-2 text-primary"></i> Product Performance Report</h2>
-    <a href="{{ url_for('reports') }}" class="btn btn-sm btn-outline-secondary"><i class="fa-solid fa-arrow-left me-1"></i> Back to Reports</a>
-</div>
+<style>
+    :root {
+        --font-heading: 'Quicksand', sans-serif;
+        --font-body: 'Rubik', sans-serif;
+        --card-bg: #ffffff;
+        --light-bg: #f8f9fa;
+        --primary: #4361ee;
+    }
 
-<!-- Filter Card with New Sort Option -->
-<div class="card filter-card shadow-sm mb-4">
-    <div class="card-body">
+    body { font-family: var(--font-body); background-color: var(--light-bg); }
+
+    /* Header & Filters */
+    .filter-bar {
+        background: var(--card-bg);
+        border-radius: 16px;
+        padding: 1.25rem;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+        margin-bottom: 2rem;
+        border: 1px solid rgba(0,0,0,0.02);
+    }
+
+    /* KPI Cards */
+    .kpi-card {
+        background: var(--card-bg);
+        border-radius: 16px;
+        padding: 1.5rem;
+        height: 100%;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.04);
+        position: relative;
+        overflow: hidden;
+        border-left: 5px solid transparent;
+        transition: transform 0.3s;
+    }
+    .kpi-card:hover { transform: translateY(-5px); }
+    
+    .kpi-title { font-family: var(--font-heading); font-size: 0.8rem; text-transform: uppercase; color: #6c757d; font-weight: 700; letter-spacing: 0.5px; }
+    .kpi-val { font-size: 1.4rem; font-weight: 700; color: #2d3748; margin-top: 5px; }
+    .kpi-sub { font-size: 0.9rem; color: #718096; }
+    
+    .kpi-purple { border-left-color: #7209b7; }
+    .kpi-purple .kpi-icon { color: #7209b7; background: rgba(114, 9, 183, 0.1); }
+    
+    .kpi-blue { border-left-color: #4361ee; }
+    .kpi-blue .kpi-icon { color: #4361ee; background: rgba(67, 97, 238, 0.1); }
+
+    .kpi-icon {
+        width: 48px; height: 48px;
+        border-radius: 12px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.5rem;
+        position: absolute; top: 1.5rem; right: 1.5rem;
+    }
+
+    /* Chart */
+    .chart-container {
+        background: var(--card-bg);
+        border-radius: 16px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.04);
+        margin-bottom: 2rem;
+    }
+
+    /* Table */
+    .modern-table thead th {
+        background: #f8f9fa;
+        color: #64748b;
+        font-family: var(--font-heading);
+        font-weight: 700;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        padding: 1rem;
+        border-bottom: 2px solid #e2e8f0;
+    }
+    .modern-table tbody td {
+        padding: 1rem;
+        vertical-align: middle;
+        font-size: 0.95rem;
+        border-bottom: 1px solid #f1f3f5;
+        color: #334155;
+    }
+    .product-img-sm {
+        width: 40px; height: 40px;
+        object-fit: cover;
+        border-radius: 8px;
+        margin-right: 10px;
+    }
+    .rank-badge {
+        width: 28px; height: 28px;
+        background: #e2e8f0;
+        color: #475569;
+        border-radius: 50%;
+        display: inline-flex; align-items: center; justify-content: center;
+        font-weight: 700; font-size: 0.8rem;
+    }
+    .rank-1 { background: #fef3c7; color: #d97706; }
+    .rank-2 { background: #f1f5f9; color: #475569; }
+    .rank-3 { background: #ffedd5; color: #b45309; }
+
+</style>
+
+<div class="container-fluid py-4 fade-in-up">
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h3 class="fw-bold text-dark mb-0" style="font-family: var(--font-heading);">Product Performance</h3>
+            <p class="text-muted small mb-0">Analyze top selling items by volume and value.</p>
+        </div>
+        <a href="{{ url_for('reports') }}" class="btn btn-light btn-sm rounded-pill px-3 border shadow-sm fw-bold">
+            <i class="fa-solid fa-arrow-left me-2"></i>Back
+        </a>
+    </div>
+
+    <!-- Filter Bar -->
+    <div class="filter-bar">
         <form method="POST" class="row g-3 align-items-end">
-            <div class="col-md-4">
-                <label for="start_date" class="form-label fw-bold">Start Date</label>
-                <input type="date" class="form-control" id="start_date" name="start_date" value="{{ start_date }}">
+            <div class="col-md-3">
+                <label class="form-label small fw-bold text-muted text-uppercase">Start Date</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-white border-end-0"><i class="fa-solid fa-calendar text-muted"></i></span>
+                    <input type="text" name="start_date" class="form-control border-start-0 date-picker" value="{{ start_date }}">
+                </div>
             </div>
-            <div class="col-md-4">
-                <label for="end_date" class="form-label fw-bold">End Date</label>
-                <input type="date" class="form-control" id="end_date" name="end_date" value="{{ end_date }}">
+            <div class="col-md-3">
+                <label class="form-label small fw-bold text-muted text-uppercase">End Date</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-white border-end-0"><i class="fa-solid fa-calendar text-muted"></i></span>
+                    <input type="text" name="end_date" class="form-control border-start-0 date-picker" value="{{ end_date }}">
+                </div>
             </div>
-            <div class="col-md-2">
-                <label for="sort_by" class="form-label fw-bold">Sort By</label>
-                <select class="form-select" id="sort_by" name="sort_by">
-                    <option value="revenue" {% if sort_by == 'revenue' %}selected{% endif %}>Highest Revenue</option>
-                    <option value="quantity" {% if sort_by == 'quantity' %}selected{% endif %}>Highest Quantity Sold</option>
+            <div class="col-md-3">
+                <label class="form-label small fw-bold text-muted text-uppercase">Sort By</label>
+                <select name="sort_by" class="form-select bg-light border-0">
+                    <option value="revenue" {% if sort_by == 'revenue' %}selected{% endif %}>Revenue (Highest First)</option>
+                    <option value="quantity" {% if sort_by == 'quantity' %}selected{% endif %}>Quantity Sold (Highest First)</option>
                 </select>
             </div>
-            <div class="col-md-2">
-                <button type="submit" class="btn btn-primary w-100"><i class="fa-solid fa-search me-1"></i> Generate</button>
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-primary w-100 fw-bold shadow-sm">
+                    <i class="fa-solid fa-filter me-2"></i> Analyze
+                </button>
             </div>
         </form>
     </div>
+
+    {% if product_data %}
+        
+        <!-- Logic to find Top Performers -->
+        {% set top_qty = product_data|sort(attribute='total_units_sold', reverse=True)|first %}
+        {% set top_rev = product_data|sort(attribute='total_revenue', reverse=True)|first %}
+
+        <!-- KPI Summary -->
+        <div class="row g-4 mb-4">
+            <div class="col-md-6">
+                <div class="kpi-card kpi-blue">
+                    <div class="kpi-title">Highest Revenue Generator</div>
+                    <div class="kpi-val">{{ top_rev.product_name }}</div>
+                    <div class="kpi-sub">{{ top_rev.total_revenue|inr }} Generated</div>
+                    <div class="kpi-icon"><i class="fa-solid fa-sack-dollar"></i></div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="kpi-card kpi-purple">
+                    <div class="kpi-title">Most Popular (By Volume)</div>
+                    <div class="kpi-val">{{ top_qty.product_name }}</div>
+                    <div class="kpi-sub">{{ top_qty.total_units_sold }} Units Sold</div>
+                    <div class="kpi-icon"><i class="fa-solid fa-box-open"></i></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chart Section -->
+        <div class="chart-container">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="fw-bold text-dark mb-0" style="font-family: var(--font-heading);">Top 10 Performers</h5>
+            </div>
+            <div style="height: 350px;">
+                <canvas id="perfChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Data Table -->
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+            <div class="card-header bg-white p-3 border-bottom d-flex justify-content-between align-items-center">
+                <h6 class="m-0 fw-bold text-dark text-uppercase small" style="letter-spacing: 1px;">Detailed Performance</h6>
+                <button class="btn btn-sm btn-outline-secondary" onclick="window.print()"><i class="fa-solid fa-print me-1"></i> Print</button>
+            </div>
+            <div class="table-responsive">
+                <table class="table modern-table mb-0">
+                    <thead>
+                        <tr>
+                            <th class="ps-4 text-center" style="width: 60px;">Rank</th>
+                            <th>Product</th>
+                            <th class="text-center">Units Sold</th>
+                            <th class="text-end pe-4">Total Revenue</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for p in product_data %}
+                        <tr>
+                            <td class="ps-4 text-center">
+                                <span class="rank-badge rank-{{ loop.index }}">{{ loop.index }}</span>
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <img src="{{ p.image }}" class="product-img-sm border" alt="img">
+                                    <span class="fw-bold text-dark">{{ p.product_name }}</span>
+                                </div>
+                            </td>
+                            <td class="text-center">
+                                <span class="badge bg-light text-dark border px-3 py-2">{{ p.total_units_sold }}</span>
+                            </td>
+                            <td class="text-end pe-4 fw-bold text-success">{{ p.total_revenue|inr }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    {% else %}
+        <div class="text-center py-5">
+            <div class="mb-3 opacity-25"><i class="fa-solid fa-chart-bar fa-3x text-secondary"></i></div>
+            <h6 class="text-muted fw-bold">No data found for this period.</h6>
+            <p class="text-muted small">Try adjusting the date range.</p>
+        </div>
+    {% endif %}
+
 </div>
 
-<!-- Results Section with New Export Buttons -->
-{% if request.method == 'POST' %}
-<div class="card shadow-sm">
-    <div class="card-header bg-light d-flex justify-content-between align-items-center">
-        <h5 class="mb-0">Report for <span class="text-primary">{{ start_date_str }}</span> to <span class="text-primary">{{ end_date_str }}</span></h5>
-        <div>
-            <!-- New Export to Excel Button -->
-            <a href="{{ url_for('report_product_perfrm_excel', start_date=start_date, end_date=end_date, sort_by=sort_by) }}" class="btn btn-sm btn-success">
-                <i class="fa-solid fa-file-excel me-1"></i> Export to Excel
-            </a>
-            <a href="{{ url_for('report_product_perfrm_pdf', start_date=start_date, end_date=end_date, sort_by=sort_by) }}" class="btn btn-sm btn-danger">
-                <i class="fa-solid fa-file-pdf me-1"></i> Download as PDF
-            </a>
-        </div>
-    </div>
-    <div class="card-body">
-        <div class="table-responsive">
-            <table class="table table-hover align-middle">
-                <thead>
-                    <tr>
-                        <th class="text-center">Rank</th>
-                        <th class="text-start">Product Name</th>
-                        <th class="text-center">Total Units Sold</th>
-                        <th class="text-end">Total Revenue Generated</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for product in product_data %}
-                    <tr>
-                        <td class="text-center fw-bold">{{ loop.index }}</td>
-                        <td class="text-start fw-bold">{{ product.product_name }}</td>
-                        <td class="text-center">{{ product.total_units_sold }}</td>
-                        <td class="text-end fw-bolder text-success">₹{{ "%.2f"|format(product.total_revenue) }}</td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="4" class="text-center p-4">No product sales data found for the selected period.</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
-{% else %}
-    <div class="alert alert-info">Please select a date range and sorting option, then click "Generate" to view the report.</div>
-{% endif %}
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        flatpickr(".date-picker", { dateFormat: "d-m-Y", allowInput: true });
 
+        // Chart Logic
+        {% if product_data %}
+            const rawData = {{ product_data[:10] | tojson | safe }}; // Top 10 only for chart
+            const labels = rawData.map(d => d.product_name);
+            const revenues = rawData.map(d => d.total_revenue);
+            const units = rawData.map(d => d.total_units_sold);
+
+            const ctx = document.getElementById('perfChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Revenue (₹)',
+                            data: revenues,
+                            backgroundColor: '#4361ee',
+                            borderRadius: 6,
+                            barPercentage: 0.6,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'Units Sold',
+                            data: units,
+                            backgroundColor: 'rgba(76, 201, 240, 0.5)',
+                            borderRadius: 6,
+                            barPercentage: 0.6,
+                            yAxisID: 'y1'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        tooltip: {
+                            backgroundColor: '#1e293b',
+                            padding: 12,
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label.includes('Revenue')) {
+                                        return label + ': ' + context.raw.toLocaleString('en-IN', {style: 'currency', currency: 'INR'});
+                                    }
+                                    return label + ': ' + context.raw;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            grid: { borderDash: [4, 4] },
+                            ticks: { callback: function(val) { return '₹' + val/1000 + 'k'; } }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            grid: { drawOnChartArea: false },
+                            title: { display: true, text: 'Units' }
+                        },
+                        x: {
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+        {% endif %}
+    });
+</script>
 {% endblock %}
-
