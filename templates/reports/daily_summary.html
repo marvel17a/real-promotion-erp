@@ -1,71 +1,234 @@
 {% extends "admin_master.html" %}
 
 {% block page_content %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/report.css') }}">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2 class="mb-0"><i class="fa-solid fa-sun me-2"></i> Daily Financial Summary</h2>
-    <a href="{{ url_for('reports') }}" class="btn btn-sm btn-outline-secondary"><i class="fa-solid fa-arrow-left me-1"></i> Back to Reports</a>
-</div>
+<style>
+    :root {
+        --font-heading: 'Quicksand', sans-serif;
+        --font-body: 'Rubik', sans-serif;
+        --card-bg: #ffffff;
+        --light-bg: #f8f9fa;
+    }
+    body { font-family: var(--font-body); background-color: var(--light-bg); }
 
-<!-- Filter Card -->
-<div class="card filter-card shadow-sm mb-4">
-    <div class="card-body">
+    /* Filter Bar */
+    .filter-bar {
+        background: var(--card-bg);
+        border-radius: 16px;
+        padding: 1.25rem;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+        margin-bottom: 2rem;
+    }
+
+    /* KPI Cards */
+    .kpi-card {
+        background: var(--card-bg);
+        border-radius: 16px;
+        padding: 1.5rem;
+        height: 100%;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+        text-align: center;
+        border-bottom: 5px solid transparent;
+        transition: transform 0.2s;
+    }
+    .kpi-card:hover { transform: translateY(-5px); }
+    .kpi-label { font-family: var(--font-heading); font-size: 0.85rem; text-transform: uppercase; color: #64748b; font-weight: 700; letter-spacing: 0.5px; }
+    .kpi-val { font-size: 2rem; font-weight: 800; margin-top: 10px; }
+    
+    .kpi-green { border-bottom-color: #10b981; }
+    .kpi-green .kpi-val { color: #10b981; }
+    
+    .kpi-red { border-bottom-color: #ef4444; }
+    .kpi-red .kpi-val { color: #ef4444; }
+    
+    .kpi-blue { border-bottom-color: #3b82f6; }
+    .kpi-blue .kpi-val { color: #3b82f6; }
+
+    /* Section Cards */
+    .detail-card {
+        background: var(--card-bg);
+        border-radius: 16px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+        overflow: hidden;
+        height: 100%;
+    }
+    .card-header-custom {
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid #f1f5f9;
+        font-family: var(--font-heading);
+        font-weight: 700;
+        color: #1e293b;
+        background-color: #fff;
+    }
+    
+    .list-group-item {
+        border: none;
+        border-bottom: 1px solid #f8fafc;
+        padding: 1rem 1.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.95rem;
+    }
+    .list-group-item:last-child { border-bottom: none; }
+    .list-label { color: #475569; font-weight: 500; }
+    .list-val { font-weight: 700; color: #1e293b; }
+
+</style>
+
+<div class="container-fluid py-4 fade-in-up">
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h3 class="fw-bold text-dark mb-0" style="font-family: var(--font-heading);">Daily Financial Summary</h3>
+            <p class="text-muted small fw-bold mb-0">Cash Flow Overview for {{ report_date_str }}</p>
+        </div>
+        <a href="{{ url_for('reports') }}" class="btn btn-light btn-sm rounded-pill px-3 border shadow-sm fw-bold">
+            <i class="fa-solid fa-arrow-left me-2"></i> Back
+        </a>
+    </div>
+
+    <!-- Filter Bar -->
+    <div class="filter-bar">
         <form method="POST" class="row g-3 align-items-end">
             <div class="col-md-4">
-                <label for="report_date" class="form-label">Select Date</label>
-                <input type="date" class="form-control" id="report_date" name="report_date" value="{{ report_date }}">
+                <label class="form-label small fw-bold text-muted text-uppercase mb-1">Select Date</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-white border-end-0"><i class="fa-solid fa-calendar-day text-muted"></i></span>
+                    <input type="text" name="report_date" class="form-control border-start-0 date-picker fw-bold" value="{{ report_date }}">
+                </div>
             </div>
-            <div class="col-md-4">
-                <button type="submit" class="btn btn-primary"><i class="fa-solid fa-search me-1"></i> Generate Summary</button>
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-primary w-100 fw-bold shadow-sm">Generate Report</button>
             </div>
         </form>
     </div>
-</div>
 
-<!-- Results Section -->
-{% if summary_data %}
-<div class="card shadow-sm">
-    <div class="card-header bg-light d-flex justify-content-between align-items-center">
-        <h5 class="mb-0">Summary for: {{ report_date_str }}</h5>
-        <a href="{{ url_for('report_daily_summary_pdf', report_date=report_date) }}" class="btn btn-sm btn-danger">
-            <i class="fa-solid fa-file-pdf me-1"></i> Download as PDF
-        </a>
-    </div>
-    <div class="card-body">
-        <div class="row g-4">
-            <!-- Total Sales Card -->
-            <div class="col-md-4">
-                <div class="card report-summary-card h-100" style="border-left-color: #0d6efd;">
-                    <div class="card-body text-center">
-                        <div class="text-muted mb-2">Total Sales</div>
-                        <div class="kpi-value text-primary">₹{{ "%.2f"|format(summary_data.total_sales) }}</div>
-                    </div>
-                </div>
+    {% if data %}
+    <!-- KPI Cards -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-4">
+            <div class="kpi-card kpi-green">
+                <div class="kpi-label">Total Cash In</div>
+                <div class="kpi-val">+{{ data.cash_in|inr }}</div>
             </div>
-            <!-- Total Expenses Card -->
-            <div class="col-md-4">
-                <div class="card report-summary-card h-100" style="border-left-color: #dc3545;">
-                    <div class="card-body text-center">
-                        <div class="text-muted mb-2">Total Expenses</div>
-                        <div class="kpi-value text-danger">₹{{ "%.2f"|format(summary_data.total_expenses) }}</div>
-                    </div>
-                </div>
+        </div>
+        <div class="col-md-4">
+            <div class="kpi-card kpi-red">
+                <div class="kpi-label">Total Cash Out</div>
+                <div class="kpi-val">-{{ data.cash_out|inr }}</div>
             </div>
-            <!-- Net Cash Flow Card -->
-            <div class="col-md-4">
-                <div class="card report-summary-card h-100" style="border-left-color: #198754;">
-                    <div class="card-body text-center">
-                        <div class="text-muted mb-2">Net Cash Flow</div>
-                        <div class="kpi-value text-success">₹{{ "%.2f"|format(summary_data.net_cash_flow) }}</div>
-                    </div>
+        </div>
+        <div class="col-md-4">
+            <div class="kpi-card kpi-blue">
+                <div class="kpi-label">Net Cash Flow</div>
+                <div class="kpi-val" style="color: {% if data.net_flow >= 0 %}#10b981{% else %}#ef4444{% endif %};">
+                    {{ data.net_flow|inr }}
                 </div>
             </div>
         </div>
     </div>
-</div>
-{% else %}
-<div class="alert alert-info">Please select a date and click "Generate Summary" to view the report.</div>
-{% endif %}
 
+    <!-- Breakdown Details -->
+    <div class="row g-4 mb-4">
+        <!-- Money In -->
+        <div class="col-md-6">
+            <div class="detail-card">
+                <div class="card-header-custom border-bottom border-success border-2 text-success">
+                    <i class="fa-solid fa-arrow-trend-up me-2"></i> Money In (Income)
+                </div>
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item">
+                        <span class="list-label">Field Sales (Net)</span>
+                        <span class="list-val text-success">{{ data.breakdown.evening_sales|inr }}</span>
+                    </li>
+                    <li class="list-group-item">
+                        <span class="list-label">Counter Sales (Net)</span>
+                        <span class="list-val text-success">{{ data.breakdown.office_sales|inr }}</span>
+                    </li>
+                    <li class="list-group-item">
+                        <span class="list-label">Employee Credit (Received)</span>
+                        <span class="list-val text-success">{{ data.breakdown.emp_credit|inr }}</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Money Out -->
+        <div class="col-md-6">
+            <div class="detail-card">
+                <div class="card-header-custom border-bottom border-danger border-2 text-danger">
+                    <i class="fa-solid fa-arrow-trend-down me-2"></i> Money Out (Expenses)
+                </div>
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item">
+                        <span class="list-label">Operational Expenses</span>
+                        <span class="list-val text-danger">{{ data.breakdown.expenses|inr }}</span>
+                    </li>
+                    <li class="list-group-item">
+                        <span class="list-label">Supplier Payments</span>
+                        <span class="list-val text-danger">{{ data.breakdown.supplier_pay|inr }}</span>
+                    </li>
+                    <li class="list-group-item">
+                        <span class="list-label">Employee Debit (Given/Salary)</span>
+                        <span class="list-val text-danger">{{ data.breakdown.emp_debit|inr }}</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Office Sales Detailed Table -->
+    {% if data.office_sales_list %}
+    <div class="detail-card mb-5">
+        <div class="card-header-custom bg-light">
+            <i class="fa-solid fa-store me-2 text-primary"></i> Counter Sales Breakdown
+        </div>
+        <div class="table-responsive">
+            <table class="table mb-0">
+                <thead class="bg-light text-secondary text-uppercase small fw-bold">
+                    <tr>
+                        <th class="ps-4">Bill #</th>
+                        <th>Customer</th>
+                        <th>Sales Person</th>
+                        <th class="text-end">Sub Total</th>
+                        <th class="text-end text-danger">Disc.</th>
+                        <th class="text-end pe-4 text-success">Net Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for s in data.office_sales_list %}
+                    <tr>
+                        <td class="ps-4 fw-bold text-muted">{{ s.id }}</td>
+                        <td class="fw-bold text-dark">{{ s.customer_name }}</td>
+                        <td class="text-secondary">{{ s.sales_person }}</td>
+                        <td class="text-end">{{ s.sub_total|inr }}</td>
+                        <td class="text-end text-danger">-{{ s.discount|inr }}</td>
+                        <td class="text-end pe-4 fw-bold text-success">{{ s.final_amount|inr }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    {% else %}
+        <div class="text-center py-5">
+            <div class="mb-3 opacity-25"><i class="fa-solid fa-chart-pie fa-3x"></i></div>
+            <h6 class="text-muted fw-bold">No summary data for this date.</h6>
+        </div>
+    {% endif %}
+
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        flatpickr(".date-picker", { dateFormat: "Y-m-d", allowInput: true });
+    });
+</script>
 {% endblock %}
