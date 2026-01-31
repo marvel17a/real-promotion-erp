@@ -143,11 +143,11 @@
                 </div>
                 <ul class="list-group list-group-flush">
                     <li class="list-group-item">
-                        <span class="list-label">Field Sales (Net)</span>
+                        <span class="list-label">Field Sales </span>
                         <span class="list-val text-success">{{ data.breakdown.evening_sales|inr }}</span>
                     </li>
                     <li class="list-group-item">
-                        <span class="list-label">Counter Sales (Net)</span>
+                        <span class="list-label">Office Sales</span>
                         <span class="list-val text-success">{{ data.breakdown.office_sales|inr }}</span>
                     </li>
                     <li class="list-group-item">
@@ -174,7 +174,7 @@
                         <span class="list-val text-danger">{{ data.breakdown.supplier_pay|inr }}</span>
                     </li>
                     <li class="list-group-item">
-                        <span class="list-label">Employee Debit (Given/Salary)</span>
+                        <span class="list-label">Employee Debit</span>
                         <span class="list-val text-danger">{{ data.breakdown.emp_debit|inr }}</span>
                     </li>
                 </ul>
@@ -186,13 +186,13 @@
     {% if data.office_sales_list %}
     <div class="detail-card mb-5">
         <div class="card-header-custom bg-light">
-            <i class="fa-solid fa-store me-2 text-primary"></i> Counter Sales Breakdown
+            <i class="fa-solid fa-store me-2 text-primary"></i> Office Sales
         </div>
         <div class="table-responsive">
             <table class="table mb-0">
                 <thead class="bg-light text-secondary text-uppercase small fw-bold">
                     <tr>
-                        <th class="ps-4">Bill #</th>
+                        <th class="ps-4">Bill </th>
                         <th>Customer</th>
                         <th>Sales Person</th>
                         <th class="text-end">Sub Total</th>
@@ -232,3 +232,4 @@
     });
 </script>
 {% endblock %}
+
