@@ -6875,99 +6875,6 @@ def export_purchase_pdf():
 
 
 
-@app.route('/sales', methods=['GET', 'POST'])
-def sales():
-    db_cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    db_cursor.execute("SELECT id, name FROM employees ORDER BY name")
-    employees = db_cursor.fetchall()
-    db_cursor.execute("SELECT id, name FROM products ORDER BY name")
-    products = db_cursor.fetchall()
-    report_data = None
-    totals = None
-    filters = {
-        'start_date': request.form.get('start_date', date.today().isoformat()),
-        'end_date': request.form.get('end_date', date.today().isoformat()),
-        'employee_id': request.form.get('employee_id', 'all'),
-        'product_id': request.form.get('product_id', 'all')
-    }
-    if request.method == 'POST':
-        query = """
-            SELECT 
-                es.date,
-                e.name AS employee_name,
-                p.name AS product_name,
-                ei.sold_qty AS units_sold,
-                ei.unit_price,
-                (ei.sold_qty * ei.unit_price) AS total_amount
-            FROM evening_item ei
-            JOIN evening_settle es ON ei.settle_id = es.id
-            JOIN employees e ON es.employee_id = e.id
-            JOIN products p ON ei.product_id = p.id
-            WHERE es.date BETWEEN %s AND %s
-        """
-        params = [filters['start_date'], filters['end_date']]
-        if filters['employee_id'] != 'all':
-            query += " AND es.employee_id = %s"
-            params.append(filters['employee_id'])
-        if filters['product_id'] != 'all':
-            query += " AND ei.product_id = %s"
-            params.append(filters['product_id'])
-        query += " ORDER BY es.date, e.name"
-        db_cursor.execute(query, tuple(params))
-        report_data = db_cursor.fetchall()
-        total_units = sum(row['units_sold'] for row in report_data)
-        total_sales = sum(row['total_amount'] for row in report_data)
-        totals = {'total_units': total_units, 'total_sales': total_sales}
-    db_cursor.close()
-    return render_template('sales.html',
-                           employees=employees,
-                           products=products,
-                           today=date.today().isoformat(),
-                           report_data=report_data,
-                           totals=totals,
-                           filters=filters)
-
-
-@app.route('/saless', methods=['POST'])
-def sales_export():
-    try:
-        start_date = request.form.get('start_date')
-        end_date = request.form.get('end_date')
-        employee_id = request.form.get('employee_id')
-        product_id = request.form.get('product_id')
-        query = """
-            SELECT es.date, e.name, p.name, ei.sold_qty, ei.unit_price, (ei.sold_qty * ei.unit_price)
-            FROM evening_item ei
-            JOIN evening_settle es ON ei.settle_id = es.id
-            JOIN employees e ON es.employee_id = e.id
-            JOIN products p ON ei.product_id = p.id
-            WHERE es.date BETWEEN %s AND %s
-        """
-        params = [start_date, end_date]
-        if employee_id != 'all':
-            query += " AND es.employee_id = %s"
-            params.append(employee_id)
-        if product_id != 'all':
-            query += " AND ei.product_id = %s"
-            params.append(product_id)
-        db_cursor = mysql.connection.cursor()
-        db_cursor.execute(query, tuple(params))
-        report_data = db_cursor.fetchall()
-        db_cursor.close()
-        output = io.StringIO()
-        writer = csv.writer(output)
-        writer.writerow(['Date', 'Employee', 'Product', 'Units Sold', 'Unit Price', 'Total Amount'])
-        for row in report_data:
-            writer.writerow(row)
-        output.seek(0)
-        return Response(output,
-                        mimetype="text/csv",
-                        headers={"Content-Disposition": f"attachment;filename=sales_report_{start_date}_to_{end_date}.csv"})
-    except Exception as e:
-        flash(f"Error exporting report: {e}", "danger")
-        return redirect(url_for('sales'))
-
-
 @app.route('/summary')
 def summary():
     selected_date = request.args.get('date', date.today().isoformat())
@@ -7083,111 +6990,83 @@ def report_daily_summary_pdf(report_date):
             db_cursor.close()
 
 
+# REPLACE your existing 'daily_sales' route with this UNIFIED version:
+
 @app.route('/reports/daily_sales', methods=['GET', 'POST'])
 def daily_sales():
-    report_date = date.today().isoformat()
+    if "loggedin" not in session: return redirect(url_for("login"))
+    
+    # Default to today
+    report_date = request.form.get('report_date') or date.today().isoformat()
+    
     sales_data = []
-    grand_total = 0
+    grand_total = 0.0
+    total_units = 0
+    total_transactions = 0
 
-    if request.method == 'POST':
-        report_date = request.form.get('report_date')
-        db_cursor = None
-        try:
-            db_cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-            sql = """
-                SELECT 
-                    p.name AS product_name,
-                    e.name AS employee_name,
-                    ei.sold_qty,
-                    ei.unit_price,
-                    (ei.sold_qty * ei.unit_price) AS total_amount
-                FROM evening_item ei
-                JOIN evening_settle es ON ei.settle_id = es.id
-                JOIN products p ON ei.product_id = p.id
-                JOIN employees e ON es.employee_id = e.id
-                WHERE es.date = %s AND ei.sold_qty > 0
-                ORDER BY e.name, p.name
-            """
-            db_cursor.execute(sql, (report_date,))
-            sales_data = db_cursor.fetchall()
-        except Exception as e:
-            flash(f"An error occurred while generating the report: {e}", "danger")
-        finally:
-            if db_cursor:
-                db_cursor.close()
-
-    if sales_data:
-        grand_total = sum(item['total_amount'] for item in sales_data)
-    report_date_obj = date.fromisoformat(report_date)
-    report_date_str = report_date_obj.strftime('%d %B, %Y')
-    return render_template('reports/daily_sales.html', 
-                           report_date=report_date, 
-                           report_date_str=report_date_str,
-                           sales_data=sales_data,
-                           grand_total=grand_total)
-
-
-@app.route('/reports/daily_sales/pdf/<report_date>')
-def report_daily_sales_pdf(report_date):
     db_cursor = None
     try:
         db_cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        
+        # UNIFIED QUERY: Evening Sales + Office Sales
         sql = """
-            SELECT p.name AS product_name, e.name AS employee_name, ei.sold_qty, ei.unit_price, (ei.sold_qty * ei.unit_price) AS total_amount
+            SELECT 
+                'Field Sale' as type,
+                e.name AS employee_name,
+                p.name AS product_name,
+                ei.sold_qty as qty,
+                ei.unit_price,
+                (ei.sold_qty * ei.unit_price) AS total_amount,
+                es.date as sale_date
             FROM evening_item ei
             JOIN evening_settle es ON ei.settle_id = es.id
             JOIN products p ON ei.product_id = p.id
             JOIN employees e ON es.employee_id = e.id
-            WHERE es.date = %s AND ei.sold_qty > 0
-            ORDER BY e.name, p.name
+            WHERE es.date = %s AND ei.sold_qty > 0 AND es.status = 'final'
+
+            UNION ALL
+
+            SELECT 
+                'Counter Sale' as type,
+                COALESCE(os.sales_person, 'Office') AS employee_name,
+                p.name AS product_name,
+                osi.qty as qty,
+                osi.unit_price,
+                osi.total_price AS total_amount,
+                os.sale_date as sale_date
+            FROM office_sale_items osi
+            JOIN office_sales os ON osi.sale_id = os.id
+            JOIN products p ON osi.product_id = p.id
+            WHERE os.sale_date = %s
+
+            ORDER BY type, employee_name
         """
-        db_cursor.execute(sql, (report_date,))
+        
+        db_cursor.execute(sql, (report_date, report_date))
         sales_data = db_cursor.fetchall()
         
-        grand_total = sum(item['total_amount'] for item in sales_data) if sales_data else 0
-        report_date_obj = date.fromisoformat(report_date)
-        report_date_str = report_date_obj.strftime('%d %B, %Y')
-
-        pdf = PDF(orientation='P', unit='mm', format='A4')
-        pdf.add_page()
-        pdf.set_font(pdf.font_family, 'B', 14)
-        pdf.cell(0, 10, f'Detailed Daily Sales Report: {report_date_str}', 0, 1, 'C')
-        pdf.ln(10)
-        pdf.set_font(pdf.font_family, 'B', 10)
-        pdf.set_fill_color(230, 230, 230)
-        pdf.cell(10, 8, '#', 1, 0, 'C', 1)
-        pdf.cell(65, 8, 'Product', 1, 0, 'L', 1)
-        pdf.cell(45, 8, 'Sold By', 1, 0, 'L', 1)
-        pdf.cell(20, 8, 'Qty', 1, 0, 'C', 1)
-        pdf.cell(25, 8, 'Unit Price', 1, 0, 'R', 1)
-        pdf.cell(25, 8, 'Total', 1, 1, 'R', 1)
-        pdf.set_font(pdf.font_family, '', 9)
-        if not sales_data:
-            pdf.cell(190, 10, 'No sales data found for this date.', 1, 1, 'C')
-        else:
-            for i, item in enumerate(sales_data):
-                pdf.cell(10, 7, str(i + 1), 1)
-                pdf.cell(65, 7, pdf.safe_text(item['product_name']), 1)
-                pdf.cell(45, 7, pdf.safe_text(item['employee_name']), 1)
-                pdf.cell(20, 7, str(item['sold_qty']), 1, 0, 'C')
-                pdf.cell(25, 7, f"{item['unit_price']:.2f}", 1, 0, 'R')
-                pdf.cell(25, 7, f"{item['total_amount']:.2f}", 1, 1, 'R')
-            pdf.set_font(pdf.font_family, 'B', 10)
-            pdf.cell(165, 8, 'Grand Total', 1, 0, 'R')
-            pdf.cell(25, 8, f"{grand_total:.2f}", 1, 1, 'R')
-        
-        pdf_output = pdf.output(dest='S').encode('latin1')
-        response = make_response(pdf_output)
-        response.headers.set('Content-Type', 'application/pdf')
-        response.headers.set('Content-Disposition', 'attachment', filename=f'Daily_Sales_Detail_{report_date}.pdf')
-        return response
+        # Calculate stats for KPI cards
+        for item in sales_data:
+            grand_total += float(item['total_amount'])
+            total_units += int(item['qty'])
+            total_transactions += 1
+            
     except Exception as e:
-        app.logger.error(f"PDF Generation Error: {e}")
-        flash("Could not generate PDF due to a server error.", "danger")
-        return redirect(url_for('daily_sales')) # Corrected route
+        flash(f"Error fetching daily sales: {e}", "danger")
     finally:
-        if db_cursor:
-            db_cursor.close()
+        if db_cursor: db_cursor.close()
+
+    # Formats for display
+    report_date_obj = date.fromisoformat(report_date)
+    report_date_str = report_date_obj.strftime('%d %B, %Y')
+    
+    return render_template('reports/daily_sales.html', 
+                           report_date=report_date,
+                           report_date_str=report_date_str,
+                           sales_data=sales_data,
+                           grand_total=grand_total,
+                           total_units=total_units,
+                           total_transactions=total_transactions)
 
 
 @app.route('/reports/employee_performance', methods=['GET', 'POST'])
@@ -8294,6 +8173,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
