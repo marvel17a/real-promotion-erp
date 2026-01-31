@@ -7203,51 +7203,94 @@ def report_employee_performance_pdf(start_date, end_date):
         if db_cursor:
             db_cursor.close()
 
-# ... (rest of your routes) ...
+# REPLACE your existing 'product_perfrm' route with this updated version:
+
 @app.route('/reports/product_perfrm', methods=['GET', 'POST'])
 def product_perfrm():
-    end_date = date.today()
-    start_date = end_date - timedelta(days=29)
+    if "loggedin" not in session: return redirect(url_for("login"))
+    
+    # Defaults
+    end_date_obj = date.today()
+    start_date_obj = end_date_obj - timedelta(days=29)
+    
+    start_date_str = request.form.get('start_date') or request.args.get('start_date')
+    end_date_str = request.form.get('end_date') or request.args.get('end_date')
+    sort_by = request.form.get('sort_by') or request.args.get('sort_by') or 'revenue'
+
+    # Parse Dates
+    if start_date_str:
+        try: start_date_obj = datetime.strptime(start_date_str, '%d-%m-%Y').date()
+        except: 
+            try: start_date_obj = date.fromisoformat(start_date_str)
+            except: pass
+            
+    if end_date_str:
+        try: end_date_obj = datetime.strptime(end_date_str, '%d-%m-%Y').date()
+        except:
+            try: end_date_obj = date.fromisoformat(end_date_str)
+            except: pass
+
+    # Format for SQL and Display
+    sql_start = start_date_obj.strftime('%Y-%m-%d')
+    sql_end = end_date_obj.strftime('%Y-%m-%d')
+    
+    display_start = start_date_obj.strftime('%d-%m-%Y')
+    display_end = end_date_obj.strftime('%d-%m-%Y')
+
     product_data = []
-    sort_by = 'revenue' 
-    if request.method == 'POST':
-        start_date_str = request.form.get('start_date')
-        end_date_str = request.form.get('end_date')
-        sort_by = request.form.get('sort_by', 'revenue')
-        start_date = date.fromisoformat(start_date_str)
-        end_date = date.fromisoformat(end_date_str)
-        db_cursor = None
-        try:
-            db_cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-            order_clause = "ORDER BY total_revenue DESC"
-            if sort_by == 'quantity':
-                order_clause = "ORDER BY total_units_sold DESC"
-            sql = f"""
-                SELECT
-                    p.name AS product_name,
-                    SUM(ei.sold_qty) AS total_units_sold,
-                    SUM(ei.sold_qty * ei.unit_price) AS total_revenue
+    db_cursor = None
+    
+    try:
+        db_cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        
+        # Determine Sort Order
+        order_clause = "ORDER BY total_revenue DESC"
+        if sort_by == 'quantity':
+            order_clause = "ORDER BY total_units_sold DESC"
+        
+        # UNIFIED QUERY: Evening Sales + Office Sales
+        sql = f"""
+            SELECT 
+                p.name AS product_name,
+                p.image,
+                SUM(qty) AS total_units_sold,
+                SUM(line_total) AS total_revenue
+            FROM (
+                -- Field Sales
+                SELECT ei.product_id, ei.sold_qty as qty, (ei.sold_qty * ei.unit_price) as line_total
                 FROM evening_item ei
                 JOIN evening_settle es ON ei.settle_id = es.id
-                JOIN products p ON ei.product_id = p.id
-                WHERE es.date BETWEEN %s AND %s AND ei.sold_qty > 0
-                GROUP BY p.id, p.name
-                {order_clause}
-            """
-            db_cursor.execute(sql, (start_date, end_date))
-            product_data = db_cursor.fetchall()
-        except Exception as e:
-            flash(f"An error occurred while generating the report: {e}", "danger")
-        finally:
-            if db_cursor:
-                db_cursor.close()
-    start_date_str = start_date.strftime('%d %b, %Y')
-    end_date_str = end_date.strftime('%d %b, %Y')
+                WHERE es.date BETWEEN %s AND %s AND es.status = 'final'
+                
+                UNION ALL
+                
+                -- Counter Sales
+                SELECT osi.product_id, osi.qty, osi.total_price as line_total
+                FROM office_sale_items osi
+                JOIN office_sales os ON osi.sale_id = os.id
+                WHERE os.sale_date BETWEEN %s AND %s
+            ) as sales_data
+            JOIN products p ON sales_data.product_id = p.id
+            GROUP BY p.id, p.name
+            {order_clause}
+        """
+        
+        db_cursor.execute(sql, (sql_start, sql_end, sql_start, sql_end))
+        product_data = db_cursor.fetchall()
+        
+        # Process images
+        for p in product_data:
+            p['image'] = resolve_img(p['image'])
+
+    except Exception as e:
+        flash(f"Error fetching product performance: {e}", "danger")
+        app.logger.error(f"Product Perf Error: {e}")
+    finally:
+        if db_cursor: db_cursor.close()
+
     return render_template('reports/product_perfrm.html', 
-                           start_date=start_date.isoformat(), 
-                           end_date=end_date.isoformat(),
-                           start_date_str=start_date_str,
-                           end_date_str=end_date_str,
+                           start_date=display_start,
+                           end_date=display_end,
                            sort_by=sort_by,
                            product_data=product_data)
 
@@ -7809,6 +7852,7 @@ def _fetch_transaction_data(filters):
             t['employee_image'] = resolve_img(t['employee_image'])
             
     return transactions
+
 # ==========================================
 # TRANSACTION REPORT PDF CLASS (Time & Formatting Fixed)
 # ==========================================
@@ -7894,7 +7938,7 @@ class TransactionPDF(FPDF):
                 self.set_font('Arial', 'B', 10)
                 self.cell(60, 6, str(employee_details['position_name']), 0, 1)
             
-            # --- NEW: Generated Time below Mobile ---
+            # --- Generated Time ---
             self.ln(6) 
             self.set_font('Arial', '', 9)
             self.cell(25, 6, "Generated:", 0, 0)
@@ -7931,42 +7975,39 @@ class TransactionPDF(FPDF):
         
         for idx, t in enumerate(transactions):
             # 1. Date Part
-            d_part = "-"
             if t['transaction_date']:
                  d_part = t['transaction_date'].strftime('%d-%m-%Y')
+            else:
+                 d_part = "-"
                  
-            # 2. Time Part (Robust Parsing)
-            t_part = ""
+            # 2. Time Part (Simplified Logic)
+            # Assuming created_at might be None, timedelta, datetime, or string
             raw_time = t.get('created_at')
+            t_part = ""
             
             if raw_time:
-                # Case A: Already a datetime object
-                if isinstance(raw_time, datetime):
-                    t_part = raw_time.strftime('%I:%M %p')
+                # If it's a timedelta (common in MySQL for TIME type), add to dummy date
+                if isinstance(raw_time, timedelta):
+                    raw_time = (datetime.min + raw_time).time()
                 
-                # Case B: Timedelta (Duration from midnight) - Common in MySQL TIME columns
-                elif isinstance(raw_time, timedelta):
-                    # Add duration to a dummy date to format it
-                    dummy_dt = datetime.min + raw_time
-                    t_part = dummy_dt.strftime('%I:%M %p')
-                
-                # Case C: String format
-                elif isinstance(raw_time, str):
+                # If it's a string, try to parse
+                if isinstance(raw_time, str):
                     try:
-                        # Try parsing full datetime string
-                        t_part = datetime.strptime(raw_time, '%Y-%m-%d %H:%M:%S').strftime('%I:%M %p')
+                        raw_time = datetime.strptime(raw_time, '%H:%M:%S').time()
                     except:
                         try:
-                            # Try parsing just time string "14:30:00"
-                            t_part = datetime.strptime(raw_time, '%H:%M:%S').strftime('%I:%M %p')
+                            raw_time = datetime.strptime(raw_time, '%Y-%m-%d %H:%M:%S').time()
                         except:
-                            t_part = "" # Could not parse
+                            t_part = str(raw_time) # Fallback to raw string
+                
+                # If we have a time object (from datetime or parsed)
+                if hasattr(raw_time, 'strftime'):
+                     t_part = raw_time.strftime('%I:%M %p')
+                elif isinstance(raw_time, datetime):
+                     t_part = raw_time.strftime('%I:%M %p')
 
-            # Combine Date & Time
-            if t_part:
-                dt_str = f"{d_part}  {t_part}"
-            else:
-                dt_str = d_part
+            # Combine Date & Time with a separator for visual clarity
+            dt_str = f"{d_part}  {t_part}" if t_part else d_part
 
             # Financials
             credit_amt = "-"
@@ -7980,7 +8021,7 @@ class TransactionPDF(FPDF):
                 total_debit += val
                 debit_amt = f"{val:.2f}"
             
-            # Description truncation
+            # Text Truncation
             desc_text = str(t['description'] or '')[:35]
             emp_name = str(t['employee_name'])[:20] 
 
@@ -7996,7 +8037,7 @@ class TransactionPDF(FPDF):
                 self.set_font('Arial', '', 8)
                 self.set_text_color(0, 0, 0)
 
-            # Print Row
+            # Print Row - Fixed Height 8 to reduce spacing
             self.cell(widths[0], 8, str(idx+1), 1, 0, 'C', fill)
             self.cell(widths[1], 8, dt_str, 1, 0, 'C', fill)
             self.cell(widths[2], 8, emp_name, 1, 0, 'L', fill)
@@ -8005,7 +8046,7 @@ class TransactionPDF(FPDF):
             self.cell(widths[5], 8, debit_amt, 1, 1, 'R', fill)
             
             fill = not fill
-            self.ln()
+            self.ln() # Ensure simple line break
             
         # Totals Row
         self.set_font('Arial', 'B', 9)
@@ -8041,7 +8082,6 @@ class TransactionPDF(FPDF):
         self.set_text_color(0, 0, 0)
         self.cell(60, 5, "Authorized Signature", 0, 1, 'C')
         self.ln(10)
-
 
 
 # =========================================================
@@ -8205,6 +8245,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
