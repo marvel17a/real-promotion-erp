@@ -7102,8 +7102,7 @@ def daily_sales():
                            total_units=total_units,
                            total_transactions=total_transactions)
 
-
-# REPLACE your existing 'employee_performance' route in app.py with this updated version:
+# REPLACE your existing 'employee_performance' route in app.py
 
 @app.route('/reports/employee_performance', methods=['GET', 'POST'])
 def employee_performance():
@@ -7146,12 +7145,12 @@ def employee_performance():
     try:
         db_cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
         
-        # UNIFIED QUERY: Evening Sales + Office Sales (grouped by employee)
-        # Note: Office sales might have 'Office' as employee name if sales_person is null
+        # UNIFIED QUERY: Evening Sales + Office Sales
+        # Logic: Group by Name. Pick the Image if available (MAX will pick non-null string if present).
         sql = """
             SELECT 
                 COALESCE(e_name, 'Office/Admin') AS employee_name,
-                e_image,
+                MAX(e_image) as e_image,
                 SUM(qty) AS total_units_sold,
                 SUM(line_total) AS total_sales_amount
             FROM (
@@ -7174,7 +7173,7 @@ def employee_performance():
                 JOIN office_sales os ON osi.sale_id = os.id
                 WHERE os.sale_date BETWEEN %s AND %s
             ) as sales_data
-            GROUP BY e_name, e_image
+            GROUP BY e_name
             ORDER BY total_sales_amount DESC
         """
         
@@ -7185,9 +7184,12 @@ def employee_performance():
             rev = float(r['total_sales_amount'] or 0)
             qty = int(r['total_units_sold'] or 0)
             
+            # Use resolve_img to handle None/Null images correctly
+            img_path = resolve_img(r['e_image'])
+            
             performance_data.append({
                 'employee_name': r['employee_name'],
-                'employee_image': resolve_img(r['e_image']), # Use helper for image
+                'employee_image': img_path,
                 'total_units_sold': qty,
                 'total_sales_amount': rev
             })
@@ -7207,6 +7209,7 @@ def employee_performance():
                            performance_data=performance_data,
                            total_revenue=total_period_revenue,
                            total_units=total_period_units)
+
 
 @app.route('/reports/employee_performance/pdf/<start_date>/<end_date>')
 def report_employee_performance_pdf(start_date, end_date):
@@ -8316,6 +8319,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
