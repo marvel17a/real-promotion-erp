@@ -192,9 +192,9 @@
                         <td class="ps-4 text-muted fw-bold">{{ loop.index }}</td>
                         <td>
                             {% if item.type == 'Field Sale' %}
-                                <span class="badge-soft bg-field">Field</span>
+                                <span class="badge-soft bg-field">Field Sale</span>
                             {% else %}
-                                <span class="badge-soft bg-office">Counter</span>
+                                <span class="badge-soft bg-office">Office Sale</span>
                             {% endif %}
                         </td>
                         <td class="fw-bold text-dark">{{ item.product_name }}</td>
@@ -206,7 +206,7 @@
                 </tbody>
                 <tfoot class="bg-light border-top">
                     <tr>
-                        <td colspan="3" class="text-end pe-4 py-3 text-uppercase fw-bolder text-secondary">Totals:</td>
+                        <td colspan="3" class="text-end pe-4 py-3 text-uppercase fw-bolder text-secondary">Total:</td>
                         <td class="text-center py-3 fw-bolder fs-6 text-dark">{{ total_units }}</td>
                         <td class="text-end pe-4 py-3 fw-bolder text-secondary">Gross:</td>
                         <td class="text-end pe-4 py-3 fw-bolder fs-6 text-dark">{{ table_total|inr }}</td>
@@ -238,3 +238,4 @@
     });
 </script>
 {% endblock %}
+
