@@ -9,8 +9,6 @@
 <!-- Flatpickr -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-<!-- Chart.js -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
     :root {
@@ -340,13 +338,6 @@
         </div>
     </div>
 
-    <!-- 2. Chart Section (Visible if Data Exists) -->
-    {% if total_transactions > 0 %}
-    <div class="glass-panel" style="padding: 1.5rem; height: 300px; position: relative;">
-        <canvas id="flowChart"></canvas>
-    </div>
-    {% endif %}
-
     <!-- 3. Advanced Filter Bar -->
     <form method="POST" class="filter-bar shadow-sm">
         <div class="form-group">
@@ -391,18 +382,23 @@
         <table class="modern-table">
             <thead>
                 <tr>
-                    <th>Date</th>
+                    <th style="width: 50px;">#</th> <!-- Number Column -->
+                    <th>Date / Time</th>
                     <th>Employee</th>
                     <th>Description</th>
-                    <th class="text-end">Credit (Due)</th> <!-- First -->
-                    <th class="text-end">Debit (Given)</th> <!-- Second -->
+                    <th class="text-end">Credit (Due)</th>
+                    <th class="text-end">Debit (Given)</th>
                 </tr>
             </thead>
             <tbody>
                 {% for t in transactions %}
                 <tr>
+                    <td class="text-muted fw-bold">{{ loop.index }}</td>
                     <td>
                         <div class="fw-bold text-dark">{{ t.transaction_date.strftime('%d-%m-%Y') }}</div>
+                        <div class="small text-muted" style="font-size: 0.8em;">
+                            {{ t.formatted_time }}
+                        </div>
                     </td>
                     <td>
                         <div class="emp-cell">
@@ -439,7 +435,7 @@
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="5" class="text-center py-5">
+                    <td colspan="6" class="text-center py-5">
                         <div class="text-muted opacity-50">
                             <i class="fa-solid fa-folder-open fa-3x mb-3"></i>
                             <p>No transactions found for this period.</p>
@@ -456,7 +452,7 @@
 <!-- Scripts -->
 <script>
     document.addEventListener("DOMContentLoaded", function() {
-        // 1. Flatpickr Range Mode
+        // Flatpickr Range Mode
         const periodSelect = document.getElementById('periodSelect');
         const customGroup = document.getElementById('customRangeGroup');
         
@@ -466,7 +462,6 @@
             defaultDate: ["{{ filters.start_date }}", "{{ filters.end_date }}"],
             onChange: function(selectedDates, dateStr, instance) {
                 if (selectedDates.length === 2) {
-                    // Format for backend (YYYY-MM-DD)
                     const format = d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, '0') + "-" + String(d.getDate()).padStart(2, '0');
                     document.getElementById('startDate').value = format(selectedDates[0]);
                     document.getElementById('endDate').value = format(selectedDates[1]);
@@ -474,50 +469,11 @@
             }
         });
 
-        // Toggle Custom Range
         function toggleRange() {
             customGroup.style.display = periodSelect.value === 'custom' ? 'block' : 'none';
         }
         periodSelect.addEventListener('change', toggleRange);
-        toggleRange(); // Init
-
-        // 2. Chart.js (If data exists)
-        const ctx = document.getElementById('flowChart');
-        if (ctx) {
-            new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: ['Total Credit (Income/Due)', 'Total Debit (Expense/Given)'],
-                    datasets: [{
-                        label: 'Amount (₹)',
-                        data: [{{ chart_data.credit }}, {{ chart_data.debit }}],
-                        backgroundColor: [
-                            'rgba(34, 197, 94, 0.7)', // Green
-                            'rgba(239, 68, 68, 0.7)'  // Red
-                        ],
-                        borderColor: [
-                            '#166534',
-                            '#991b1b'
-                        ],
-                        borderWidth: 1,
-                        borderRadius: 8,
-                        barThickness: 60
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false },
-                        title: { display: true, text: 'Cash Flow Overview', font: { size: 16, family: 'Poppins' } }
-                    },
-                    scales: {
-                        y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } },
-                        x: { grid: { display: false } }
-                    }
-                }
-            });
-        }
+        toggleRange();
     });
 </script>
 
