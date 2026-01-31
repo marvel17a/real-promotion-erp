@@ -4,7 +4,7 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
 
 <style>
     :root {
@@ -66,12 +66,6 @@
     .chart-title { font-family: var(--font-heading); font-weight: 700; color: #334155; margin-bottom: 1.5rem; text-align: center; }
 
     /* Table */
-    .modern-table {
-        background: white;
-        border-radius: 16px;
-        overflow: hidden;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.03);
-    }
     .modern-table thead th {
         background: #f8fafc;
         color: #475569;
@@ -108,7 +102,7 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h3 class="fw-bold text-dark mb-0" style="font-family: var(--font-heading);">Product Performance</h3>
-            <p class="text-muted small fw-bold mb-0">Sales analysis & Market share</p>
+            <p class="text-muted small fw-bold mb-0">Top selling products by Revenue & Volume</p>
         </div>
         <a href="{{ url_for('reports') }}" class="btn btn-light btn-sm rounded-pill px-3 border shadow-sm fw-bold">
             <i class="fa-solid fa-arrow-left me-2"></i> Back
@@ -164,36 +158,18 @@
             </div>
         </div>
 
-        <!-- Charts Section: Market Share (Percentages) -->
-        <div class="row g-4 mb-4">
-            <div class="col-md-6">
-                <div class="chart-container">
-                    <h5 class="chart-title">Revenue Share (%)</h5>
-                    <div style="height: 300px; position: relative;">
-                        <canvas id="revShareChart"></canvas>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-6">
-                <div class="chart-container">
-                    <h5 class="chart-title">Sales Volume Share (%)</h5>
-                    <div style="height: 300px; position: relative;">
-                        <canvas id="qtyShareChart"></canvas>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Bar Chart: Performance -->
+        <!-- Chart -->
         <div class="chart-container">
-            <h5 class="chart-title text-start ms-2">Top 10 Performers (Values)</h5>
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="fw-bold text-dark mb-0" style="font-family: var(--font-heading);">Top 10 Performers</h5>
+            </div>
             <div style="height: 350px;">
                 <canvas id="perfChart"></canvas>
             </div>
         </div>
 
         <!-- Table -->
-        <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-5">
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
             <div class="table-responsive">
                 <table class="table modern-table mb-0">
                     <thead>
@@ -228,7 +204,7 @@
     {% else %}
         <div class="text-center py-5">
             <div class="mb-3 opacity-25"><i class="fa-solid fa-chart-simple fa-3x"></i></div>
-            <h6 class="text-muted fw-bold">No data found.</h6>
+            <h6 class="text-muted fw-bold">No product data found.</h6>
         </div>
     {% endif %}
 
@@ -239,101 +215,31 @@
         flatpickr(".date-picker", { dateFormat: "d-m-Y", allowInput: true });
 
         {% if product_data %}
-            const rawData = {{ product_data | tojson | safe }};
-            // Take Top 8 for Pie Charts to avoid clutter
-            const top8 = rawData.slice(0, 8);
-            const otherData = rawData.slice(8);
-            
-            // Calculate Others
-            if(otherData.length > 0) {
-                const otherRev = otherData.reduce((acc, curr) => acc + curr.total_revenue, 0);
-                const otherQty = otherData.reduce((acc, curr) => acc + curr.total_units_sold, 0);
-                top8.push({ product_name: 'Others', total_revenue: otherRev, total_units_sold: otherQty });
-            }
+            const rawData = {{ product_data[:10] | tojson | safe }};
+            const labels = rawData.map(d => d.product_name);
+            const revenues = rawData.map(d => d.total_revenue);
+            const units = rawData.map(d => d.total_units_sold);
 
-            const pieLabels = top8.map(d => d.product_name);
-            const pieRev = top8.map(d => d.total_revenue);
-            const pieQty = top8.map(d => d.total_units_sold);
-
-            const colors = ['#4361ee', '#3f37c9', '#4895ef', '#4cc9f0', '#7209b7', '#b5179e', '#f72585', '#999999', '#cccccc'];
-
-            // 1. Revenue Share Chart (Pie)
-            new Chart(document.getElementById('revShareChart'), {
-                type: 'doughnut',
-                data: {
-                    labels: pieLabels,
-                    datasets: [{
-                        data: pieRev,
-                        backgroundColor: colors,
-                        borderWidth: 0,
-                        hoverOffset: 10
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    cutout: '65%',
-                    plugins: {
-                        legend: { position: 'right', labels: { boxWidth: 12, font: {size: 11} } },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    let val = context.raw;
-                                    let total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                    let pct = ((val / total) * 100).toFixed(1) + '%';
-                                    return ` ${context.label}: ${pct} (₹${val.toLocaleString()})`;
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-
-            // 2. Quantity Share Chart (Pie)
-            new Chart(document.getElementById('qtyShareChart'), {
-                type: 'doughnut',
-                data: {
-                    labels: pieLabels,
-                    datasets: [{
-                        data: pieQty,
-                        backgroundColor: colors,
-                        borderWidth: 0,
-                        hoverOffset: 10
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    cutout: '65%',
-                    plugins: {
-                        legend: { position: 'right', labels: { boxWidth: 12, font: {size: 11} } },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    let val = context.raw;
-                                    let total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                    let pct = ((val / total) * 100).toFixed(1) + '%';
-                                    return ` ${context.label}: ${pct} (${val} Units)`;
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-
-            // 3. Bar Chart (Top 10 raw values)
-            const top10 = rawData.slice(0, 10);
-            const barLabels = top10.map(d => d.product_name);
-            const barRev = top10.map(d => d.total_revenue);
-            const barQty = top10.map(d => d.total_units_sold);
-
-            new Chart(document.getElementById('perfChart'), {
+            const ctx = document.getElementById('perfChart').getContext('2d');
+            new Chart(ctx, {
                 type: 'bar',
                 data: {
-                    labels: barLabels,
+                    labels: labels,
                     datasets: [
-                        { label: 'Revenue', data: barRev, backgroundColor: '#4361ee', borderRadius: 5, yAxisID: 'y' },
-                        { label: 'Units', data: barQty, backgroundColor: 'rgba(76, 201, 240, 0.4)', borderRadius: 5, yAxisID: 'y1' }
+                        {
+                            label: 'Revenue (₹)',
+                            data: revenues,
+                            backgroundColor: '#3b82f6',
+                            borderRadius: 6,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'Units Sold',
+                            data: units,
+                            backgroundColor: 'rgba(124, 58, 237, 0.5)',
+                            borderRadius: 6,
+                            yAxisID: 'y1'
+                        }
                     ]
                 },
                 options: {
@@ -341,8 +247,8 @@
                     maintainAspectRatio: false,
                     interaction: { mode: 'index', intersect: false },
                     scales: {
-                        y: { type: 'linear', display: true, position: 'left', grid: { borderDash: [4, 4] } },
-                        y1: { type: 'linear', display: true, position: 'right', grid: { drawOnChartArea: false } },
+                        y: { position: 'left', grid: { borderDash: [4, 4] }, ticks: { callback: v => '₹' + v/1000 + 'k' } },
+                        y1: { position: 'right', grid: { drawOnChartArea: false } },
                         x: { grid: { display: false } }
                     }
                 }
