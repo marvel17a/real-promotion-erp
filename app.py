@@ -2216,23 +2216,12 @@ def dash():
     # --- 1. TIMEZONE FIX (IST) ---
     ist_now = datetime.utcnow() + timedelta(hours=5, minutes=30)
     today = ist_now.date() 
-    yesterday = today - timedelta(days=1)
+    yesterday = today - timedelta(days=1) # Calculate Yesterday
     current_year = today.year
     
     # --- 2. KEY METRICS ---
     
-    # A. SALES TODAY (Net = Evening Net + Office Net)
-    # Evening Settle Net
-    cursor.execute("SELECT SUM(total_amount - discount) as total FROM evening_settle WHERE date = %s AND status = 'final'", (today,))
-    eve_today = float(cursor.fetchone()['total'] or 0)
-    
-    # Office Sales Net
-    cursor.execute("SELECT SUM(final_amount) as total FROM office_sales WHERE sale_date = %s", (today,))
-    off_today = float(cursor.fetchone()['total'] or 0)
-    
-    sales_today = eve_today + off_today
-
-    # A.2 SALES YESTERDAY (For Comparison)
+    # A. SALES YESTERDAY (Net = Evening Net + Office Net) - REPLACED SALES TODAY
     # Evening Settle Net Yesterday
     cursor.execute("SELECT SUM(total_amount - discount) as total FROM evening_settle WHERE date = %s AND status = 'final'", (yesterday,))
     eve_yest = float(cursor.fetchone()['total'] or 0)
@@ -2336,8 +2325,7 @@ def dash():
         "dash.html",
         today_date=today, 
         current_year=current_year,
-        sales_today=sales_today,
-        sales_yesterday=sales_yesterday, # NEW VARIABLE
+        sales_yesterday=sales_yesterday, # Changed from sales_today
         sales_this_month=sales_this_month,
         yearly_sales=yearly_sales,
         yearly_expenses=yearly_expenses,
@@ -8619,6 +8607,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
