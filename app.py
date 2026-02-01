@@ -2216,26 +2216,52 @@ def dash():
     # --- 1. TIMEZONE FIX (IST) ---
     ist_now = datetime.utcnow() + timedelta(hours=5, minutes=30)
     today = ist_now.date() 
+    yesterday = today - timedelta(days=1)
     current_year = today.year
     
     # --- 2. KEY METRICS ---
     
-    # A. SALES TODAY (Net = Total - Discount)
+    # A. SALES TODAY (Net = Evening Net + Office Net)
+    # Evening Settle Net
     cursor.execute("SELECT SUM(total_amount - discount) as total FROM evening_settle WHERE date = %s AND status = 'final'", (today,))
-    row = cursor.fetchone()
-    sales_today = float(row['total'] or 0)
+    eve_today = float(cursor.fetchone()['total'] or 0)
+    
+    # Office Sales Net
+    cursor.execute("SELECT SUM(final_amount) as total FROM office_sales WHERE sale_date = %s", (today,))
+    off_today = float(cursor.fetchone()['total'] or 0)
+    
+    sales_today = eve_today + off_today
 
-    # B. SALES THIS MONTH
+    # A.2 SALES YESTERDAY (For Comparison)
+    # Evening Settle Net Yesterday
+    cursor.execute("SELECT SUM(total_amount - discount) as total FROM evening_settle WHERE date = %s AND status = 'final'", (yesterday,))
+    eve_yest = float(cursor.fetchone()['total'] or 0)
+    
+    # Office Sales Net Yesterday
+    cursor.execute("SELECT SUM(final_amount) as total FROM office_sales WHERE sale_date = %s", (yesterday,))
+    off_yest = float(cursor.fetchone()['total'] or 0)
+    
+    sales_yesterday = eve_yest + off_yest
+
+    # B. SALES THIS MONTH (Net)
     start_of_month = today.replace(day=1)
     cursor.execute("SELECT SUM(total_amount - discount) as total FROM evening_settle WHERE date >= %s AND date <= %s AND status = 'final'", (start_of_month, today))
-    row = cursor.fetchone()
-    sales_this_month = float(row['total'] or 0)
+    eve_month = float(cursor.fetchone()['total'] or 0)
+    
+    cursor.execute("SELECT SUM(final_amount) as total FROM office_sales WHERE sale_date >= %s AND sale_date <= %s", (start_of_month, today))
+    off_month = float(cursor.fetchone()['total'] or 0)
+    
+    sales_this_month = eve_month + off_month
 
-    # C. YEARLY REVENUE (Calculated as requested)
+    # C. YEARLY REVENUE
     start_of_year = date(current_year, 1, 1)
     cursor.execute("SELECT SUM(total_amount - discount) as total FROM evening_settle WHERE date >= %s AND status = 'final'", (start_of_year,))
-    row = cursor.fetchone()
-    yearly_sales = float(row['total'] or 0)
+    eve_year = float(cursor.fetchone()['total'] or 0)
+    
+    cursor.execute("SELECT SUM(final_amount) as total FROM office_sales WHERE sale_date >= %s", (start_of_year,))
+    off_year = float(cursor.fetchone()['total'] or 0)
+    
+    yearly_sales = eve_year + off_year
 
     # D. YEARLY EXPENSES
     cursor.execute("SELECT SUM(amount) as total FROM expenses WHERE expense_date >= %s", (start_of_year,))
@@ -2265,15 +2291,28 @@ def dash():
     chart_sales = []
     chart_expenses = []
 
-    cursor.execute("SELECT MONTH(date) as m, SUM(total_amount - discount) as total FROM evening_settle WHERE YEAR(date) = %s AND status = 'final' GROUP BY MONTH(date)", (current_year,))
-    sales_map = {row['m']: float(row['total']) for row in cursor.fetchall()}
-
+    # Sales Map (Evening + Office)
+    cursor.execute("""
+        SELECT MONTH(date) as m, SUM(total_amount - discount) as total 
+        FROM evening_settle WHERE YEAR(date) = %s AND status = 'final' GROUP BY MONTH(date)
+    """, (current_year,))
+    eve_map = {row['m']: float(row['total']) for row in cursor.fetchall()}
+    
+    cursor.execute("""
+        SELECT MONTH(sale_date) as m, SUM(final_amount) as total 
+        FROM office_sales WHERE YEAR(sale_date) = %s GROUP BY MONTH(sale_date)
+    """, (current_year,))
+    off_map = {row['m']: float(row['total']) for row in cursor.fetchall()}
+    
+    # Expense Map
     cursor.execute("SELECT MONTH(expense_date) as m, SUM(amount) as total FROM expenses WHERE YEAR(expense_date) = %s GROUP BY MONTH(expense_date)", (current_year,))
     expense_map = {row['m']: float(row['total']) for row in cursor.fetchall()}
 
     for m in range(1, 13):
         chart_months.append(calendar.month_abbr[m])
-        chart_sales.append(sales_map.get(m, 0.0))
+        # Combine maps for total sales chart
+        total_s = eve_map.get(m, 0.0) + off_map.get(m, 0.0)
+        chart_sales.append(total_s)
         chart_expenses.append(expense_map.get(m, 0.0))
 
     # --- 4. TOP PRODUCTS ---
@@ -2295,12 +2334,13 @@ def dash():
 
     return render_template(
         "dash.html",
-        today_date=today, # Fixed Date Variable
+        today_date=today, 
         current_year=current_year,
         sales_today=sales_today,
+        sales_yesterday=sales_yesterday, # NEW VARIABLE
         sales_this_month=sales_this_month,
-        yearly_sales=yearly_sales,     # Added
-        yearly_expenses=yearly_expenses, # Added
+        yearly_sales=yearly_sales,
+        yearly_expenses=yearly_expenses,
         low_stock=low_stock,
         supplier_dues=supplier_dues,
         chart_months=chart_months,
@@ -8579,6 +8619,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
