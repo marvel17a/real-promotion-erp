@@ -7,27 +7,23 @@
     
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&family=Oswald:wght@500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
     <style>
         :root {
-            /* --- COLOR PALETTE --- */
-            --header-bg: #2563eb;       /* Bright Royal Blue */
-            --header-text: #ffffff;
-            --footer-bg: #1e293b;       /* Dark Slate */
-            --footer-text: #94a3b8;
+            /* --- COLORS --- */
+            /* Gradient for Header & Footer */
+            --gradient-primary: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); /* Indigo to Violet */
+            --gradient-footer: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%); /* Darker Gradient */
             
-            --sidebar-width: 280px;
-            --sidebar-bg: #ffffff;      /* White Sidebar for Clean Look */
-            --sidebar-text: #334155;
-            --sidebar-hover: #eff6ff;
-            --sidebar-active-line: #2563eb;
-            
-            --body-bg: #f1f5f9;         /* Light Gray Background */
+            --sidebar-width: 270px;
+            --sidebar-bg: #ffffff;
+            --body-bg: #f3f4f6;
+            --text-main: #333;
         }
 
         body {
-            font-family: 'Roboto', sans-serif;
+            font-family: 'Poppins', sans-serif;
             background-color: var(--body-bg);
             margin: 0;
             padding: 0;
@@ -36,7 +32,7 @@
             min-height: 100vh;
         }
 
-        /* --- 1. SIDEBAR (Clean & Bold) --- */
+        /* --- 1. SIDEBAR (Restored Branding) --- */
         .sidebar {
             position: fixed;
             top: 0;
@@ -53,62 +49,67 @@
         }
 
         .sidebar.active {
-            left: 0; /* Slide in */
+            left: 0;
         }
 
         .sidebar-header {
-            padding: 1.5rem;
-            border-bottom: 2px solid #f1f5f9;
+            padding: 2rem 1.5rem;
             text-align: center;
+            border-bottom: 1px solid #f0f0f0;
         }
 
-        /* Sidebar Links Styling */
+        /* ORIGINAL GRADIENT TEXT STYLE RESTORED */
+        .brand-text {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 800;
+            font-size: 1.6rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-bottom: 0;
+        }
+
+        /* Sidebar Links (Bold & Styled) */
         .nav-links {
             list-style: none;
             padding: 1rem;
             margin: 0;
         }
 
-        .nav-item {
-            margin-bottom: 8px;
-        }
-
         .nav-link {
             display: flex;
             align-items: center;
-            padding: 12px 16px;
-            color: var(--sidebar-text);
+            padding: 12px 18px;
+            color: #4b5563;
             text-decoration: none;
-            font-weight: 700; /* BOLD as requested */
-            font-size: 1rem;
-            border-radius: 8px;
-            transition: all 0.2s;
-            border-left: 4px solid transparent; /* Hidden border for hover effect */
+            font-weight: 600; /* BOLD */
+            border-radius: 10px;
+            transition: all 0.3s;
+            margin-bottom: 5px;
         }
 
         .nav-link i {
             width: 28px;
             font-size: 1.2rem;
-            color: #64748b;
+            color: #7c3aed; /* Purple Icons */
             margin-right: 10px;
-            transition: color 0.2s;
+            transition: transform 0.2s;
         }
 
-        /* Hover & Active State */
         .nav-link:hover {
-            background-color: var(--sidebar-hover);
-            color: #1e40af; /* Darker Blue Text */
-            border-left-color: var(--sidebar-active-line); /* Colored Line */
+            background-color: #f5f3ff;
+            color: #4f46e5;
+            transform: translateX(5px);
         }
-
+        
         .nav-link:hover i {
-            color: #2563eb; /* Blue Icon */
+            transform: scale(1.1);
         }
 
-        /* --- 2. HEADER (Topbar) --- */
+        /* --- 2. HEADER (Gradient & Left Toggle) --- */
         .topbar {
-            background-color: var(--header-bg);
-            color: var(--header-text);
+            background: var(--gradient-primary); /* GRADIENT HEADER */
             height: 70px;
             display: flex;
             align-items: center;
@@ -117,58 +118,54 @@
             position: sticky;
             top: 0;
             z-index: 1040;
-            box-shadow: 0 4px 10px rgba(37, 99, 235, 0.2);
+            box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3);
+            color: white;
         }
 
+        /* Toggle Button (Restored to Left) */
         .toggle-btn {
             background: rgba(255,255,255,0.2);
-            border: none;
+            border: 1px solid rgba(255,255,255,0.3);
             color: white;
-            width: 40px;
-            height: 40px;
+            width: 42px;
+            height: 42px;
             border-radius: 8px;
             cursor: pointer;
-            transition: 0.2s;
-        }
-        .toggle-btn:hover { background: rgba(255,255,255,0.3); }
-
-        /* Centered Company Name */
-        .company-title {
-            font-family: 'Oswald', sans-serif;
-            font-size: 1.5rem;
-            font-weight: 700;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-            position: absolute;
-            left: 50%;
-            transform: translateX(-50%);
-            white-space: nowrap;
-        }
-
-        /* Dashboard Link (Back to Site) */
-        .site-link {
-            color: white;
-            text-decoration: none;
-            font-weight: 700;
-            background: rgba(0, 0, 0, 0.2);
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 0.9rem;
+            transition: 0.3s;
             display: flex;
             align-items: center;
-            gap: 8px;
-            transition: 0.3s;
+            justify-content: center;
+            font-size: 1.2rem;
         }
-        .site-link:hover {
+        .toggle-btn:hover {
             background: white;
-            color: var(--header-bg);
+            color: #4f46e5;
+        }
+
+        /* Right Side Header Items */
+        .header-actions .btn-glass {
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: white;
+            font-weight: 500;
+            border-radius: 20px;
+            padding: 6px 16px;
+            text-decoration: none;
+            transition: 0.3s;
+            font-size: 0.9rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .header-actions .btn-glass:hover {
+            background: white;
+            color: #4f46e5;
         }
 
         /* --- 3. MAIN CONTENT --- */
         .main-wrapper {
             flex: 1;
             padding: 30px;
-            margin-left: 0;
             transition: margin-left 0.3s;
         }
 
@@ -179,16 +176,15 @@
             }
         }
 
-        /* --- 4. FOOTER --- */
+        /* --- 4. FOOTER (Gradient) --- */
         .admin-footer {
-            background-color: var(--footer-bg);
-            color: var(--footer-text);
+            background: var(--gradient-footer); /* GRADIENT FOOTER */
+            color: rgba(255,255,255,0.8);
             padding: 15px 0;
             text-align: center;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             margin-top: auto;
             transition: margin-left 0.3s;
-            border-top: 4px solid var(--header-bg); /* Matching Accent Line */
         }
 
         /* Overlay */
@@ -198,14 +194,10 @@
             background: rgba(0,0,0,0.5);
             z-index: 1045;
             display: none;
+            backdrop-filter: blur(3px);
         }
         .overlay.active { display: block; }
 
-        /* Responsive Title */
-        @media (max-width: 768px) {
-            .company-title { font-size: 1.1rem; }
-            .site-link span { display: none; } /* Hide text on small screens, keep icon */
-        }
     </style>
 </head>
 <body>
@@ -214,9 +206,8 @@
 
     <nav class="sidebar" id="sidebar">
         <div class="sidebar-header">
-            <div class="d-inline-block bg-primary text-white px-3 py-1 rounded-pill fw-bold small text-uppercase">
-                Admin Panel
-            </div>
+            <h4 class="brand-text">REAL PROMOTION</h4>
+            <small class="text-muted fw-bold" style="letter-spacing: 2px; font-size: 0.7rem;">ADMIN PANEL</small>
         </div>
         
         <ul class="nav-links">
@@ -280,7 +271,7 @@
                 </a>
             </li>
 
-            <hr class="my-3">
+            <hr class="my-3 border-secondary border-opacity-25">
 
             <li class="nav-item">
                 <a href="{{ url_for('logout') }}" class="nav-link text-danger">
@@ -291,24 +282,24 @@
     </nav>
 
     <header class="topbar">
-        <a href="{{ url_for('dashboard') }}" class="site-link" title="Go to Main Website">
-            <i class="fa-solid fa-arrow-left"></i> 
-            <span>Back to Site</span>
-        </a>
+        <div class="d-flex align-items-center gap-3">
+            <button class="toggle-btn" id="sidebarToggle" title="Toggle Menu">
+                <i class="fa-solid fa-bars"></i>
+            </button>
+            <span class="h5 mb-0 fw-bold d-none d-md-block">{% block page_title %}Dashboard{% endblock %}</span>
+        </div>
 
-        <div class="company-title">REAL PROMOTION</div>
-
-        <button class="toggle-btn" id="sidebarToggle">
-            <i class="fa-solid fa-bars"></i>
-        </button>
+        <div class="header-actions d-flex align-items-center gap-3">
+            <a href="{{ url_for('dashboard') }}" class="btn-glass">
+                <i class="fa-solid fa-arrow-left"></i> Back to Site
+            </a>
+            <div class="d-none d-sm-flex align-items-center justify-content-center bg-white text-primary rounded-circle" style="width: 35px; height: 35px;">
+                <i class="fa-solid fa-user"></i>
+            </div>
+        </div>
     </header>
 
     <div class="main-wrapper">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h4 class="fw-bold text-dark m-0">{% block page_title %}Overview{% endblock %}</h4>
-            <span class="text-muted small"><i class="fa-regular fa-clock me-1"></i> {% block date_display %}Today{% endblock %}</span>
-        </div>
-
         {% block page_content %}{% endblock %}
     </div>
 
@@ -316,7 +307,7 @@
         <div class="container-fluid">
             <div class="row">
                 <div class="col-12">
-                    <p class="mb-0">&copy; 2026 <strong>REAL PROMOTION</strong>. All Rights Reserved. | <span class="text-secondary">Admin Panel v2.0</span></p>
+                    <p class="mb-0">&copy; 2026 <strong>REAL PROMOTION</strong>. All Rights Reserved.</p>
                 </div>
             </div>
         </div>
@@ -324,7 +315,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Sidebar Logic
         const sidebar = document.getElementById('sidebar');
         const overlay = document.getElementById('overlay');
         const toggleBtn = document.getElementById('sidebarToggle');
@@ -341,7 +331,7 @@
 
         overlay.addEventListener('click', toggleMenu);
 
-        // Close on link click (Mobile experience)
+        // Auto-close on mobile when clicking link
         document.querySelectorAll('.nav-link').forEach(link => {
             link.addEventListener('click', () => {
                 if (window.innerWidth < 992) {
