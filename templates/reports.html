@@ -405,6 +405,20 @@
             </div>
         </a>
 
+        <a href="{{ url_for('product_tracker') }}" class="analytics-card theme-indigo">
+            <div class="icon-box">
+                <i class="fa-solid fa-list-check"></i>
+            </div>
+            <div class="card-content">
+                <h3 class="card-header-text">Detailed Sales</h3>
+                <p class="card-body-text">Item-wise list of today's sales.</p>
+            </div>
+            <div class="card-footer">
+                <span>Check Sales</span>
+                <i class="fa-solid fa-arrow-right arrow-icon"></i>
+            </div>
+        </a>
+
         <!-- Staff Ranking -->
         <a href="{{ url_for('employee_performance') }}" class="analytics-card theme-rose">
             <div class="icon-box">
@@ -424,6 +438,7 @@
 
 </div>
 {% endblock %}
+
 
 
 
