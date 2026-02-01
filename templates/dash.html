@@ -1,156 +1,214 @@
 {% extends "admin_master.html" %}
 
 {% block page_content %}
-<!-- Link to Custom Dashboard CSS -->
-<link rel="stylesheet" href="{{ url_for('static', filename='css/dash.css') }}">
+<!-- Dependencies -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
-<div class="container-fluid py-4" data-aos="fade-in">
+<style>
+    :root {
+        --grad-purple: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+        --grad-blue: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%);
+        --grad-green: linear-gradient(135deg, #10b981 0%, #14b8a6 100%);
+        --grad-orange: linear-gradient(135deg, #f59e0b 0%, #f97316 100%);
+        --grad-red: linear-gradient(135deg, #ef4444 0%, #f43f5e 100%);
+        --glass: rgba(255, 255, 255, 0.95);
+    }
 
-    <!-- HEADER -->
-    <div class="d-flex justify-content-between align-items-center mb-5 dashboard-header">
+    body { font-family: 'Poppins', sans-serif; background-color: #f8fafc; }
+
+    /* --- KPI CARDS --- */
+    .kpi-card {
+        border: none;
+        border-radius: 20px;
+        color: white;
+        padding: 1.5rem;
+        position: relative;
+        overflow: hidden;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        height: 100%;
+    }
+    
+    .kpi-card:hover { transform: translateY(-5px); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15); }
+    
+    .kpi-card::after {
+        content: ''; position: absolute; top: -50%; right: -50%;
+        width: 200px; height: 200px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+        pointer-events: none;
+    }
+
+    .bg-purple { background: var(--grad-purple); }
+    .bg-blue { background: var(--grad-blue); }
+    .bg-green { background: var(--grad-green); }
+    .bg-orange { background: var(--grad-orange); }
+    
+    .icon-box {
+        background: rgba(255, 255, 255, 0.2);
+        width: 50px; height: 50px;
+        border-radius: 12px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.5rem;
+        backdrop-filter: blur(5px);
+    }
+
+    /* --- CHARTS --- */
+    .chart-container {
+        background: var(--glass);
+        border-radius: 24px;
+        padding: 25px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.5);
+        height: 100%;
+    }
+
+    /* --- COMPARISON BADGE --- */
+    .comp-badge {
+        background: rgba(0, 0, 0, 0.2);
+        padding: 4px 12px;
+        border-radius: 50px;
+        font-size: 0.75rem;
+        display: inline-block;
+        margin-top: 10px;
+    }
+</style>
+
+<div class="container-fluid py-4 fade-in">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-5">
         <div>
-            <h2 class="mb-1">Overview</h2>
-            <p class="text-muted mb-0">Financial Year {{ current_year }}</p>
+            <h2 class="fw-bold text-dark m-0">Dashboard Overview</h2>
+            <p class="text-muted small m-0">{{ today_date.strftime('%A, %d %B %Y') }}</p>
         </div>
-        <div class="d-flex gap-3 align-items-center">
-            <div class="date-pill">
-                <i class="fa-regular fa-calendar me-2 text-primary"></i>
-                <!-- FIXED: Use backend variable -->
-                {{ today_date.strftime('%d %B %Y') }}
-            </div>
-            <button class="btn btn-dark rounded-circle shadow-sm" style="width: 45px; height: 45px;" onclick="location.reload()" title="Refresh Data">
-                <i class="fa-solid fa-arrows-rotate"></i>
-            </button>
-        </div>
+        <button class="btn btn-dark rounded-pill px-4 shadow-sm" onclick="location.reload()">
+            <i class="fas fa-sync-alt me-2"></i>Refresh
+        </button>
     </div>
 
-    <!-- ROW 1: KEY METRICS (Glass Cards) -->
-    <div class="row g-4 mb-5">
-        
-        <!-- 1. SALES TODAY -->
+    <!-- KPI ROW 1 -->
+    <div class="row g-4 mb-4">
+        <!-- Sales Today -->
         <div class="col-xl-3 col-md-6">
-            <div class="glass-stat-card border-start border-5 border-primary shadow-sm h-100 p-4 position-relative overflow-hidden">
-                <div class="d-flex justify-content-between align-items-start z-1 position-relative">
+            <div class="kpi-card bg-purple">
+                <div class="d-flex justify-content-between align-items-start">
                     <div>
-                        <p class="text-uppercase fw-bold text-muted small mb-2 ls-1">Sales Today</p>
-                        <!-- FIXED: Converted to int then formatted to remove decimals -->
-                        <h2 class="fw-bold mb-0 text-dark">{{ sales_today|int|inr }}</h2>
+                        <p class="text-uppercase fw-bold opacity-75 mb-1" style="font-size: 0.75rem;">Sales Today</p>
+                        <h2 class="fw-bold mb-0">₹ {{ "{:,.0f}".format(sales_today) }}</h2>
+                        <!-- Comparison Logic -->
+                        <div class="comp-badge">
+                            {% set diff = sales_today - sales_yesterday %}
+                            {% if diff >= 0 %}
+                                <i class="fas fa-arrow-up me-1"></i> ₹ {{ "{:,.0f}".format(diff) }} vs Yest
+                            {% else %}
+                                <i class="fas fa-arrow-down me-1"></i> ₹ {{ "{:,.0f}".format(diff|abs) }} vs Yest
+                            {% endif %}
+                        </div>
                     </div>
-                    <div class="icon-box bg-primary bg-opacity-10 text-primary rounded-3">
-                        <i class="fa-solid fa-cash-register fa-lg"></i>
-                    </div>
+                    <div class="icon-box"><i class="fas fa-cash-register"></i></div>
                 </div>
-                <!-- Decor Circle -->
-                <div class="decor-circle bg-primary"></div>
             </div>
         </div>
 
-        <!-- 2. MONTHLY SALES -->
+        <!-- Monthly Sales -->
         <div class="col-xl-3 col-md-6">
-            <div class="glass-stat-card border-start border-5 border-success shadow-sm h-100 p-4 position-relative overflow-hidden">
-                <div class="d-flex justify-content-between align-items-start z-1 position-relative">
+            <div class="kpi-card bg-blue">
+                <div class="d-flex justify-content-between align-items-start">
                     <div>
-                        <p class="text-uppercase fw-bold text-muted small mb-2 ls-1">This Month</p>
-                        <h2 class="fw-bold mb-0 text-dark">{{ sales_this_month|int|inr }}</h2>
+                        <p class="text-uppercase fw-bold opacity-75 mb-1" style="font-size: 0.75rem;">This Month</p>
+                        <h2 class="fw-bold mb-0">₹ {{ "{:,.0f}".format(sales_this_month) }}</h2>
+                        <small class="d-block mt-2 opacity-75">Net Revenue</small>
                     </div>
-                    <div class="icon-box bg-success bg-opacity-10 text-success rounded-3">
-                        <i class="fa-solid fa-chart-line fa-lg"></i>
-                    </div>
+                    <div class="icon-box"><i class="fas fa-calendar-alt"></i></div>
                 </div>
-                <div class="decor-circle bg-success"></div>
             </div>
         </div>
 
-        <!-- 3. SUPPLIER DUES -->
+        <!-- Yearly Revenue -->
         <div class="col-xl-3 col-md-6">
-            <div class="glass-stat-card border-start border-5 border-danger shadow-sm h-100 p-4 position-relative overflow-hidden">
-                <div class="d-flex justify-content-between align-items-start z-1 position-relative">
+            <div class="kpi-card bg-green">
+                <div class="d-flex justify-content-between align-items-start">
                     <div>
-                        <p class="text-uppercase fw-bold text-muted small mb-2 ls-1">Supplier Dues</p>
-                        <h2 class="fw-bold mb-0 text-danger">{{ supplier_dues|int|inr }}</h2>
+                        <p class="text-uppercase fw-bold opacity-75 mb-1" style="font-size: 0.75rem;">Yearly Revenue</p>
+                        <h2 class="fw-bold mb-0">₹ {{ "{:,.0f}".format(yearly_sales) }}</h2>
+                        <small class="d-block mt-2 opacity-75">Financial Year {{ current_year }}</small>
                     </div>
-                    <div class="icon-box bg-danger bg-opacity-10 text-danger rounded-3">
-                        <i class="fa-solid fa-file-invoice-dollar fa-lg"></i>
-                    </div>
+                    <div class="icon-box"><i class="fas fa-chart-line"></i></div>
                 </div>
-                <div class="decor-circle bg-danger"></div>
             </div>
         </div>
 
-        <!-- 4. LOW STOCK -->
+        <!-- Total Expenses -->
         <div class="col-xl-3 col-md-6">
-            <div class="glass-stat-card border-start border-5 border-warning shadow-sm h-100 p-4 position-relative overflow-hidden">
-                <div class="d-flex justify-content-between align-items-start z-1 position-relative">
+            <div class="kpi-card bg-orange">
+                <div class="d-flex justify-content-between align-items-start">
                     <div>
-                        <p class="text-uppercase fw-bold text-muted small mb-2 ls-1">Low Stock</p>
-                        <h2 class="fw-bold mb-0 text-dark">{{ low_stock }} <span class="fs-6 text-muted">Items</span></h2>
+                        <p class="text-uppercase fw-bold opacity-75 mb-1" style="font-size: 0.75rem;">YTD Expenses</p>
+                        <h2 class="fw-bold mb-0">₹ {{ "{:,.0f}".format(yearly_expenses) }}</h2>
+                        <small class="d-block mt-2 opacity-75">Total Outflow</small>
                     </div>
-                    <div class="icon-box bg-warning bg-opacity-10 text-warning rounded-3">
-                        <i class="fa-solid fa-triangle-exclamation fa-lg"></i>
-                    </div>
+                    <div class="icon-box"><i class="fas fa-file-invoice-dollar"></i></div>
                 </div>
-                <div class="decor-circle bg-warning"></div>
             </div>
         </div>
     </div>
 
-    <!-- ROW 2: YEARLY OVERVIEW (ADDED) -->
+    <!-- KPI ROW 2 (Secondary) -->
     <div class="row g-4 mb-5">
         <div class="col-md-6">
-            <div class="glass-stat-card border-0 shadow-sm h-100 p-4 position-relative overflow-hidden bg-white">
-                <div class="d-flex align-items-center">
-                    <div class="icon-box bg-info bg-opacity-10 text-info rounded-circle me-3">
-                        <i class="fa-solid fa-sack-dollar fa-lg"></i>
-                    </div>
+            <div class="card border-0 shadow-sm p-3 rounded-4 bg-white border-start border-4 border-danger h-100">
+                <div class="d-flex align-items-center justify-content-between p-2">
                     <div>
-                        <p class="text-uppercase fw-bold text-muted small mb-1">Total Yearly Revenue</p>
-                        <h3 class="fw-bold mb-0 text-dark">{{ yearly_sales|int|inr }}</h3>
+                        <p class="text-uppercase text-muted fw-bold small mb-1">Total Supplier Dues</p>
+                        <h3 class="fw-bold text-danger m-0">₹ {{ "{:,.0f}".format(supplier_dues) }}</h3>
+                    </div>
+                    <div class="p-3 bg-danger bg-opacity-10 rounded-circle text-danger">
+                        <i class="fas fa-hand-holding-dollar fa-lg"></i>
                     </div>
                 </div>
             </div>
         </div>
         <div class="col-md-6">
-            <div class="glass-stat-card border-0 shadow-sm h-100 p-4 position-relative overflow-hidden bg-white">
-                <div class="d-flex align-items-center">
-                    <div class="icon-box bg-danger bg-opacity-10 text-danger rounded-circle me-3">
-                        <i class="fa-solid fa-money-bill-transfer fa-lg"></i>
-                    </div>
+            <div class="card border-0 shadow-sm p-3 rounded-4 bg-white border-start border-4 border-warning h-100">
+                <div class="d-flex align-items-center justify-content-between p-2">
                     <div>
-                        <p class="text-uppercase fw-bold text-muted small mb-1">Total Yearly Expenses</p>
-                        <h3 class="fw-bold mb-0 text-dark">{{ yearly_expenses|int|inr }}</h3>
+                        <p class="text-uppercase text-muted fw-bold small mb-1">Low Stock Alerts</p>
+                        <h3 class="fw-bold text-warning m-0">{{ low_stock }} Products</h3>
+                    </div>
+                    <div class="p-3 bg-warning bg-opacity-10 rounded-circle text-warning">
+                        <i class="fas fa-exclamation-triangle fa-lg"></i>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- ROW 3: CHARTS -->
+    <!-- CHARTS ROW -->
     <div class="row g-4 mb-5">
-        <!-- Sales vs Expenses -->
         <div class="col-lg-8">
-            <div class="card glass-card border-0 shadow-sm h-100">
-                <div class="card-header bg-transparent border-0 pt-4 px-4 d-flex justify-content-between">
-                    <h5 class="fw-bold mb-0">Sales vs Expenses ({{ current_year }})</h5>
-                    <span class="badge bg-light text-dark border">Yearly Overview</span>
+            <div class="chart-container">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h5 class="fw-bold m-0 text-dark">Revenue vs Expenses</h5>
+                    <span class="badge bg-light text-dark border">Yearly Trend</span>
                 </div>
-                <div class="card-body px-4 pb-4">
-                    <div class="chart-container" style="height: 320px;">
-                        <canvas id="mainChart"></canvas>
-                    </div>
+                <div style="height: 350px;">
+                    <canvas id="mainChart"></canvas>
                 </div>
             </div>
         </div>
-
-        <!-- Top Products -->
         <div class="col-lg-4">
-            <div class="card glass-card border-0 shadow-sm h-100">
-                <div class="card-header bg-transparent border-0 pt-4 px-4">
-                    <h5 class="fw-bold mb-0">Top Selling Products</h5>
+            <div class="chart-container">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h5 class="fw-bold m-0 text-dark">Top Products</h5>
+                    <span class="badge bg-light text-dark border">By Volume</span>
                 </div>
-                <div class="card-body px-4 pb-4 d-flex align-items-center justify-content-center">
-                    <div class="chart-container" style="height: 280px; width: 100%;">
-                        <canvas id="productChart"></canvas>
-                    </div>
+                <div style="height: 280px; position: relative;">
+                    <canvas id="productChart"></canvas>
+                </div>
+                <div class="text-center mt-4">
+                    <small class="text-muted">Best Seller</small>
+                    <div class="fw-bold text-primary">{{ top_prod_names[0] if top_prod_names else 'N/A' }}</div>
                 </div>
             </div>
         </div>
@@ -158,39 +216,30 @@
 
 </div>
 
-<!-- Chart.js -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
 <script>
-    // DATA FROM FLASK
-    const months = {{ chart_months | tojson }};
-    const salesData = {{ chart_sales | tojson }};
-    const expenseData = {{ chart_expenses | tojson }};
-    
-    const prodNames = {{ top_prod_names | tojson }};
-    const prodQty = {{ top_prod_qty | tojson }};
-
-    // --- 1. MAIN CHART (Bar) ---
+    // --- 1. MAIN CHART (Line + Bar Hybrid) ---
     const ctxMain = document.getElementById('mainChart').getContext('2d');
-    
     new Chart(ctxMain, {
-        type: 'bar',
+        type: 'line',
         data: {
-            labels: months,
+            labels: {{ chart_months | tojson }},
             datasets: [
                 {
-                    label: 'Sales',
-                    data: salesData,
-                    backgroundColor: '#6366f1',
-                    borderRadius: 4,
-                    barPercentage: 0.6
+                    label: 'Income',
+                    data: {{ chart_sales | tojson }},
+                    borderColor: '#6366f1',
+                    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 4
                 },
                 {
-                    label: 'Expenses',
-                    data: expenseData,
+                    label: 'Expense',
+                    data: {{ chart_expenses | tojson }},
+                    type: 'bar',
                     backgroundColor: '#ef4444',
                     borderRadius: 4,
-                    barPercentage: 0.6
+                    barPercentage: 0.4
                 }
             ]
         },
@@ -199,35 +248,35 @@
             maintainAspectRatio: false,
             plugins: {
                 legend: { position: 'top', align: 'end' },
-                tooltip: { backgroundColor: 'rgba(30, 41, 59, 0.9)', padding: 12, cornerRadius: 8 }
+                tooltip: { backgroundColor: 'rgba(15, 23, 42, 0.9)', padding: 12, cornerRadius: 8 }
             },
             scales: {
-                y: { beginAtZero: true, grid: { borderDash: [4, 4], color: '#e2e8f0' }, border: { display: false } },
+                y: { beginAtZero: true, grid: { borderDash: [4, 4], color: '#f1f5f9' }, border: { display: false } },
                 x: { grid: { display: false }, border: { display: false } }
             }
         }
     });
 
-    // --- 2. PRODUCT CHART ---
-    const ctxProduct = document.getElementById('productChart').getContext('2d');
-    new Chart(ctxProduct, {
+    // --- 2. PRODUCT CHART (Doughnut) ---
+    const ctxProd = document.getElementById('productChart').getContext('2d');
+    new Chart(ctxProd, {
         type: 'doughnut',
         data: {
-            labels: prodNames.length ? prodNames : ['No Data'],
+            labels: {{ top_prod_names | tojson }},
             datasets: [{
-                data: prodQty.length ? prodQty : [1],
-                backgroundColor: ['#6366f1', '#ec4899', '#f59e0b', '#10b981', '#3b82f6'],
+                data: {{ top_prod_qty | tojson }},
+                backgroundColor: ['#4f46e5', '#0ea5e9', '#10b981', '#f59e0b', '#ef4444'],
                 borderWidth: 0,
-                hoverOffset: 10
+                hoverOffset: 15
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            cutout: '70%',
             plugins: {
-                legend: { position: 'bottom', labels: { usePointStyle: true, padding: 20 } }
-            },
-            cutout: '70%'
+                legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8, padding: 15 } }
+            }
         }
     });
 </script>
