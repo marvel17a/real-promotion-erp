@@ -233,6 +233,130 @@ def monthly_sales_dashboard():
     )
 
 
+# ==========================================
+# LIVE PRODUCT TRACKER (Who has what?)
+# ==========================================
+@app.route('/product_tracker')
+def product_tracker():
+    if "loggedin" not in session: return redirect(url_for("login"))
+    
+    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    
+    # 1. Fetch Active Products
+    cur.execute("SELECT id, name, image, stock, price, category_id FROM products WHERE status='active'")
+    products = cur.fetchall()
+    
+    # 2. Fetch Active Employees
+    cur.execute("SELECT id, name, image FROM employees WHERE status='active'")
+    employees = cur.fetchall()
+    
+    # Data Structures for the View
+    # tracker_map: { product_id: { 'warehouse': X, 'field': Y, 'holders': [ {name, img, qty}, ... ] } }
+    tracker_map = {}
+    
+    # Initialize Map
+    for p in products:
+        # Image fix
+        img = p['image']
+        if not img: img = url_for('static', filename='img/default-product.png')
+        elif not img.startswith('http'): img = url_for('static', filename='uploads/' + img)
+            
+        tracker_map[p['id']] = {
+            'info': p,
+            'image': img,
+            'warehouse_qty': int(p['stock']),
+            'field_total': 0,
+            'holders': [],
+            'total_sold': 0
+        }
+
+    # 3. Calculate Field Stock (Employee Holdings)
+    for emp in employees:
+        emp_id = emp['id']
+        emp_img = emp['image']
+        
+        # Image fix for employee
+        if not emp_img: emp_img = url_for('static', filename='img/default-user.png')
+        elif not emp_img.startswith('http'): emp_img = url_for('static', filename='uploads/' + emp_img)
+
+        # Logic: Find latest stock state for this employee (Morning or Evening)
+        # Check Morning Allocations (Latest)
+        cur.execute("SELECT date FROM morning_allocations WHERE employee_id=%s ORDER BY date DESC LIMIT 1", (emp_id,))
+        last_morning = cur.fetchone()
+        
+        # Check Evening Settlements (Latest Final)
+        cur.execute("SELECT date FROM evening_settle WHERE employee_id=%s AND status='final' ORDER BY date DESC LIMIT 1", (emp_id,))
+        last_evening = cur.fetchone()
+        
+        target_date = None
+        source = None 
+        
+        # Determine Source Date
+        if last_morning and last_evening:
+            if last_morning['date'] > last_evening['date']:
+                target_date = last_morning['date']; source = 'morning'
+            else:
+                target_date = last_evening['date']; source = 'evening'
+        elif last_morning:
+            target_date = last_morning['date']; source = 'morning'
+        elif last_evening:
+            target_date = last_evening['date']; source = 'evening'
+            
+        # Fetch Items based on source
+        if target_date:
+            if source == 'evening':
+                cur.execute("""
+                    SELECT ei.product_id, ei.remaining_qty 
+                    FROM evening_item ei 
+                    JOIN evening_settle es ON ei.settle_id = es.id 
+                    WHERE es.employee_id=%s AND es.date=%s
+                """, (emp_id, target_date))
+                
+                for row in cur.fetchall():
+                    pid = row['product_id']
+                    qty = int(row['remaining_qty'])
+                    if qty > 0 and pid in tracker_map:
+                        tracker_map[pid]['field_total'] += qty
+                        tracker_map[pid]['holders'].append({'name': emp['name'], 'image': emp_img, 'qty': qty})
+                        
+            else: # Morning
+                cur.execute("""
+                    SELECT mai.product_id, mai.opening_qty, mai.given_qty 
+                    FROM morning_allocation_items mai 
+                    JOIN morning_allocations ma ON mai.allocation_id = ma.id 
+                    WHERE ma.employee_id=%s AND ma.date=%s
+                """, (emp_id, target_date))
+                
+                for row in cur.fetchall():
+                    pid = row['product_id']
+                    qty = int(row['opening_qty']) + int(row['given_qty'])
+                    if qty > 0 and pid in tracker_map:
+                        tracker_map[pid]['field_total'] += qty
+                        tracker_map[pid]['holders'].append({'name': emp['name'], 'image': emp_img, 'qty': qty})
+
+    # 4. Calculate Total Sales (Lifetime) - Optional Stats
+    # Field Sales
+    cur.execute("SELECT product_id, SUM(sold_qty) as sold FROM evening_item GROUP BY product_id")
+    field_sales = cur.fetchall()
+    for row in field_sales:
+        if row['product_id'] in tracker_map:
+            tracker_map[row['product_id']]['total_sold'] += int(row['sold'])
+            
+    # Office Sales
+    cur.execute("SELECT product_id, SUM(qty) as sold FROM office_sale_items GROUP BY product_id")
+    office_sales = cur.fetchall()
+    for row in office_sales:
+        if row['product_id'] in tracker_map:
+            tracker_map[row['product_id']]['total_sold'] += int(row['sold'])
+
+    cur.close()
+    
+    # Convert map to list for template
+    final_data = list(tracker_map.values())
+    
+    return render_template('reports/product_tracker.html', products=final_data)
+
+
 # --- VIEW EVENING SETTLEMENT DETAILS ---
 @app.route('/evening/view/<int:settle_id>')
 def view_evening_settlement(settle_id):
@@ -8455,6 +8579,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
