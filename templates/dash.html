@@ -64,14 +64,14 @@
         height: 100%;
     }
 
-    /* --- COMPARISON BADGE --- */
-    .comp-badge {
-        background: rgba(0, 0, 0, 0.2);
-        padding: 4px 12px;
+    /* --- DATE BADGE --- */
+    .date-badge {
+        background: rgba(0, 0, 0, 0.05);
+        padding: 6px 16px;
         border-radius: 50px;
-        font-size: 0.75rem;
-        display: inline-block;
-        margin-top: 10px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #64748b;
     }
 </style>
 
@@ -80,33 +80,30 @@
     <div class="d-flex justify-content-between align-items-center mb-5">
         <div>
             <h2 class="fw-bold text-dark m-0">Dashboard Overview</h2>
-            <p class="text-muted small m-0">{{ today_date.strftime('%A, %d %B %Y') }}</p>
+            <p class="text-muted small m-0">Financial Year {{ current_year }}</p>
         </div>
-        <button class="btn btn-dark rounded-pill px-4 shadow-sm" onclick="location.reload()">
-            <i class="fas fa-sync-alt me-2"></i>Refresh
-        </button>
+        <div class="d-flex gap-3 align-items-center">
+            <div class="date-badge">
+                <i class="far fa-calendar-alt me-2"></i>{{ today_date.strftime('%d %B %Y') }}
+            </div>
+            <button class="btn btn-dark rounded-pill px-4 shadow-sm" onclick="location.reload()">
+                <i class="fas fa-sync-alt me-2"></i>Refresh
+            </button>
+        </div>
     </div>
 
     <!-- KPI ROW 1 -->
     <div class="row g-4 mb-4">
-        <!-- Sales Today -->
+        <!-- Sales Yesterday (Replaced Today) -->
         <div class="col-xl-3 col-md-6">
             <div class="kpi-card bg-purple">
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
-                        <p class="text-uppercase fw-bold opacity-75 mb-1" style="font-size: 0.75rem;">Sales Today</p>
-                        <h2 class="fw-bold mb-0">₹ {{ "{:,.0f}".format(sales_today) }}</h2>
-                        <!-- Comparison Logic -->
-                        <div class="comp-badge">
-                            {% set diff = sales_today - sales_yesterday %}
-                            {% if diff >= 0 %}
-                                <i class="fas fa-arrow-up me-1"></i> ₹ {{ "{:,.0f}".format(diff) }} vs Yest
-                            {% else %}
-                                <i class="fas fa-arrow-down me-1"></i> ₹ {{ "{:,.0f}".format(diff|abs) }} vs Yest
-                            {% endif %}
-                        </div>
+                        <p class="text-uppercase fw-bold opacity-75 mb-1" style="font-size: 0.75rem;">Sales Yesterday</p>
+                        <h2 class="fw-bold mb-0">₹ {{ "{:,.0f}".format(sales_yesterday) }}</h2>
+                        <small class="d-block mt-2 opacity-75">Previous Day Closing</small>
                     </div>
-                    <div class="icon-box"><i class="fas fa-cash-register"></i></div>
+                    <div class="icon-box"><i class="fas fa-history"></i></div>
                 </div>
             </div>
         </div>
@@ -132,7 +129,7 @@
                     <div>
                         <p class="text-uppercase fw-bold opacity-75 mb-1" style="font-size: 0.75rem;">Yearly Revenue</p>
                         <h2 class="fw-bold mb-0">₹ {{ "{:,.0f}".format(yearly_sales) }}</h2>
-                        <small class="d-block mt-2 opacity-75">Financial Year {{ current_year }}</small>
+                        <small class="d-block mt-2 opacity-75">FY {{ current_year }}</small>
                     </div>
                     <div class="icon-box"><i class="fas fa-chart-line"></i></div>
                 </div>
@@ -257,7 +254,7 @@
         }
     });
 
-    // --- 2. PRODUCT CHART (Doughnut) ---
+    // --- 2. PRODUCT CHART (Doughnut with Percentages) ---
     const ctxProd = document.getElementById('productChart').getContext('2d');
     new Chart(ctxProd, {
         type: 'doughnut',
@@ -275,7 +272,18 @@
             maintainAspectRatio: false,
             cutout: '70%',
             plugins: {
-                legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8, padding: 15 } }
+                legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8, padding: 15 } },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.label || '';
+                            let value = context.raw || 0;
+                            let total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            let percentage = Math.round((value / total) * 100) + '%';
+                            return label + ': ' + value + ' (' + percentage + ')';
+                        }
+                    }
+                }
             }
         }
     });
