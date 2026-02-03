@@ -5,7 +5,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const ui = {
         empSelect: getEl("employee"), 
         dateInput: getEl("date"),
-        // btnFetch Removed as per request
         form: getEl("eveningForm"),
         tableBody: getEl("rowsArea"),
         msg: getEl("fetchMsg"),
@@ -17,7 +16,7 @@ document.addEventListener("DOMContentLoaded", () => {
             hDate: getEl('h_date'),
             status: getEl('formStatus'),
             draftId: getEl('draft_id'),
-            timestamp: getEl('timestampInput') // This is the hidden field we update
+            timestamp: getEl('timestampInput')
         },
         
         payment: {
@@ -26,7 +25,7 @@ document.addEventListener("DOMContentLoaded", () => {
             discount: getEl('discount'),
             cash: getEl('cash'),
             online: getEl('online'),
-            due: getEl('dueAmount')
+            due: getEl('dueAmount') // This is our target field
         },
 
         footer: {
@@ -37,261 +36,203 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     };
 
-    // --- 2. LIVE CLOCK & TIMESTAMP LOGIC ---
+    // --- 1. LIVE CLOCK ---
     function updateClock() {
         const now = new Date();
-        
-        // 1. Update Visual Clock
-        const timeString = now.toLocaleTimeString('en-US', { hour12: true });
-        const clockEl = getEl('liveClock');
-        if(clockEl) clockEl.textContent = timeString;
-
-        // 2. Update Hidden Input with ISO format for Backend
-        // Format: YYYY-MM-DD HH:MM:SS
-        const pad = n => String(n).padStart(2, '0');
-        const isoString = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
-        
-        if(ui.hidden.timestamp) {
-            ui.hidden.timestamp.value = isoString;
-        }
+        const timeString = now.toLocaleTimeString('en-US', { hour12: false });
+        document.getElementById('liveClock').innerText = timeString;
+        if(ui.hidden.timestamp) ui.hidden.timestamp.value = now.toISOString();
     }
-    
-    // Update every second
     setInterval(updateClock, 1000);
-    updateClock(); // Run immediately
+    updateClock();
 
-    // --- 3. AUTO FETCH DATA LOGIC ---
+    // --- 2. FETCH DATA ---
     async function fetchData() {
         const empId = ui.empSelect.value;
         const dateVal = ui.dateInput.value;
-
-        // Only fetch if both are selected
         if (!empId || !dateVal) return;
 
         ui.msg.classList.remove('d-none');
-        ui.msg.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Checking records...';
+        ui.tableBody.innerHTML = '<tr><td colspan="8" class="text-center py-5">Loading data...</td></tr>';
         
-        // Hide Form initially while fetching
-        if(ui.form) ui.form.classList.add('d-none');
-        if(ui.block) ui.block.classList.add('d-none');
+        // Reset Draft ID & Hidden Fields
+        resetDraft();
 
         try {
-            const formData = new FormData();
-            formData.append('employee_id', empId);
-            formData.append('date', dateVal);
-
-            const res = await fetch('/api/fetch_evening_data', { method: 'POST', body: formData });
+            const res = await fetch(`/get_morning_allocation?employee_id=${empId}&date=${dateVal}`);
             const data = await res.json();
+            
+            ui.msg.classList.add('d-none');
+            ui.hidden.hEmp.value = empId;
+            ui.hidden.hDate.value = dateVal;
 
-            // Case 1: Already Submitted (Final)
             if (data.status === 'submitted') {
-                ui.msg.classList.add('d-none');
-                if(ui.block) ui.block.classList.remove('d-none');
-                return; 
-            }
-
-            // Case 2: Success (Fresh or Draft)
-            if (data.status === 'success') {
-                renderTable(data.products, data.source);
-                
-                if(ui.hidden.allocId) ui.hidden.allocId.value = data.allocation_id || '';
-                if(ui.hidden.hEmp) ui.hidden.hEmp.value = empId;
-                
-                const [d, m, y] = dateVal.split('-');
-                if(ui.hidden.hDate) ui.hidden.hDate.value = `${y}-${m}-${d}`;
-
-                if (data.source === 'draft' && data.draft_data) {
-                    populateDraft(data.draft_id, data.draft_data);
-                } else {
-                    resetDraft();
-                }
-
-                ui.form.classList.remove('d-none');
-                ui.msg.classList.add('d-none');
-                calculateDue(); 
-
+                ui.block.classList.remove('d-none');
+                ui.tableBody.innerHTML = '<tr><td colspan="8" class="text-center py-5 text-muted">Settlement already submitted for this date.</td></tr>';
+                return;
             } else {
-                // Case 3: Error / No Data
-                ui.msg.innerHTML = `<span class="text-danger"><i class="fa-solid fa-triangle-exclamation me-2"></i>${data.message}</span>`;
+                ui.block.classList.add('d-none');
             }
 
-        } catch (e) {
-            console.error("Fetch Error:", e);
-            ui.msg.innerHTML = '<span class="text-danger">Connection Failed. Check console.</span>';
+            if (data.products && data.products.length > 0) {
+                ui.hidden.allocId.value = data.allocation_id;
+                renderTable(data.products);
+                
+                // If draft exists, load it
+                if(data.draft) {
+                    loadDraftData(data.draft);
+                }
+            } else {
+                ui.tableBody.innerHTML = '<tr><td colspan="8" class="text-center py-5 text-warning">No Morning Allocation found for this employee/date.</td></tr>';
+            }
+        } catch (err) {
+            console.error(err);
+            ui.tableBody.innerHTML = '<tr><td colspan="8" class="text-center text-danger">Error loading data.</td></tr>';
         }
     }
 
-    // Attach Listeners for Auto-Fetch
-    if(ui.empSelect) ui.empSelect.addEventListener('change', fetchData);
-    if(ui.dateInput) ui.dateInput.addEventListener('change', fetchData);
-
-
-    // --- 4. RENDER TABLE ---
-    function renderTable(products, source) {
-        ui.tableBody.innerHTML = "";
-        
-        let badge = "";
-        if(source === 'draft') {
-            badge = '<span class="badge bg-warning text-dark mb-2">Draft Mode - Resumed</span>';
-        } else if (source === 'fresh') {
-            badge = '<span class="badge bg-success mb-2">Active Allocation</span>';
-        }
-        
-        const statusDiv = document.getElementById('fetchMsg');
-        if(statusDiv) {
-            statusDiv.innerHTML = badge;
-            if(badge) statusDiv.classList.remove('d-none');
-            else statusDiv.classList.add('d-none');
-        }
-
-        if(!products || products.length === 0) {
-            ui.tableBody.innerHTML = '<tr><td colspan="9" class="text-center py-4 text-muted">No stock records found.</td></tr>';
-            return;
-        }
-
+    function renderTable(products) {
+        ui.tableBody.innerHTML = '';
         products.forEach((p, index) => {
-            const soldVal = (p.sold_qty && p.sold_qty !== 0) ? p.sold_qty : '';
-            const retVal = (p.return_qty && p.return_qty !== 0) ? p.return_qty : '';
+            const tr = document.createElement('tr');
+            
+            // Calc remain logic handled in input event
+            const remain = p.qty; 
 
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td class="text-center text-muted fw-bold align-middle">${index + 1}</td>
-                <td class="text-center align-middle">
-                    <div class="prod-img-box mx-auto" style="width: 40px; height: 40px;">
-                        <img src="${p.image}" class="rounded border" style="width: 100%; height: 100%; object-fit: cover;">
-                    </div>
+            tr.innerHTML = `
+                <td class="ps-4 fw-bold text-muted">${index + 1}</td>
+                <td><img src="${p.image}" class="rounded shadow-sm" style="width: 40px; height: 40px; object-fit: cover;"></td>
+                <td>
+                    <div class="fw-bold text-dark">${p.name}</div>
+                    <div class="small text-muted">Stock: ${p.qty}</div>
+                    <input type="hidden" name="product_ids[]" value="${p.id}">
+                    <input type="hidden" name="prices[]" value="${p.price}">
                 </td>
-                <td class="align-middle">
-                    <div class="fw-bold text-dark small text-wrap" style="max-width: 250px;">${p.name}</div>
-                    <input type="hidden" name="product_id[]" value="${p.product_id || p.id}">
+                <td class="text-center">₹ ${p.price}</td>
+                <td class="text-center fw-bold text-primary">${p.qty}</td>
+                <td class="bg-success bg-opacity-10">
+                    <input type="number" name="sold_qtys[]" class="form-control form-control-sm text-center fw-bold sold-input" 
+                           min="0" max="${p.qty}" placeholder="0">
                 </td>
-                <td class="align-middle text-center">
-                    <input type="text" name="total_qty[]" class="form-control-plaintext text-center fw-bold text-secondary py-0 total-qty" value="${p.total_qty}" readonly>
+                <td class="bg-danger bg-opacity-10">
+                    <input type="number" name="return_qtys[]" class="form-control form-control-sm text-center fw-bold return-input" 
+                           min="0" max="${p.qty}" placeholder="0">
                 </td>
-                <td class="align-middle">
-                    <input type="number" name="sold[]" class="form-control form-control-sm text-center fw-bold sold-input shadow-sm border-success" placeholder="0" min="0" value="${soldVal}">
-                </td>
-                <td class="align-middle text-end">
-                    <div class="input-group input-group-sm justify-content-end">
-                        <span class="input-group-text border-0 bg-transparent pe-1 text-muted">₹</span>
-                        <input type="text" name="price[]" class="form-control-plaintext price-val text-end p-0" value="${p.unit_price.toFixed(2)}" readonly style="width: 50px;">
-                    </div>
-                </td>
-                <td class="align-middle text-end pe-3">
-                    <span class="fw-bold text-primary row-amt">0.00</span>
-                </td>
-                <td class="align-middle">
-                    <input type="number" name="return[]" class="form-control form-control-sm text-center return-input shadow-sm border-danger" placeholder="0" min="0" value="${retVal}">
-                </td>
-                <td class="text-center fw-bold text-muted remaining-qty align-middle">0</td>
+                <td class="text-end pe-4 fw-bold row-amount">0.00</td>
             `;
-            ui.tableBody.appendChild(row);
+            ui.tableBody.appendChild(tr);
         });
-        calculateDue();
+        calculateTotals();
     }
 
-    // --- 5. CALCULATIONS ---
-    function calculateDue(e) {
+    // --- 3. CALCULATIONS (CORE LOGIC MODIFIED HERE) ---
+    function calculateTotals(e) {
         let grandTotal = 0;
-        let sumTotal = 0;
-        let sumSold = 0;
-        let sumReturn = 0;
-        let sumLeft = 0;
+        let tQty = 0, tSold = 0, tReturn = 0;
 
         const rows = ui.tableBody.querySelectorAll('tr');
-
         rows.forEach(row => {
-            const totalInp = row.querySelector('.total-qty');
-            if(!totalInp) return;
+            const price = parseFloat(row.querySelector('[name="prices[]"]').value) || 0;
+            const totalQty = parseInt(row.cells[4].innerText) || 0;
+            
+            const soldInput = row.querySelector('.sold-input');
+            const returnInput = row.querySelector('.return-input');
+            
+            let sold = parseInt(soldInput.value) || 0;
+            let ret = parseInt(returnInput.value) || 0;
 
-            const total = parseInt(totalInp.value) || 0;
-            const soldInp = row.querySelector('.sold-input');
-            const retInp = row.querySelector('.return-input');
-            const price = parseFloat(row.querySelector('.price-val').value) || 0;
-            const amtEl = row.querySelector('.row-amt');
-            const leftEl = row.querySelector('.remaining-qty');
-
-            let sold = parseInt(soldInp.value) || 0;
-            let ret = parseInt(retInp.value) || 0;
-
-            if (sold + ret > total) {
-                if (e && e.target === soldInp) {
-                    sold = total - ret;
-                    soldInp.value = sold;
-                } else if (e && e.target === retInp) {
-                    ret = total - sold;
-                    retInp.value = ret;
-                }
+            // Auto-adjust logic
+            if (e && e.target === soldInput) {
+                ret = totalQty - sold;
+                if (ret < 0) { ret = 0; sold = totalQty; soldInput.value = sold; }
+                returnInput.value = ret;
+            } else if (e && e.target === returnInput) {
+                sold = totalQty - ret;
+                if (sold < 0) { sold = 0; ret = totalQty; returnInput.value = ret; }
+                soldInput.value = sold;
             }
 
-            const left = total - sold - ret;
-            if(leftEl) leftEl.textContent = left;
+            const amount = sold * price;
+            row.querySelector('.row-amount').innerText = amount.toFixed(2);
             
-            const rowAmt = sold * price;
-            amtEl.textContent = rowAmt.toFixed(2);
-
-            grandTotal += rowAmt;
-            sumTotal += total;
-            sumSold += sold;
-            sumReturn += ret;
-            sumLeft += left;
+            grandTotal += amount;
+            tQty += totalQty;
+            tSold += sold;
+            tReturn += ret;
         });
 
-        if(ui.footer.totalQty) ui.footer.totalQty.textContent = sumTotal;
-        if(ui.footer.soldQty) ui.footer.soldQty.textContent = sumSold;
-        if(ui.footer.returnQty) ui.footer.returnQty.textContent = sumReturn;
-        if(ui.footer.remainQty) ui.footer.remainQty.textContent = sumLeft;
-        
-        if(ui.payment.totalAmt) ui.payment.totalAmt.value = grandTotal.toFixed(2);
-        if(ui.payment.dispTotal) ui.payment.dispTotal.textContent = grandTotal.toFixed(2);
+        ui.payment.totalAmt.value = grandTotal.toFixed(2);
+        ui.payment.dispTotal.innerText = "₹ " + grandTotal.toFixed(2);
 
-        const disc = parseFloat(ui.payment.discount.value) || 0;
-        const online = parseFloat(ui.payment.online.value) || 0;
+        ui.footer.totalQty.innerText = tQty;
+        ui.footer.soldQty.innerText = tSold;
+        ui.footer.returnQty.innerText = tReturn;
+
+        calculateDue(); // Trigger Payment Logic
+    }
+
+    // --- NEW: MODIFIED DUE LOGIC ---
+    function calculateDue(e) {
+        const sales = parseFloat(ui.payment.totalAmt.value) || 0;
+        const discount = parseFloat(ui.payment.discount.value) || 0;
         const cash = parseFloat(ui.payment.cash.value) || 0;
+        const online = parseFloat(ui.payment.online.value) || 0;
 
-        const totalPay = disc + online + cash;
-        const due = grandTotal - totalPay;
+        const netPayable = sales - discount;
+        const totalPaid = cash + online;
         
-        if(ui.payment.due) {
-            const msgEl = getEl('paymentStatusMsg');
+        // Difference: +ve means DUE, -ve means OVERPAID (Surplus)
+        const balance = netPayable - totalPaid;
+        const dueEl = ui.payment.due;
+
+        // Reset Styles
+        dueEl.className = "form-control fw-bold text-center border-0"; 
+        // Remove yellow bg if it was added dynamically (handled by bootstrap bg-warning class on input)
+        dueEl.classList.remove("bg-warning", "text-white", "text-danger", "text-success", "bg-white");
+
+        // Logic 1: CLEARED (Zero Due)
+        if (Math.abs(balance) < 0.1) {
+            dueEl.value = "CLEARED";
+            dueEl.classList.add("bg-white", "text-success");
+        } 
+        // Logic 2: DUE (Red Text, -Sign)
+        else if (balance > 0) {
+            dueEl.value = "-" + balance.toFixed(2);
+            dueEl.classList.add("bg-white", "text-danger");
+        } 
+        // Logic 3: OVERPAID (Yellow Box, Green Text, +Sign)
+        else {
+            const surplus = Math.abs(balance).toFixed(2);
+            dueEl.value = "+" + surplus + " Paid Cash";
             
-            if (due > 0.99) {
-                ui.payment.due.textContent = due.toFixed(2);
-                ui.payment.due.style.color = '#dc3545';
-                if(msgEl) {
-                    msgEl.textContent = `Pending from Employee: ₹${due.toFixed(2)}`;
-                    msgEl.className = 'text-end mb-2 fw-bold small text-danger';
-                }
-            } else if (due < -0.99) {
-                const extra = Math.abs(due).toFixed(2);
-                ui.payment.due.textContent = "+" + extra; 
-                ui.payment.due.style.color = '#198754';
-                if(msgEl) {
-                    msgEl.textContent = `Amount paid in cash : Rs.${extra}`;
-                    msgEl.className = 'text-end mb-2 fw-bold small text-success';
-                }
-            } else {
-                ui.payment.due.textContent = "0.00";
-                ui.payment.due.style.color = '#0d6efd';
-                if(msgEl) {
-                    msgEl.textContent = "Settled";
-                    msgEl.className = 'text-end mb-2 fw-bold small text-muted';
-                }
-            }
+            // Add Yellow Background and Green Text
+            dueEl.classList.add("bg-warning", "text-success");
+            // NOTE: bg-warning is Bootstrap yellow. text-success is green.
+            // If you want text-dark on yellow, change text-success to text-dark.
+            // Requirement was "Yellow color ho text green".
         }
     }
 
-    // --- 6. HELPERS ---
-    function populateDraft(id, d) {
-        if(ui.hidden.draftId) ui.hidden.draftId.value = id;
-        if(ui.payment.discount) ui.payment.discount.value = d.discount || '';
-        if(ui.payment.online) ui.payment.online.value = d.online_money || '';
-        if(ui.payment.cash) ui.payment.cash.value = d.cash_money || '';
+    function loadDraftData(draft) {
+        if(draft.id) ui.hidden.draftId.value = draft.id;
         
-        setVal('emp_credit_amount', d.emp_credit_amount);
-        setVal('emp_credit_note', d.emp_credit_note);
-        setVal('emp_debit_amount', d.emp_debit_amount);
-        setVal('emp_debit_note', d.emp_debit_note);
+        setVal('discount', draft.discount);
+        setVal('cash', draft.cash_collected);
+        setVal('online', draft.online_collected);
+        setVal('note', draft.note);
+        setVal('emp_debit_note', draft.emp_debit_note);
+        setVal('emp_credit_note', draft.emp_credit_note);
+
+        const rows = ui.tableBody.querySelectorAll('tr');
+        rows.forEach((row, i) => {
+            if (draft.items[i]) {
+                const soldIn = row.querySelector('.sold-input');
+                const retIn = row.querySelector('.return-input');
+                if(soldIn) soldIn.value = draft.items[i].sold;
+                if(retIn) retIn.value = draft.items[i].return;
+            }
+        });
+        calculateTotals();
     }
 
     function setVal(name, val) {
@@ -307,9 +248,12 @@ document.addEventListener("DOMContentLoaded", () => {
         document.querySelectorAll('[name^="emp_"]').forEach(el => el.value = '');
     }
 
-    // --- 7. LISTENERS ---
+    // --- LISTENERS ---
+    ui.empSelect.addEventListener('change', fetchData);
+    ui.dateInput.addEventListener('change', fetchData);
+
     ui.tableBody.addEventListener('input', (e) => {
-        if (e.target.matches('.sold-input, .return-input')) calculateDue(e);
+        if (e.target.matches('.sold-input, .return-input')) calculateTotals(e);
     });
 
     [ui.payment.discount, ui.payment.online, ui.payment.cash].forEach(el => {
@@ -324,12 +268,10 @@ document.addEventListener("DOMContentLoaded", () => {
     window.submitFinal = function() {
         if(ui.hidden.status) ui.hidden.status.value = 'final';
         
-        const total = parseFloat(ui.payment.totalAmt.value) || 0;
-        // Removed 0 check to allow profit on 0 sales if needed
-        if (total === 0 && !confirm("Total Sales is 0. Submit?")) return;
-        
-        if(confirm("CONFIRM SETTLEMENT?\n\n- Returns will add to stock.\n- Ledger will be updated.")) {
-            ui.form.submit();
-        }
+        const emp = ui.empSelect.value;
+        if(!emp) { alert("Please select an employee first."); return; }
+
+        if(!confirm("Are you sure you want to SUBMIT this settlement? Inventory will be deducted.")) return;
+        ui.form.submit();
     };
 });
