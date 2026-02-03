@@ -281,7 +281,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 const extra = Math.abs(due).toFixed(2);
                 ui.payment.dueWrapper.innerHTML = `<span class="text-success fw-bold">Paid Cash: + ₹ ${extra}</span>`;
                 
-                ui.payment.dueBox.style.backgroundColor = 'yello'; // Yellow
+                ui.payment.dueBox.style.backgroundColor = 'green'; // Yellow
                 ui.payment.dueBox.style.border = '1px solid #ffecb5';
             }
         }
@@ -339,4 +339,5 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     };
 });
+
 
