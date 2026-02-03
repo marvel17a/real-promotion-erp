@@ -6076,137 +6076,116 @@ def morning():
 # ==========================================
 @app.route('/evening', methods=['GET', 'POST'])
 def evening():
-    if 'loggedin' not in session:
-        return redirect(url_for('login'))
+    if "loggedin" not in session: return redirect(url_for("login"))
+    
+    conn = mysql.connection
+    cursor = conn.cursor(MySQLdb.cursors.DictCursor)
     
     if request.method == 'POST':
-        # Retrieve Form Data
-        allocation_id = request.form.get('allocation_id')
-        employee_id = request.form.get('employee_id') or request.form.get('h_employee')
-        date_val = request.form.get('date') or request.form.get('h_date')
-        status = request.form.get('form_status', 'final')
-        
-        # Financials
-        total_amount = float(request.form.get('total_amount', 0))
-        discount = float(request.form.get('discount', 0))
-        cash = float(request.form.get('cash', 0))
-        online = float(request.form.get('online', 0))
-        
-        note = request.form.get('note', '')
-        emp_debit_note = request.form.get('emp_debit_note', '')
-        emp_credit_note = request.form.get('emp_credit_note', '')
-
-        # Calculate Settlement Logic
-        net_payable = total_amount - discount
-        total_paid = cash + online
-        
-        balance = net_payable - total_paid  # +ve means Due, -ve means Surplus (Overpaid)
-
-        emp_debit_amount = 0
-        emp_credit_amount = 0
-        
-        if balance > 0.1:
-            # Employee owes money (Underpaid)
-            emp_debit_amount = balance
-        elif balance < -0.1:
-            # Employee paid EXTRA.
-            # LOGIC CHANGE: User states company returns this extra cash immediately.
-            # So, we do NOT record this as Credit (Advance) in the ledger.
-            # We treat it as settled (0).
-            emp_credit_amount = 0 
-        else:
-            # Perfectly settled
-            emp_debit_amount = 0
-            emp_credit_amount = 0
-
-        # --- DB Operations ---
-        cur = mysql.connection.cursor()
-        
-        # 1. Check if already submitted (if final)
-        if status == 'final':
-            cur.execute("SELECT id FROM evening_settlements WHERE allocation_id = %s", (allocation_id,))
-            existing = cur.fetchone()
-            if existing:
-                flash('Settlement already exists!', 'warning')
-                return redirect(url_for('evening'))
-
-        # 2. Insert into Evening Settlement Header
-        cur.execute("""
-            INSERT INTO evening_settlements (
-                allocation_id, employee_id, date, total_sales_amount, discount, 
-                cash_collected, online_collected, note, 
-                emp_debit_amount, emp_credit_amount, emp_debit_note, emp_credit_note, status
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        """, (
-            allocation_id, employee_id, date_val, total_amount, discount,
-            cash, online, note, 
-            emp_debit_amount, emp_credit_amount, emp_debit_note, emp_credit_note, status
-        ))
-        settlement_id = mysql.connection.insert_id()
-
-        # 3. Process Items (Sold/Return)
-        product_ids = request.form.getlist('product_ids[]')
-        sold_qtys = request.form.getlist('sold_qtys[]')
-        return_qtys = request.form.getlist('return_qtys[]')
-
-        for i in range(len(product_ids)):
-            pid = product_ids[i]
-            sold = int(sold_qtys[i] or 0)
-            ret = int(return_qtys[i] or 0)
+        try:
+            status = request.form.get('status')
+            draft_id = request.form.get('draft_id')
+            alloc_id = request.form.get('allocation_id')
+            emp_id = request.form.get('h_employee')
+            date_val = request.form.get('h_date')
             
-            # Insert Detail
-            cur.execute("""
-                INSERT INTO evening_settlement_items (settlement_id, product_id, sold_qty, return_qty)
-                VALUES (%s, %s, %s, %s)
-            """, (settlement_id, pid, sold, ret))
+            # --- TIME FIX: Force Server-Side IST ---
+            # We ignore frontend timestamp to ensure consistency
+            ist_now = get_ist_now()
+            time_str = ist_now.strftime('%Y-%m-%d %H:%M:%S') 
+            
+            # Check existing
+            cursor.execute("SELECT id FROM evening_settle WHERE employee_id=%s AND date=%s", (emp_id, date_val))
+            existing_record = cursor.fetchone()
 
-            # IF FINAL: Update Inventory
-            if status == 'final':
-                # Return Qty -> Add back to Warehouse
-                if ret > 0:
-                    cur.execute("UPDATE products SET stock = stock + %s WHERE id = %s", (ret, pid))
+            # --- NULL ALLOCATION ID FIX ---
+            final_alloc_id = None
+            if alloc_id and alloc_id.strip() not in ['', '0', 'None']:
+                try: final_alloc_id = int(alloc_id)
+                except: final_alloc_id = None
+            
+            if not final_alloc_id:
+                cursor.execute("SELECT id FROM morning_allocations WHERE employee_id=%s AND date=%s", (emp_id, date_val))
+                ma = cursor.fetchone()
+                if ma:
+                    final_alloc_id = ma['id']
+                else:
+                    # Create Dummy Allocation if missing (Foreign Key req)
+                    cursor.execute("INSERT INTO morning_allocations (employee_id, date, created_at) VALUES (%s, %s, %s)", (emp_id, date_val, time_str))
+                    final_alloc_id = cursor.lastrowid
+                    conn.commit()
+
+            total_amt = float(request.form.get('totalAmount') or 0)
+            discount = float(request.form.get('discount') or 0)
+            online = float(request.form.get('online') or 0)
+            cash = float(request.form.get('cash') or 0)
+            
+            emp_c = float(request.form.get('emp_credit_amount') or 0)
+            emp_c_n = request.form.get('emp_credit_note')
+            emp_d = float(request.form.get('emp_debit_amount') or 0)
+            emp_d_n = request.form.get('emp_debit_note')
+            due_n = request.form.get('due_note')
+
+            if existing_record:
+                settle_id = existing_record['id']
+                cursor.execute("""
+                    UPDATE evening_settle SET total_amount=%s, cash_money=%s, online_money=%s, discount=%s, 
+                    emp_credit_amount=%s, emp_credit_note=%s, emp_debit_amount=%s, emp_debit_note=%s, 
+                    due_note=%s, status=%s, created_at=%s, allocation_id=%s WHERE id=%s
+                """, (total_amt, cash, online, discount, emp_c, emp_c_n, emp_d, emp_d_n, due_n, status, time_str, final_alloc_id, settle_id))
+                cursor.execute("DELETE FROM evening_item WHERE settle_id=%s", (settle_id,))
+            else:
+                cursor.execute("""
+                    INSERT INTO evening_settle (allocation_id, employee_id, date, total_amount, cash_money, online_money, discount, 
+                    emp_credit_amount, emp_credit_note, emp_debit_amount, emp_debit_note, due_note, status, created_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """, (final_alloc_id, emp_id, date_val, total_amt, cash, online, discount, emp_c, emp_c_n, emp_d, emp_d_n, due_n, status, time_str))
+                settle_id = cursor.lastrowid
+
+            p_ids = request.form.getlist('product_id[]')
+            t_qtys = request.form.getlist('total_qty[]')
+            s_qtys = request.form.getlist('sold[]')
+            r_qtys = request.form.getlist('return[]')
+            prices = request.form.getlist('price[]')
+
+            for i, pid in enumerate(p_ids):
+                if not pid: continue
+                tot = int(float(t_qtys[i] or 0))
+                sold = int(float(s_qtys[i] or 0))
+                ret = int(float(r_qtys[i] or 0))
+                pr = float(prices[i] or 0)
+                rem = max(0, tot - sold - ret) 
+
+                cursor.execute("INSERT INTO evening_item (settle_id, product_id, total_qty, sold_qty, return_qty, remaining_qty, unit_price) VALUES (%s, %s, %s, %s, %s, %s, %s)", 
+                               (settle_id, pid, tot, sold, ret, rem, pr))
                 
-                # Sold Qty -> Already deducted from Warehouse during Morning Allocation (Given).
-                # But we need to update "Employee Allocation" (Virtual Stock).
-                # Logic: Employee Stock was increased by Given. Now we reduce it by Sold.
-                # Actually, usually 'Allocated' is just a record. 
-                # If you track 'Current Holding' of employee, you would update it here.
-                pass 
+                if status == 'final' and ret > 0:
+                    cursor.execute("UPDATE products SET stock = stock + %s WHERE id = %s", (ret, pid))
 
-        # 4. IF FINAL: Update Employee Ledger
-        if status == 'final':
-            # Case 1: Debit (Due)
-            if emp_debit_amount > 0:
-                cur.execute("""
-                    INSERT INTO employee_ledger (employee_id, date, type, amount, description)
-                    VALUES (%s, %s, 'debit', %s, %s)
-                """, (employee_id, date_val, emp_debit_amount, f"Evening Due (Settlement #{settlement_id})"))
-            
-            # Case 2: Credit (Advance/Payment) - Only if not zero
-            if emp_credit_amount > 0:
-                cur.execute("""
-                    INSERT INTO employee_ledger (employee_id, date, type, amount, description)
-                    VALUES (%s, %s, 'credit', %s, %s)
-                """, (employee_id, date_val, emp_credit_amount, f"Evening Credit (Settlement #{settlement_id})"))
+            if status == 'final':
+                # LEDGER ENTRIES with IST Time
+                if emp_c > 0: 
+                    cursor.execute("INSERT INTO employee_transactions (employee_id, transaction_date, type, amount, description, created_at) VALUES (%s, %s, 'credit', %s, %s, %s)", 
+                                   (emp_id, date_val, emp_c, f"Credit #{settle_id}: {emp_c_n or 'Evening Settle'}", time_str))
+                
+                if emp_d > 0: 
+                    cursor.execute("INSERT INTO employee_transactions (employee_id, transaction_date, type, amount, description, created_at) VALUES (%s, %s, 'debit', %s, %s, %s)", 
+                                   (emp_id, date_val, emp_d, f"Debit #{settle_id}: {emp_d_n or 'Evening Settle'}", time_str))
 
-        mysql.connection.commit()
-        cur.close()
+            conn.commit()
+            flash("Saved successfully!", "success")
+            return redirect(url_for('evening'))
 
-        if status == 'draft':
-            flash('Draft saved successfully.', 'info')
-            return redirect(url_for('draft_evening_list'))
-        else:
-            flash('Settlement submitted successfully!', 'success')
-            return redirect(url_for('view_evening', settle_id=settlement_id))
+        except Exception as e:
+            conn.rollback()
+            flash(f"Error: {e}", "danger")
+            return redirect(url_for('evening'))
 
-    # GET Request
-    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-    cur.execute("SELECT * FROM employees WHERE status='active'")
-    employees = cur.fetchall()
-    cur.close()
+    cursor.execute("SELECT id, name, image FROM employees WHERE status='active' ORDER BY name")
+    emps = cursor.fetchall()
+    for e in emps: e['image'] = resolve_img(e['image'])
+    return render_template('evening.html', employees=emps, today=date.today().strftime('%d-%m-%Y'))
     
-    return render_template('evening.html', employees=employees, today=date.today().strftime('%d-%m-%Y'))
-
 # --- 5. ROUTE: ALLOCATION LIST (Formatted Date/Time & Status Check) ---
 @app.route('/allocation_list', methods=['GET'])
 def allocation_list():
@@ -8627,6 +8606,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
