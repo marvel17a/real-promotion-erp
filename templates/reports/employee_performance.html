@@ -105,9 +105,6 @@
             <p class="text-muted small fw-bold mb-0">Sales analysis & rankings</p>
         </div>
         <div>
-            <a href="{{ url_for('report_employee_performance_pdf', start_date=start_date, end_date=end_date) }}" class="btn btn-danger btn-sm rounded-pill px-3 shadow-sm fw-bold me-2">
-                <i class="fa-solid fa-file-pdf me-2"></i> PDF
-            </a>
             <a href="{{ url_for('reports') }}" class="btn btn-light btn-sm rounded-pill px-3 border shadow-sm fw-bold">
                 <i class="fa-solid fa-arrow-left me-2"></i> Back
             </a>
@@ -148,7 +145,7 @@
             <!-- 1. Top Revenue -->
             <div class="col-md-4">
                 <div class="kpi-card kpi-gold">
-                    <div class="kpi-title">Top Salesman (Revenue)</div>
+                    <div class="kpi-title">Top Performer (Revenue)</div>
                     <div class="d-flex align-items-center mt-2">
                         <!-- Image Display -->
                         <img src="{{ top_sales.employee_image }}" class="rounded-circle me-3 border" width="50" height="50" style="object-fit:cover;">
@@ -164,7 +161,7 @@
             <!-- 2. Most Units (FIXED: Added Image) -->
             <div class="col-md-4">
                 <div class="kpi-card kpi-teal">
-                    <div class="kpi-title">Most Units Sold</div>
+                    <div class="kpi-title">High Score</div>
                     <div class="d-flex align-items-center mt-2">
                         <!-- Added Image Here -->
                         <img src="{{ top_units.employee_image }}" class="rounded-circle me-3 border" width="50" height="50" style="object-fit:cover;">
@@ -182,7 +179,7 @@
                 <div class="kpi-card kpi-indigo">
                     <div class="kpi-title">Total Period Revenue</div>
                     <div class="kpi-val text-primary">{{ total_revenue|inr }}</div>
-                    <div class="kpi-sub">{{ total_units }} Total Units Sold</div>
+                    <div class="kpi-sub">{{ total_units }} Total Sccore</div>
                     <i class="fa-solid fa-chart-line kpi-icon text-primary"></i>
                 </div>
             </div>
@@ -220,7 +217,7 @@
                         <tr>
                             <th class="ps-4 text-center">Rank</th>
                             <th>Employee</th>
-                            <th class="text-center">Units Sold</th>
+                            <th class="text-center">Score</th>
                             <th class="text-end pe-4">Total Revenue</th>
                         </tr>
                     </thead>
@@ -327,3 +324,4 @@
     });
 </script>
 {% endblock %}
+
