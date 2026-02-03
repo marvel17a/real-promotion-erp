@@ -5,7 +5,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const ui = {
         empSelect: getEl("employee"), 
         dateInput: getEl("date"),
-        // btnFetch Removed as per request
         form: getEl("eveningForm"),
         tableBody: getEl("rowsArea"),
         msg: getEl("fetchMsg"),
@@ -17,7 +16,7 @@ document.addEventListener("DOMContentLoaded", () => {
             hDate: getEl('h_date'),
             status: getEl('formStatus'),
             draftId: getEl('draft_id'),
-            timestamp: getEl('timestampInput') // This is the hidden field we update
+            timestamp: getEl('timestampInput')
         },
         
         payment: {
@@ -26,9 +25,11 @@ document.addEventListener("DOMContentLoaded", () => {
             discount: getEl('discount'),
             cash: getEl('cash'),
             online: getEl('online'),
-            due: getEl('dueAmount'),
-            dueBox: getEl('dueContainer'), // New ID for container
-            dueWrapper: getEl('dueWrapper') // New ID for wrapper
+            
+            // Modified UI elements
+            dueContainer: getEl('dueContainer'),
+            dueLabel: getEl('dueLabel'),
+            dueValueDisplay: getEl('dueValueDisplay')
         },
 
         footer: {
@@ -42,14 +43,10 @@ document.addEventListener("DOMContentLoaded", () => {
     // --- 2. LIVE CLOCK & TIMESTAMP LOGIC ---
     function updateClock() {
         const now = new Date();
-        
-        // 1. Update Visual Clock
         const timeString = now.toLocaleTimeString('en-US', { hour12: true });
         const clockEl = getEl('liveClock');
         if(clockEl) clockEl.textContent = timeString;
 
-        // 2. Update Hidden Input with ISO format for Backend
-        // Format: YYYY-MM-DD HH:MM:SS
         const pad = n => String(n).padStart(2, '0');
         const isoString = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
         
@@ -58,22 +55,19 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
     
-    // Update every second
     setInterval(updateClock, 1000);
-    updateClock(); // Run immediately
+    updateClock(); 
 
     // --- 3. AUTO FETCH DATA LOGIC ---
     async function fetchData() {
         const empId = ui.empSelect.value;
         const dateVal = ui.dateInput.value;
 
-        // Only fetch if both are selected
         if (!empId || !dateVal) return;
 
         ui.msg.classList.remove('d-none');
         ui.msg.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Checking records...';
         
-        // Hide Form initially while fetching
         if(ui.form) ui.form.classList.add('d-none');
         if(ui.block) ui.block.classList.add('d-none');
 
@@ -85,14 +79,12 @@ document.addEventListener("DOMContentLoaded", () => {
             const res = await fetch('/api/fetch_evening_data', { method: 'POST', body: formData });
             const data = await res.json();
 
-            // Case 1: Already Submitted (Final)
             if (data.status === 'submitted') {
                 ui.msg.classList.add('d-none');
                 if(ui.block) ui.block.classList.remove('d-none');
                 return; 
             }
 
-            // Case 2: Success (Fresh or Draft)
             if (data.status === 'success') {
                 renderTable(data.products, data.source);
                 
@@ -113,7 +105,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 calculateDue(); 
 
             } else {
-                // Case 3: Error / No Data
                 ui.msg.innerHTML = `<span class="text-danger"><i class="fa-solid fa-triangle-exclamation me-2"></i>${data.message}</span>`;
             }
 
@@ -123,7 +114,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // Attach Listeners for Auto-Fetch
     if(ui.empSelect) ui.empSelect.addEventListener('change', fetchData);
     if(ui.dateInput) ui.dateInput.addEventListener('change', fetchData);
 
@@ -192,7 +182,7 @@ document.addEventListener("DOMContentLoaded", () => {
         calculateDue();
     }
 
-    // --- 5. CALCULATIONS ---
+    // --- 5. CALCULATIONS (UPDATED VISUAL LOGIC) ---
     function calculateDue(e) {
         let grandTotal = 0;
         let sumTotal = 0;
@@ -247,6 +237,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if(ui.payment.totalAmt) ui.payment.totalAmt.value = grandTotal.toFixed(2);
         if(ui.payment.dispTotal) ui.payment.dispTotal.textContent = grandTotal.toFixed(2);
 
+        // --- PAYMENT LOGIC START ---
         const disc = parseFloat(ui.payment.discount.value) || 0;
         const online = parseFloat(ui.payment.online.value) || 0;
         const cash = parseFloat(ui.payment.cash.value) || 0;
@@ -255,34 +246,34 @@ document.addEventListener("DOMContentLoaded", () => {
         const netPayable = grandTotal - disc;
         const due = netPayable - totalPay;
         
-        // --- VISUAL LOGIC FOR DUE BOX ---
-        if(ui.payment.due && ui.payment.dueBox) {
+        const container = ui.payment.dueContainer;
+        const label = ui.payment.dueLabel;
+        const valueDisplay = ui.payment.dueValueDisplay;
+        
+        if(container && label && valueDisplay) {
             
-            // Reset Styles
-            ui.payment.dueBox.style.backgroundColor = '';
-            ui.payment.dueBox.style.color = '';
-            ui.payment.dueBox.style.border = '';
+            // Remove previous state classes
+            container.classList.remove('status-cleared', 'status-due', 'status-profit');
             
+            // State 1: CLEARED (Green)
             if (Math.abs(due) < 1) {
-                // Condition 1: CLEARED (approx 0)
-                ui.payment.dueWrapper.innerHTML = `<span class="text-success fw-bold">CLEARED ₹ 0.00</span>`;
-                ui.payment.dueBox.style.backgroundColor = 'green'; // Light Green
-                ui.payment.dueBox.style.border = '1px solid #c3e6cb';
-            
-            } else if (due > 0) {
-                // Condition 2: DUE (Red with - sign)
-                ui.payment.dueWrapper.innerHTML = `<span class="text-danger fw-bold">- ₹ ${due.toFixed(2)}</span>`;
-                ui.payment.dueBox.style.backgroundColor = 'red'; // Light Red
-                ui.payment.dueBox.style.border = '1px solid #f5c6cb';
-
-            } else {
-                // Condition 3: PROFIT/REFUND (Yellow Box, Green Text, + sign)
-                // Company pays back difference
-                const extra = Math.abs(due).toFixed(2);
-                ui.payment.dueWrapper.innerHTML = `<span class="text-success fw-bold">Paid Cash: + ₹ ${extra}</span>`;
-                
-                ui.payment.dueBox.style.backgroundColor = 'green'; // Yellow
-                ui.payment.dueBox.style.border = '1px solid #ffecb5';
+                container.classList.add('status-cleared');
+                label.innerText = "STATUS";
+                valueDisplay.innerText = "CLEARED";
+            } 
+            // State 2: DUE (Red)
+            else if (due > 0) {
+                container.classList.add('status-due');
+                label.innerText = "BALANCE DUE";
+                valueDisplay.innerText = "- ₹ " + due.toFixed(2);
+            } 
+            // State 3: PROFIT/REFUND (Yellow)
+            else {
+                // due is negative here
+                const profit = Math.abs(due).toFixed(2);
+                container.classList.add('status-profit');
+                label.innerText = "PAID CASH";
+                valueDisplay.innerText = "+ ₹ " + profit;
             }
         }
     }
@@ -296,7 +287,7 @@ document.addEventListener("DOMContentLoaded", () => {
         
         setVal('emp_credit_amount', d.emp_credit_amount);
         setVal('emp_credit_note', d.emp_credit_note);
-        setVal('emp_debit_amount', d.emp_debit_amount);
+        setVal('emp_debit_amount', d.emp_debit_note);
         setVal('emp_debit_note', d.emp_debit_note);
     }
 
@@ -331,13 +322,10 @@ document.addEventListener("DOMContentLoaded", () => {
         if(ui.hidden.status) ui.hidden.status.value = 'final';
         
         const total = parseFloat(ui.payment.totalAmt.value) || 0;
-        // Removed 0 check to allow profit on 0 sales if needed
-        if (total === 0 && !confirm("Total Sales is 0. Submit?")) return;
+        // Check removed to allow zero sales
         
         if(confirm("CONFIRM SETTLEMENT?\n\n- Returns will add to stock.\n- Ledger will be updated.")) {
             ui.form.submit();
         }
     };
 });
-
-
