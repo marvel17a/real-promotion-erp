@@ -266,13 +266,13 @@ document.addEventListener("DOMContentLoaded", () => {
             if (Math.abs(due) < 1) {
                 // Condition 1: CLEARED (approx 0)
                 ui.payment.dueWrapper.innerHTML = `<span class="text-success fw-bold">CLEARED ₹ 0.00</span>`;
-                ui.payment.dueBox.style.backgroundColor = '#e8f5e9'; // Light Green
+                ui.payment.dueBox.style.backgroundColor = 'green'; // Light Green
                 ui.payment.dueBox.style.border = '1px solid #c3e6cb';
             
             } else if (due > 0) {
                 // Condition 2: DUE (Red with - sign)
                 ui.payment.dueWrapper.innerHTML = `<span class="text-danger fw-bold">- ₹ ${due.toFixed(2)}</span>`;
-                ui.payment.dueBox.style.backgroundColor = '#f8d7da'; // Light Red
+                ui.payment.dueBox.style.backgroundColor = 'red'; // Light Red
                 ui.payment.dueBox.style.border = '1px solid #f5c6cb';
 
             } else {
@@ -281,7 +281,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 const extra = Math.abs(due).toFixed(2);
                 ui.payment.dueWrapper.innerHTML = `<span class="text-success fw-bold">Paid Cash: + ₹ ${extra}</span>`;
                 
-                ui.payment.dueBox.style.backgroundColor = '#fff3cd'; // Yellow
+                ui.payment.dueBox.style.backgroundColor = 'yello'; // Yellow
                 ui.payment.dueBox.style.border = '1px solid #ffecb5';
             }
         }
@@ -339,3 +339,4 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     };
 });
+
