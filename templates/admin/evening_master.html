@@ -22,143 +22,137 @@
         </div>
     </div>
 
-    <!-- 1. Stats Cards (MOVED TO TOP) -->
+    <!-- 1. Stats Cards -->
     <div class="row g-3 mb-4">
-        <!-- Net Sales -->
+        <!-- Net Sales Card with Pending Due Logic -->
         <div class="col-md-3">
             <div class="card border-0 shadow-sm p-3 bg-gradient-primary text-white h-100 rounded-4">
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
-                        <p class="mb-0 small text-white-50 text-uppercase fw-bold">Net Sales</p>
-                        <h3 class="fw-bold mb-0">₹ {{ "%.0f"|format(stats.net_sales) }}</h3>
+                        <p class="mb-1 opacity-75 small text-uppercase fw-bold">Net Sales</p>
+                        <h3 class="fw-bold mb-0">₹ {{ "%.2f"|format(stats.net_sales) }}</h3>
+                        
+                        <!-- SHOW PENDING DUE HERE -->
+                        {% if pending_due > 0 %}
+                        <div class="mt-2 badge bg-white bg-opacity-25 fw-normal">
+                            <i class="fa-solid fa-circle-exclamation me-1 text-warning"></i> Due: ₹ {{ "%.2f"|format(pending_due) }}
+                        </div>
+                        {% else %}
+                        <div class="mt-2 badge bg-white bg-opacity-25 fw-normal">
+                            <i class="fa-solid fa-check me-1"></i> All Clear
+                        </div>
+                        {% endif %}
                     </div>
-                    <div class="p-2 bg-white bg-opacity-25 rounded-3"><i class="fa-solid fa-chart-line fs-4 text-white"></i></div>
+                    <div class="icon-box bg-white bg-opacity-25 rounded-circle p-3">
+                        <i class="fa-solid fa-chart-line fs-4"></i>
+                    </div>
                 </div>
-                <small class="text-white-50 mt-2 d-block" style="font-size: 0.75rem;">(Gross: ₹{{ "%.0f"|format(stats.total_sales) }})</small>
             </div>
         </div>
-        <!-- Cash -->
+
+        <!-- Cash In Hand (Adjusted) -->
         <div class="col-md-3">
             <div class="card border-0 shadow-sm p-3 bg-gradient-success text-white h-100 rounded-4">
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
-                        <p class="mb-0 small text-white-50 text-uppercase fw-bold">Cash</p>
-                        <h3 class="fw-bold mb-0">₹ {{ "%.0f"|format(stats.cash) }}</h3>
+                        <p class="mb-1 opacity-75 small text-uppercase fw-bold">Cash In Hand</p>
+                        <!-- Uses 'adjusted_cash' passed from route -->
+                        <h3 class="fw-bold mb-0">₹ {{ "%.2f"|format(adjusted_cash) }}</h3>
                     </div>
-                    <div class="p-2 bg-white bg-opacity-25 rounded-3"><i class="fa-solid fa-money-bill-wave fs-4 text-white"></i></div>
+                    <div class="icon-box bg-white bg-opacity-25 rounded-circle p-3">
+                        <i class="fa-solid fa-money-bill-wave fs-4"></i>
+                    </div>
                 </div>
             </div>
         </div>
+
         <!-- Online -->
         <div class="col-md-3">
             <div class="card border-0 shadow-sm p-3 bg-gradient-info text-white h-100 rounded-4">
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
-                        <p class="mb-0 small text-white-50 text-uppercase fw-bold">Online</p>
-                        <h3 class="fw-bold mb-0">₹ {{ "%.0f"|format(stats.online) }}</h3>
+                        <p class="mb-1 opacity-75 small text-uppercase fw-bold">Online</p>
+                        <h3 class="fw-bold mb-0">₹ {{ "%.2f"|format(stats.online) }}</h3>
                     </div>
-                    <div class="p-2 bg-white bg-opacity-25 rounded-3"><i class="fa-solid fa-qrcode fs-4 text-white"></i></div>
+                    <div class="icon-box bg-white bg-opacity-25 rounded-circle p-3">
+                        <i class="fa-brands fa-google-pay fs-4"></i>
+                    </div>
                 </div>
             </div>
         </div>
-        <!-- Discount -->
+
+        <!-- Filter Card -->
         <div class="col-md-3">
-            <div class="card border-0 shadow-sm p-3 bg-gradient-warning text-dark h-100 rounded-4">
-                <div class="d-flex justify-content-between align-items-start">
-                    <div>
-                        <p class="mb-0 small text-dark-50 text-uppercase fw-bold">Discount</p>
-                        <h3 class="fw-bold mb-0">₹ {{ "%.0f"|format(stats.discount) }}</h3>
-                    </div>
-                    <div class="p-2 bg-white bg-opacity-50 rounded-3"><i class="fa-solid fa-percent fs-4 text-dark"></i></div>
+            <div class="card border-0 shadow-sm h-100 rounded-4">
+                <div class="card-body p-3">
+                    <form method="GET" class="d-flex flex-column gap-2 h-100 justify-content-center">
+                        <div class="input-group input-group-sm">
+                            <input type="text" name="start_date" class="form-control date-picker" placeholder="Start" value="{{ filters.start or '' }}">
+                            <input type="text" name="end_date" class="form-control date-picker" placeholder="End" value="{{ filters.end or '' }}">
+                        </div>
+                        <select name="employee_id" class="form-select form-select-sm">
+                            <option value="">All Employees</option>
+                            {% for e in employees %}
+                            <option value="{{ e.id }}" {% if filters.emp == e.id|string %}selected{% endif %}>{{ e.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <button class="btn btn-dark btn-sm w-100 rounded-pill">Apply Filter</button>
+                    </form>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- 2. Filter Section (MOVED BELOW CARDS) -->
-    <div class="card border-0 shadow-sm rounded-4 mb-4">
-        <div class="card-body p-3">
-            <form method="GET" action="{{ url_for('admin_evening_master') }}" class="row g-3 align-items-end">
-                <div class="col-md-3">
-                    <label class="form-label small fw-bold text-muted text-uppercase">Start Date</label>
-                    <input type="text" name="start_date" class="form-control date-picker rounded-pill" value="{{ filters.start or '' }}" placeholder="dd-mm-yyyy">
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label small fw-bold text-muted text-uppercase">End Date</label>
-                    <input type="text" name="end_date" class="form-control date-picker rounded-pill" value="{{ filters.end or '' }}" placeholder="dd-mm-yyyy">
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label small fw-bold text-muted text-uppercase">Employee</label>
-                    <select name="employee_id" class="form-select rounded-pill">
-                        <option value="all">All Employees</option>
-                        {% for emp in employees %}
-                        <option value="{{ emp.id }}" {% if filters.emp|string == emp.id|string %}selected{% endif %}>{{ emp.name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-md-3 d-flex gap-2">
-                    <button type="submit" class="btn btn-primary rounded-pill w-100 fw-bold"><i class="fa-solid fa-filter me-2"></i>Filter</button>
-                    <a href="{{ url_for('admin_evening_master') }}" class="btn btn-light border rounded-pill w-50" title="Reset"><i class="fa-solid fa-rotate-right"></i></a>
-                </div>
-            </form>
+    <!-- 2. Table Section -->
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+        <div class="card-header bg-white py-3 border-0">
+            <h6 class="fw-bold mb-0 text-secondary"><i class="fa-solid fa-list me-2"></i>Transaction History</h6>
         </div>
-    </div>
-
-    <!-- Data Table -->
-    <div class="card border-0 shadow-sm rounded-4">
-        <div class="card-body p-0">
-            <table class="table align-middle table-hover mb-0">
-                <thead class="bg-light">
-                    <tr class="text-uppercase small fw-bold text-muted">
-                        <th class="ps-4">#ID</th>
-                        <th>Date & Time</th> <!-- Updated Header -->
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light text-uppercase small text-muted">
+                    <tr>
+                        <th class="ps-4">ID</th>
+                        <th>Date</th>
                         <th>Employee</th>
-                        <th class="text-center">Total</th>
-                        <th class="text-center text-warning">Disc.</th>
-                        <th class="text-center text-success">Cash</th>
-                        <th class="text-center text-danger">Status / Due</th>
+                        <th class="text-end">Sales</th>
+                        <th class="text-end">Cash</th>
+                        <th class="text-end">Online</th>
+                        <th class="text-center">Status</th>
                         <th class="text-end pe-4">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for s in settlements %}
                     <tr>
-                        <td class="ps-4 fw-bold text-primary">#{{ s.id }}</td>
+                        <td class="ps-4 fw-bold text-secondary">#{{ s.id }}</td>
                         <td>
-                            <div class="d-flex flex-column">
-                                <span class="fw-bold text-dark">{{ s.formatted_date }}</span>
-                                <span class="small text-muted">{{ s.formatted_time }}</span>
-                            </div>
+                            <div class="small fw-bold">{{ s.formatted_date }}</div>
+                            <div class="x-small text-muted">{{ s.formatted_time }}</div>
                         </td>
                         <td>
                             <div class="d-flex align-items-center">
-                                <img src="{{ s.emp_image }}" class="rounded-circle me-2 border shadow-sm" width="35" height="35" style="object-fit: cover;" onerror="this.src='{{ url_for('static', filename='img/default-user.png') }}'">
+                                <img src="{{ s.emp_image }}" class="rounded-circle me-2 border" width="30" height="30">
                                 <span class="fw-bold text-dark">{{ s.emp_name }}</span>
                             </div>
                         </td>
-                        <td class="text-center fw-bold">₹{{ "%.0f"|format(s.total_amount) }}</td>
-                        <td class="text-center fw-bold text-warning">
-                            {% if s.discount > 0 %}- ₹{{ "%.0f"|format(s.discount) }}{% else %}<span class="text-muted">-</span>{% endif %}
-                        </td>
-                        <td class="text-center fw-bold text-success">₹{{ "%.0f"|format(s.cash_money) }}</td>
-                        
-                        <!-- Status / Due Amount Column -->
+                        <td class="text-end fw-bold">₹ {{ "%.2f"|format(s.total_amount) }}</td>
+                        <td class="text-end text-success">₹ {{ "%.2f"|format(s.cash_money) }}</td>
+                        <td class="text-end text-primary">₹ {{ "%.2f"|format(s.online_money) }}</td>
                         <td class="text-center">
-                            {% if s.due_amount > 1 %}
-                                <div class="d-flex align-items-center justify-content-center gap-1">
-                                    <span class="badge bg-danger bg-opacity-10 text-danger border border-danger px-2">Due</span>
-                                    <span class="small text-danger fw-bold">₹ {{ "%.0f"|format(s.due_amount) }}</span>
-                                </div>
+                            <!-- Dynamic Status Badges -->
+                            {% if s.due_amount > 0.9 %}
+                                <span class="badge bg-danger bg-opacity-10 text-danger px-3">Due: {{ "%.0f"|format(s.due_amount) }}</span>
+                            {% elif s.due_amount < -0.9 %}
+                                <span class="badge bg-warning bg-opacity-10 text-dark border border-warning px-3">Profit: +{{ "%.0f"|format(s.due_amount|abs) }}</span>
                             {% else %}
-                                <span class="badge bg-success bg-opacity-10 text-success border border-success px-3">Paid</span>
+                                <span class="badge bg-success bg-opacity-10 text-success px-3">Cleared</span>
                             {% endif %}
                         </td>
-
                         <td class="text-end pe-4">
                             <div class="btn-group">
-                                <a href="{{ url_for('view_evening_settlement', settle_id=s.id) }}" class="btn btn-sm btn-info text-white shadow-sm" title="View"><i class="fa-solid fa-eye"></i></a>
-                                <a href="{{ url_for('download_evening_pdf', settle_id=s.id) }}" class="btn btn-sm btn-outline-danger shadow-sm" title="PDF"><i class="fa-solid fa-file-pdf"></i></a>
-                                <a href="{{ url_for('admin_edit_evening', settle_id=s.id) }}" class="btn btn-sm btn-primary shadow-sm" title="Edit"><i class="fa-solid fa-pen"></i></a>
+                                <a href="{{ url_for('view_evening', settle_id=s.id) }}" class="btn btn-sm btn-light border shadow-sm" title="View"><i class="fa-regular fa-eye"></i></a>
+                                <a href="{{ url_for('edit_evening_settle', settle_id=s.id) }}" class="btn btn-sm btn-light border shadow-sm" title="Edit"><i class="fa-solid fa-pen"></i></a>
                                 <form action="{{ url_for('admin_delete_evening', settle_id=s.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete? Stock will revert.');">
                                     <button class="btn btn-sm btn-danger shadow-sm border-start-0" title="Delete"><i class="fa-solid fa-trash"></i></button>
                                 </form>
@@ -185,8 +179,6 @@
     .bg-gradient-primary { background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%); }
     .bg-gradient-success { background: linear-gradient(135deg, #198754 0%, #146c43 100%); }
     .bg-gradient-info { background: linear-gradient(135deg, #0dcaf0 0%, #0aa2c0 100%); }
-    .bg-gradient-warning { background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%); }
-    .fade-in-up { animation: fadeInUp 0.5s ease-out forwards; }
-    @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    .x-small { font-size: 0.75rem; }
 </style>
 {% endblock %}
