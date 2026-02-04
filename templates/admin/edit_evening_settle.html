@@ -29,32 +29,30 @@
                                     <th class="text-center" style="width: 80px;">Total</th>
                                     <th style="width: 100px;">Sold</th>
                                     <th style="width: 100px;">Return</th>
-                                    <th class="text-center" style="width: 80px;">Left</th>
+                                    <th class="text-end pe-4" style="width: 100px;">Price</th>
                                     <th class="text-end pe-4" style="width: 120px;">Amount</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for item in items %}
-                                <tr class="item-row">
-                                    <td class="ps-4">
-                                        <img src="{{ item.image }}" class="rounded border" width="40" height="40">
-                                    </td>
-                                    <td>
-                                        <span class="fw-bold text-dark d-block">{{ item.product_name }}</span>
+                                <tr>
+                                    <td class="ps-4"><img src="{{ item.image }}" width="40" class="rounded"></td>
+                                    <td class="fw-bold text-dark">
+                                        {{ item.product_name }}
                                         <input type="hidden" name="product_id[]" value="{{ item.product_id }}">
-                                        <input type="hidden" name="unit_price" class="unit-price" value="{{ item.unit_price }}">
                                     </td>
-                                    <td class="text-center text-muted fw-bold total-qty">{{ item.total_qty }}</td>
+                                    <td class="text-center">{{ item.total_qty }}</td>
                                     <td>
-                                        <input type="number" name="sold[]" class="form-control form-control-sm text-center fw-bold text-success border-success input-sold" 
-                                               value="{{ item.sold_qty }}" min="0">
+                                        <input type="number" name="sold[]" class="form-control form-control-sm input-sold fw-bold text-primary" value="{{ item.sold_qty }}">
                                     </td>
                                     <td>
-                                        <input type="number" name="return[]" class="form-control form-control-sm text-center fw-bold text-danger border-danger input-return" 
-                                               value="{{ item.return_qty }}" min="0">
+                                        <input type="number" name="return[]" class="form-control form-control-sm input-return text-danger" value="{{ item.return_qty }}">
                                     </td>
-                                    <td class="text-center fw-bold text-secondary remaining-qty">{{ item.remaining_qty }}</td>
-                                    <td class="text-end pe-4 fw-bold text-primary row-amount">
+                                    <td class="text-end pe-4 text-muted">
+                                        <input type="hidden" class="input-price" value="{{ item.unit_price }}">
+                                        {{ "%.2f"|format(item.unit_price) }}
+                                    </td>
+                                    <td class="text-end pe-4 fw-bold row-amount">
                                         {{ "%.2f"|format(item.sold_qty * item.unit_price) }}
                                     </td>
                                 </tr>
@@ -67,67 +65,38 @@
 
             <!-- RIGHT: Financials -->
             <div class="col-lg-4">
-                <div class="card glass-card border-0 shadow-sm p-4 h-100">
-                    <h5 class="fw-bold mb-4">Financial Details</h5>
+                <div class="card glass-card border-0 shadow-sm p-4">
+                    <h5 class="fw-bold mb-4">Financials</h5>
                     
-                    <!-- Total -->
                     <div class="mb-3">
-                        <label class="form-label small text-muted fw-bold">Total Sales Value</label>
-                        <input type="number" step="0.01" name="totalAmount" id="totalAmount" class="form-control fw-bold fs-5 text-dark" readonly value="{{ settlement.total_amount }}">
+                        <label class="form-label small text-muted">Total Sales</label>
+                        <input type="number" step="0.01" name="totalAmount" id="totalAmount" class="form-control fw-bold" readonly value="{{ settlement.total_amount }}">
                     </div>
 
-                    <!-- Discount -->
                     <div class="mb-3">
-                        <label class="form-label small text-muted text-warning fw-bold">Discount (-)</label>
-                        <input type="number" step="0.01" name="discount" id="discount" class="form-control text-warning fw-bold" value="{{ settlement.discount }}">
+                        <label class="form-label small text-muted">Discount</label>
+                        <input type="number" step="0.01" name="discount" id="discount" class="form-control" value="{{ settlement.discount }}">
                     </div>
 
-                    <hr class="text-muted opacity-25">
-
-                    <!-- Payments -->
                     <div class="row g-2 mb-3">
                         <div class="col-6">
-                            <label class="form-label small text-muted text-info fw-bold">Online Paid</label>
-                            <input type="number" step="0.01" name="online" id="online" class="form-control text-info fw-bold" value="{{ settlement.online_money }}">
-                        </div>
-                        <div class="col-6">
-                            <label class="form-label small text-muted text-success fw-bold">Cash Paid</label>
+                            <label class="form-label small text-muted">Cash</label>
                             <input type="number" step="0.01" name="cash" id="cash" class="form-control text-success fw-bold" value="{{ settlement.cash_money }}">
                         </div>
-                    </div>
-
-                    <!-- Due -->
-                    <div class="p-3 bg-light rounded-3 text-center border mb-4">
-                        <small class="text-uppercase text-muted fw-bold ls-1">Balance Due</small>
-                        <h3 class="fw-800 mb-0 mt-1" id="dueAmount">0.00</h3>
-                        <input type="text" name="due_note" class="form-control form-control-sm mt-2 text-center bg-white" placeholder="Reason for due..." value="{{ settlement.due_note }}">
-                    </div>
-
-                    <hr class="text-muted">
-
-                    <!-- Employee Ledger -->
-                    <h6 class="fw-bold mb-3 small text-uppercase text-secondary">Ledger Adjustments</h6>
-                    
-                    <div class="mb-3 p-2 border rounded bg-success bg-opacity-10">
-                        <label class="small fw-bold text-success">Credit (Received)</label>
-                        <div class="input-group input-group-sm mb-1">
-                            <span class="input-group-text">₹</span>
-                            <input type="number" step="0.01" name="emp_credit_amount" class="form-control fw-bold" value="{{ settlement.emp_credit_amount }}">
+                        <div class="col-6">
+                            <label class="form-label small text-muted">Online</label>
+                            <input type="number" step="0.01" name="online" id="online" class="form-control text-primary fw-bold" value="{{ settlement.online_money }}">
                         </div>
-                        <input type="text" name="emp_credit_note" class="form-control form-control-sm" placeholder="Note..." value="{{ settlement.emp_credit_note }}">
                     </div>
 
-                    <div class="mb-4 p-2 border rounded bg-danger bg-opacity-10">
-                        <label class="small fw-bold text-danger">Debit (Given)</label>
-                        <div class="input-group input-group-sm mb-1">
-                            <span class="input-group-text">₹</span>
-                            <input type="number" step="0.01" name="emp_debit_amount" class="form-control fw-bold" value="{{ settlement.emp_debit_amount }}">
-                        </div>
-                        <input type="text" name="emp_debit_note" class="form-control form-control-sm" placeholder="Note..." value="{{ settlement.emp_debit_note }}">
+                    <!-- Dynamic Due Container -->
+                    <div id="dueContainer" class="p-3 rounded-3 text-center mt-3 border transition-all">
+                        <span id="dueLabel" class="d-block small fw-bold opacity-75 mb-1">STATUS</span>
+                        <span id="dueValueDisplay" class="fs-4 fw-800">Calculating...</span>
                     </div>
 
-                    <button type="submit" class="btn btn-primary w-100 rounded-pill py-2 fw-bold shadow-sm">
-                        <i class="fa-solid fa-save me-2"></i>Update Settlement
+                    <button type="submit" class="btn btn-primary w-100 mt-4 py-2 rounded-pill fw-bold shadow">
+                        <i class="fa-solid fa-save me-2"></i> Update Settlement
                     </button>
                 </div>
             </div>
@@ -140,52 +109,76 @@
     document.addEventListener("DOMContentLoaded", function() {
         const table = document.getElementById('editTable');
         const totalAmountEl = document.getElementById('totalAmount');
-        const dueEl = document.getElementById('dueAmount');
         
+        // UI Elements for Dynamic Status
+        const ui = {
+            container: document.getElementById('dueContainer'),
+            label: document.getElementById('dueLabel'),
+            display: document.getElementById('dueValueDisplay'),
+            discount: document.getElementById('discount'),
+            cash: document.getElementById('cash'),
+            online: document.getElementById('online')
+        };
+
         function calculate() {
             let grandTotal = 0;
-            const rows = table.querySelectorAll('.item-row');
             
-            rows.forEach(row => {
-                const price = parseFloat(row.querySelector('.unit-price').value) || 0;
-                const total = parseInt(row.querySelector('.total-qty').innerText) || 0;
-                
-                const soldInput = row.querySelector('.input-sold');
-                const returnInput = row.querySelector('.input-return');
-                
-                let sold = parseInt(soldInput.value) || 0;
-                let ret = parseInt(returnInput.value) || 0;
-
-                const remaining = total - sold - ret;
-                const remainEl = row.querySelector('.remaining-qty');
-                remainEl.innerText = remaining >= 0 ? remaining : 0;
-                if(remaining < 0) remainEl.classList.add('text-danger');
-                else remainEl.classList.remove('text-danger');
-                
+            // 1. Recalculate Table Rows
+            table.querySelectorAll('tbody tr').forEach(row => {
+                const sold = parseFloat(row.querySelector('.input-sold').value) || 0;
+                const price = parseFloat(row.querySelector('.input-price').value) || 0;
                 const amount = sold * price;
                 row.querySelector('.row-amount').innerText = amount.toFixed(2);
                 grandTotal += amount;
             });
             totalAmountEl.value = grandTotal.toFixed(2);
             
-            const cash = parseFloat(document.getElementById('cash').value) || 0;
-            const online = parseFloat(document.getElementById('online').value) || 0;
-            const discount = parseFloat(document.getElementById('discount').value) || 0;
+            // 2. Financial Logic
+            const cash = parseFloat(ui.cash.value) || 0;
+            const online = parseFloat(ui.online.value) || 0;
+            const discount = parseFloat(ui.discount.value) || 0;
             
-            // Formula: Total - Discount - (Cash + Online)
             const netPayable = grandTotal - discount;
             const totalPaid = cash + online;
             const due = netPayable - totalPaid;
             
-            dueEl.innerText = "₹ " + due.toFixed(2);
+            // 3. Update Status Box (Green/Red/Yellow)
             
-            if(due > 0.01) dueEl.className = "fw-800 mb-0 mt-1 text-danger";
-            else if(due < -0.01) dueEl.className = "fw-800 mb-0 mt-1 text-success";
-            else dueEl.className = "fw-800 mb-0 mt-1 text-secondary";
+            // Reset Styles
+            ui.container.style.backgroundColor = '';
+            ui.container.style.borderColor = '';
+            
+            if (Math.abs(due) < 1) {
+                // CLEARED
+                ui.container.style.backgroundColor = '#e8f5e9'; // Green
+                ui.container.style.borderColor = '#c3e6cb';
+                ui.label.innerText = "STATUS";
+                ui.label.className = "d-block small fw-bold text-success opacity-75 mb-1";
+                ui.display.innerText = "CLEARED";
+                ui.display.className = "fs-4 fw-800 text-success";
+            
+            } else if (due > 0) {
+                // DUE (Red)
+                ui.container.style.backgroundColor = '#f8d7da'; // Red
+                ui.container.style.borderColor = '#f5c6cb';
+                ui.label.innerText = "BALANCE DUE";
+                ui.label.className = "d-block small fw-bold text-danger opacity-75 mb-1";
+                ui.display.innerText = "- ₹ " + due.toFixed(2);
+                ui.display.className = "fs-4 fw-800 text-danger";
+
+            } else {
+                // PROFIT/REFUND (Yellow)
+                ui.container.style.backgroundColor = '#fff3cd'; // Yellow
+                ui.container.style.borderColor = '#ffecb5';
+                ui.label.innerText = "PAID CASH (PROFIT)";
+                ui.label.className = "d-block small fw-bold text-success opacity-75 mb-1";
+                ui.display.innerText = "+ ₹ " + Math.abs(due).toFixed(2);
+                ui.display.className = "fs-4 fw-800 text-success";
+            }
         }
 
         table.addEventListener('input', (e) => {
-            if(e.target.matches('.input-sold, .input-return')) calculate();
+            if(e.target.matches('.input-sold')) calculate();
         });
         
         ['cash', 'online', 'discount'].forEach(id => {
@@ -195,5 +188,8 @@
         calculate(); // Init on load
     });
 </script>
-<style> .glass-card { background: #fff; border-radius: 12px; } .form-control { border-radius: 8px; } </style>
+<style> 
+    .glass-card { background: #fff; border-radius: 12px; }
+    .transition-all { transition: all 0.3s ease; border: 1px solid transparent; }
+</style>
 {% endblock %}
