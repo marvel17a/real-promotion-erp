@@ -3520,7 +3520,7 @@ def inventory_master():
         FROM products p
         LEFT JOIN product_categories pc ON p.category_id = pc.id
         WHERE p.status = 'Active'
-        ORDER BY p.id DESC
+        ORDER BY p.id ASC
     """)
     products = cur.fetchall()
 
@@ -8670,6 +8670,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
