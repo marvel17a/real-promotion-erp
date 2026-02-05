@@ -4840,7 +4840,305 @@ def api_employee_detail(id):
 
 
 # ==========================================
-# PDF GENERATOR CLASS (UPDATED & STANDARDIZED)
+# 1. MORNING PDF ROUTE (Updated for Images)
+# ==========================================
+import requests
+import tempfile
+import os
+
+@app.route('/download_morning_pdf/<int:allocation_id>')
+def download_morning_pdf(allocation_id):
+    if "loggedin" not in session: return redirect(url_for("login"))
+    
+    conn = mysql.connection
+    cursor = conn.cursor(MySQLdb.cursors.DictCursor)
+    
+    # 1. Header with Employee Image
+    cursor.execute("""
+        SELECT ma.date, ma.created_at, e.name as emp_name, e.phone as emp_mobile, e.image as emp_image
+        FROM morning_allocations ma
+        JOIN employees e ON ma.employee_id = e.id
+        WHERE ma.id = %s
+    """, (allocation_id,))
+    header = cursor.fetchone()
+    
+    if not header:
+        flash("Allocation not found", "danger")
+        return redirect(url_for('allocation_list'))
+    
+    # Resolve Employee Image
+    emp_img = resolve_img(header['emp_image'])
+
+    # 2. Items with Product Image
+    cursor.execute("""
+        SELECT p.name, p.image, mai.opening_qty, mai.given_qty, mai.unit_price
+        FROM morning_allocation_items mai
+        JOIN products p ON mai.product_id = p.id
+        WHERE mai.allocation_id = %s
+    """, (allocation_id,))
+    items = cursor.fetchall()
+    
+    # 3. Generate
+    pdf = PDFGenerator("Morning")
+    pdf.alias_nb_pages()
+    pdf.add_page()
+    
+    d_val = header['date'].strftime('%d-%m-%Y') if header['date'] else ""
+    t_val = "N/A"
+    if header.get('created_at') and isinstance(header['created_at'], datetime):
+        t_val = header['created_at'].strftime('%I:%M %p')
+
+    # Pass Employee Image here
+    pdf.add_info_section(header['emp_name'], header['emp_mobile'], d_val, t_val, f"MA-{allocation_id}", emp_image=emp_img)
+    
+    # Columns: No, Img, Product Name, Opening, Given, Price, Amount
+    cols = ["No", "Img", "Product Name", "Opn", "Given", "Price", "Amount"]
+    widths = [10, 12, 68, 20, 25, 25, 30]
+    
+    pdf.add_table_header(cols, widths)
+    
+    pdf.set_font('Arial', '', 9)
+    pdf.set_text_color(0, 0, 0)
+    pdf.set_fill_color(245, 245, 245)
+    
+    total_given_sum = 0
+    total_amount_sum = 0
+    fill = False
+    row_h = 12 # Increased for image
+    
+    for i, item in enumerate(items):
+        prod_img = resolve_img(item['image'])
+        
+        # Save positions
+        x_start = pdf.get_x()
+        y_start = pdf.get_y()
+
+        pdf.cell(widths[0], row_h, str(i+1), 1, 0, 'C', fill)
+        
+        # Image Cell
+        pdf.cell(widths[1], row_h, "", 1, 0, 'C', fill)
+        if prod_img:
+            pdf.draw_image_safe(prod_img, x_start + widths[0] + 1, y_start + 1, 10, 10)
+
+        pdf.cell(widths[2], row_h, str(item['name']), 1, 0, 'L', fill)
+        pdf.cell(widths[3], row_h, str(item['opening_qty']), 1, 0, 'C', fill)
+        pdf.cell(widths[4], row_h, str(item['given_qty']), 1, 0, 'C', fill)
+        pdf.cell(widths[5], row_h, f"{float(item['unit_price']):.2f}", 1, 0, 'R', fill)
+        
+        total_held = int(item['opening_qty']) + int(item['given_qty'])
+        amt = total_held * float(item['unit_price'])
+        pdf.cell(widths[6], row_h, f"{amt:.2f}", 1, 1, 'R', fill)
+        
+        total_given_sum += int(item['given_qty']) 
+        total_amount_sum += amt
+        fill = not fill 
+        
+    # TOTAL ROW
+    pdf.set_font('Arial', 'B', 10)
+    pdf.cell(sum(widths[:4]), 8, "TOTAL", 1, 0, 'R', True)
+    pdf.cell(widths[4], 8, str(total_given_sum), 1, 0, 'C', True)
+    pdf.cell(widths[5], 8, "", 1, 0, 'C', True)
+    pdf.cell(widths[6], 8, f"{total_amount_sum:.2f}", 1, 1, 'R', True)
+    
+    pdf.add_signature_section(is_office_bill=False)
+    
+    pdf_string = pdf.output(dest='S').encode('latin-1')
+    buffer = io.BytesIO(pdf_string)
+    buffer.seek(0)
+    
+    filename = f"{str(header['emp_name']).replace(' ', '_')}_Morning_{allocation_id}.pdf"
+    return send_file(buffer, as_attachment=True, download_name=filename, mimetype='application/pdf')
+
+
+# ==========================================
+# 2. EVENING PDF ROUTE (Updated for Images)
+# ==========================================
+@app.route('/download_evening_pdf/<int:settle_id>')
+def download_evening_pdf(settle_id):
+    if "loggedin" not in session: return redirect(url_for("login"))
+    
+    conn = mysql.connection
+    cursor = conn.cursor(MySQLdb.cursors.DictCursor)
+    
+    # 1. Header with Employee Image
+    cursor.execute("""
+        SELECT es.*, e.name as emp_name, e.phone as emp_mobile, e.image as emp_image
+        FROM evening_settle es
+        JOIN employees e ON es.employee_id = e.id
+        WHERE es.id = %s
+    """, (settle_id,))
+    data = cursor.fetchone()
+    
+    if not data:
+        flash("Settlement not found", "danger")
+        return redirect(url_for('admin_evening_master'))
+    
+    emp_img = resolve_img(data['emp_image'])
+
+    # 2. Items with Product Image
+    cursor.execute("""
+        SELECT p.name, p.image, ei.total_qty, ei.sold_qty, ei.return_qty, ei.unit_price
+        FROM evening_item ei
+        JOIN products p ON ei.product_id = p.id
+        WHERE ei.settle_id = %s
+    """, (settle_id,))
+    items = cursor.fetchall()
+    
+    # 3. Generate
+    pdf = PDFGenerator("Evening")
+    pdf.alias_nb_pages()
+    pdf.add_page()
+    
+    d_val = data['date'].strftime('%d-%m-%Y') if data['date'] else ""
+    t_val = "N/A"
+    if data.get('created_at') and isinstance(data['created_at'], datetime):
+        t_val = data['created_at'].strftime('%I:%M %p')
+    
+    # Pass Employee Image
+    pdf.add_info_section(data['emp_name'], data['emp_mobile'], d_val, t_val, f"EV-{settle_id}", emp_image=emp_img)
+    
+    # Columns: No | Img | Product | Tot | Sold | Price | Amt | Left | Ret
+    # Reduced widths slightly to fit A4 page width (approx 190mm usable)
+    cols = ["No", "Img", "Product", "Tot", "Sld", "Price", "Amt", "Left", "Ret"]
+    widths = [8, 10, 42, 16, 16, 18, 22, 16, 16] # Total: ~164mm (Safe)
+    
+    pdf.add_table_header(cols, widths)
+    
+    pdf.set_font('Arial', '', 9)
+    pdf.set_text_color(0, 0, 0)
+    pdf.set_fill_color(245, 245, 245)
+    
+    tot_sold = 0
+    tot_amt = 0
+    fill = False
+    row_h = 12
+    
+    for i, item in enumerate(items):
+        prod_img = resolve_img(item['image'])
+        x_start = pdf.get_x()
+        y_start = pdf.get_y()
+
+        pdf.cell(widths[0], row_h, str(i+1), 1, 0, 'C', fill)
+        
+        # Image
+        pdf.cell(widths[1], row_h, "", 1, 0, 'C', fill)
+        if prod_img:
+            pdf.draw_image_safe(prod_img, x_start + widths[0] + 1, y_start + 1, 8, 8)
+
+        pdf.cell(widths[2], row_h, str(item['name']), 1, 0, 'L', fill)
+        pdf.cell(widths[3], row_h, str(item['total_qty']), 1, 0, 'C', fill)
+        pdf.cell(widths[4], row_h, str(item['sold_qty']), 1, 0, 'C', fill)
+        pdf.cell(widths[5], row_h, f"{float(item['unit_price']):.2f}", 1, 0, 'R', fill)
+        
+        amt = float(item['sold_qty']) * float(item['unit_price'])
+        pdf.cell(widths[6], row_h, f"{amt:.2f}", 1, 0, 'R', fill)
+        
+        bal = int(item['total_qty']) - int(item['sold_qty']) - int(item['return_qty'])
+        pdf.cell(widths[7], row_h, str(bal), 1, 0, 'C', fill)
+        pdf.cell(widths[8], row_h, str(item['return_qty']), 1, 1, 'C', fill)
+        
+        tot_sold += int(item['sold_qty'])
+        tot_amt += amt
+        fill = not fill
+
+    # Totals Row
+    pdf.set_font('Arial', 'B', 10)
+    pdf.cell(sum(widths[:4]), 8, "TOTAL SOLD", 1, 0, 'R', True)
+    pdf.cell(widths[4], 8, str(tot_sold), 1, 0, 'C', True)
+    pdf.cell(widths[5], 8, "", 1, 0, 'C', True)
+    pdf.cell(widths[6], 8, f"{tot_amt:.2f}", 1, 1, 'R', True)
+    
+    # Financial Summary (Keep existing logic)
+    pdf.ln(5)
+    pdf.set_font('Arial', 'B', 11)
+    pdf.set_fill_color(50, 50, 50)
+    pdf.set_text_color(255, 255, 255)
+    pdf.cell(0, 8, " FINANCE & SETTLEMENT SUMMARY ", 1, 1, 'C', True)
+    pdf.ln(2)
+    
+    # ... (Rest of your Finance Block Logic from previous code) ...
+    # Simplified here for brevity, but make sure to include the finance block logic
+    # that draws the credit/debit/cash rows.
+    
+    y_start = pdf.get_y()
+    pdf.set_text_color(0, 0, 0)
+    
+    def print_row(label, val, x, y):
+        pdf.set_xy(x, y)
+        pdf.set_font('Arial', '', 10)
+        pdf.cell(35, 6, label, 0, 0)
+        pdf.set_font('Arial', 'B', 10)
+        pdf.cell(25, 6, val, 0, 1, 'R')
+
+    print_row("Total Sales:", f"{tot_amt:.2f}", 10, y_start)
+    print_row("Discount (-):", f"{float(data.get('discount', 0) or 0):.2f}", 10, y_start + 6)
+    print_row("Online (-):", f"{float(data.get('online_money', 0) or 0):.2f}", 10, y_start + 12)
+    
+    pdf.set_draw_color(200, 200, 200)
+    pdf.line(10, y_start + 19, 70, y_start + 19)
+    print_row("CASH PAID:", f"{float(data.get('cash_money', 0) or 0):.2f}", 10, y_start + 21)
+
+    pdf.set_y(y_start + 35)
+    pdf.add_signature_section(is_office_bill=False)
+    
+    pdf_string = pdf.output(dest='S').encode('latin-1')
+    buffer = io.BytesIO(pdf_string)
+    buffer.seek(0)
+    
+    filename = f"{str(data['emp_name']).replace(' ', '_')}_Evening_{settle_id}.pdf"
+    return send_file(buffer, as_attachment=True, download_name=filename, mimetype='application/pdf')
+
+
+# ==========================================
+# 3. OFFICE BILL PDF ROUTE (Updated for Images)
+# ==========================================
+@app.route('/office_sales/print/<int:sale_id>')
+def download_office_bill(sale_id):
+    if "loggedin" not in session: return redirect(url_for("login"))
+    
+    conn = mysql.connection
+    cursor = conn.cursor(MySQLdb.cursors.DictCursor)
+    
+    cursor.execute("SELECT * FROM office_sales WHERE id=%s", (sale_id,))
+    sale = cursor.fetchone()
+    
+    if not sale:
+        flash("Bill not found", "danger")
+        return redirect(url_for('office_sales'))
+    
+    if sale['sale_date']: sale['sale_date'] = sale['sale_date'].strftime('%d-%m-%Y')
+    if sale.get('created_at') and isinstance(sale['created_at'], datetime):
+         sale['sale_time'] = sale['created_at'].strftime('%I:%M %p')
+    else: sale['sale_time'] = ""
+
+    # Fetch Items with Product Image
+    cursor.execute("""
+        SELECT i.*, p.name as product_name, p.image
+        FROM office_sale_items i 
+        JOIN products p ON i.product_id = p.id 
+        WHERE i.sale_id=%s
+    """, (sale_id,))
+    items = cursor.fetchall()
+    
+    # Resolve images
+    for i in items: i['image'] = resolve_img(i['image'])
+    
+    pdf = PDFGenerator("Office")
+    pdf.alias_nb_pages()
+    pdf.add_page()
+    # No Employee Photo passed here, as per logic
+    pdf.generate_office_bill_body(sale, items)
+    
+    pdf_string = pdf.output(dest='S').encode('latin-1')
+    buffer = io.BytesIO(pdf_string)
+    buffer.seek(0)
+    
+    cust_name = str(sale.get('customer_name', 'Customer')).replace(" ", "_")
+    filename = f"{cust_name}_Bill_{sale_id}.pdf"
+    return send_file(buffer, as_attachment=True, download_name=filename, mimetype='application/pdf')
+
+# ==========================================
+# 4. UPDATED PDF GENERATOR HELPER
 # ==========================================
 class PDFGenerator(FPDF):
     def __init__(self, title_type="Morning"):
@@ -4908,16 +5206,39 @@ class PDFGenerator(FPDF):
 
     # --- HELPER TO DRAW IMAGES SAFELY ---
     def draw_image_safe(self, img_url, x, y, w, h):
-        """Draws image if available, handles errors gracefully."""
+        """Draws image if available, handles errors gracefully by downloading if URL."""
         if not img_url or "default" in img_url or not img_url.strip(): 
             return
         
         try:
-            # If it's a URL (Cloudinary), FPDF usually needs it downloaded or compatible
-            # Standard FPDF allows URLs if allow_url_fopen is on in PHP, but in Python fpdf2/fpdf:
-            self.image(img_url, x=x, y=y, w=w, h=h)
-        except Exception:
-            pass # Skip image if load fails
+            if img_url.startswith("http"):
+                # Download image to temp file
+                response = requests.get(img_url, stream=True, timeout=5)
+                if response.status_code == 200:
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp_file:
+                        for chunk in response.iter_content(1024):
+                            tmp_file.write(chunk)
+                        tmp_path = tmp_file.name
+                    
+                    # Add to PDF
+                    try:
+                        self.image(tmp_path, x=x, y=y, w=w, h=h)
+                    finally:
+                        # Clean up temp file
+                        if os.path.exists(tmp_path):
+                            os.remove(tmp_path)
+            elif os.path.exists(img_url):
+                # Local absolute/relative path
+                self.image(img_url, x=x, y=y, w=w, h=h)
+            elif "static" in img_url:
+                 # Try to resolve relative path if it starts with static/
+                 # Assuming app.root_path is available or we try local
+                 if os.path.exists(img_url.lstrip('/')):
+                     self.image(img_url.lstrip('/'), x=x, y=y, w=w, h=h)
+
+        except Exception as e:
+            # print(f"Image Error: {e}") 
+            pass # Fail silently, leave blank space
 
     # --- UPDATED INFO SECTION (Accepts Employee Image) ---
     def add_info_section(self, emp_name, emp_mobile, date_str, time_str, form_id=None, emp_image=None):
@@ -4930,7 +5251,7 @@ class PDFGenerator(FPDF):
             # Draw image first so text flows around/near it if needed, 
             # or place it specifically at X=80 (Center-Left) or X=10 (Left)
             # Placing it next to Employee Name block
-            self.draw_image_safe(emp_image, x=85, y=start_y, w=20, h=20)
+            self.draw_image_safe(emp_image, x=90, y=start_y, w=20, h=20)
 
         # Left: Employee Details
         self.set_xy(10, start_y)
@@ -5128,299 +5449,6 @@ class PDFGenerator(FPDF):
         
         # Signature
         self.add_signature_section(is_office_bill=True)
-
-# ==========================================
-# 1. MORNING PDF ROUTE (Updated for Images)
-# ==========================================
-@app.route('/download_morning_pdf/<int:allocation_id>')
-def download_morning_pdf(allocation_id):
-    if "loggedin" not in session: return redirect(url_for("login"))
-    
-    conn = mysql.connection
-    cursor = conn.cursor(MySQLdb.cursors.DictCursor)
-    
-    # 1. Header with Employee Image
-    cursor.execute("""
-        SELECT ma.date, ma.created_at, e.name as emp_name, e.phone as emp_mobile, e.image as emp_image
-        FROM morning_allocations ma
-        JOIN employees e ON ma.employee_id = e.id
-        WHERE ma.id = %s
-    """, (allocation_id,))
-    header = cursor.fetchone()
-    
-    if not header:
-        flash("Allocation not found", "danger")
-        return redirect(url_for('allocation_list'))
-    
-    # Resolve Employee Image
-    emp_img = resolve_img(header['emp_image'])
-
-    # 2. Items with Product Image
-    cursor.execute("""
-        SELECT p.name, p.image, mai.opening_qty, mai.given_qty, mai.unit_price
-        FROM morning_allocation_items mai
-        JOIN products p ON mai.product_id = p.id
-        WHERE mai.allocation_id = %s
-    """, (allocation_id,))
-    items = cursor.fetchall()
-    
-    # 3. Generate
-    pdf = PDFGenerator("Morning")
-    pdf.alias_nb_pages()
-    pdf.add_page()
-    
-    d_val = header['date'].strftime('%d-%m-%Y') if header['date'] else ""
-    t_val = "N/A"
-    if header.get('created_at') and isinstance(header['created_at'], datetime):
-        t_val = header['created_at'].strftime('%I:%M %p')
-
-    # Pass Employee Image here
-    pdf.add_info_section(header['emp_name'], header['emp_mobile'], d_val, t_val, f"MA-{allocation_id}", emp_image=emp_img)
-    
-    # Columns: No, Img, Product Name, Opening, Given, Price, Amount
-    cols = ["No", "Img", "Product Name", "Opn", "Given", "Price", "Amount"]
-    widths = [10, 12, 68, 20, 25, 25, 30]
-    
-    pdf.add_table_header(cols, widths)
-    
-    pdf.set_font('Arial', '', 9)
-    pdf.set_text_color(0, 0, 0)
-    pdf.set_fill_color(245, 245, 245)
-    
-    total_given_sum = 0
-    total_amount_sum = 0
-    fill = False
-    row_h = 12 # Increased for image
-    
-    for i, item in enumerate(items):
-        prod_img = resolve_img(item['image'])
-        
-        # Save positions
-        x_start = pdf.get_x()
-        y_start = pdf.get_y()
-
-        pdf.cell(widths[0], row_h, str(i+1), 1, 0, 'C', fill)
-        
-        # Image Cell
-        pdf.cell(widths[1], row_h, "", 1, 0, 'C', fill)
-        if prod_img:
-            pdf.draw_image_safe(prod_img, x_start + widths[0] + 1, y_start + 1, 10, 10)
-
-        pdf.cell(widths[2], row_h, str(item['name']), 1, 0, 'L', fill)
-        pdf.cell(widths[3], row_h, str(item['opening_qty']), 1, 0, 'C', fill)
-        pdf.cell(widths[4], row_h, str(item['given_qty']), 1, 0, 'C', fill)
-        pdf.cell(widths[5], row_h, f"{float(item['unit_price']):.2f}", 1, 0, 'R', fill)
-        
-        total_held = int(item['opening_qty']) + int(item['given_qty'])
-        amt = total_held * float(item['unit_price'])
-        pdf.cell(widths[6], row_h, f"{amt:.2f}", 1, 1, 'R', fill)
-        
-        total_given_sum += int(item['given_qty']) 
-        total_amount_sum += amt
-        fill = not fill 
-        
-    # TOTAL ROW
-    pdf.set_font('Arial', 'B', 10)
-    pdf.cell(sum(widths[:4]), 8, "TOTAL", 1, 0, 'R', True)
-    pdf.cell(widths[4], 8, str(total_given_sum), 1, 0, 'C', True)
-    pdf.cell(widths[5], 8, "", 1, 0, 'C', True)
-    pdf.cell(widths[6], 8, f"{total_amount_sum:.2f}", 1, 1, 'R', True)
-    
-    pdf.add_signature_section(is_office_bill=False)
-    
-    pdf_string = pdf.output(dest='S').encode('latin-1')
-    buffer = io.BytesIO(pdf_string)
-    buffer.seek(0)
-    
-    filename = f"{str(header['emp_name']).replace(' ', '_')}_Morning_{allocation_id}.pdf"
-    return send_file(buffer, as_attachment=True, download_name=filename, mimetype='application/pdf')
-
-
-# ==========================================
-# 2. EVENING PDF ROUTE (Updated for Images)
-# ==========================================
-@app.route('/download_evening_pdf/<int:settle_id>')
-def download_evening_pdf(settle_id):
-    if "loggedin" not in session: return redirect(url_for("login"))
-    
-    conn = mysql.connection
-    cursor = conn.cursor(MySQLdb.cursors.DictCursor)
-    
-    # 1. Header with Employee Image
-    cursor.execute("""
-        SELECT es.*, e.name as emp_name, e.phone as emp_mobile, e.image as emp_image
-        FROM evening_settle es
-        JOIN employees e ON es.employee_id = e.id
-        WHERE es.id = %s
-    """, (settle_id,))
-    data = cursor.fetchone()
-    
-    if not data:
-        flash("Settlement not found", "danger")
-        return redirect(url_for('admin_evening_master'))
-    
-    emp_img = resolve_img(data['emp_image'])
-
-    # 2. Items with Product Image
-    cursor.execute("""
-        SELECT p.name, p.image, ei.total_qty, ei.sold_qty, ei.return_qty, ei.unit_price
-        FROM evening_item ei
-        JOIN products p ON ei.product_id = p.id
-        WHERE ei.settle_id = %s
-    """, (settle_id,))
-    items = cursor.fetchall()
-    
-    # 3. Generate
-    pdf = PDFGenerator("Evening")
-    pdf.alias_nb_pages()
-    pdf.add_page()
-    
-    d_val = data['date'].strftime('%d-%m-%Y') if data['date'] else ""
-    t_val = "N/A"
-    if data.get('created_at') and isinstance(data['created_at'], datetime):
-        t_val = data['created_at'].strftime('%I:%M %p')
-    
-    # Pass Employee Image
-    pdf.add_info_section(data['emp_name'], data['emp_mobile'], d_val, t_val, f"EV-{settle_id}", emp_image=emp_img)
-    
-    # Columns: No | Img | Product | Tot | Sold | Price | Amt | Left | Ret
-    cols = ["No", "Img", "Product", "Tot", "Sld", "Price", "Amt", "Left", "Ret"]
-    widths = [8, 10, 42, 18, 18, 20, 24, 20, 20] # Adjusted widths for image
-    
-    pdf.add_table_header(cols, widths)
-    
-    pdf.set_font('Arial', '', 9)
-    pdf.set_text_color(0, 0, 0)
-    pdf.set_fill_color(245, 245, 245)
-    
-    tot_sold = 0
-    tot_amt = 0
-    fill = False
-    row_h = 12
-    
-    for i, item in enumerate(items):
-        prod_img = resolve_img(item['image'])
-        x_start = pdf.get_x()
-        y_start = pdf.get_y()
-
-        pdf.cell(widths[0], row_h, str(i+1), 1, 0, 'C', fill)
-        
-        # Image
-        pdf.cell(widths[1], row_h, "", 1, 0, 'C', fill)
-        if prod_img:
-            pdf.draw_image_safe(prod_img, x_start + widths[0] + 1, y_start + 1, 8, 8)
-
-        pdf.cell(widths[2], row_h, str(item['name']), 1, 0, 'L', fill)
-        pdf.cell(widths[3], row_h, str(item['total_qty']), 1, 0, 'C', fill)
-        pdf.cell(widths[4], row_h, str(item['sold_qty']), 1, 0, 'C', fill)
-        pdf.cell(widths[5], row_h, f"{float(item['unit_price']):.2f}", 1, 0, 'R', fill)
-        
-        amt = float(item['sold_qty']) * float(item['unit_price'])
-        pdf.cell(widths[6], row_h, f"{amt:.2f}", 1, 0, 'R', fill)
-        
-        bal = int(item['total_qty']) - int(item['sold_qty']) - int(item['return_qty'])
-        pdf.cell(widths[7], row_h, str(bal), 1, 0, 'C', fill)
-        pdf.cell(widths[8], row_h, str(item['return_qty']), 1, 1, 'C', fill)
-        
-        tot_sold += int(item['sold_qty'])
-        tot_amt += amt
-        fill = not fill
-
-    # Totals Row
-    pdf.set_font('Arial', 'B', 10)
-    pdf.cell(sum(widths[:4]), 8, "TOTAL SOLD", 1, 0, 'R', True)
-    pdf.cell(widths[4], 8, str(tot_sold), 1, 0, 'C', True)
-    pdf.cell(widths[5], 8, "", 1, 0, 'C', True)
-    pdf.cell(widths[6], 8, f"{tot_amt:.2f}", 1, 1, 'R', True)
-    
-    # Financial Summary (Keep existing logic)
-    pdf.ln(5)
-    pdf.set_font('Arial', 'B', 11)
-    pdf.set_fill_color(50, 50, 50)
-    pdf.set_text_color(255, 255, 255)
-    pdf.cell(0, 8, " FINANCE & SETTLEMENT SUMMARY ", 1, 1, 'C', True)
-    pdf.ln(2)
-    
-    # ... (Rest of your Finance Block Logic from previous code) ...
-    # Simplified here for brevity, but make sure to include the finance block logic
-    # that draws the credit/debit/cash rows.
-    
-    y_start = pdf.get_y()
-    pdf.set_text_color(0, 0, 0)
-    
-    def print_row(label, val, x, y):
-        pdf.set_xy(x, y)
-        pdf.set_font('Arial', '', 10)
-        pdf.cell(35, 6, label, 0, 0)
-        pdf.set_font('Arial', 'B', 10)
-        pdf.cell(25, 6, val, 0, 1, 'R')
-
-    print_row("Total Sales:", f"{tot_amt:.2f}", 10, y_start)
-    print_row("Discount (-):", f"{float(data.get('discount', 0) or 0):.2f}", 10, y_start + 6)
-    print_row("Online (-):", f"{float(data.get('online_money', 0) or 0):.2f}", 10, y_start + 12)
-    
-    pdf.set_draw_color(200, 200, 200)
-    pdf.line(10, y_start + 19, 70, y_start + 19)
-    print_row("CASH PAID:", f"{float(data.get('cash_money', 0) or 0):.2f}", 10, y_start + 21)
-
-    pdf.set_y(y_start + 35)
-    pdf.add_signature_section(is_office_bill=False)
-    
-    pdf_string = pdf.output(dest='S').encode('latin-1')
-    buffer = io.BytesIO(pdf_string)
-    buffer.seek(0)
-    
-    filename = f"{str(data['emp_name']).replace(' ', '_')}_Evening_{settle_id}.pdf"
-    return send_file(buffer, as_attachment=True, download_name=filename, mimetype='application/pdf')
-
-
-# ==========================================
-# 3. OFFICE BILL PDF ROUTE (Updated for Images)
-# ==========================================
-@app.route('/office_sales/print/<int:sale_id>')
-def download_office_bill(sale_id):
-    if "loggedin" not in session: return redirect(url_for("login"))
-    
-    conn = mysql.connection
-    cursor = conn.cursor(MySQLdb.cursors.DictCursor)
-    
-    cursor.execute("SELECT * FROM office_sales WHERE id=%s", (sale_id,))
-    sale = cursor.fetchone()
-    
-    if not sale:
-        flash("Bill not found", "danger")
-        return redirect(url_for('office_sales'))
-    
-    if sale['sale_date']: sale['sale_date'] = sale['sale_date'].strftime('%d-%m-%Y')
-    if sale.get('created_at') and isinstance(sale['created_at'], datetime):
-         sale['sale_time'] = sale['created_at'].strftime('%I:%M %p')
-    else: sale['sale_time'] = ""
-
-    # Fetch Items with Product Image
-    cursor.execute("""
-        SELECT i.*, p.name as product_name, p.image
-        FROM office_sale_items i 
-        JOIN products p ON i.product_id = p.id 
-        WHERE i.sale_id=%s
-    """, (sale_id,))
-    items = cursor.fetchall()
-    
-    # Resolve images
-    for i in items: i['image'] = resolve_img(i['image'])
-    
-    pdf = PDFGenerator("Office")
-    pdf.alias_nb_pages()
-    pdf.add_page()
-    # No Employee Photo passed here, as per logic
-    pdf.generate_office_bill_body(sale, items)
-    
-    pdf_string = pdf.output(dest='S').encode('latin-1')
-    buffer = io.BytesIO(pdf_string)
-    buffer.seek(0)
-    
-    cust_name = str(sale.get('customer_name', 'Customer')).replace(" ", "_")
-    filename = f"{cust_name}_Bill_{sale_id}.pdf"
-    return send_file(buffer, as_attachment=True, download_name=filename, mimetype='application/pdf')
 # ==========================================
 # PUBLIC ROUTE: DOWNLOAD MORNING PDF
 # ==========================================
@@ -8571,6 +8599,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
