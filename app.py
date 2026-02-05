@@ -6549,7 +6549,7 @@ def delete_allocation(id):
 # ---------------------------------------------------------#
 # 3. EVENING MASTER (History & Drafts) - WITH FILTERS
 # ---------------------------------------------------------#
-@app.route('/admin/evening_master')
+@app.route('/evening_master')
 def admin_evening_master():
     if "loggedin" not in session: return redirect(url_for("login"))
     
@@ -8565,6 +8565,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
