@@ -3767,9 +3767,9 @@ def inventory():
     # 2. Fetch Active Products (Soft Delete Logic Applied)
     # --- LOGIC PRESERVED: Keeping your try-except block ---
     try:
-        cur.execute("SELECT * FROM products WHERE status = 'Active' ORDER BY id DESC")
+        cur.execute("SELECT * FROM products WHERE status = 'Active' ORDER BY id ASC")
     except:
-        cur.execute("SELECT * FROM products ORDER BY id DESC")
+        cur.execute("SELECT * FROM products ORDER BY id ASC")
     products = cur.fetchall()
 
     # 3. Fetch Categories for Filter
@@ -8670,6 +8670,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
