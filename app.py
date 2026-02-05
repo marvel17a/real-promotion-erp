@@ -4837,7 +4837,6 @@ def api_employee_detail(id):
         return jsonify({"ok": False, "error": "Not found"}), 404
     return jsonify({"ok": True, "employee": emp})
 
-
 import requests
 import tempfile
 import os
@@ -4860,7 +4859,7 @@ class BasePDF(FPDF):
         self.contact = "+91 96623 22476 | help@realpromotion.in"
         self.gst_text = "GSTIN:24AJVPT0460H1ZW"
         self.gst_subtext = "Composition Dealer- Not Eligibal To Collect Taxes On Supplies"
-        self.set_auto_page_break(True, margin=15)
+        self.set_auto_page_break(True, margin=10) # Reduced margin to fit more
 
     def common_header(self, title):
         # Company Header
@@ -4911,9 +4910,15 @@ class BasePDF(FPDF):
         try:
             if img_url.startswith("http"):
                 # Download image to temp file
-                response = requests.get(img_url, stream=True, timeout=5)
+                headers = {'User-Agent': 'Mozilla/5.0'}
+                response = requests.get(img_url, stream=True, timeout=5, headers=headers)
                 if response.status_code == 200:
-                    with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp_file:
+                    # Detect suffix
+                    suffix = ".jpg"
+                    if ".png" in img_url.lower(): suffix = ".png"
+                    
+                    # Create and close temp file so FPDF can open it
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp_file:
                         for chunk in response.iter_content(1024):
                             tmp_file.write(chunk)
                         tmp_path = tmp_file.name
@@ -4921,16 +4926,25 @@ class BasePDF(FPDF):
                     # Add to PDF
                     try:
                         self.image(tmp_path, x=x, y=y, w=w, h=h)
+                    except:
+                        pass
                     finally:
                         if os.path.exists(tmp_path):
                             os.remove(tmp_path)
-            elif os.path.exists(img_url):
-                self.image(img_url, x=x, y=y, w=w, h=h)
-            elif "static" in img_url:
-                 if os.path.exists(img_url.lstrip('/')):
-                     self.image(img_url.lstrip('/'), x=x, y=y, w=w, h=h)
+            else:
+                # Handle Local Files
+                # Logic: If path starts with 'static/', resolve it relative to current working dir
+                local_path = img_url.lstrip('/')
+                
+                if os.path.exists(local_path):
+                    self.image(local_path, x=x, y=y, w=w, h=h)
+                elif "static" in img_url:
+                     # Try to find it in current directory
+                     if os.path.exists(local_path):
+                         self.image(local_path, x=x, y=y, w=w, h=h)
 
         except Exception as e:
+            # print(f"Image Error: {e}") 
             pass 
 
     def add_table_header(self, columns, widths):
@@ -4989,12 +5003,11 @@ class MorningPDF(BasePDF):
         self.ln(25)
 
     def add_signature_section(self):
-        # Optimized to fit on same page if possible
-        required_space = 40 
-        if self.get_y() + required_space > 270: 
+        # Compact check to keep on one page
+        if self.get_y() + 35 > 280: 
             self.add_page()
         
-        self.ln(10) 
+        self.ln(5) 
         y_pos = self.get_y()
         sig_path = "static/img/signature.png" 
         
@@ -5030,7 +5043,7 @@ class EveningPDF(BasePDF):
         start_y = self.get_y()
         
         if emp_image:
-            self.draw_image_safe(emp_image, x=100, y=start_y, w=20, h=20)
+            self.draw_image_safe(emp_image, x=90, y=start_y, w=20, h=20)
 
         self.set_xy(10, start_y)
         self.cell(35, 6, "Employee Name:", 0, 0)
@@ -5063,8 +5076,8 @@ class EveningPDF(BasePDF):
         self.ln(25) 
 
     def add_signature_section(self):
-        # Compact check to keep on one page
-        if self.get_y() + 40 > 275: 
+        # Optimized to avoid page break if possible
+        if self.get_y() + 35 > 280: 
             self.add_page()
         
         self.ln(5) 
@@ -5126,10 +5139,10 @@ class OfficePDF(BasePDF):
         self.ln(25)
 
     def add_signature_section(self):
-        if self.get_y() + 40 > 275: 
+        if self.get_y() + 35 > 280: 
             self.add_page()
         
-        self.ln(10) 
+        self.ln(5) 
         y_pos = self.get_y()
         sig_path = "static/img/signature.png" 
         
@@ -5200,11 +5213,11 @@ def download_morning_pdf(allocation_id):
     pdf.set_text_color(0, 0, 0)
     pdf.set_fill_color(245, 245, 245)
     
-    total_opening_sum = 0 # NEW: Calculate Opening Total
+    total_opening_sum = 0
     total_given_sum = 0
     total_amount_sum = 0
     fill = False
-    row_h = 10 # Reduced to 10 for compactness
+    row_h = 10 
     
     for i, item in enumerate(items):
         prod_img = resolve_img(item['image'])
@@ -5226,14 +5239,14 @@ def download_morning_pdf(allocation_id):
         amt = total_held * float(item['unit_price'])
         pdf.cell(widths[6], row_h, f"{amt:.2f}", 1, 1, 'R', fill)
         
-        total_opening_sum += int(item['opening_qty']) # Summing Opening
+        total_opening_sum += int(item['opening_qty'])
         total_given_sum += int(item['given_qty']) 
         total_amount_sum += amt
         fill = not fill 
         
     pdf.set_font('Arial', 'B', 10)
     pdf.cell(sum(widths[:3]), 8, "TOTAL", 1, 0, 'R', True)
-    pdf.cell(widths[3], 8, str(total_opening_sum), 1, 0, 'C', True) # Display Opening Total
+    pdf.cell(widths[3], 8, str(total_opening_sum), 1, 0, 'C', True) 
     pdf.cell(widths[4], 8, str(total_given_sum), 1, 0, 'C', True)
     pdf.cell(widths[5], 8, "", 1, 0, 'C', True)
     pdf.cell(widths[6], 8, f"{total_amount_sum:.2f}", 1, 1, 'R', True)
@@ -5291,8 +5304,8 @@ def download_evening_pdf(settle_id):
     
     pdf.add_info(data['emp_name'], data['emp_mobile'], d_val, t_val, f"EV-{settle_id}", emp_image=emp_img)
     
-    # Columns & Widths
-    cols = ["No", "Img", "Product", "Tot", "Sld", "Price", "Amt", "Left", "Ret"]
+    # Updated Columns: Ret before Left, Left last
+    cols = ["No", "Img", "Product", "Tot", "Sld", "Price", "Amt", "Ret", "Left"]
     widths = [8, 10, 42, 16, 16, 18, 22, 16, 16]
     
     pdf.add_table_header(cols, widths)
@@ -5301,15 +5314,14 @@ def download_evening_pdf(settle_id):
     pdf.set_text_color(0, 0, 0)
     pdf.set_fill_color(245, 245, 245)
     
-    # Initialize Column Totals
-    tot_qty = 0 # Total Qty
-    tot_sold = 0 # Sold
-    tot_amt = 0 # Amount
-    tot_left = 0 # Left/Balance
-    tot_ret = 0 # Return
+    tot_qty = 0
+    tot_sold = 0
+    tot_amt = 0
+    tot_left = 0
+    tot_ret = 0
     
     fill = False
-    row_h = 10 # Compact rows to save space
+    row_h = 8 # Further Reduced Height to fit on one page
     
     for i, item in enumerate(items):
         prod_img = resolve_img(item['image'])
@@ -5320,7 +5332,7 @@ def download_evening_pdf(settle_id):
         
         pdf.cell(widths[1], row_h, "", 1, 0, 'C', fill)
         if prod_img:
-            pdf.draw_image_safe(prod_img, x_start + widths[0] + 1, y_start + 1, 8, 8)
+            pdf.draw_image_safe(prod_img, x_start + widths[0] + 1, y_start + 1, 6, 6)
 
         pdf.cell(widths[2], row_h, str(item['name']), 1, 0, 'L', fill)
         pdf.cell(widths[3], row_h, str(item['total_qty']), 1, 0, 'C', fill)
@@ -5331,10 +5343,11 @@ def download_evening_pdf(settle_id):
         pdf.cell(widths[6], row_h, f"{amt:.2f}", 1, 0, 'R', fill)
         
         bal = int(item['total_qty']) - int(item['sold_qty']) - int(item['return_qty'])
-        pdf.cell(widths[7], row_h, str(bal), 1, 0, 'C', fill)
-        pdf.cell(widths[8], row_h, str(item['return_qty']), 1, 1, 'C', fill)
         
-        # Accumulate Totals
+        # New Order: Return then Left
+        pdf.cell(widths[7], row_h, str(item['return_qty']), 1, 0, 'C', fill)
+        pdf.cell(widths[8], row_h, str(bal), 1, 1, 'C', fill)
+        
         tot_qty += int(item['total_qty'])
         tot_sold += int(item['sold_qty'])
         tot_amt += amt
@@ -5343,43 +5356,38 @@ def download_evening_pdf(settle_id):
         
         fill = not fill
 
-    # TOTAL ROW (With all column totals)
+    # TOTAL ROW
     pdf.set_font('Arial', 'B', 10)
     pdf.cell(sum(widths[:3]), 8, "TOTALS", 1, 0, 'R', True)
-    pdf.cell(widths[3], 8, str(tot_qty), 1, 0, 'C', True) # Tot Sum
-    pdf.cell(widths[4], 8, str(tot_sold), 1, 0, 'C', True) # Sold Sum
+    pdf.cell(widths[3], 8, str(tot_qty), 1, 0, 'C', True) 
+    pdf.cell(widths[4], 8, str(tot_sold), 1, 0, 'C', True)
     pdf.cell(widths[5], 8, "", 1, 0, 'C', True)
     pdf.cell(widths[6], 8, f"{tot_amt:.2f}", 1, 0, 'R', True)
-    pdf.cell(widths[7], 8, str(tot_left), 1, 0, 'C', True) # Left Sum
-    pdf.cell(widths[8], 8, str(tot_ret), 1, 1, 'C', True) # Ret Sum
+    pdf.cell(widths[7], 8, str(tot_ret), 1, 0, 'C', True) # Return Total
+    pdf.cell(widths[8], 8, str(tot_left), 1, 1, 'C', True) # Left Total
     
-    # --- FINANCE & SETTLEMENT SECTION (Side-by-Side Layout) ---
-    pdf.ln(5)
+    # --- FINANCE & SETTLEMENT SECTION (Side-by-Side) ---
+    pdf.ln(3)
     
-    # Calculate Data
     net_sales = tot_amt - float(data.get('discount', 0) or 0) - float(data.get('online_money', 0) or 0)
     balance_due = net_sales - float(data.get('cash_money', 0) or 0)
     
     emp_credit = float(data.get('emp_credit_amount', 0) or 0)
     emp_debit = float(data.get('emp_debit_amount', 0) or 0)
     
-    # Status Line Calculation
     status_text = ""
-    status_color = (0, 0, 0) # Default Black
-    fill_color = (255, 255, 255) # Default White
+    status_color = (0, 0, 0)
+    fill_color = (255, 255, 255)
     
     if balance_due > 0.01:
         status_text = f"BALANCE DUE: - {balance_due:.2f}"
-        status_color = (255, 255, 255)
-        fill_color = (220, 53, 69) # Red
+        status_color = (255, 255, 255); fill_color = (220, 53, 69)
     elif balance_due < -0.01:
         status_text = f"PAID CASH (PROFIT): + {abs(balance_due):.2f}"
-        status_color = (0, 0, 0)
-        fill_color = (255, 193, 7) # Yellow
+        status_color = (0, 0, 0); fill_color = (255, 193, 7)
     else:
         status_text = "BALANCE CLEARED"
-        status_color = (255, 255, 255)
-        fill_color = (25, 135, 84) # Green
+        status_color = (255, 255, 255); fill_color = (25, 135, 84)
 
     # HEADER BAR
     pdf.set_font('Arial', 'B', 11)
@@ -5390,17 +5398,16 @@ def download_evening_pdf(settle_id):
     
     y_base = pdf.get_y()
     
-    # --- LEFT SIDE: EMPLOYEE LEDGER ---
+    # --- LEFT: EMPLOYEE LEDGER ---
     pdf.set_text_color(0, 0, 0)
     pdf.set_xy(10, y_base)
     pdf.set_font('Arial', 'B', 10)
     pdf.cell(90, 6, "Employee Ledger Details:", 0, 1, 'L')
     
-    # Credit Row
     if emp_credit > 0:
         pdf.set_font('Arial', '', 9)
         pdf.cell(30, 6, "Credit (Recv):", 0, 0)
-        pdf.set_text_color(25, 135, 84) # Green
+        pdf.set_text_color(25, 135, 84)
         pdf.cell(30, 6, f"{emp_credit:.2f}", 0, 1)
         pdf.set_text_color(100, 100, 100)
         pdf.cell(90, 5, f"Note: {data.get('emp_credit_note') or '-'}", 0, 1)
@@ -5409,12 +5416,11 @@ def download_evening_pdf(settle_id):
         pdf.set_text_color(150, 150, 150)
         pdf.cell(90, 6, "No Credit Entry", 0, 1)
 
-    # Debit Row
-    pdf.set_text_color(0, 0, 0) # Reset
+    pdf.set_text_color(0, 0, 0) 
     if emp_debit > 0:
         pdf.set_font('Arial', '', 9)
         pdf.cell(30, 6, "Debit (Given):", 0, 0)
-        pdf.set_text_color(220, 53, 69) # Red
+        pdf.set_text_color(220, 53, 69)
         pdf.cell(30, 6, f"{emp_debit:.2f}", 0, 1)
         pdf.set_text_color(100, 100, 100)
         pdf.cell(90, 5, f"Note: {data.get('emp_debit_note') or '-'}", 0, 1)
@@ -5423,7 +5429,7 @@ def download_evening_pdf(settle_id):
         pdf.set_text_color(150, 150, 150)
         pdf.cell(90, 6, "No Debit Entry", 0, 1)
 
-    # --- RIGHT SIDE: CASH SETTLEMENT ---
+    # --- RIGHT: CASH SETTLEMENT ---
     pdf.set_text_color(0, 0, 0)
     x_right = 110
     pdf.set_xy(x_right, y_base)
@@ -5439,23 +5445,22 @@ def download_evening_pdf(settle_id):
         pdf.set_font('Arial', 'B', 9)
         pdf.cell(30, 6, val, 0, 1, 'R')
 
-    print_right_row("Total Sales:", f"{tot_amt:.2f}", current_y); current_y += 6
-    print_right_row("Discount (-):", f"{float(data.get('discount', 0) or 0):.2f}", current_y); current_y += 6
-    print_right_row("Online (-):", f"{float(data.get('online_money', 0) or 0):.2f}", current_y); current_y += 6
+    print_right_row("Total Sales:", f"{tot_amt:.2f}", current_y); current_y += 5
+    print_right_row("Discount (-):", f"{float(data.get('discount', 0) or 0):.2f}", current_y); current_y += 5
+    print_right_row("Online (-):", f"{float(data.get('online_money', 0) or 0):.2f}", current_y); current_y += 5
     
     pdf.set_draw_color(200, 200, 200)
     pdf.line(x_right, current_y, x_right+70, current_y)
     print_right_row("CASH PAID:", f"{float(data.get('cash_money', 0) or 0):.2f}", current_y + 1)
 
     # --- HORIZONTAL STATUS LINE ---
-    # Determine safe Y position below both blocks
-    final_y = max(pdf.get_y(), current_y + 10) + 5
+    final_y = max(pdf.get_y(), current_y + 8) + 3
     pdf.set_xy(10, final_y)
     
     pdf.set_fill_color(*fill_color)
     pdf.set_text_color(*status_color)
     pdf.set_font('Arial', 'B', 12)
-    pdf.cell(0, 10, status_text, 1, 1, 'C', True)
+    pdf.cell(0, 8, status_text, 1, 1, 'C', True)
 
     pdf.add_signature_section()
     
@@ -8734,6 +8739,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
