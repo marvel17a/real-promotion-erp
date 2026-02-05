@@ -2214,7 +2214,7 @@ def get_db_column(cursor, table_name, candidates):
         return candidates[0]
 
 # =================================================================================
-#  ADMIN DASHBOARD ROUTE (Final Fix: IST Date, Yearly Stats, Net Sales)
+#  ADMIN DASHBOARD ROUTE (Updated to include Today's Sales)
 # =================================================================================
 @app.route("/dash")
 def dash():
@@ -2226,21 +2226,28 @@ def dash():
     # --- 1. TIMEZONE FIX (IST) ---
     ist_now = datetime.utcnow() + timedelta(hours=5, minutes=30)
     today = ist_now.date() 
-    yesterday = today - timedelta(days=1) # Calculate Yesterday
+    yesterday = today - timedelta(days=1)
     current_year = today.year
     
     # --- 2. KEY METRICS ---
     
-    # A. SALES YESTERDAY (Net = Evening Net + Office Net) - REPLACED SALES TODAY
-    # Evening Settle Net Yesterday
+    # A. SALES YESTERDAY (Net)
     cursor.execute("SELECT SUM(total_amount - discount) as total FROM evening_settle WHERE date = %s AND status = 'final'", (yesterday,))
     eve_yest = float(cursor.fetchone()['total'] or 0)
     
-    # Office Sales Net Yesterday
     cursor.execute("SELECT SUM(final_amount) as total FROM office_sales WHERE sale_date = %s", (yesterday,))
     off_yest = float(cursor.fetchone()['total'] or 0)
     
     sales_yesterday = eve_yest + off_yest
+
+    # --- NEW: SALES TODAY (Net) ---
+    cursor.execute("SELECT SUM(total_amount - discount) as total FROM evening_settle WHERE date = %s AND status = 'final'", (today,))
+    eve_today = float(cursor.fetchone()['total'] or 0)
+
+    cursor.execute("SELECT SUM(final_amount) as total FROM office_sales WHERE sale_date = %s", (today,))
+    off_today = float(cursor.fetchone()['total'] or 0)
+
+    sales_today = eve_today + off_today
 
     # B. SALES THIS MONTH (Net)
     start_of_month = today.replace(day=1)
@@ -2290,7 +2297,7 @@ def dash():
     chart_sales = []
     chart_expenses = []
 
-    # Sales Map (Evening + Office)
+    # Sales Map
     cursor.execute("""
         SELECT MONTH(date) as m, SUM(total_amount - discount) as total 
         FROM evening_settle WHERE YEAR(date) = %s AND status = 'final' GROUP BY MONTH(date)
@@ -2309,7 +2316,6 @@ def dash():
 
     for m in range(1, 13):
         chart_months.append(calendar.month_abbr[m])
-        # Combine maps for total sales chart
         total_s = eve_map.get(m, 0.0) + off_map.get(m, 0.0)
         chart_sales.append(total_s)
         chart_expenses.append(expense_map.get(m, 0.0))
@@ -2335,7 +2341,8 @@ def dash():
         "dash.html",
         today_date=today, 
         current_year=current_year,
-        sales_yesterday=sales_yesterday, # Changed from sales_today
+        sales_yesterday=sales_yesterday,
+        sales_today=sales_today,          # NEW: Passed to template
         sales_this_month=sales_this_month,
         yearly_sales=yearly_sales,
         yearly_expenses=yearly_expenses,
@@ -8769,6 +8776,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
