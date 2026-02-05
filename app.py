@@ -4299,7 +4299,7 @@ def employee_master():
             LEFT JOIN employee_positions p ON e.position_id = p.id
             LEFT JOIN employee_departments d ON e.department_id = d.id
             WHERE e.status = %s
-            ORDER BY e.id DESC
+            ORDER BY e.id ASC
         """
         cur.execute(query, (status_filter,))
         employees = cur.fetchall()
@@ -8670,6 +8670,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
