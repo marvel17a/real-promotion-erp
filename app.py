@@ -4859,7 +4859,7 @@ class BasePDF(FPDF):
         self.contact = "+91 96623 22476 | help@realpromotion.in"
         self.gst_text = "GSTIN:24AJVPT0460H1ZW"
         self.gst_subtext = "Composition Dealer- Not Eligibal To Collect Taxes On Supplies"
-        self.set_auto_page_break(True, margin=10) # Reduced margin to fit more
+        self.set_auto_page_break(True, margin=10) # Minimal margin to fit more
 
     def common_header(self, title):
         # Company Header
@@ -4933,18 +4933,14 @@ class BasePDF(FPDF):
                             os.remove(tmp_path)
             else:
                 # Handle Local Files
-                # Logic: If path starts with 'static/', resolve it relative to current working dir
                 local_path = img_url.lstrip('/')
-                
                 if os.path.exists(local_path):
                     self.image(local_path, x=x, y=y, w=w, h=h)
                 elif "static" in img_url:
-                     # Try to find it in current directory
                      if os.path.exists(local_path):
                          self.image(local_path, x=x, y=y, w=w, h=h)
 
         except Exception as e:
-            # print(f"Image Error: {e}") 
             pass 
 
     def add_table_header(self, columns, widths):
@@ -4969,19 +4965,23 @@ class MorningPDF(BasePDF):
         self.set_text_color(0, 0, 0)
         start_y = self.get_y()
         
+        # Draw Image at Top Right of Info Block (Coordinates adjusted)
+        # x=100 puts it roughly in the center-right gap. 
         if emp_image:
-            self.draw_image_safe(emp_image, x=90, y=start_y, w=20, h=20)
+            self.draw_image_safe(emp_image, x=95, y=start_y, w=22, h=22)
 
+        # Left: Employee Details
         self.set_xy(10, start_y)
         self.cell(35, 6, "Employee Name:", 0, 0)
         self.set_font('Arial', 'B', 10)
-        self.cell(70, 6, str(emp_name).upper(), 0, 1)
+        self.cell(50, 6, str(emp_name).upper(), 0, 1) # Reduced width to avoid image overlap
         
         self.set_font('Arial', '', 10)
         self.cell(35, 6, "Mobile No:", 0, 0)
         self.set_font('Arial', 'B', 10)
-        self.cell(70, 6, str(emp_mobile) if emp_mobile else "N/A", 0, 1)
+        self.cell(50, 6, str(emp_mobile) if emp_mobile else "N/A", 0, 1)
 
+        # Right: Date/Time
         self.set_xy(140, start_y)
         self.set_font('Arial', '', 10)
         self.cell(20, 6, "Date:", 0, 0)
@@ -5000,10 +5000,10 @@ class MorningPDF(BasePDF):
         self.set_font('Arial', 'B', 10)
         self.cell(40, 6, str(form_id), 0, 1)
             
-        self.ln(25)
+        self.ln(25) # Ensure gap below image
 
     def add_signature_section(self):
-        # Compact check to keep on one page
+        # Optimized to fit on same page if possible
         if self.get_y() + 35 > 280: 
             self.add_page()
         
@@ -5043,17 +5043,17 @@ class EveningPDF(BasePDF):
         start_y = self.get_y()
         
         if emp_image:
-            self.draw_image_safe(emp_image, x=90, y=start_y, w=20, h=20)
+            self.draw_image_safe(emp_image, x=95, y=start_y, w=22, h=22)
 
         self.set_xy(10, start_y)
         self.cell(35, 6, "Employee Name:", 0, 0)
         self.set_font('Arial', 'B', 10)
-        self.cell(70, 6, str(emp_name).upper(), 0, 1)
+        self.cell(50, 6, str(emp_name).upper(), 0, 1)
         
         self.set_font('Arial', '', 10)
         self.cell(35, 6, "Mobile No:", 0, 0)
         self.set_font('Arial', 'B', 10)
-        self.cell(70, 6, str(emp_mobile) if emp_mobile else "N/A", 0, 1)
+        self.cell(50, 6, str(emp_mobile) if emp_mobile else "N/A", 0, 1)
 
         self.set_xy(140, start_y)
         self.set_font('Arial', '', 10)
@@ -5076,7 +5076,6 @@ class EveningPDF(BasePDF):
         self.ln(25) 
 
     def add_signature_section(self):
-        # Optimized to avoid page break if possible
         if self.get_y() + 35 > 280: 
             self.add_page()
         
@@ -5111,6 +5110,7 @@ class OfficePDF(BasePDF):
         self.common_header("BILL OF SUPPLY")
 
     def add_bill_info(self, sale_data):
+        # NO EMPLOYEE IMAGE HERE
         self.set_font('Arial', '', 10)
         self.set_text_color(0, 0, 0)
         y = self.get_y()
@@ -5142,7 +5142,7 @@ class OfficePDF(BasePDF):
         if self.get_y() + 35 > 280: 
             self.add_page()
         
-        self.ln(5) 
+        self.ln(10) 
         y_pos = self.get_y()
         sig_path = "static/img/signature.png" 
         
@@ -5213,7 +5213,7 @@ def download_morning_pdf(allocation_id):
     pdf.set_text_color(0, 0, 0)
     pdf.set_fill_color(245, 245, 245)
     
-    total_opening_sum = 0
+    total_opening_sum = 0 # Opening Total
     total_given_sum = 0
     total_amount_sum = 0
     fill = False
@@ -5246,7 +5246,7 @@ def download_morning_pdf(allocation_id):
         
     pdf.set_font('Arial', 'B', 10)
     pdf.cell(sum(widths[:3]), 8, "TOTAL", 1, 0, 'R', True)
-    pdf.cell(widths[3], 8, str(total_opening_sum), 1, 0, 'C', True) 
+    pdf.cell(widths[3], 8, str(total_opening_sum), 1, 0, 'C', True) # Display Opening Total
     pdf.cell(widths[4], 8, str(total_given_sum), 1, 0, 'C', True)
     pdf.cell(widths[5], 8, "", 1, 0, 'C', True)
     pdf.cell(widths[6], 8, f"{total_amount_sum:.2f}", 1, 1, 'R', True)
@@ -5304,7 +5304,8 @@ def download_evening_pdf(settle_id):
     
     pdf.add_info(data['emp_name'], data['emp_mobile'], d_val, t_val, f"EV-{settle_id}", emp_image=emp_img)
     
-    # Updated Columns: Ret before Left, Left last
+    # Columns & Widths
+    # Reordered: Ret before Left.
     cols = ["No", "Img", "Product", "Tot", "Sld", "Price", "Amt", "Ret", "Left"]
     widths = [8, 10, 42, 16, 16, 18, 22, 16, 16]
     
@@ -5321,7 +5322,7 @@ def download_evening_pdf(settle_id):
     tot_ret = 0
     
     fill = False
-    row_h = 8 # Further Reduced Height to fit on one page
+    row_h = 8 # Reduced row height for compact table
     
     for i, item in enumerate(items):
         prod_img = resolve_img(item['image'])
@@ -5343,8 +5344,6 @@ def download_evening_pdf(settle_id):
         pdf.cell(widths[6], row_h, f"{amt:.2f}", 1, 0, 'R', fill)
         
         bal = int(item['total_qty']) - int(item['sold_qty']) - int(item['return_qty'])
-        
-        # New Order: Return then Left
         pdf.cell(widths[7], row_h, str(item['return_qty']), 1, 0, 'C', fill)
         pdf.cell(widths[8], row_h, str(bal), 1, 1, 'C', fill)
         
@@ -5356,15 +5355,15 @@ def download_evening_pdf(settle_id):
         
         fill = not fill
 
-    # TOTAL ROW
+    # TOTAL ROW (With all column totals)
     pdf.set_font('Arial', 'B', 10)
     pdf.cell(sum(widths[:3]), 8, "TOTALS", 1, 0, 'R', True)
-    pdf.cell(widths[3], 8, str(tot_qty), 1, 0, 'C', True) 
-    pdf.cell(widths[4], 8, str(tot_sold), 1, 0, 'C', True)
+    pdf.cell(widths[3], 8, str(tot_qty), 1, 0, 'C', True) # Tot Sum
+    pdf.cell(widths[4], 8, str(tot_sold), 1, 0, 'C', True) # Sold Sum
     pdf.cell(widths[5], 8, "", 1, 0, 'C', True)
     pdf.cell(widths[6], 8, f"{tot_amt:.2f}", 1, 0, 'R', True)
-    pdf.cell(widths[7], 8, str(tot_ret), 1, 0, 'C', True) # Return Total
-    pdf.cell(widths[8], 8, str(tot_left), 1, 1, 'C', True) # Left Total
+    pdf.cell(widths[7], 8, str(tot_ret), 1, 0, 'C', True) # Ret Sum
+    pdf.cell(widths[8], 8, str(tot_left), 1, 1, 'C', True) # Left Sum
     
     # --- FINANCE & SETTLEMENT SECTION (Side-by-Side) ---
     pdf.ln(3)
@@ -5404,30 +5403,44 @@ def download_evening_pdf(settle_id):
     pdf.set_font('Arial', 'B', 10)
     pdf.cell(90, 6, "Employee Ledger Details:", 0, 1, 'L')
     
+    current_y_left = y_base + 6
+    
     if emp_credit > 0:
+        pdf.set_xy(10, current_y_left)
         pdf.set_font('Arial', '', 9)
         pdf.cell(30, 6, "Credit (Recv):", 0, 0)
         pdf.set_text_color(25, 135, 84)
         pdf.cell(30, 6, f"{emp_credit:.2f}", 0, 1)
+        
         pdf.set_text_color(100, 100, 100)
+        pdf.set_xy(10, current_y_left + 5)
         pdf.cell(90, 5, f"Note: {data.get('emp_credit_note') or '-'}", 0, 1)
+        current_y_left += 12
     else:
+        pdf.set_xy(10, current_y_left)
         pdf.set_font('Arial', 'I', 9)
         pdf.set_text_color(150, 150, 150)
         pdf.cell(90, 6, "No Credit Entry", 0, 1)
+        current_y_left += 7
 
     pdf.set_text_color(0, 0, 0) 
     if emp_debit > 0:
+        pdf.set_xy(10, current_y_left)
         pdf.set_font('Arial', '', 9)
         pdf.cell(30, 6, "Debit (Given):", 0, 0)
         pdf.set_text_color(220, 53, 69)
         pdf.cell(30, 6, f"{emp_debit:.2f}", 0, 1)
+        
         pdf.set_text_color(100, 100, 100)
+        pdf.set_xy(10, current_y_left + 5)
         pdf.cell(90, 5, f"Note: {data.get('emp_debit_note') or '-'}", 0, 1)
+        current_y_left += 12
     else:
+        pdf.set_xy(10, current_y_left)
         pdf.set_font('Arial', 'I', 9)
         pdf.set_text_color(150, 150, 150)
         pdf.cell(90, 6, "No Debit Entry", 0, 1)
+        current_y_left += 7
 
     # --- RIGHT: CASH SETTLEMENT ---
     pdf.set_text_color(0, 0, 0)
@@ -5436,7 +5449,7 @@ def download_evening_pdf(settle_id):
     pdf.set_font('Arial', 'B', 10)
     pdf.cell(90, 6, "Cash Settlement Details:", 0, 1, 'L')
     
-    current_y = pdf.get_y()
+    current_y_right = y_base + 6
     
     def print_right_row(label, val, y):
         pdf.set_xy(x_right, y)
@@ -5445,16 +5458,17 @@ def download_evening_pdf(settle_id):
         pdf.set_font('Arial', 'B', 9)
         pdf.cell(30, 6, val, 0, 1, 'R')
 
-    print_right_row("Total Sales:", f"{tot_amt:.2f}", current_y); current_y += 5
-    print_right_row("Discount (-):", f"{float(data.get('discount', 0) or 0):.2f}", current_y); current_y += 5
-    print_right_row("Online (-):", f"{float(data.get('online_money', 0) or 0):.2f}", current_y); current_y += 5
+    print_right_row("Total Sales:", f"{tot_amt:.2f}", current_y_right); current_y_right += 5
+    print_right_row("Discount (-):", f"{float(data.get('discount', 0) or 0):.2f}", current_y_right); current_y_right += 5
+    print_right_row("Online (-):", f"{float(data.get('online_money', 0) or 0):.2f}", current_y_right); current_y_right += 5
     
     pdf.set_draw_color(200, 200, 200)
-    pdf.line(x_right, current_y, x_right+70, current_y)
-    print_right_row("CASH PAID:", f"{float(data.get('cash_money', 0) or 0):.2f}", current_y + 1)
+    pdf.line(x_right, current_y_right, x_right+70, current_y_right)
+    print_right_row("CASH PAID:", f"{float(data.get('cash_money', 0) or 0):.2f}", current_y_right + 1)
+    current_y_right += 8
 
     # --- HORIZONTAL STATUS LINE ---
-    final_y = max(pdf.get_y(), current_y + 8) + 3
+    final_y = max(current_y_left, current_y_right) + 3
     pdf.set_xy(10, final_y)
     
     pdf.set_fill_color(*fill_color)
@@ -8739,6 +8753,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
