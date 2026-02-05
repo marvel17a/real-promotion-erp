@@ -175,7 +175,7 @@
                             {% if s.due_amount > 0.9 %}
                                 <span class="badge bg-danger bg-opacity-10 text-danger px-3 rounded-pill">Due: {{ "%.0f"|format(s.due_amount) }}</span>
                             {% elif s.due_amount < -0.9 %}
-                                <span class="badge bg-warning bg-opacity-10 text-dark border border-warning px-3 rounded-pill">Profit: +{{ "%.0f"|format(s.due_amount|abs) }}</span>
+                                <span class="badge bg-warning bg-opacity-10 text-dark border border-warning px-3 rounded-pill">Refund: +{{ "%.0f"|format(s.due_amount|abs) }}</span>
                             {% else %}
                                 <span class="badge bg-success bg-opacity-10 text-success px-3 rounded-pill">Cleared</span>
                             {% endif %}
