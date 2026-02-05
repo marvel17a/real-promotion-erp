@@ -60,17 +60,24 @@
     
     <!-- 1. Header -->
     <div class="d-flex justify-content-between align-items-center mb-5">
-        <div>
-            <h2 class="fw-bold text-dark mb-0">Dashboard</h2>
-            <p class="text-muted mb-0">Overview for {{ today_date.strftime('%d %B, %Y') }}</p>
+        <div class="d-flex align-items-center">
+             <!-- Back Button -->
+             <a href="{{ url_for('index') }}" class="btn btn-white shadow-sm rounded-circle border me-3" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+                <i class="fa-solid fa-arrow-left text-dark"></i>
+             </a>
+            <div>
+                <h2 class="fw-bold text-dark mb-0">Dashboard</h2>
+                <p class="text-muted mb-0">Overview for {{ today_date.strftime('%d %B, %Y') }}</p>
+            </div>
         </div>
-        <div class="d-flex gap-3">
-             <a href="{{ url_for('inventory_master') }}" class="btn btn-white shadow-sm fw-bold px-4 rounded-pill">
-                <i class="fa-solid fa-boxes-stacked me-2 text-primary"></i>Inventory
-            </a>
-            <a href="{{ url_for('evening') }}" class="btn btn-dark shadow fw-bold px-4 rounded-pill">
-                <i class="fa-solid fa-plus me-2"></i>New Entry
-            </a>
+        <div class="d-flex align-items-center gap-3">
+             <div class="bg-white px-3 py-2 rounded-pill shadow-sm border d-flex align-items-center">
+                <i class="fa-regular fa-calendar me-2 text-primary"></i>
+                <span class="fw-bold text-dark">{{ today_date.strftime('%d-%m-%Y') }}</span>
+             </div>
+             <button onclick="window.location.reload();" class="btn btn-white shadow-sm rounded-circle border" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+                <i class="fa-solid fa-arrows-rotate text-secondary"></i>
+             </button>
         </div>
     </div>
 
@@ -277,3 +284,4 @@
     });
 </script>
 {% endblock %}
+
