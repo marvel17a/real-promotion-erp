@@ -23,48 +23,40 @@
     </div>
 
     <!-- 1. Stats Cards -->
-    <div class="row g-3 mb-4">
+    <div class="row g-3 mb-4 row-cols-1 row-cols-md-3 row-cols-lg-6">
         
-        <!-- Net Sales (Showing GROSS with Due Indicator) -->
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm p-3 bg-gradient-primary text-white h-100 rounded-4">
-                <div class="d-flex justify-content-between align-items-start">
+        <!-- CARD 1: Net Sales (With Gross Corner) -->
+        <div class="col">
+            <div class="card border-0 shadow-sm p-3 bg-gradient-primary text-white h-100 rounded-4 position-relative overflow-hidden">
+                <div class="d-flex flex-column justify-content-between h-100">
                     <div>
-                        <p class="mb-1 opacity-75 small text-uppercase fw-bold">Gross Sales</p>
-                        <h3 class="fw-bold mb-0">₹ {{ "%.2f"|format(stats.total_sales) }}</h3>
-                        
-                        <!-- PENDING DUE INDICATOR (Restored Request) -->
-                        {% if total_due > 0 %}
-                        <div class="mt-2 badge bg-white bg-opacity-25 fw-normal text-start">
-                            <i class="fa-solid fa-circle-exclamation me-1 text-warning"></i> Due: ₹ {{ "%.0f"|format(total_due) }}
-                        </div>
-                        {% endif %}
+                        <p class="mb-1 opacity-75 small text-uppercase fw-bold">Net Sales</p>
+                        <h3 class="fw-bold mb-0">₹ {{ "%.2f"|format(stats.net_sales) }}</h3>
                     </div>
-                    <div class="icon-box bg-white bg-opacity-25 rounded-circle p-3">
-                        <i class="fa-solid fa-chart-line fs-4"></i>
+                    <div class="mt-2 text-end border-top border-white border-opacity-25 pt-2">
+                        <small class="opacity-75" style="font-size: 0.7rem;">Gross: ₹ {{ "%.0f"|format(stats.total_sales) }}</small>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Cash In Hand (Adjusted for Refunds) -->
-        <div class="col-md-3">
+        <!-- CARD 2: Cash In Hand (Adjusted) -->
+        <div class="col">
             <div class="card border-0 shadow-sm p-3 bg-gradient-success text-white h-100 rounded-4">
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
-                        <p class="mb-1 opacity-75 small text-uppercase fw-bold">Cash In Hand</p>
-                        <!-- Uses Adjusted Cash -->
+                        <p class="mb-1 opacity-75 small text-uppercase fw-bold">Cash</p>
                         <h3 class="fw-bold mb-0">₹ {{ "%.2f"|format(adjusted_cash) }}</h3>
                     </div>
-                    <div class="icon-box bg-white bg-opacity-25 rounded-circle p-3">
-                        <i class="fa-solid fa-money-bill-wave fs-4"></i>
+                    <div class="icon-box bg-white bg-opacity-25 rounded-circle p-2">
+                        <i class="fa-solid fa-money-bill-wave fs-5"></i>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Online -->
-        <div class="col-md-2">
+        <!-- CARD 3: Online -->
+        <div class="col">
             <div class="card border-0 shadow-sm p-3 bg-gradient-info text-white h-100 rounded-4">
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
@@ -78,8 +70,8 @@
             </div>
         </div>
 
-        <!-- Discount (RESTORED) -->
-        <div class="col-md-2">
+        <!-- CARD 4: Discount (Restored) -->
+        <div class="col">
             <div class="card border-0 shadow-sm p-3 bg-gradient-warning text-dark h-100 rounded-4">
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
@@ -93,11 +85,36 @@
             </div>
         </div>
 
-        <!-- Filter Card -->
-        <div class="col-md-2">
+        <!-- CARD 5: Due Status (NEW) -->
+        <div class="col">
+            {% if total_due > 0 %}
+            <div class="card border-0 shadow-sm p-3 bg-danger text-white h-100 rounded-4">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <p class="mb-1 opacity-75 small text-uppercase fw-bold">Pending Due</p>
+                        <h3 class="fw-bold mb-0">₹ {{ "%.2f"|format(total_due) }}</h3>
+                    </div>
+                    <div class="icon-box bg-white bg-opacity-25 rounded-circle p-2">
+                        <i class="fa-solid fa-circle-exclamation fs-5"></i>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="card border-0 shadow-sm p-3 bg-success bg-opacity-75 text-white h-100 rounded-4">
+                <div class="d-flex flex-column justify-content-center align-items-center h-100 text-center">
+                    <i class="fa-solid fa-check-circle fs-2 mb-2"></i>
+                    <h5 class="fw-bold mb-0">All Cleared</h5>
+                    <small class="opacity-75">No Pending Dues</small>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- CARD 6: Filter Section -->
+        <div class="col">
             <div class="card border-0 shadow-sm h-100 rounded-4">
-                <div class="card-body p-2">
-                    <form method="GET" class="d-flex flex-column gap-2 h-100 justify-content-center">
+                <div class="card-body p-2 d-flex flex-column justify-content-center">
+                    <form method="GET" class="d-flex flex-column gap-2">
                         <div class="input-group input-group-sm">
                             <input type="text" name="start_date" class="form-control date-picker" placeholder="Start" value="{{ filters.start or '' }}">
                         </div>
@@ -110,7 +127,7 @@
                             <option value="{{ e.id }}" {% if filters.emp == e.id|string %}selected{% endif %}>{{ e.name }}</option>
                             {% endfor %}
                         </select>
-                        <button class="btn btn-dark btn-sm w-100 rounded-pill py-1">Apply</button>
+                        <button class="btn btn-dark btn-sm w-100 rounded-pill py-1 fw-bold">Apply</button>
                     </form>
                 </div>
             </div>
