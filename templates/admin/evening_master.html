@@ -24,22 +24,19 @@
 
     <!-- 1. Stats Cards -->
     <div class="row g-3 mb-4">
-        <!-- Net Sales Card with Pending Due Logic -->
+        
+        <!-- Net Sales (Showing GROSS with Due Indicator) -->
         <div class="col-md-3">
             <div class="card border-0 shadow-sm p-3 bg-gradient-primary text-white h-100 rounded-4">
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
-                        <p class="mb-1 opacity-75 small text-uppercase fw-bold">Net Sales</p>
-                        <h3 class="fw-bold mb-0">₹ {{ "%.2f"|format(stats.net_sales) }}</h3>
+                        <p class="mb-1 opacity-75 small text-uppercase fw-bold">Gross Sales</p>
+                        <h3 class="fw-bold mb-0">₹ {{ "%.2f"|format(stats.total_sales) }}</h3>
                         
-                        <!-- SHOW PENDING DUE HERE -->
-                        {% if pending_due > 0 %}
-                        <div class="mt-2 badge bg-white bg-opacity-25 fw-normal">
-                            <i class="fa-solid fa-circle-exclamation me-1 text-warning"></i> Due: ₹ {{ "%.2f"|format(pending_due) }}
-                        </div>
-                        {% else %}
-                        <div class="mt-2 badge bg-white bg-opacity-25 fw-normal">
-                            <i class="fa-solid fa-check me-1"></i> All Clear
+                        <!-- PENDING DUE INDICATOR (Restored Request) -->
+                        {% if total_due > 0 %}
+                        <div class="mt-2 badge bg-white bg-opacity-25 fw-normal text-start">
+                            <i class="fa-solid fa-circle-exclamation me-1 text-warning"></i> Due: ₹ {{ "%.0f"|format(total_due) }}
                         </div>
                         {% endif %}
                     </div>
@@ -50,13 +47,13 @@
             </div>
         </div>
 
-        <!-- Cash In Hand (Adjusted) -->
+        <!-- Cash In Hand (Adjusted for Refunds) -->
         <div class="col-md-3">
             <div class="card border-0 shadow-sm p-3 bg-gradient-success text-white h-100 rounded-4">
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
                         <p class="mb-1 opacity-75 small text-uppercase fw-bold">Cash In Hand</p>
-                        <!-- Uses 'adjusted_cash' passed from route -->
+                        <!-- Uses Adjusted Cash -->
                         <h3 class="fw-bold mb-0">₹ {{ "%.2f"|format(adjusted_cash) }}</h3>
                     </div>
                     <div class="icon-box bg-white bg-opacity-25 rounded-circle p-3">
@@ -67,27 +64,44 @@
         </div>
 
         <!-- Online -->
-        <div class="col-md-3">
+        <div class="col-md-2">
             <div class="card border-0 shadow-sm p-3 bg-gradient-info text-white h-100 rounded-4">
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
                         <p class="mb-1 opacity-75 small text-uppercase fw-bold">Online</p>
                         <h3 class="fw-bold mb-0">₹ {{ "%.2f"|format(stats.online) }}</h3>
                     </div>
-                    <div class="icon-box bg-white bg-opacity-25 rounded-circle p-3">
-                        <i class="fa-brands fa-google-pay fs-4"></i>
+                    <div class="icon-box bg-white bg-opacity-25 rounded-circle p-2">
+                        <i class="fa-brands fa-google-pay fs-5"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Discount (RESTORED) -->
+        <div class="col-md-2">
+            <div class="card border-0 shadow-sm p-3 bg-gradient-warning text-dark h-100 rounded-4">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <p class="mb-1 opacity-75 small text-uppercase fw-bold">Discount</p>
+                        <h3 class="fw-bold mb-0">₹ {{ "%.2f"|format(stats.discount) }}</h3>
+                    </div>
+                    <div class="icon-box bg-white bg-opacity-25 rounded-circle p-2">
+                        <i class="fa-solid fa-percent fs-5"></i>
                     </div>
                 </div>
             </div>
         </div>
 
         <!-- Filter Card -->
-        <div class="col-md-3">
+        <div class="col-md-2">
             <div class="card border-0 shadow-sm h-100 rounded-4">
-                <div class="card-body p-3">
+                <div class="card-body p-2">
                     <form method="GET" class="d-flex flex-column gap-2 h-100 justify-content-center">
                         <div class="input-group input-group-sm">
                             <input type="text" name="start_date" class="form-control date-picker" placeholder="Start" value="{{ filters.start or '' }}">
+                        </div>
+                        <div class="input-group input-group-sm">
                             <input type="text" name="end_date" class="form-control date-picker" placeholder="End" value="{{ filters.end or '' }}">
                         </div>
                         <select name="employee_id" class="form-select form-select-sm">
@@ -96,7 +110,7 @@
                             <option value="{{ e.id }}" {% if filters.emp == e.id|string %}selected{% endif %}>{{ e.name }}</option>
                             {% endfor %}
                         </select>
-                        <button class="btn btn-dark btn-sm w-100 rounded-pill">Apply Filter</button>
+                        <button class="btn btn-dark btn-sm w-100 rounded-pill py-1">Apply</button>
                     </form>
                 </div>
             </div>
@@ -133,7 +147,7 @@
                         <td>
                             <div class="d-flex align-items-center">
                                 <img src="{{ s.emp_image }}" class="rounded-circle me-2 border" width="30" height="30">
-                                <span class="fw-bold text-dark">{{ s.emp_name }}</span>
+                                <span class="fw-bold text-dark ms-2">{{ s.emp_name }}</span>
                             </div>
                         </td>
                         <td class="text-end fw-bold">₹ {{ "%.2f"|format(s.total_amount) }}</td>
@@ -142,17 +156,25 @@
                         <td class="text-center">
                             <!-- Dynamic Status Badges -->
                             {% if s.due_amount > 0.9 %}
-                                <span class="badge bg-danger bg-opacity-10 text-danger px-3">Due: {{ "%.0f"|format(s.due_amount) }}</span>
+                                <span class="badge bg-danger bg-opacity-10 text-danger px-3 rounded-pill">Due: {{ "%.0f"|format(s.due_amount) }}</span>
                             {% elif s.due_amount < -0.9 %}
-                                <span class="badge bg-warning bg-opacity-10 text-dark border border-warning px-3">Profit: +{{ "%.0f"|format(s.due_amount|abs) }}</span>
+                                <span class="badge bg-warning bg-opacity-10 text-dark border border-warning px-3 rounded-pill">Profit: +{{ "%.0f"|format(s.due_amount|abs) }}</span>
                             {% else %}
-                                <span class="badge bg-success bg-opacity-10 text-success px-3">Cleared</span>
+                                <span class="badge bg-success bg-opacity-10 text-success px-3 rounded-pill">Cleared</span>
                             {% endif %}
                         </td>
                         <td class="text-end pe-4">
                             <div class="btn-group">
-                                <a href="{{ url_for('view_evening', settle_id=s.id) }}" class="btn btn-sm btn-light border shadow-sm" title="View"><i class="fa-regular fa-eye"></i></a>
-                                <a href="{{ url_for('edit_evening_settle', settle_id=s.id) }}" class="btn btn-sm btn-light border shadow-sm" title="Edit"><i class="fa-solid fa-pen"></i></a>
+                                <!-- PDF Button Restored -->
+                                <a href="{{ url_for('download_evening_pdf', settle_id=s.id) }}" class="btn btn-sm btn-light border shadow-sm text-danger" title="PDF">
+                                    <i class="fa-solid fa-file-pdf"></i>
+                                </a>
+                                <a href="{{ url_for('view_evening', settle_id=s.id) }}" class="btn btn-sm btn-light border shadow-sm" title="View">
+                                    <i class="fa-regular fa-eye"></i>
+                                </a>
+                                <a href="{{ url_for('edit_evening_settle', settle_id=s.id) }}" class="btn btn-sm btn-light border shadow-sm" title="Edit">
+                                    <i class="fa-solid fa-pen"></i>
+                                </a>
                                 <form action="{{ url_for('admin_delete_evening', settle_id=s.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete? Stock will revert.');">
                                     <button class="btn btn-sm btn-danger shadow-sm border-start-0" title="Delete"><i class="fa-solid fa-trash"></i></button>
                                 </form>
@@ -179,6 +201,7 @@
     .bg-gradient-primary { background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%); }
     .bg-gradient-success { background: linear-gradient(135deg, #198754 0%, #146c43 100%); }
     .bg-gradient-info { background: linear-gradient(135deg, #0dcaf0 0%, #0aa2c0 100%); }
+    .bg-gradient-warning { background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%); }
     .x-small { font-size: 0.75rem; }
 </style>
 {% endblock %}
