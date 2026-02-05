@@ -6549,7 +6549,7 @@ def delete_allocation(id):
 # ---------------------------------------------------------#
 # 3. EVENING MASTER (History & Drafts) - WITH FILTERS
 # ---------------------------------------------------------#
-@app.route('/evening/master')
+@app.route('/admin/evening_master')
 def admin_evening_master():
     if "loggedin" not in session: return redirect(url_for("login"))
     
@@ -6562,6 +6562,7 @@ def admin_evening_master():
     emp_filter = request.args.get('employee_id')
 
     # --- 2. Build Query ---
+    # Fetching all necessary fields, including phone for potential future use
     query = """
         SELECT es.id, es.date, es.created_at, 
                IFNULL(es.total_amount, 0) as total_amount, 
@@ -6578,7 +6579,7 @@ def admin_evening_master():
 
     if start_date:
         try:
-            # Safe check for parse_date helper
+            # Safe check for parse_date helper or datetime
             dt = parse_date(start_date) if 'parse_date' in globals() else datetime.strptime(start_date, '%d-%m-%Y')
             query += " AND es.date >= %s"
             params.append(dt.strftime('%Y-%m-%d'))
@@ -6600,15 +6601,15 @@ def admin_evening_master():
     cursor.execute(query, tuple(params))
     settlements = cursor.fetchall()
     
-    # Stats Accumulators
+    # --- 3. Stats Calculation (Restored Discount & Logic) ---
     stats = {
-        'total_sales': 0.0, 
-        'net_sales': 0.0,
-        'cash': 0.0,
+        'total_sales': 0.0,      # Gross Sales
+        'net_sales': 0.0,        # Sales after discount
+        'cash': 0.0,             # Raw Cash Collected
         'online': 0.0,
-        'discount': 0.0,
-        'total_refunds': 0.0,   # NEW: Track excess cash paid to employees
-        'total_due': 0.0        # NEW: Track actual pending due
+        'discount': 0.0,         # Total Discount Given
+        'total_refunds': 0.0,    # Money returned to emp (Profit)
+        'total_due': 0.0         # Actual Pending Due
     }
     
     for s in settlements:
@@ -6621,7 +6622,7 @@ def admin_evening_master():
         else:
             s['emp_image'] = url_for('static', filename='img/default-user.png')
 
-        # Date Formatting (dd-mm-yyyy)
+        # Date Formatting
         if isinstance(s['date'], (date, datetime)):
             s['formatted_date'] = s['date'].strftime('%d-%m-%Y')
         else:
@@ -6642,46 +6643,42 @@ def admin_evening_master():
         else:
             s['formatted_time'] = ""
 
-        # Numeric Safety
+        # Numeric Values
         t_amt = float(s['total_amount'])
         c_money = float(s['cash_money'])
         o_money = float(s['online_money'])
         disc = float(s['discount'])
+        due_amt = float(s['due_amount'])
         
-        # Calculations
-        s['net_sales'] = t_amt - disc
-        
-        paid = c_money + o_money + disc
-        s['due_amount'] = t_amt - paid
-        
-        # Stats Aggregation
+        # Accumulate Basic Stats
         stats['total_sales'] += t_amt
         stats['discount'] += disc
         stats['net_sales'] += (t_amt - disc)
         stats['cash'] += c_money
         stats['online'] += o_money
 
-        # --- NEW LOGIC: Adjust Cash & Due ---
-        # If Due is Negative (e.g. -500), it means Profit (Refund). 
-        # This 500 should be deducted from displayed Cash because it was given back.
-        if s['due_amount'] < -0.9:
-            stats['total_refunds'] += abs(s['due_amount'])
-        elif s['due_amount'] > 0.9:
-            stats['total_due'] += s['due_amount']
+        # --- ADJUSTED CASH LOGIC ---
+        # If due is negative, it means we PAID BACK cash (refund/profit).
+        # We need to subtract this from our "Cash In Hand" KPI.
+        if due_amt < -0.01:
+            stats['total_refunds'] += abs(due_amt)
+        elif due_amt > 0.01:
+            stats['total_due'] += due_amt
 
-    # --- 3. Fetch Employees for Filter ---
+    # Final Adjusted Cash Calculation
+    adjusted_cash = stats['cash'] - stats['total_refunds']
+
+    # Fetch Employees for Filter Dropdown
     cursor.execute("SELECT id, name FROM employees WHERE status='active' ORDER BY name")
     employees = cursor.fetchall()
 
     return render_template('admin/evening_master.html', 
                            settlements=settlements, 
                            stats=stats,
-                           # Passing adjusted values specifically for the KPI cards
-                           adjusted_cash=(stats['cash'] - stats['total_refunds']),
-                           pending_due=stats['total_due'],
+                           adjusted_cash=adjusted_cash, # Passed explicitly
+                           total_due=stats['total_due'], # Passed explicitly
                            employees=employees,
                            filters={'start': start_date, 'end': end_date, 'emp': emp_filter})
-
 # ==========================================
 # 5. EDIT EVENING (Stock Logic)
 # ==========================================
@@ -8568,6 +8565,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
