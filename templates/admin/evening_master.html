@@ -149,6 +149,8 @@
                         <th class="text-end">Sales</th>
                         <th class="text-end">Cash</th>
                         <th class="text-end">Online</th>
+                        <!-- RESTORED DISCOUNT COLUMN -->
+                        <th class="text-end">Discount</th> 
                         <th class="text-center">Status</th>
                         <th class="text-end pe-4">Actions</th>
                     </tr>
@@ -170,12 +172,14 @@
                         <td class="text-end fw-bold">₹ {{ "%.2f"|format(s.total_amount) }}</td>
                         <td class="text-end text-success">₹ {{ "%.2f"|format(s.cash_money) }}</td>
                         <td class="text-end text-primary">₹ {{ "%.2f"|format(s.online_money) }}</td>
+                        <!-- RESTORED DISCOUNT DATA -->
+                        <td class="text-end text-warning fw-bold">₹ {{ "%.2f"|format(s.discount) }}</td>
                         <td class="text-center">
                             <!-- Dynamic Status Badges -->
                             {% if s.due_amount > 0.9 %}
                                 <span class="badge bg-danger bg-opacity-10 text-danger px-3 rounded-pill">Due: {{ "%.0f"|format(s.due_amount) }}</span>
                             {% elif s.due_amount < -0.9 %}
-                                <span class="badge bg-warning bg-opacity-10 text-dark border border-warning px-3 rounded-pill">Refund: +{{ "%.0f"|format(s.due_amount|abs) }}</span>
+                                <span class="badge bg-warning bg-opacity-10 text-dark border border-warning px-3 rounded-pill">Profit: +{{ "%.0f"|format(s.due_amount|abs) }}</span>
                             {% else %}
                                 <span class="badge bg-success bg-opacity-10 text-success px-3 rounded-pill">Cleared</span>
                             {% endif %}
@@ -199,7 +203,7 @@
                         </td>
                     </tr>
                     {% else %}
-                    <tr><td colspan="8" class="text-center py-5 text-muted">No records found.</td></tr>
+                    <tr><td colspan="9" class="text-center py-5 text-muted">No records found.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
