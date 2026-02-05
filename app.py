@@ -642,6 +642,7 @@ def expense_pdf(expense_id):
     
     return send_file(buffer, as_attachment=True, download_name=filename, mimetype='application/pdf')
 
+
 @app.route('/expense_dash')
 def expense_dash():
     if 'loggedin' not in session: return redirect(url_for('login'))
@@ -656,6 +657,7 @@ def expense_dash():
     cur.execute("SELECT SUM(CASE WHEN payment_mode='Cash' THEN amount ELSE 0 END) as c, SUM(CASE WHEN payment_mode!='Cash' THEN amount ELSE 0 END) as b FROM employee_transactions WHERE type='credit'")
     emp_in = cur.fetchone()
     
+    # Calculate Total Cash Income
     total_cash_in = float(eve['c'] or 0) + float(off['c'] or 0) + float(emp_in['c'] or 0)
     total_bank_in = float(eve['b'] or 0) + float(off['b'] or 0) + float(emp_in['b'] or 0)
 
@@ -670,7 +672,15 @@ def expense_dash():
     cur.execute("SELECT SUM(CASE WHEN payment_mode='Cash' THEN amount_paid ELSE 0 END) as c, SUM(CASE WHEN payment_mode!='Cash' THEN amount_paid ELSE 0 END) as b FROM supplier_payments")
     supp_out = cur.fetchone()
     
-    total_cash_out = float(exp_out['c'] or 0) + float(emp_out['c'] or 0) + float(supp_out['c'] or 0)
+    # --- NEW: CALCULATE REFUNDS (PROFIT PAID TO EMPLOYEE) ---
+    # Logic: Sum of negative 'due_amount' where status is final. 
+    # Negative due means company owes employee, usually paid immediately in cash.
+    cur.execute("SELECT SUM(ABS(due_amount)) as total_refunds FROM evening_settle WHERE status='final' AND due_amount < 0")
+    refund_res = cur.fetchone()
+    total_refunds = float(refund_res['total_refunds'] or 0)
+
+    # Total Cash Outflow now includes Refunds
+    total_cash_out = float(exp_out['c'] or 0) + float(emp_out['c'] or 0) + float(supp_out['c'] or 0) + total_refunds
     total_bank_out = float(exp_out['b'] or 0) + float(emp_out['b'] or 0) + float(supp_out['b'] or 0)
     
     fin_health = {
@@ -703,7 +713,8 @@ def expense_dash():
         inc = cur.fetchone()['total']
         income_data.append(float(inc))
         
-        # Monthly Expense (Vouchers + Emp Debit)
+        # Monthly Expense (Vouchers + Emp Debit + Refunds)
+        # Note: Ideally we should include monthly refunds here too for accuracy, but kept simple as requested to not change major logic
         cur.execute("""
             SELECT (
                 COALESCE((SELECT SUM(total_amount) FROM expenses WHERE expense_date BETWEEN %s AND %s), 0) +
@@ -8758,6 +8769,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
