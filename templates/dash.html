@@ -77,19 +77,19 @@
     <!-- 2. KPI Cards Row -->
     <div class="row g-4 mb-5">
         
-        <!-- Sales Yesterday (With Today's Sale) -->
+        <!-- Today's Sale (Big) / Previous Day (Small) -->
         <div class="col-xl-3 col-md-6">
             <div class="kpi-card card-bg-purple p-4">
                 <div class="icon-box"><i class="fa-solid fa-chart-line"></i></div>
                 <div>
-                    <p class="text-white-50 text-uppercase fw-bold small mb-1">Previous Day Sale</p>
-                    <h3 class="fw-bold mb-0">₹ {{ "%.2f"|format(sales_yesterday) }}</h3>
+                    <p class="text-white-50 text-uppercase fw-bold small mb-1">Today's Live Sale</p>
+                    <h3 class="fw-bold mb-0">₹ {{ "%.0f"|format(sales_today) }}</h3>
                 </div>
-                <!-- Updated Section for Today's Sale -->
+                <!-- Previous Day Small -->
                 <div class="mt-3 border-top border-white border-opacity-10 pt-2">
                     <div class="d-flex justify-content-between align-items-center">
-                        <span class="small text-white-50">Today's Live:</span>
-                        <span class="fw-bold small text-white">₹ {{ "%.0f"|format(sales_today) }}</span>
+                        <span class="small text-white-50">Yesterday:</span>
+                        <span class="fw-bold small text-white">₹ {{ "%.2f"|format(sales_yesterday) }}</span>
                     </div>
                 </div>
             </div>
@@ -123,7 +123,7 @@
             </div>
         </div>
 
-        <!-- Expenses & Dues -->
+        <!-- Yearly Expenses -->
         <div class="col-xl-3 col-md-6">
             <div class="kpi-card card-bg-red p-4">
                 <div class="icon-box"><i class="fa-solid fa-wallet"></i></div>
@@ -132,13 +132,25 @@
                     <h3 class="fw-bold mb-0">₹ {{ "%.2f"|format(yearly_expenses) }}</h3>
                 </div>
                  <div class="mt-3 border-top border-white border-opacity-10 pt-2">
-                    <div class="d-flex justify-content-between">
-                        <span class="small text-white-50">Supplier Dues:</span>
-                        <span class="fw-bold small">₹ {{ "%.0f"|format(supplier_dues) }}</span>
-                    </div>
+                    <span class="small text-white-50">Operational Costs</span>
                 </div>
             </div>
         </div>
+
+        <!-- Supplier Dues (New Separate Card) -->
+        <div class="col-xl-3 col-md-6">
+            <div class="kpi-card card-bg-orange p-4">
+                <div class="icon-box"><i class="fa-solid fa-file-invoice-dollar"></i></div>
+                <div>
+                    <p class="text-white-50 text-uppercase fw-bold small mb-1">Supplier Dues</p>
+                    <h3 class="fw-bold mb-0">₹ {{ "%.0f"|format(supplier_dues) }}</h3>
+                </div>
+                 <div class="mt-3 border-top border-white border-opacity-10 pt-2">
+                    <span class="small text-white-50">Outstanding Payments</span>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <!-- 3. Charts & Alerts -->
@@ -155,27 +167,15 @@
             </div>
         </div>
 
-        <!-- Side Panel (Products & Alerts) -->
+        <!-- Side Panel (Products) -->
         <div class="col-lg-4">
             
-            <!-- Stock Alert -->
-            <div class="kpi-card card-bg-orange p-4 mb-4" style="height: auto; min-height: 140px;">
-                <div class="d-flex align-items-center">
-                    <div class="bg-white bg-opacity-25 rounded-circle p-3 me-3">
-                        <i class="fa-solid fa-box-open fs-4 text-white"></i>
-                    </div>
-                    <div>
-                        <h4 class="fw-bold mb-1">{{ low_stock }} Items</h4>
-                        <p class="mb-0 text-white-50 small text-uppercase fw-bold">Low Stock Alert</p>
-                    </div>
-                </div>
-                <a href="{{ url_for('inventory_master') }}" class="stretched-link"></a>
-            </div>
+            <!-- Removed Low Stock Card as requested -->
 
             <!-- Top Products Chart -->
-            <div class="chart-container" style="height: 235px;">
+            <div class="chart-container" style="height: 400px;">
                 <h6 class="fw-bold text-dark mb-3">Top 5 Products</h6>
-                <div style="height: 160px; position: relative;">
+                <div style="height: 300px; position: relative;">
                     <canvas id="productChart"></canvas>
                 </div>
             </div>
