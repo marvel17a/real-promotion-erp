@@ -4909,10 +4909,18 @@ class BasePDF(FPDF):
         
         try:
             if img_url.startswith("http"):
-                # Download image to temp file
-                response = requests.get(img_url, stream=True, timeout=5)
+                # Download image to temp file with User-Agent to avoid 403 Forbidden
+                headers = {'User-Agent': 'Mozilla/5.0'}
+                response = requests.get(img_url, stream=True, timeout=10, headers=headers)
+                
                 if response.status_code == 200:
-                    with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp_file:
+                    # Detect extension from URL or Content-Type, default to .jpg to be safe
+                    # FPDF supports jpg, png, gif. 
+                    suffix = ".jpg"
+                    if ".png" in img_url.lower(): suffix = ".png"
+                    elif ".gif" in img_url.lower(): suffix = ".gif"
+                    
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp_file:
                         for chunk in response.iter_content(1024):
                             tmp_file.write(chunk)
                         tmp_path = tmp_file.name
@@ -4920,21 +4928,32 @@ class BasePDF(FPDF):
                     # Add to PDF
                     try:
                         self.image(tmp_path, x=x, y=y, w=w, h=h)
+                    except Exception as e:
+                        # FPDF Image Error (e.g. format not supported)
+                        print(f"FPDF Image Error: {e}")
                     finally:
                         # Clean up temp file
                         if os.path.exists(tmp_path):
                             os.remove(tmp_path)
-            elif os.path.exists(img_url):
-                # Local absolute/relative path
-                self.image(img_url, x=x, y=y, w=w, h=h)
-            elif "static" in img_url:
-                 # Try removing leading slash if present
-                 clean_path = img_url.lstrip('/')
-                 if os.path.exists(clean_path):
-                     self.image(clean_path, x=x, y=y, w=w, h=h)
+            else:
+                # Handle Local Files
+                # Logic: If path starts with 'static/', it's relative to CWD usually.
+                # If path starts with '/', it might be absolute or relative to root.
+                
+                local_path = img_url
+                if img_url.startswith("/"):
+                    local_path = img_url.lstrip("/") # Remove leading /
+                
+                # Check current directory
+                if os.path.exists(local_path):
+                    self.image(local_path, x=x, y=y, w=w, h=h)
+                # Check if it is in static folder specifically
+                elif os.path.exists(os.path.join("static", "uploads", os.path.basename(local_path))):
+                     path = os.path.join("static", "uploads", os.path.basename(local_path))
+                     self.image(path, x=x, y=y, w=w, h=h)
 
         except Exception as e:
-            # print(f"Image draw error: {e}")
+            print(f"Global Image Draw Error: {e}")
             pass # Fail silently, leave blank space
 
     def add_table_header(self, columns, widths):
@@ -4960,8 +4979,9 @@ class MorningPDF(BasePDF):
         start_y = self.get_y()
         
         # Employee Image
+        # Note: x=90 is roughly center-right. Adjust if overlapping.
         if emp_image:
-            self.draw_image_safe(emp_image, x=90, y=start_y, w=20, h=20)
+            self.draw_image_safe(emp_image, x=100, y=start_y, w=20, h=20)
 
         # Left: Employee Details
         self.set_xy(10, start_y)
@@ -4993,7 +5013,7 @@ class MorningPDF(BasePDF):
         self.set_font('Arial', 'B', 10)
         self.cell(40, 6, str(form_id), 0, 1)
             
-        self.ln(20)
+        self.ln(25) # Increase gap to avoid image overlap
 
     def add_signature_section(self):
         if self.get_y() > 230: self.add_page()
@@ -5034,7 +5054,7 @@ class EveningPDF(BasePDF):
         start_y = self.get_y()
         
         if emp_image:
-            self.draw_image_safe(emp_image, x=90, y=start_y, w=20, h=20)
+            self.draw_image_safe(emp_image, x=100, y=start_y, w=20, h=20)
 
         self.set_xy(10, start_y)
         self.cell(35, 6, "Employee Name:", 0, 0)
@@ -5064,7 +5084,7 @@ class EveningPDF(BasePDF):
         self.set_font('Arial', 'B', 10)
         self.cell(40, 6, str(form_id), 0, 1)
             
-        self.ln(20)
+        self.ln(25) # Gap for image
 
     def add_signature_section(self):
         # Same 2-sided signature as Morning
@@ -5214,6 +5234,8 @@ def download_morning_pdf(allocation_id):
         y_start = pdf.get_y()
 
         pdf.cell(widths[0], row_h, str(i+1), 1, 0, 'C', fill)
+        
+        # Image Cell
         pdf.cell(widths[1], row_h, "", 1, 0, 'C', fill)
         if prod_img:
             pdf.draw_image_safe(prod_img, x_start + widths[0] + 1, y_start + 1, 10, 10)
@@ -5313,6 +5335,7 @@ def download_evening_pdf(settle_id):
 
         pdf.cell(widths[0], row_h, str(i+1), 1, 0, 'C', fill)
         
+        # Image
         pdf.cell(widths[1], row_h, "", 1, 0, 'C', fill)
         if prod_img:
             pdf.draw_image_safe(prod_img, x_start + widths[0] + 1, y_start + 1, 8, 8)
@@ -5496,6 +5519,7 @@ def download_office_bill(sale_id):
     cust_name = str(sale.get('customer_name', 'Customer')).replace(" ", "_")
     filename = f"{cust_name}_Bill_{sale_id}.pdf"
     return send_file(buffer, as_attachment=True, download_name=filename, mimetype='application/pdf')
+    
 # ==========================================
 # PUBLIC ROUTE: DOWNLOAD MORNING PDF
 # ==========================================
@@ -8646,6 +8670,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
