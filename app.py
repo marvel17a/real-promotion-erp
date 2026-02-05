@@ -6679,6 +6679,7 @@ def admin_evening_master():
                            total_due=stats['total_due'], # Passed explicitly
                            employees=employees,
                            filters={'start': start_date, 'end': end_date, 'emp': emp_filter})
+    
 # ==========================================
 # 5. EDIT EVENING (Stock Logic)
 # ==========================================
@@ -8565,6 +8566,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
