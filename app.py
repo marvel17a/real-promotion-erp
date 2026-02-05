@@ -4837,6 +4837,7 @@ def api_employee_detail(id):
         return jsonify({"ok": False, "error": "Not found"}), 404
     return jsonify({"ok": True, "employee": emp})
 
+
 import requests
 import tempfile
 import os
@@ -4859,7 +4860,7 @@ class BasePDF(FPDF):
         self.contact = "+91 96623 22476 | help@realpromotion.in"
         self.gst_text = "GSTIN:24AJVPT0460H1ZW"
         self.gst_subtext = "Composition Dealer- Not Eligibal To Collect Taxes On Supplies"
-        self.set_auto_page_break(True, margin=10) # Minimal margin to fit more
+        self.set_auto_page_break(True, margin=5) # Minimal margin to prevent early break
 
     def common_header(self, title):
         # Company Header
@@ -5038,6 +5039,7 @@ class EveningPDF(BasePDF):
         self.common_header("EVENING SETTLEMENT RECEIPT")
 
     def add_info(self, emp_name, emp_mobile, date_str, time_str, form_id, emp_image=None):
+        # Same structure as Morning
         self.set_font('Arial', '', 10)
         self.set_text_color(0, 0, 0)
         start_y = self.get_y()
@@ -5076,6 +5078,7 @@ class EveningPDF(BasePDF):
         self.ln(25) 
 
     def add_signature_section(self):
+        # Compact check to keep on one page
         if self.get_y() + 35 > 280: 
             self.add_page()
         
@@ -5305,9 +5308,12 @@ def download_evening_pdf(settle_id):
     pdf.add_info(data['emp_name'], data['emp_mobile'], d_val, t_val, f"EV-{settle_id}", emp_image=emp_img)
     
     # Columns & Widths
-    # Reordered: Ret before Left.
-    cols = ["No", "Img", "Product", "Tot", "Sld", "Price", "Amt", "Ret", "Left"]
-    widths = [8, 10, 42, 16, 16, 18, 22, 16, 16]
+    # Reordered: Ret before Left. Total Width = 190
+    cols = ["No", "Img", "Product", "Total", "Sold", "Price", "Amount", "Return", "Left"]
+    widths = [8, 10, 42, 16, 16, 18, 22, 16, 16] 
+    # Adjusted slightly if needed to match 190mm usable width. Sum here is 164, so plenty of room.
+    # Let's expand Product name slightly to align better
+    widths[2] = 68 # 42 -> 68 (Adds 26). New sum = 190. Perfect full width.
     
     pdf.add_table_header(cols, widths)
     
@@ -5358,11 +5364,11 @@ def download_evening_pdf(settle_id):
     # TOTAL ROW (With all column totals)
     pdf.set_font('Arial', 'B', 10)
     pdf.cell(sum(widths[:3]), 8, "TOTALS", 1, 0, 'R', True)
-    pdf.cell(widths[3], 8, str(tot_qty), 1, 0, 'C', True) # Tot Sum
+    pdf.cell(widths[3], 8, str(tot_qty), 1, 0, 'C', True) # Total Sum
     pdf.cell(widths[4], 8, str(tot_sold), 1, 0, 'C', True) # Sold Sum
     pdf.cell(widths[5], 8, "", 1, 0, 'C', True)
     pdf.cell(widths[6], 8, f"{tot_amt:.2f}", 1, 0, 'R', True)
-    pdf.cell(widths[7], 8, str(tot_ret), 1, 0, 'C', True) # Ret Sum
+    pdf.cell(widths[7], 8, str(tot_ret), 1, 0, 'C', True) # Return Sum
     pdf.cell(widths[8], 8, str(tot_left), 1, 1, 'C', True) # Left Sum
     
     # --- FINANCE & SETTLEMENT SECTION (Side-by-Side) ---
@@ -5602,7 +5608,6 @@ def download_office_bill(sale_id):
     cust_name = str(sale.get('customer_name', 'Customer')).replace(" ", "_")
     filename = f"{cust_name}_Bill_{sale_id}.pdf"
     return send_file(buffer, as_attachment=True, download_name=filename, mimetype='application/pdf')
-    
 # ==========================================
 # PUBLIC ROUTE: DOWNLOAD MORNING PDF
 # ==========================================
@@ -8753,6 +8758,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
