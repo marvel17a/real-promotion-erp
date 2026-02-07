@@ -2681,7 +2681,15 @@ def record_payment(supplier_id):
     cur.execute("SELECT SUM(CASE WHEN payment_mode='Cash' THEN amount_paid ELSE 0 END) as c, SUM(CASE WHEN payment_mode!='Cash' THEN amount_paid ELSE 0 END) as b FROM supplier_payments")
     supp_out = cur.fetchone()
 
-    total_cash_out = float(exp_out['c'] or 0) + float(emp_out['c'] or 0) + float(supp_out['c'] or 0)
+    # --- NEW: CALCULATE REFUNDS (PROFIT PAID TO EMPLOYEE) ---
+    # Logic: Sum of negative 'due_amount' where status is final. 
+    # Negative due means company owes employee, usually paid immediately in cash.
+    cur.execute("SELECT SUM(ABS(due_amount)) as total_refunds FROM evening_settle WHERE status='final' AND due_amount < -0.01")
+    refund_res = cur.fetchone()
+    total_refunds = float(refund_res['total_refunds'] or 0)
+
+    # Total Cash Out includes Refunds now
+    total_cash_out = float(exp_out['c'] or 0) + float(emp_out['c'] or 0) + float(supp_out['c'] or 0) + total_refunds
     total_bank_out = float(exp_out['b'] or 0) + float(emp_out['b'] or 0) + float(supp_out['b'] or 0)
     
     cash_bal = total_cash_in - total_cash_out
@@ -2720,7 +2728,7 @@ def record_payment(supplier_id):
                          supplier=supplier, 
                          current_due=current_due, 
                          cash_balance=cash_bal, 
-                         bank_balance=bank_bal,
+                         bank_balance=bank_bal, 
                          today=date.today().strftime('%d-%m-%Y'))
 
 @app.route('/supplier/payment/delete/<int:payment_id>', methods=['POST'])
@@ -8792,6 +8800,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
