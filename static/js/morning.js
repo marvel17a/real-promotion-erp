@@ -271,7 +271,37 @@ document.addEventListener("DOMContentLoaded", () => {
             if (index > -1 && index < inputs.length - 1) inputs[index + 1].focus();
         }
     });
+
+// --- SIMPLE POPUP & DOUBLE SUBMISSION PREVENTION ---
+    const form = document.querySelector('form');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            const submitBtn = document.querySelector('.btn-save') || document.querySelector('button[type="submit"]');
+            
+            // Agar button pehle se disabled hai (click ho chuka hai), toh turant rok do
+            if (submitBtn && submitBtn.disabled) {
+                e.preventDefault();
+                return;
+            }
+
+            // Simple browser confirmation alert
+            const isConfirmed = confirm("Are you sure you want to save this stock allocation? Stock will be deducted.");
+            
+            if (isConfirmed) {
+                // Agar user OK dabaye, toh turant button lock kardo
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i> Saving...';
+                }
+            } else {
+                // Agar user Cancel dabaye, toh form ko submit hone se rok do
+                e.preventDefault();
+            }
+        });
+    }
+    
 });
+
 
 
 
