@@ -159,48 +159,11 @@
         }
     });
 
-    // -------------------------------------------------------------
-        // SIMPLE POPUP FOR DOUBLE SUBMISSION PREVENTION
-        // -------------------------------------------------------------
-        const form = document.getElementById('morningForm');
-        
-        if (form) {
-            form.addEventListener('submit', function(e) {
-                const btn = form.querySelector('.btn-save');
-                
-                // Agar button already disabled hai (yaani ek baar click ho chuka hai), toh turant rok do
-                if (btn.disabled) {
-                    e.preventDefault(); 
-                    return;
-                }
-
-                // Check karo ki koi product select kiya hai ya nahi (optional safety)
-                const selects = document.querySelectorAll('.product-select');
-                let valid = false;
-                selects.forEach(s => { if(s.value) valid = true; });
-                
-                if(!valid) {
-                    e.preventDefault();
-                    alert("Please select at least one product to allocate.");
-                    return;
-                }
-
-                // Simple browser popup
-                const isConfirmed = confirm("Are you sure you want to save this allocation? Stock will be deducted.");
-                
-                if (isConfirmed) {
-                    // Agar user OK dabaye, toh button disable kardo taaki double click na ho
-                    btn.disabled = true;
-                    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i> Saving...';
-                } else {
-                    // Agar Cancel dabaye, toh form submit hone se rok do
-                    e.preventDefault();
-                }
-            });
-        }
+    
 </script>
 <script src="{{ url_for('static', filename='js/morning.js') }}"></script>
 {% endblock %}
+
 
 
 
