@@ -6,6 +6,7 @@
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <!-- FontAwesome -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script src="[https://cdn.jsdelivr.net/npm/sweetalert2@11](https://cdn.jsdelivr.net/npm/sweetalert2@11)"></script>
 <!-- Custom CSS -->
 <link rel="stylesheet" href="{{ url_for('static', filename='css/morning.css') }}">
 
@@ -157,8 +158,64 @@
         }
     });
 </script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    // Apne form ki ID check karein (yahan 'morningForm' use ki gayi hai)
+    const form = document.getElementById('morningForm');
+    
+    if(form) {
+        form.addEventListener('submit', function(e) {
+            // 1. Pehle default form submission turant rok dein
+            e.preventDefault(); 
+            
+            const btn = form.querySelector('.btn-save');
+            if (btn.disabled) return; // Agar already clicked hai toh return karein
+
+            // 2. Validate karein ki at least ek product selected ho
+            const selects = document.querySelectorAll('.product-select');
+            let valid = false;
+            selects.forEach(s => { if(s.value) valid = true; });
+            
+            if(!valid) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Incomplete Details',
+                    text: 'Please select at least one product to allocate.',
+                    confirmButtonColor: '#0d6efd'
+                });
+                return;
+            }
+
+            // 3. Confirmation Popup Dikhayein
+            Swal.fire({
+                title: 'Confirm Allocation?',
+                text: "Stock will be deducted from the warehouse and assigned to this employee.",
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#0d6efd',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Yes, Save it!',
+                cancelButtonText: 'Cancel',
+                allowOutsideClick: false
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // 4. 'Yes' click hone par button disable karein (Double submit rokne ke liye)
+                    btn.disabled = true;
+                    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i> Saving...';
+                    
+                    // 5. Final Form Submit
+                    form.submit();
+                }
+            });
+        });
+    }
+});
+    </script>
+
 <script src="{{ url_for('static', filename='js/morning.js') }}"></script>
 {% endblock %}
+
 
 
 
