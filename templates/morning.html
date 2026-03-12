@@ -6,9 +6,10 @@
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <!-- FontAwesome -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-<script src="[https://cdn.jsdelivr.net/npm/sweetalert2@11](https://cdn.jsdelivr.net/npm/sweetalert2@11)"></script>
 <!-- Custom CSS -->
 <link rel="stylesheet" href="{{ url_for('static', filename='css/morning.css') }}">
+<!-- SweetAlert2 -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <div class="glass-container fade-in-up mb-5">
 
@@ -26,97 +27,75 @@
     <div class="glass-panel p-4 mb-4">
         
         <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
-            <h4 class="fw-800 text-dark mb-0"><i class="fa-solid fa-sun text-warning me-2"></i>Morning Allocation</h4>
-            <a href="{{ url_for('allocation_list') }}" class="btn btn-outline-secondary rounded-pill btn-sm fw-bold px-3">
-                <i class="fa-solid fa-clock-rotate-left me-2"></i> History
-            </a>
+            <h4 class="fw-bold text-dark m-0"><i class="fa-solid fa-boxes-packing text-primary me-2"></i>Morning Allocation</h4>
+            <div class="badge bg-primary bg-opacity-10 text-primary px-3 py-2 rounded-pill">
+                <i class="fa-regular fa-calendar me-1"></i> {{ today_date }}
+            </div>
         </div>
 
-        <form id="morningForm" method="POST" action="{{ url_for('morning') }}">
-            <!-- Hidden Timestamp -->
-            <input type="hidden" name="timestamp" id="timestampInput">
-
-            <!-- Controls Row - Aligned Items -->
-            <div class="row g-4 align-items-end mb-4">
-                
-                <!-- Employee Select -->
-                <div class="col-lg-5">
-                    <label class="control-label">Sales Representative</label>
-                    <div class="d-flex align-items-center gap-3">
-                        <div class="emp-photo-box">
-                            <img src="{{ url_for('static', filename='img/default-user.png') }}" id="empPhoto" alt="User">
-                        </div>
-                        <div class="flex-grow-1">
-                            <div class="input-group-glass">
-                                <span class="input-group-text"><i class="fa-solid fa-user-tie"></i></span>
-                                <select name="employee_id" id="employee_id" class="form-select" required>
-                                    <option value="" data-img="">-- Select Employee --</option>
-                                    {% for emp in employees %}
-                                    <option value="{{ emp.id }}" data-img="{{ emp.image }}">{{ emp.name }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                        </div>
+        <!-- Form ko yahan id di hai: morningForm -->
+        <form action="{{ url_for('morning') }}" method="POST" id="morningForm">
+            
+            <!-- Employee & Date Selection -->
+            <div class="row g-4 mb-4">
+                <div class="col-md-5">
+                    <label class="form-label fw-bold text-muted small text-uppercase">Select Employee</label>
+                    <div class="input-group input-group-glass">
+                        <span class="input-group-text"><i class="fa-solid fa-user-tie"></i></span>
+                        <select name="employee_id" id="employee_id" class="form-select form-select-lg" required>
+                            <option value="" selected disabled>Choose Employee...</option>
+                            {% for emp in employees %}
+                            <option value="{{ emp.id }}" data-img="{{ emp.image }}">{{ emp.name }}</option>
+                            {% endfor %}
+                        </select>
                     </div>
                 </div>
 
-                <!-- Date Input -->
-                <div class="col-md-4 col-lg-4">
-                    <label class="control-label">Allocation Date</label>
-                    <div class="input-group-glass">
-                        <span class="input-group-text"><i class="fa-solid fa-calendar-day"></i></span>
-                        <input type="text" name="date" id="date" class="form-control" value="{{ today_date }}" required>
+                <div class="col-md-4">
+                    <label class="form-label fw-bold text-muted small text-uppercase">Allocation Date</label>
+                    <div class="input-group input-group-glass">
+                        <span class="input-group-text"><i class="fa-regular fa-calendar-days"></i></span>
+                        <input type="text" name="date" id="date" class="form-control form-control-lg" placeholder="Select Date" required>
                     </div>
                 </div>
 
-                <!-- Live Clock (Blue Box) -->
-                <div class="col-md-4 col-lg-3 ms-auto">
-                    <div class="clock-display">
-                        <span id="liveClock">00:00:00</span>
+                <!-- Live Time Display -->
+                <div class="col-md-3">
+                    <label class="form-label fw-bold text-muted small text-uppercase">Current Time</label>
+                    <div class="time-display-box">
+                        <i class="fa-regular fa-clock me-2"></i>
+                        <span id="liveTime">--:--:--</span>
+                        <input type="hidden" name="timestamp" id="timestamp">
                     </div>
                 </div>
             </div>
 
-            <!-- Status Message Area -->
-            <div id="fetchMsg" class="text-center mb-3"></div>
-            <div id="settledMsg" class="alert alert-info shadow-sm d-none">
-    <i class="fa-solid fa-check-double me-2"></i>
-    <strong>Settlement Complete:</strong> Evening settlement is done for this date.
-</div>
+            <!-- Employee Profile Preview (Collapsible) -->
+            <div id="empProfile" class="emp-profile-card mb-4" style="display: none;">
+                <div class="d-flex align-items-center">
+                    <img id="empPhoto" src="" alt="Employee" class="emp-avatar shadow-sm">
+                    <div>
+                        <h5 class="mb-1 fw-bold text-dark" id="empNamePreview"></h5>
+                        <div class="text-muted small"><i class="fa-solid fa-id-badge me-1"></i> Selected for Allocation</div>
+                    </div>
+                </div>
+            </div>
 
-            <!-- Restock History Area -->
-            <div id="historyList"></div>
-
-            <!-- Product Table -->
-            <div class="table-responsive">
-                <table class="table styled-table" id="productTable">
-                    <thead>
+            <!-- Products Table -->
+            <div class="table-responsive rounded-4 shadow-sm bg-white mb-4">
+                <table class="table table-hover align-middle mb-0" id="allocationTable">
+                    <thead class="bg-light">
                         <tr>
-                            <th class="text-center" style="width: 50px;">#</th>
-                            <th class="text-center" style="width: 70px;">Img</th>
-                            <th class="text-start">Product Name</th>
-                            <th class="text-center" style="width: 100px;">Opening</th>
-                            <th class="text-center" style="width: 120px;">Given Qty</th>
-                            <th class="text-center" style="width: 100px;">Total</th>
-                            <th class="text-end" style="width: 120px;">Price</th>
-                            <th class="text-end" style="width: 140px;">Amount</th>
-                            <th class="text-center" style="width: 50px;"><i class="fa-solid fa-trash"></i></th>
+                            <th style="width: 5%;" class="text-center">#</th>
+                            <th style="width: 40%;">Product Details</th>
+                            <th style="width: 20%;">Opening Stock</th>
+                            <th style="width: 20%;">Given Qty</th>
+                            <th style="width: 15%;" class="text-center">Action</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        <!-- Javascript will populate rows here -->
+                    <tbody id="productRows">
+                        <!-- Rows will be added here dynamically -->
                     </tbody>
-                    <tfoot class="table-footer">
-                        <tr>
-                            <td colspan="3" class="summary-label">Summary:</td>
-                            <td class="text-center"><span class="total-box bg-total-secondary" id="totalOpening">0</span></td>
-                            <td class="text-center"><span class="total-box bg-total-blue" id="totalGiven">0</span></td>
-                            <td class="text-center"><span class="total-box bg-total-dark" id="totalAll">0</span></td>
-                            <td></td>
-                            <td class="text-end"><span class="total-box bg-total-green fs-5">₹ <span id="grandTotal">0.00</span></span></td>
-                            <td></td>
-                        </tr>
-                    </tfoot>
                 </table>
             </div>
 
@@ -136,43 +115,126 @@
 
 <!-- Embedded Data for JS -->
 <script>
-    
-   
     try { window.productsData = {{ products | tojson | safe }}; } 
     catch(e) { window.productsData = []; }
     
-    
     document.addEventListener("DOMContentLoaded", function() {
+        // 1. Date Picker
         flatpickr("#date", { dateFormat: "d-m-Y", defaultDate: "{{ today_date }}", allowInput: true });
         
-        // Employee Photo Logic
+        // 2. Employee Photo Logic
         const empSelect = document.getElementById('employee_id');
         const empPhoto = document.getElementById('empPhoto');
+        const empProfile = document.getElementById('empProfile');
+        const empNamePreview = document.getElementById('empNamePreview');
+
         if(empSelect) {
             empSelect.addEventListener('change', function() {
                 const selectedOption = this.options[this.selectedIndex];
                 const img = selectedOption.getAttribute('data-img');
+                const name = selectedOption.text;
+
                 if(img && img !== 'None' && img !== "") empPhoto.src = img;
                 else empPhoto.src = "{{ url_for('static', filename='img/default-user.png') }}";
+                
+                empNamePreview.textContent = name;
+                empProfile.style.display = 'flex'; // Show profile card
+                empProfile.classList.add('fade-in');
             });
         }
-    });
-</script>
+        
+        // 3. Live Time
+        function updateTime() {
+            const now = new Date();
+            document.getElementById('liveTime').textContent = now.toLocaleTimeString();
+            // Format for backend: YYYY-MM-DD HH:MM:SS
+            const pad = n => n < 10 ? '0' + n : n;
+            const formatted = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+            document.getElementById('timestamp').value = formatted;
+        }
+        setInterval(updateTime, 1000);
+        updateTime();
 
-<script>
-document.addEventListener("DOMContentLoaded", function() {
-    // Apne form ki ID check karein (yahan 'morningForm' use ki gayi hai)
-    const form = document.getElementById('morningForm');
-    
-    if(form) {
+        // 4. Dynamic Rows
+        const tableBody = document.getElementById('productRows');
+        const addBtn = document.getElementById('addRow');
+        let rowCount = 0;
+
+        function addRow() {
+            rowCount++;
+            const tr = document.createElement('tr');
+            tr.className = "product-row fade-in";
+            tr.innerHTML = `
+                <td class="text-center text-muted fw-bold row-index">${rowCount}</td>
+                <td>
+                    <div class="d-flex align-items-center">
+                        <img src="{{ url_for('static', filename='img/default-product.png') }}" class="product-img-preview rounded me-3 border" width="45" height="45">
+                        <select name="product_id[]" class="form-select product-select" required>
+                            <option value="" selected disabled>Select Product...</option>
+                            ${window.productsData.map(p => `<option value="${p.id}" data-price="${p.price}" data-img="${p.image}">${p.name} (Stock: ${p.stock})</option>`).join('')}
+                        </select>
+                        <input type="hidden" name="price[]" class="price-input">
+                    </div>
+                </td>
+                <td>
+                    <input type="number" name="opening[]" class="form-control text-center fw-bold" value="0" min="0">
+                </td>
+                <td>
+                    <input type="number" name="given[]" class="form-control text-center fw-bold bg-primary bg-opacity-10 text-primary" placeholder="Qty" min="0" required>
+                </td>
+                <td class="text-center">
+                    <button type="button" class="btn btn-sm btn-icon-danger remove-row"><i class="fa-solid fa-trash"></i></button>
+                </td>
+            `;
+            tableBody.appendChild(tr);
+        }
+
+        addBtn.addEventListener('click', addRow);
+        
+        // Initial Row
+        addRow();
+
+        // Event Delegation
+        tableBody.addEventListener('click', function(e) {
+            if (e.target.closest('.remove-row')) {
+                const row = e.target.closest('tr');
+                if(tableBody.children.length > 1) {
+                    row.remove();
+                    // Re-index
+                    document.querySelectorAll('.row-index').forEach((el, idx) => el.textContent = idx + 1);
+                    rowCount--;
+                } else {
+                    alert("At least one item is required.");
+                }
+            }
+        });
+
+        tableBody.addEventListener('change', function(e) {
+            if (e.target.classList.contains('product-select')) {
+                const select = e.target;
+                const row = select.closest('tr');
+                const selectedOption = select.options[select.selectedIndex];
+                const price = selectedOption.getAttribute('data-price');
+                const img = selectedOption.getAttribute('data-img');
+                
+                row.querySelector('.price-input').value = price;
+                const imgEl = row.querySelector('.product-img-preview');
+                imgEl.src = (img && img !== 'None') ? img : "{{ url_for('static', filename='img/default-product.png') }}";
+            }
+        });
+
+        // -------------------------------------------------------------
+        // YAHAN HAI MAIN DOUBLE SUBMISSION POPUP CODE
+        // -------------------------------------------------------------
+        const form = document.getElementById('morningForm');
+        
         form.addEventListener('submit', function(e) {
-            // 1. Pehle default form submission turant rok dein
-            e.preventDefault(); 
+            e.preventDefault(); // Turant form submit hone se rokta hai
             
             const btn = form.querySelector('.btn-save');
-            if (btn.disabled) return; // Agar already clicked hai toh return karein
+            if (btn.disabled) return; // Agar click ho chuka hai, toh kuch mat karo
 
-            // 2. Validate karein ki at least ek product selected ho
+            // Check karo ki kam se kam ek product select hua hai
             const selects = document.querySelectorAll('.product-select');
             let valid = false;
             selects.forEach(s => { if(s.value) valid = true; });
@@ -187,35 +249,28 @@ document.addEventListener("DOMContentLoaded", function() {
                 return;
             }
 
-            // 3. Confirmation Popup Dikhayein
+            // SweetAlert Popup dikhayenge
             Swal.fire({
                 title: 'Confirm Allocation?',
-                text: "Stock will be deducted from the warehouse and assigned to this employee.",
-                icon: 'question',
+                text: "Are you sure you want to save this stock allocation? Stock will be deducted from the warehouse.",
+                icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: '#0d6efd',
                 cancelButtonColor: '#6c757d',
                 confirmButtonText: 'Yes, Save it!',
                 cancelButtonText: 'Cancel',
-                allowOutsideClick: false
+                allowOutsideClick: false // Bahar click karke close nahi hoga
             }).then((result) => {
                 if (result.isConfirmed) {
-                    // 4. 'Yes' click hone par button disable karein (Double submit rokne ke liye)
+                    // Jab user YES dabaye, toh button disabled karo
                     btn.disabled = true;
                     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i> Saving...';
                     
-                    // 5. Final Form Submit
+                    // Aur form ko permanently submit kardo
                     form.submit();
                 }
             });
         });
-    }
-});
-    </script>
-
-<script src="{{ url_for('static', filename='js/morning.js') }}"></script>
+    });
+</script>
 {% endblock %}
-
-
-
-
