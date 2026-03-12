@@ -5912,7 +5912,7 @@ def resolve_img(image_path):
 
 
 # =========================================================
-#  CORE LOGIC: STOCK CALCULATOR (The Chain System)
+#  CORE LOGIC: STOCK CALCULATOR (The Chain System) - LIVE PRICE FIX
 # =========================================================
 def get_current_stock_state(cursor, emp_id, target_date_str):
     """
@@ -5929,14 +5929,15 @@ def get_current_stock_state(cursor, emp_id, target_date_str):
     """, (emp_id, target_date_str))
     last_settle = cursor.fetchone()
     
-    last_settle_date = last_settle['date'] if last_settle else '2000-01-01' # Fallback to ancient date
+    last_settle_date = last_settle['date'] if last_settle else '2000-01-01'
     
     if last_settle:
+        # FIX: Fetching p.price as unit_price instead of ei.unit_price
         cursor.execute("""
-            SELECT product_id, remaining_qty, unit_price, p.name, p.image
+            SELECT ei.product_id, ei.remaining_qty, p.price as unit_price, p.name, p.image
             FROM evening_item ei
             JOIN products p ON ei.product_id = p.id
-            WHERE settle_id = %s AND remaining_qty > 0
+            WHERE ei.settle_id = %s AND ei.remaining_qty > 0
         """, (last_settle['id'],))
         
         for r in cursor.fetchall():
@@ -5947,14 +5948,14 @@ def get_current_stock_state(cursor, emp_id, target_date_str):
             }
 
     # 2. FILL THE GAP (Allocations AFTER Last Settle but BEFORE/ON Today)
-    # This catches holidays, missed settlements, AND today's restocks
+    # FIX: Fetching MAX(p.price) as unit_price instead of MAX(mai.unit_price)
     cursor.execute("""
-        SELECT mai.product_id, SUM(mai.given_qty) as total_given, MAX(mai.unit_price) as unit_price, p.name, p.image
+        SELECT mai.product_id, SUM(mai.given_qty) as total_given, MAX(p.price) as unit_price, p.name, p.image
         FROM morning_allocations ma
         JOIN morning_allocation_items mai ON ma.id = mai.allocation_id
         JOIN products p ON mai.product_id = p.id
         WHERE ma.employee_id = %s AND ma.date > %s AND ma.date <= %s
-        GROUP BY mai.product_id
+        GROUP BY mai.product_id, p.name, p.image
     """, (emp_id, last_settle_date, target_date_str))
     
     gap_allocations = cursor.fetchall()
@@ -5965,7 +5966,7 @@ def get_current_stock_state(cursor, emp_id, target_date_str):
         
         if pid in stock_map:
             stock_map[pid]['qty'] += added_qty
-            # Update price if needed (usually keeps old price or avg, simplest is keep old)
+            stock_map[pid]['price'] = float(r['unit_price']) # Force update to live price
         else:
             stock_map[pid] = {
                 'product_id': pid, 'name': r['name'], 'image': resolve_img(r['image']),
@@ -5974,9 +5975,11 @@ def get_current_stock_state(cursor, emp_id, target_date_str):
             
     return list(stock_map.values())
 
-
 # =========================================================
 #  CORE LOGIC: STOCK CALCULATOR (The Chain System)
+# =========================================================
+# =========================================================
+#  CORE LOGIC: STOCK CALCULATOR (The Chain System) - LIVE PRICE FIX
 # =========================================================
 def get_current_stock_state(cursor, emp_id, target_date_str):
     """
@@ -5993,14 +5996,15 @@ def get_current_stock_state(cursor, emp_id, target_date_str):
     """, (emp_id, target_date_str))
     last_settle = cursor.fetchone()
     
-    last_settle_date = last_settle['date'] if last_settle else '2000-01-01' # Fallback to ancient date
+    last_settle_date = last_settle['date'] if last_settle else '2000-01-01'
     
     if last_settle:
+        # FIX: Fetching p.price as unit_price instead of ei.unit_price
         cursor.execute("""
-            SELECT product_id, remaining_qty, unit_price, p.name, p.image
+            SELECT ei.product_id, ei.remaining_qty, p.price as unit_price, p.name, p.image
             FROM evening_item ei
             JOIN products p ON ei.product_id = p.id
-            WHERE settle_id = %s AND remaining_qty > 0
+            WHERE ei.settle_id = %s AND ei.remaining_qty > 0
         """, (last_settle['id'],))
         
         for r in cursor.fetchall():
@@ -6011,13 +6015,14 @@ def get_current_stock_state(cursor, emp_id, target_date_str):
             }
 
     # 2. FILL THE GAP (Allocations AFTER Last Settle but BEFORE/ON Today)
+    # FIX: Fetching MAX(p.price) as unit_price instead of MAX(mai.unit_price)
     cursor.execute("""
-        SELECT mai.product_id, SUM(mai.given_qty) as total_given, MAX(mai.unit_price) as unit_price, p.name, p.image
+        SELECT mai.product_id, SUM(mai.given_qty) as total_given, MAX(p.price) as unit_price, p.name, p.image
         FROM morning_allocations ma
         JOIN morning_allocation_items mai ON ma.id = mai.allocation_id
         JOIN products p ON mai.product_id = p.id
         WHERE ma.employee_id = %s AND ma.date > %s AND ma.date <= %s
-        GROUP BY mai.product_id
+        GROUP BY mai.product_id, p.name, p.image
     """, (emp_id, last_settle_date, target_date_str))
     
     gap_allocations = cursor.fetchall()
@@ -6028,6 +6033,7 @@ def get_current_stock_state(cursor, emp_id, target_date_str):
         
         if pid in stock_map:
             stock_map[pid]['qty'] += added_qty
+            stock_map[pid]['price'] = float(r['unit_price']) # Force update to live price
         else:
             stock_map[pid] = {
                 'product_id': pid, 'name': r['name'], 'image': resolve_img(r['image']),
@@ -6035,7 +6041,6 @@ def get_current_stock_state(cursor, emp_id, target_date_str):
             }
             
     return list(stock_map.values())
-
 
 # ==========================================
 # 1. API: FETCH MORNING STOCK
@@ -6111,6 +6116,9 @@ def api_fetch_stock():
 # ==========================================
 # 2. API: FETCH EVENING DATA
 # ==========================================
+# ==========================================
+# 2. API: FETCH EVENING DATA (LIVE PRICE FIX)
+# ==========================================
 @app.route('/api/fetch_evening_data', methods=['POST'])
 def fetch_evening_data():
     if "loggedin" not in session: return jsonify({'status': 'error', 'message': 'Unauthorized'})
@@ -6134,8 +6142,9 @@ def fetch_evening_data():
                 return jsonify({'status': 'submitted', 'message': 'Already submitted.'})
             
             # Draft Mode
+            # FIX: Fetch p.price as unit_price to override draft saved price
             cur.execute("""
-                SELECT ei.product_id, ei.total_qty, ei.sold_qty, ei.return_qty, ei.unit_price, p.name, p.image 
+                SELECT ei.product_id, ei.total_qty, ei.sold_qty, ei.return_qty, p.price as unit_price, p.name, p.image 
                 FROM evening_item ei JOIN products p ON ei.product_id = p.id WHERE ei.settle_id = %s
             """, (existing['id'],))
             
@@ -6510,17 +6519,14 @@ def draft_evening_list():
     return render_template('draft_evening.html', drafts=drafts)
 
 
-
-
 # ---------------------------------------------------------
-# API: FETCH MORNING STOCK (With Holiday Logic)
+# API: FETCH MORNING STOCK (With Holiday Logic & Live Price)
 # ---------------------------------------------------------
 @app.route('/api/fetch_morning_allocation', methods=['GET', 'POST']) 
 def fetch_morning_allocation(): 
     if "loggedin" not in session: return jsonify({'status': 'error', 'message': 'Unauthorized'})
 
     try:
-        # Use request.values to grab from query string (GET) or body (POST)
         employee_id = request.values.get('employee_id')
         date_str = request.values.get('date') 
         
@@ -6528,39 +6534,24 @@ def fetch_morning_allocation():
             return jsonify({'status': 'error', 'message': 'Missing parameters'})
 
         cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-        
-        # Parse Date (dd-mm-yyyy or yyyy-mm-dd)
         date_obj = parse_date(date_str)
         if not date_obj:
             return jsonify({'status': 'error', 'message': 'Invalid Date Format (Expected dd-mm-yyyy)'})
 
         formatted_date = date_obj.strftime('%Y-%m-%d')
         
-        # HOLIDAY LOGIC: Fetch LAST Closing Stock (Opening for Today)
-        
-        # 1. Find the LAST COMPLETED Evening Settlement for this employee BEFORE today
-        # We must ignore drafts here, only 'final' (or missing status which implies final old records)
-        # Using a safer query that handles if 'status' column doesn't exist yet by ignoring it if error, 
-        # but since we want robust logic:
-        
-        # NOTE: If you haven't added 'status' column yet, this query might fail if we add WHERE status='final'.
-        # Assuming you will add it or legacy records are final.
-        
         cur.execute("""
             SELECT id 
             FROM evening_settle 
             WHERE employee_id = %s AND date < %s 
-            -- AND (status = 'final' OR status IS NULL) -- Uncomment after adding status column
             ORDER BY date DESC, id DESC LIMIT 1
         """, (employee_id, formatted_date))
         
         last_settle = cur.fetchone()
-        
         stock_map = {}
         
         if last_settle:
             last_settle_id = last_settle['id']
-            # 2. Fetch the remaining items from that settlement
             cur.execute("""
                 SELECT product_id, remaining_qty 
                 FROM evening_item 
@@ -6570,10 +6561,9 @@ def fetch_morning_allocation():
             items = cur.fetchall()
             stock_map = {item['product_id']: item['remaining_qty'] for item in items}
 
-        # --- IMPORTANT: Also fetch items allocated THIS MORNING (Today's Allocation) ---
-        # So we can calculate [Total = Opening + Given Today]
+        # --- FIX: Fetch p.price as unit_price instead of mai.unit_price ---
         cur.execute("""
-            SELECT ma.id as alloc_id, mai.product_id, mai.opening_qty, mai.given_qty, mai.unit_price, p.name, p.image
+            SELECT ma.id as alloc_id, mai.product_id, mai.opening_qty, mai.given_qty, p.price as unit_price, p.name, p.image
             FROM morning_allocations ma
             JOIN morning_allocation_items mai ON ma.id = mai.allocation_id
             JOIN products p ON mai.product_id = p.id
@@ -6581,11 +6571,8 @@ def fetch_morning_allocation():
         """, (employee_id, formatted_date))
         
         morning_items = cur.fetchall()
-        
-        # Prepare the final list of items for the Evening Settlement Table
-        # Structure: Product ID, Name, Image, Unit Price, Total Qty (Opening + Given)
-        
         final_items_list = []
+        
         if morning_items:
             for item in morning_items:
                 total_qty = int(item['opening_qty'] or 0) + int(item['given_qty'] or 0)
@@ -6596,18 +6583,13 @@ def fetch_morning_allocation():
                         'image': resolve_img(item['image']),
                         'unit_price': float(item['unit_price']),
                         'total_qty': total_qty,
-                        'remaining_qty': total_qty, # Initially remaining is total (before sales)
+                        'remaining_qty': total_qty,
                         'sold_qty': 0,
                         'return_qty': 0
                     })
-            
-            # Allocation ID is needed to link the settlement later
             alloc_id = morning_items[0]['alloc_id']
         else:
             alloc_id = None
-            # If no morning allocation found for today, maybe user wants to settle previous outstanding stock?
-            # Or maybe they just forgot to do morning allocation. 
-            # For now, let's return empty list but with success status so UI doesn't crash.
         
         return jsonify({
             'status': 'success',
@@ -6621,6 +6603,7 @@ def fetch_morning_allocation():
         return jsonify({'status': 'error', 'message': str(e)})
     finally:
         if 'cur' in locals(): cur.close()
+
 
 # ==========================================
 # 3. EDIT MORNING ALLOCATION (For Manual Edit Page)
@@ -8800,6 +8783,7 @@ def inr_format(value):
 if __name__ == "__main__":
     app.logger.info("Starting app in debug mode...")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
