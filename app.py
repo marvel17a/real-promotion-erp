@@ -6871,7 +6871,7 @@ def admin_evening_master():
     cursor.execute("SELECT id, name FROM employees WHERE status='active' ORDER BY name")
     employees = cursor.fetchall()
 
-    return render_template('evening_master.html', 
+    return render_template('admin/evening_master.html', 
                            settlements=settlements, 
                            stats=stats,
                            adjusted_cash=adjusted_cash, 
