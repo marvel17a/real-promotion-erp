@@ -1,185 +1,230 @@
-{% extends "admin_master.html" %}
+{% extends "base.html" %}
+{% block content %}
 
-{% block page_content %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/purchase.css') }}">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<style>
+    .glass-card { background: #ffffff; border-radius: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: 1px solid rgba(0,0,0,0.05); }
+    .table-header-custom th { background-color: #f8f9fc; color: #4e73df; font-weight: 800; text-transform: uppercase; font-size: 0.85rem; padding: 15px 10px; border-bottom: 2px solid #e3e6f0; }
+    .input-glass { border: 1px solid #d1d3e2; border-radius: 8px; padding: 8px 12px; background-color: #f8f9fc; transition: all 0.3s; }
+    .input-glass:focus { background-color: #fff; border-color: #4e73df; box-shadow: 0 0 0 0.2rem rgba(78,115,223,0.1); }
+    .unit-cost-badge { background-color: #e3f2fd; color: #0dcaf0; border: 1px solid #b6effb; padding: 6px 12px; border-radius: 8px; font-weight: 700; display: inline-block; min-width: 80px; text-align: center; }
+</style>
 
-<div class="container py-5 fade-in-up" style="max-width: 1000px;">
+<div class="container-fluid py-4 fade-in-up">
     
+    <!-- Header -->
     <div class="d-flex align-items-center mb-4">
-        <a href="{{ url_for('purchases') }}" class="btn btn-light rounded-circle shadow-sm me-3" style="width: 40px; height: 40px; display:flex; align-items:center; justify-content:center;">
-            <i class="fa-solid fa-arrow-left"></i>
+        <a href="{{ url_for('purchases') }}" class="btn btn-light border rounded-circle me-3 shadow-sm">
+            <i class="fa-solid fa-arrow-left text-secondary"></i>
         </a>
-        <h2 class="mb-0 fw-bold page-title">New Purchase Entry</h2>
+        <div>
+            <h6 class="text-uppercase text-primary fw-bold small mb-1">Inbound Logistics</h6>
+            <h3 class="fw-bold text-dark mb-0">Record New Purchase</h3>
+        </div>
     </div>
 
-    <div class="glass-panel p-5">
-        <form id="purchaseForm" method="POST" action="{{ url_for('new_purchase') }}" class="needs-validation" novalidate>
-            
-            <!-- Master Details (Notes removed from here) -->
-            <div class="row g-4 mb-4">
-                <div class="col-md-4">
-                    <label for="supplier_id" class="form-label fw-bold text-muted small text-uppercase">Supplier <span class="text-danger">*</span></label>
-                    <select class="form-select input-glass" id="supplier_id" name="supplier_id" required>
-                        <option value="" selected disabled>Select Supplier</option>
-                        {% for s in suppliers %}
-                        <option value="{{ s.id }}">{{ s.name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-md-4">
-                    <label for="purchase_date" class="form-label fw-bold text-muted small text-uppercase">Date <span class="text-danger">*</span></label>
-                    <input type="date" class="form-control input-glass" id="purchase_date" name="purchase_date" required>
-                </div>
-                <div class="col-md-4">
-                    <label for="bill_number" class="form-label fw-bold text-muted small text-uppercase">Bill Number</label>
-                    <input type="text" class="form-control input-glass" id="bill_number" name="bill_number" placeholder="Optional">
-                </div>
-            </div>
-
-            <!-- Items Table -->
-            <div class="table-responsive mb-4 rounded-3 border">
-                <table class="table table-borderless mb-0" id="itemsTable">
-                    <thead class="bg-light">
-                        <tr>
-                            <th style="width: 40%;" class="ps-4">Product</th>
-                            <th style="width: 20%;">Quantity</th>
-                            <th style="width: 25%;">Purchase Price</th>
-                            <th style="width: 10%;" class="text-end pe-4">Total</th>
-                            <th style="width: 5%;"></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <!-- Rows added by JS -->
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- Add Button & Grand Total -->
-            <div class="d-flex justify-content-between align-items-center mt-3 mb-5">
-                <button type="button" class="btn btn-light border shadow-sm text-primary fw-bold" id="addRowBtn">
-                    <i class="fa-solid fa-plus me-2"></i>Add Item
-                </button>
+    <form action="{{ url_for('new_purchase') }}" method="POST" id="purchaseForm">
+        
+        <!-- MASTER DETAILS CARD -->
+        <div class="card glass-card mb-4">
+            <div class="card-body p-4">
+                <h6 class="fw-bold text-secondary mb-4 border-bottom pb-2"><i class="fa-solid fa-file-invoice me-2"></i>Invoice Details</h6>
                 
-                <div class="text-end">
-                    <small class="text-uppercase text-muted fw-bold d-block mb-1">Grand Total</small>
-                    <h3 class="fw-bold text-primary mb-0" id="grandTotal">₹0.00</h3>
+                <div class="row g-4">
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold small text-muted text-uppercase">Supplier <span class="text-danger">*</span></label>
+                        <select name="supplier_id" class="form-select input-glass fw-bold text-dark" required>
+                            <option value="">-- Choose Supplier --</option>
+                            {% for s in suppliers %}
+                                <option value="{{ s.id }}">{{ s.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold small text-muted text-uppercase">Purchase Date <span class="text-danger">*</span></label>
+                        <input type="date" name="purchase_date" class="form-control input-glass fw-bold text-dark" value="{{ today_date }}" required>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold small text-muted text-uppercase">Bill Number</label>
+                        <input type="text" name="bill_number" class="form-control input-glass" placeholder="Auto-generated if empty">
+                    </div>
+                    <div class="col-md-12">
+                        <label class="form-label fw-bold small text-muted text-uppercase">Notes / Remarks</label>
+                        <input type="text" name="notes" class="form-control input-glass" placeholder="e.g., Includes ₹500 Courier Charge & 18% GST">
+                    </div>
                 </div>
             </div>
+        </div>
 
-            <!-- MOVED: Notes Section (Now below the table/totals) -->
-            <div class="mb-4">
-                <label for="notes" class="form-label fw-bold text-muted small text-uppercase">Purchase Notes / Remarks</label>
-                <textarea class="form-control input-glass" id="notes" name="notes" rows="3" placeholder="Enter any extra details, payment terms, or remarks here..."></textarea>
+        <!-- ITEMS TABLE CARD -->
+        <div class="card glass-card mb-4">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table align-middle mb-0" id="purchaseTable">
+                        <thead class="table-header-custom">
+                            <tr>
+                                <th class="text-center" style="width: 50px;">#</th>
+                                <th>Product Details</th>
+                                <th class="text-center" style="width: 150px;">Quantity</th>
+                                <th class="text-end" style="width: 200px;">Total Amount (₹)</th>
+                                <th class="text-center" style="width: 180px;">True Unit Cost</th>
+                                <th class="text-center" style="width: 80px;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="itemsBody">
+                            <!-- First Row -->
+                            <tr class="item-row">
+                                <td class="text-center fw-bold text-muted row-index">1</td>
+                                <td>
+                                    <select name="product_id[]" class="form-select input-glass fw-bold text-dark" required>
+                                        <option value="">-- Select Product --</option>
+                                        {% for p in products %}
+                                            <option value="{{ p.id }}">{{ p.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </td>
+                                <td>
+                                    <input type="number" name="quantity[]" class="form-control input-glass text-center fw-bold input-qty" placeholder="0" min="1" required>
+                                </td>
+                                <td>
+                                    <input type="number" step="0.01" name="line_total[]" class="form-control input-glass text-end fw-bold text-primary input-total" placeholder="0.00" required>
+                                </td>
+                                <td class="text-center">
+                                    <span class="unit-cost-badge">₹ <span class="cost-display">0.00</span></span>
+                                </td>
+                                <td class="text-center">
+                                    <button type="button" class="btn btn-light text-danger btn-sm rounded-circle btn-remove" disabled><i class="fa-solid fa-trash"></i></button>
+                                </td>
+                            </tr>
+                        </tbody>
+                        <tfoot class="bg-light">
+                            <tr>
+                                <td colspan="2">
+                                    <button type="button" class="btn btn-sm btn-outline-primary fw-bold ms-2 rounded-pill px-3" id="addRowBtn">
+                                        <i class="fa-solid fa-plus me-1"></i> Add Another Item
+                                    </button>
+                                </td>
+                                <td class="text-end fw-bold text-muted text-uppercase pt-3">Grand Total :</td>
+                                <td class="text-end pt-3 pe-3">
+                                    <h4 class="fw-bold text-dark mb-0">₹ <span id="grandTotalDisplay">0.00</span></h4>
+                                </td>
+                                <td colspan="2"></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
             </div>
+        </div>
 
-            <hr class="my-4 opacity-10">
+        <!-- Submit Button -->
+        <div class="d-flex justify-content-end mb-5">
+            <button type="submit" class="btn btn-primary btn-lg rounded-pill px-5 fw-bold shadow">
+                <i class="fa-solid fa-check-circle me-2"></i> Confirm Purchase & Update Stock
+            </button>
+        </div>
 
-            <div class="text-end">
-                <button type="submit" class="btn btn-primary px-5 py-2 rounded-pill shadow-lg fw-bold">
-                    <i class="fa-solid fa-check-circle me-2"></i>Confirm Purchase
-                </button>
-            </div>
-
-        </form>
-    </div>
+    </form>
 </div>
 
-<!-- Product Data for JS -->
-<script id="products-data" type="application/json">
-    {{ products | tojson }}
-</script>
-
 <script>
-    document.addEventListener('DOMContentLoaded', () => {
-        // Set Today's Date
-        const dateInput = document.getElementById('purchase_date');
-        if (!dateInput.value) {
-            dateInput.value = new Date().toISOString().split('T')[0];
-        }
+document.addEventListener('DOMContentLoaded', function() {
+    const tableBody = document.getElementById('itemsBody');
+    const addRowBtn = document.getElementById('addRowBtn');
+    const grandTotalDisplay = document.getElementById('grandTotalDisplay');
 
-        const products = JSON.parse(document.getElementById('products-data').textContent);
-        const tbody = document.querySelector('#itemsTable tbody');
-        const addBtn = document.getElementById('addRowBtn');
-        const grandTotalEl = document.getElementById('grandTotal');
+    // Store products for dynamic row creation
+    const productsOptions = `
+        <option value="">-- Select Product --</option>
+        {% for p in products %}
+            <option value="{{ p.id }}">{{ p.name|replace("'", "\\'") }}</option>
+        {% endfor %}
+    `;
 
-        function addRow() {
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td class="ps-4">
-                    <select name="product_id[]" class="form-select input-glass product-select" required>
-                        <option value="" selected disabled>Select Product</option>
-                        ${products.map(p => `<option value="${p.id}" data-price="${p.purchase_price || 0}">${p.name}</option>`).join('')}
-                    </select>
-                </td>
-                <td>
-                    <input type="number" name="quantity[]" class="form-control input-glass quantity" value="1" min="1" required>
-                </td>
-                <td>
-                    <div class="input-group">
-                        <span class="input-group-text border-0 bg-transparent text-muted">₹</span>
-                        <input type="number" name="price[]" class="form-control input-glass border-start-0 ps-0 price" placeholder="0" step="0.01" required>
-                    </div>
-                </td>
-                <td class="text-end pe-4 align-middle fw-bold text-dark total-cell">₹0.00</td>
-                <td class="align-middle text-center">
-                    <button type="button" class="btn btn-link text-danger p-0 remove-row">
-                        <i class="fa-solid fa-times"></i>
-                    </button>
-                </td>
-            `;
-            tbody.appendChild(row);
+    function updateRowIndexes() {
+        const rows = tableBody.querySelectorAll('.item-row');
+        rows.forEach((row, index) => {
+            row.querySelector('.row-index').textContent = index + 1;
+            // Enable remove button if more than 1 row
+            const removeBtn = row.querySelector('.btn-remove');
+            if (rows.length > 1) {
+                removeBtn.removeAttribute('disabled');
+                removeBtn.classList.remove('btn-light');
+                removeBtn.classList.add('btn-outline-danger');
+            } else {
+                removeBtn.setAttribute('disabled', 'true');
+                removeBtn.classList.add('btn-light');
+                removeBtn.classList.remove('btn-outline-danger');
+            }
+        });
+    }
 
-            const select = row.querySelector('.product-select');
-            const qtyInput = row.querySelector('.quantity');
-            const priceInput = row.querySelector('.price');
-            const removeBtn = row.querySelector('.remove-row');
-
-            // Events
-            select.addEventListener('change', () => {
-                const opt = select.options[select.selectedIndex];
-                // Auto-fill purchase price if available in DB
-                const price = parseFloat(opt.getAttribute('data-price')) || 0;
-                // If price is 0, user types it. If DB has purchase_price, suggest it.
-                if(price > 0) priceInput.value = price.toFixed(2);
-                updateRowTotal(row);
-            });
-
-            qtyInput.addEventListener('input', () => updateRowTotal(row));
-            priceInput.addEventListener('input', () => updateRowTotal(row));
-            
-            removeBtn.addEventListener('click', () => {
-                if(tbody.rows.length > 1) { row.remove(); updateGrandTotal(); }
-                else { select.value = ""; qtyInput.value = 1; priceInput.value = "0.00"; updateRowTotal(row); }
-            });
-        }
-
-        function updateRowTotal(row) {
-            const qty = parseFloat(row.querySelector('.quantity').value) || 0;
-            const priceStr = row.querySelector('.price').value;
-            const price = priceStr ? parseFloat(priceStr) : 0;
-            
-            const total = qty * price;
-            row.querySelector('.total-cell').textContent = '₹' + total.toFixed(2);
-            updateGrandTotal();
-        }
-
-        function updateGrandTotal() {
-            let total = 0;
-            document.querySelectorAll('#itemsTable tbody tr').forEach(row => {
-                const qty = parseFloat(row.querySelector('.quantity').value) || 0;
-                const priceStr = row.querySelector('.price').value;
-                const price = priceStr ? parseFloat(priceStr) : 0;
-                total += qty * price;
-            });
-            grandTotalEl.textContent = '₹' + total.toFixed(2);
-        }
-
-        if(addBtn) addBtn.addEventListener('click', () => addRow());
+    function calculateRow(row) {
+        const qty = parseFloat(row.querySelector('.input-qty').value) || 0;
+        const totalAmount = parseFloat(row.querySelector('.input-total').value) || 0;
         
-        // Add initial row
-        if(tbody.children.length === 0) addRow();
+        let unitCost = 0;
+        if (qty > 0) {
+            unitCost = totalAmount / qty;
+        }
+        
+        row.querySelector('.cost-display').textContent = unitCost.toFixed(2);
+        calculateGrandTotal();
+    }
+
+    function calculateGrandTotal() {
+        let grandTotal = 0;
+        document.querySelectorAll('.input-total').forEach(input => {
+            grandTotal += parseFloat(input.value) || 0;
+        });
+        grandTotalDisplay.textContent = grandTotal.toFixed(2);
+    }
+
+    // Event Delegation for dynamic inputs
+    tableBody.addEventListener('input', function(e) {
+        if (e.target.classList.contains('input-qty') || e.target.classList.contains('input-total')) {
+            calculateRow(e.target.closest('.item-row'));
+        }
     });
+
+    // Remove Row
+    tableBody.addEventListener('click', function(e) {
+        if (e.target.closest('.btn-remove')) {
+            const row = e.target.closest('.item-row');
+            row.remove();
+            updateRowIndexes();
+            calculateGrandTotal();
+        }
+    });
+
+    // Add Row
+    addRowBtn.addEventListener('click', function() {
+        const tr = document.createElement('tr');
+        tr.classList.add('item-row');
+        tr.innerHTML = `
+            <td class="text-center fw-bold text-muted row-index"></td>
+            <td>
+                <select name="product_id[]" class="form-select input-glass fw-bold text-dark" required>
+                    ${productsOptions}
+                </select>
+            </td>
+            <td>
+                <input type="number" name="quantity[]" class="form-control input-glass text-center fw-bold input-qty" placeholder="0" min="1" required>
+            </td>
+            <td>
+                <input type="number" step="0.01" name="line_total[]" class="form-control input-glass text-end fw-bold text-primary input-total" placeholder="0.00" required>
+            </td>
+            <td class="text-center">
+                <span class="unit-cost-badge">₹ <span class="cost-display">0.00</span></span>
+            </td>
+            <td class="text-center">
+                <button type="button" class="btn btn-outline-danger btn-sm rounded-circle btn-remove"><i class="fa-solid fa-trash"></i></button>
+            </td>
+        `;
+        tableBody.appendChild(tr);
+        updateRowIndexes();
+    });
+
+    // Initialize first row
+    updateRowIndexes();
+});
 </script>
 {% endblock %}
-
