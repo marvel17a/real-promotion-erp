@@ -6766,135 +6766,119 @@ def delete_allocation(id):
 # ---------------------------------------------------------#
 # 3. EVENING MASTER (History & Drafts) - WITH FILTERS
 # ---------------------------------------------------------#
+# ==========================================
+# EVENING MASTER DASHBOARD (ADMIN)
+# ==========================================
 @app.route('/evening/master')
+@app.route('/admin/evening_master')
 def admin_evening_master():
     if "loggedin" not in session: return redirect(url_for("login"))
     
     conn = mysql.connection
     cursor = conn.cursor(MySQLdb.cursors.DictCursor)
     
-    # --- 1. Get Filter Params ---
+    # 1. Filters & Pagination Params
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
     emp_filter = request.args.get('employee_id')
-
-    # --- 2. Build Query ---
-    # Fetching all necessary fields, including phone for potential future use
-    query = """
-        SELECT es.id, es.date, es.created_at, 
-               IFNULL(es.total_amount, 0) as total_amount, 
-               IFNULL(es.cash_money, 0) as cash_money, 
-               IFNULL(es.online_money, 0) as online_money, 
-               IFNULL(es.discount, 0) as discount,
-               IFNULL(es.due_amount, 0) as due_amount,
-               e.name as emp_name, e.image as emp_image, e.phone as emp_mobile
-        FROM evening_settle es
-        JOIN employees e ON es.employee_id = e.id
+    page = request.args.get('page', 1, type=int)
+    per_page = 50 # Show 50 records per page
+    
+    # 2. Base Query Building
+    base_query = """
+        FROM evening_settle s 
+        JOIN employees e ON s.employee_id = e.id 
         WHERE 1=1
     """
     params = []
 
     if start_date:
         try:
-            # Safe check for parse_date helper or datetime
-            dt = parse_date(start_date) if 'parse_date' in globals() else datetime.strptime(start_date, '%d-%m-%Y')
-            query += " AND es.date >= %s"
+            dt = datetime.strptime(start_date, '%d-%m-%Y')
+            base_query += " AND s.date >= %s"
             params.append(dt.strftime('%Y-%m-%d'))
         except ValueError: pass
     
     if end_date:
         try:
-            dt = parse_date(end_date) if 'parse_date' in globals() else datetime.strptime(end_date, '%d-%m-%Y')
-            query += " AND es.date <= %s"
+            dt = datetime.strptime(end_date, '%d-%m-%Y')
+            base_query += " AND s.date <= %s"
             params.append(dt.strftime('%Y-%m-%d'))
         except ValueError: pass
 
     if emp_filter and emp_filter != 'all':
-        query += " AND es.employee_id = %s"
+        base_query += " AND s.employee_id = %s"
         params.append(emp_filter)
 
-    query += " ORDER BY es.date DESC, es.created_at DESC"
+    # 3. Global KPI Calculations (Calculates stats for ALL filtered data, not just 1 page)
+    kpi_query = """
+        SELECT 
+            SUM(s.total_amount) as total_sales,
+            SUM(s.total_amount - s.discount) as net_sales,
+            SUM(s.cash_money) as total_cash,
+            SUM(s.online_money) as total_online,
+            SUM(s.discount) as total_discount,
+            SUM(CASE WHEN s.due_amount < -0.01 THEN ABS(s.due_amount) ELSE 0 END) as total_refunds,
+            SUM(CASE WHEN s.due_amount > 0.01 THEN s.due_amount ELSE 0 END) as total_due
+    """ + base_query
     
-    cursor.execute(query, tuple(params))
+    cursor.execute(kpi_query, tuple(params))
+    kpi_data = cursor.fetchone()
+    
+    stats = {
+        'total_sales': float(kpi_data['total_sales'] or 0),
+        'net_sales': float(kpi_data['net_sales'] or 0),
+        'cash': float(kpi_data['total_cash'] or 0),
+        'online': float(kpi_data['total_online'] or 0),
+        'discount': float(kpi_data['total_discount'] or 0),
+        'total_due': float(kpi_data['total_due'] or 0)
+    }
+    adjusted_cash = stats['cash'] - float(kpi_data['total_refunds'] or 0)
+
+    # 4. Pagination Count
+    count_query = "SELECT COUNT(*) as total " + base_query
+    cursor.execute(count_query, tuple(params))
+    total_records = cursor.fetchone()['total']
+    total_pages = (total_records + per_page - 1) // per_page
+
+    # 5. Fetch Paginated Records (Max 50)
+    data_query = """
+        SELECT s.*, e.name as emp_name, e.image as emp_image, e.phone as emp_mobile
+    """ + base_query + " ORDER BY s.date DESC, s.created_at DESC LIMIT %s OFFSET %s"
+    
+    paginated_params = params + [per_page, (page - 1) * per_page]
+    cursor.execute(data_query, tuple(paginated_params))
     settlements = cursor.fetchall()
     
-    # --- 3. Stats Calculation (Restored Discount & Logic) ---
-    stats = {
-        'total_sales': 0.0,      # Gross Sales
-        'net_sales': 0.0,        # Sales after discount
-        'cash': 0.0,             # Raw Cash Collected
-        'online': 0.0,
-        'discount': 0.0,         # Total Discount Given
-        'total_refunds': 0.0,    # Money returned to emp (Profit)
-        'total_due': 0.0         # Actual Pending Due
-    }
-    
+    # 6. Data Formatting
     for s in settlements:
-        # Image Resolution Logic
-        if s['emp_image']:
-            if s['emp_image'].startswith('http'):
-                pass 
-            else:
-                s['emp_image'] = url_for('static', filename='uploads/' + s['emp_image'])
-        else:
+        # Images
+        if s['emp_image'] and not str(s['emp_image']).startswith('http'):
+            s['emp_image'] = url_for('static', filename='uploads/' + s['emp_image'])
+        elif not s['emp_image']:
             s['emp_image'] = url_for('static', filename='img/default-user.png')
 
-        # Date Formatting
+        # Date & Time
         if isinstance(s['date'], (date, datetime)):
             s['formatted_date'] = s['date'].strftime('%d-%m-%Y')
-        else:
-            try:
-                s['formatted_date'] = datetime.strptime(str(s['date']), '%Y-%m-%d').strftime('%d-%m-%Y')
-            except ValueError:
-                s['formatted_date'] = str(s['date'])
-
-        # Time Formatting (12-hour)
-        if s.get('created_at'):
-            if isinstance(s['created_at'], timedelta):
-                 dummy_date = datetime.min + s['created_at']
-                 s['formatted_time'] = dummy_date.strftime('%I:%M %p')
-            elif isinstance(s['created_at'], datetime):
-                 s['formatted_time'] = s['created_at'].strftime('%I:%M %p')
-            else:
-                 s['formatted_time'] = str(s['created_at'])
-        else:
-            s['formatted_time'] = ""
-
-        # Numeric Values
-        t_amt = float(s['total_amount'])
-        c_money = float(s['cash_money'])
-        o_money = float(s['online_money'])
-        disc = float(s['discount'])
-        due_amt = float(s['due_amount'])
+        else: s['formatted_date'] = str(s['date'])
         
-        # Accumulate Basic Stats
-        stats['total_sales'] += t_amt
-        stats['discount'] += disc
-        stats['net_sales'] += (t_amt - disc)
-        stats['cash'] += c_money
-        stats['online'] += o_money
+        if s.get('created_at') and isinstance(s['created_at'], datetime):
+             s['formatted_time'] = s['created_at'].strftime('%I:%M %p')
+        else: s['formatted_time'] = ""
 
-        # --- ADJUSTED CASH LOGIC ---
-        # If due is negative, it means we PAID BACK cash (refund/profit).
-        # We need to subtract this from our "Cash In Hand" KPI.
-        if due_amt < -0.01:
-            stats['total_refunds'] += abs(due_amt)
-        elif due_amt > 0.01:
-            stats['total_due'] += due_amt
-
-    # Final Adjusted Cash Calculation
-    adjusted_cash = stats['cash'] - stats['total_refunds']
-
-    # Fetch Employees for Filter Dropdown
+    # Fetch Employees for Dropdown
     cursor.execute("SELECT id, name FROM employees WHERE status='active' ORDER BY name")
     employees = cursor.fetchall()
 
-    return render_template('admin/evening_master.html', 
+    return render_template('evening_master.html', 
                            settlements=settlements, 
                            stats=stats,
-                           adjusted_cash=adjusted_cash, # Passed explicitly
-                           total_due=stats['total_due'], # Passed explicitly
+                           adjusted_cash=adjusted_cash, 
+                           total_due=stats['total_due'], 
                            employees=employees,
+                           page=page,
+                           total_pages=total_pages,
                            filters={'start': start_date, 'end': end_date, 'emp': emp_filter})
     
 # ==========================================
