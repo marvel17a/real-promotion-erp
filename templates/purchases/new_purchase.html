@@ -1,12 +1,15 @@
 {% extends "base.html" %}
 {% block content %}
 
+<!-- Flatpickr CSS & JS -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
 <style>
     .glass-card { background: #ffffff; border-radius: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: 1px solid rgba(0,0,0,0.05); }
     .table-header-custom th { background-color: #f8f9fc; color: #4e73df; font-weight: 800; text-transform: uppercase; font-size: 0.85rem; padding: 15px 10px; border-bottom: 2px solid #e3e6f0; }
     .input-glass { border: 1px solid #d1d3e2; border-radius: 8px; padding: 8px 12px; background-color: #f8f9fc; transition: all 0.3s; }
     .input-glass:focus { background-color: #fff; border-color: #4e73df; box-shadow: 0 0 0 0.2rem rgba(78,115,223,0.1); }
-    .unit-cost-badge { background-color: #e3f2fd; color: #0dcaf0; border: 1px solid #b6effb; padding: 6px 12px; border-radius: 8px; font-weight: 700; display: inline-block; min-width: 80px; text-align: center; }
 </style>
 
 <div class="container-fluid py-4 fade-in-up">
@@ -41,7 +44,8 @@
                     </div>
                     <div class="col-md-3">
                         <label class="form-label fw-bold small text-muted text-uppercase">Purchase Date <span class="text-danger">*</span></label>
-                        <input type="date" name="purchase_date" class="form-control input-glass fw-bold text-dark" value="{{ today_date }}" required>
+                        <!-- Added Flatpickr class -->
+                        <input type="text" name="purchase_date" id="purchaseDate" class="form-control input-glass fw-bold text-dark" placeholder="Select Date" value="{{ today_date }}" required>
                     </div>
                     <div class="col-md-3">
                         <label class="form-label fw-bold small text-muted text-uppercase">Bill Number</label>
@@ -65,13 +69,12 @@
                                 <th class="text-center" style="width: 50px;">#</th>
                                 <th>Product Details</th>
                                 <th class="text-center" style="width: 150px;">Quantity</th>
+                                <th class="text-center" style="width: 180px;">True Unit Cost (₹)</th>
                                 <th class="text-end" style="width: 200px;">Total Amount (₹)</th>
-                                <th class="text-center" style="width: 180px;">True Unit Cost</th>
                                 <th class="text-center" style="width: 80px;">Action</th>
                             </tr>
                         </thead>
                         <tbody id="itemsBody">
-                            <!-- First Row -->
                             <tr class="item-row">
                                 <td class="text-center fw-bold text-muted row-index">1</td>
                                 <td>
@@ -86,10 +89,12 @@
                                     <input type="number" name="quantity[]" class="form-control input-glass text-center fw-bold input-qty" placeholder="0" min="1" required>
                                 </td>
                                 <td>
-                                    <input type="number" step="0.01" name="line_total[]" class="form-control input-glass text-end fw-bold text-primary input-total" placeholder="0.00" required>
+                                    <!-- Editable True Unit Cost -->
+                                    <input type="number" step="0.01" name="price[]" class="form-control input-glass text-center fw-bold text-info input-price" placeholder="0.00" required>
                                 </td>
-                                <td class="text-center">
-                                    <span class="unit-cost-badge">₹ <span class="cost-display">0.00</span></span>
+                                <td>
+                                    <!-- Editable Total Amount -->
+                                    <input type="number" step="0.01" name="line_total[]" class="form-control input-glass text-end fw-bold text-primary input-total" placeholder="0.00" required>
                                 </td>
                                 <td class="text-center">
                                     <button type="button" class="btn btn-light text-danger btn-sm rounded-circle btn-remove" disabled><i class="fa-solid fa-trash"></i></button>
@@ -98,7 +103,7 @@
                         </tbody>
                         <tfoot class="bg-light">
                             <tr>
-                                <td colspan="2">
+                                <td colspan="3">
                                     <button type="button" class="btn btn-sm btn-outline-primary fw-bold ms-2 rounded-pill px-3" id="addRowBtn">
                                         <i class="fa-solid fa-plus me-1"></i> Add Another Item
                                     </button>
@@ -107,7 +112,7 @@
                                 <td class="text-end pt-3 pe-3">
                                     <h4 class="fw-bold text-dark mb-0">₹ <span id="grandTotalDisplay">0.00</span></h4>
                                 </td>
-                                <td colspan="2"></td>
+                                <td></td>
                             </tr>
                         </tfoot>
                     </table>
@@ -115,7 +120,6 @@
             </div>
         </div>
 
-        <!-- Submit Button -->
         <div class="d-flex justify-content-end mb-5">
             <button type="submit" class="btn btn-primary btn-lg rounded-pill px-5 fw-bold shadow">
                 <i class="fa-solid fa-check-circle me-2"></i> Confirm Purchase & Update Stock
@@ -127,11 +131,13 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Flatpickr
+    flatpickr("#purchaseDate", { dateFormat: "Y-m-d", allowInput: true });
+
     const tableBody = document.getElementById('itemsBody');
     const addRowBtn = document.getElementById('addRowBtn');
     const grandTotalDisplay = document.getElementById('grandTotalDisplay');
 
-    // Store products for dynamic row creation
     const productsOptions = `
         <option value="">-- Select Product --</option>
         {% for p in products %}
@@ -143,7 +149,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const rows = tableBody.querySelectorAll('.item-row');
         rows.forEach((row, index) => {
             row.querySelector('.row-index').textContent = index + 1;
-            // Enable remove button if more than 1 row
             const removeBtn = row.querySelector('.btn-remove');
             if (rows.length > 1) {
                 removeBtn.removeAttribute('disabled');
@@ -157,16 +162,28 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    function calculateRow(row) {
-        const qty = parseFloat(row.querySelector('.input-qty').value) || 0;
-        const totalAmount = parseFloat(row.querySelector('.input-total').value) || 0;
-        
-        let unitCost = 0;
-        if (qty > 0) {
-            unitCost = totalAmount / qty;
+    // BI-DIRECTIONAL CALCULATOR LOGIC
+    function calculateRow(row, trigger) {
+        const qtyInput = row.querySelector('.input-qty');
+        const priceInput = row.querySelector('.input-price');
+        const totalInput = row.querySelector('.input-total');
+
+        const qty = parseFloat(qtyInput.value) || 0;
+        let price = parseFloat(priceInput.value) || 0;
+        let total = parseFloat(totalInput.value) || 0;
+
+        if (trigger === 'total') {
+            // User typed Total -> Auto-calculate Unit Cost
+            if (qty > 0) {
+                priceInput.value = (total / qty).toFixed(2);
+            } else {
+                priceInput.value = '0.00';
+            }
+        } else {
+            // User typed Qty or Unit Cost -> Auto-calculate Total
+            totalInput.value = (qty * price).toFixed(2);
         }
-        
-        row.querySelector('.cost-display').textContent = unitCost.toFixed(2);
+
         calculateGrandTotal();
     }
 
@@ -178,14 +195,16 @@ document.addEventListener('DOMContentLoaded', function() {
         grandTotalDisplay.textContent = grandTotal.toFixed(2);
     }
 
-    // Event Delegation for dynamic inputs
+    // Identify which input was typed into
     tableBody.addEventListener('input', function(e) {
-        if (e.target.classList.contains('input-qty') || e.target.classList.contains('input-total')) {
-            calculateRow(e.target.closest('.item-row'));
+        const row = e.target.closest('.item-row');
+        if (e.target.classList.contains('input-total')) {
+            calculateRow(row, 'total');
+        } else if (e.target.classList.contains('input-price') || e.target.classList.contains('input-qty')) {
+            calculateRow(row, 'price');
         }
     });
 
-    // Remove Row
     tableBody.addEventListener('click', function(e) {
         if (e.target.closest('.btn-remove')) {
             const row = e.target.closest('.item-row');
@@ -195,7 +214,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Add Row
     addRowBtn.addEventListener('click', function() {
         const tr = document.createElement('tr');
         tr.classList.add('item-row');
@@ -206,15 +224,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     ${productsOptions}
                 </select>
             </td>
-            <td>
-                <input type="number" name="quantity[]" class="form-control input-glass text-center fw-bold input-qty" placeholder="0" min="1" required>
-            </td>
-            <td>
-                <input type="number" step="0.01" name="line_total[]" class="form-control input-glass text-end fw-bold text-primary input-total" placeholder="0.00" required>
-            </td>
-            <td class="text-center">
-                <span class="unit-cost-badge">₹ <span class="cost-display">0.00</span></span>
-            </td>
+            <td><input type="number" name="quantity[]" class="form-control input-glass text-center fw-bold input-qty" placeholder="0" min="1" required></td>
+            <td><input type="number" step="0.01" name="price[]" class="form-control input-glass text-center fw-bold text-info input-price" placeholder="0.00" required></td>
+            <td><input type="number" step="0.01" name="line_total[]" class="form-control input-glass text-end fw-bold text-primary input-total" placeholder="0.00" required></td>
             <td class="text-center">
                 <button type="button" class="btn btn-outline-danger btn-sm rounded-circle btn-remove"><i class="fa-solid fa-trash"></i></button>
             </td>
@@ -223,7 +235,6 @@ document.addEventListener('DOMContentLoaded', function() {
         updateRowIndexes();
     });
 
-    // Initialize first row
     updateRowIndexes();
 });
 </script>
