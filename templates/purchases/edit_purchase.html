@@ -10,6 +10,8 @@
     .table-header-custom th { background-color: #f8f9fc; color: #4e73df; font-weight: 800; text-transform: uppercase; font-size: 0.85rem; padding: 15px 10px; border-bottom: 2px solid #e3e6f0; }
     .input-glass { border: 1px solid #d1d3e2; border-radius: 8px; padding: 8px 12px; background-color: #f8f9fc; transition: all 0.3s; }
     .input-glass:focus { background-color: #fff; border-color: #4e73df; box-shadow: 0 0 0 0.2rem rgba(78,115,223,0.1); }
+    input[type=number]::-webkit-inner-spin-button, 
+    input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 </style>
 
 <div class="container-fluid py-4 fade-in-up">
@@ -80,13 +82,13 @@
                                     </select>
                                 </td>
                                 <td>
-                                    <input type="number" name="quantity[]" class="form-control input-glass text-center fw-bold input-qty" value="{{ item.quantity | int }}" min="1" required>
+                                    <input type="number" name="quantity[]" class="form-control input-glass text-center fw-bold input-qty" value="{{ item.quantity | int }}" min="1" step="1" onkeypress="return event.charCode >= 48 && event.charCode <= 57" required>
                                 </td>
                                 <td>
-                                    <input type="number" name="price[]" class="form-control input-glass text-center fw-bold text-info input-price" value="{{ item.purchase_price | int }}" required>
+                                    <input type="number" name="price[]" class="form-control input-glass text-center fw-bold text-info input-price" value="{{ item.purchase_price | int }}" min="0" step="1" onkeypress="return event.charCode >= 48 && event.charCode <= 57" required>
                                 </td>
                                 <td>
-                                    <input type="number" name="line_total[]" class="form-control input-glass text-end fw-bold text-primary input-total" value="{{ (item.quantity * item.purchase_price) | int }}" required>
+                                    <input type="number" name="line_total[]" class="form-control input-glass text-end fw-bold text-primary input-total" value="{{ (item.quantity * item.purchase_price) | int }}" min="0" step="1" onkeypress="return event.charCode >= 48 && event.charCode <= 57" required>
                                 </td>
                                 <td class="text-center">
                                     <button type="button" class="btn btn-outline-danger btn-sm rounded-circle btn-remove"><i class="fa-solid fa-trash"></i></button>
@@ -154,15 +156,15 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // BI-DIRECTIONAL CALCULATOR (WHOLE NUMBERS ONLY)
+    // BI-DIRECTIONAL CALCULATOR (STRICT WHOLE NUMBERS)
     function calculateRow(row, trigger) {
         const qtyInput = row.querySelector('.input-qty');
         const priceInput = row.querySelector('.input-price');
         const totalInput = row.querySelector('.input-total');
 
-        const qty = parseInt(qtyInput.value) || 0;
-        let price = parseInt(priceInput.value) || 0;
-        let total = parseInt(totalInput.value) || 0;
+        const qty = parseInt(qtyInput.value, 10) || 0;
+        let price = parseInt(priceInput.value, 10) || 0;
+        let total = parseInt(totalInput.value, 10) || 0;
 
         if (trigger === 'total') {
             if (qty > 0) {
@@ -180,7 +182,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function calculateGrandTotal() {
         let grandTotal = 0;
         document.querySelectorAll('.input-total').forEach(input => {
-            grandTotal += parseInt(input.value) || 0;
+            grandTotal += parseInt(input.value, 10) || 0;
         });
         grandTotalDisplay.textContent = grandTotal;
     }
@@ -213,9 +215,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     ${productsOptions}
                 </select>
             </td>
-            <td><input type="number" name="quantity[]" class="form-control input-glass text-center fw-bold input-qty" placeholder="0" min="1" required></td>
-            <td><input type="number" name="price[]" class="form-control input-glass text-center fw-bold text-info input-price" placeholder="0" required></td>
-            <td><input type="number" name="line_total[]" class="form-control input-glass text-end fw-bold text-primary input-total" placeholder="0" required></td>
+            <td><input type="number" name="quantity[]" class="form-control input-glass text-center fw-bold input-qty" placeholder="0" min="1" step="1" onkeypress="return event.charCode >= 48 && event.charCode <= 57" required></td>
+            <td><input type="number" name="price[]" class="form-control input-glass text-center fw-bold text-info input-price" placeholder="0" min="0" step="1" onkeypress="return event.charCode >= 48 && event.charCode <= 57" required></td>
+            <td><input type="number" name="line_total[]" class="form-control input-glass text-end fw-bold text-primary input-total" placeholder="0" min="0" step="1" onkeypress="return event.charCode >= 48 && event.charCode <= 57" required></td>
             <td class="text-center">
                 <button type="button" class="btn btn-outline-danger btn-sm rounded-circle btn-remove"><i class="fa-solid fa-trash"></i></button>
             </td>
