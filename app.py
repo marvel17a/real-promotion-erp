@@ -2880,7 +2880,7 @@ def purchases():
 
 
 # =====================================================================
-# NEW PURCHASE ROUTE (Whole Numbers & dd-mm-yyyy Date)
+# NEW PURCHASE ROUTE (Strict Whole Numbers & dd-mm-yyyy Date)
 # =====================================================================
 @app.route('/new_purchase', methods=['GET', 'POST'])
 def new_purchase():
@@ -2941,10 +2941,10 @@ def new_purchase():
             for i in range(len(product_ids)):
                 if product_ids[i]: 
                     # Strictly parse as integer (Whole numbers)
-                    try: qty = int(float(quantities[i]))
+                    try: qty = int(quantities[i].strip())
                     except: qty = 0
 
-                    try: line_total = int(float(line_totals[i]))
+                    try: line_total = int(line_totals[i].strip())
                     except: line_total = 0
 
                     # Auto calculate true unit price rounding to nearest whole number
@@ -3011,7 +3011,7 @@ def new_purchase():
 
 
 # =====================================================================================
-# EDIT PURCHASE ROUTE (Whole Numbers & dd-mm-yyyy Date)
+# EDIT PURCHASE ROUTE (Strict Whole Numbers & dd-mm-yyyy Date)
 # =====================================================================================
 @app.route('/purchases/edit/<int:purchase_id>', methods=['GET', 'POST'])
 def edit_purchase(purchase_id):
@@ -3071,10 +3071,10 @@ def edit_purchase(purchase_id):
                 if product_ids[i]:
                     p_id = product_ids[i]
                     # Strictly parse as integer (Whole numbers)
-                    try: new_qty = int(float(quantities[i]))
+                    try: new_qty = int(quantities[i].strip())
                     except: new_qty = 0
                     
-                    try: line_total = int(float(line_totals[i]))
+                    try: line_total = int(line_totals[i].strip())
                     except: line_total = 0
 
                     if new_qty > 0:
