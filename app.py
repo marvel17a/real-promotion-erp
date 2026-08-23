@@ -2880,7 +2880,7 @@ def purchases():
 
 
 # =====================================================================
-# NEW PURCHASE ROUTE (Landed Cost / Auto Unit Price Logic)
+# NEW PURCHASE ROUTE (Bi-Directional Landed Cost Logic)
 # =====================================================================
 @app.route('/new_purchase', methods=['GET', 'POST'])
 def new_purchase():
@@ -2923,32 +2923,28 @@ def new_purchase():
                 
                 bill_number = f"PO-{date_part}-{max_suffix + 1}"
             
-            # 2. Item Arrays (MODIFIED FOR LANDED COST)
+            # 2. Item Arrays 
             product_ids = request.form.getlist('product_id[]')
             quantities = request.form.getlist('quantity[]')
-            line_totals = request.form.getlist('line_total[]') # FETCH NEW TOTAL ARRAY
+            prices = request.form.getlist('price[]') # Unit Cost
+            line_totals = request.form.getlist('line_total[]') # Total Amount
             
             total_amount = 0.0
             valid_items = []
             
             for i in range(len(product_ids)):
                 if product_ids[i]: 
-                    try:
-                        qty = float(quantities[i])
-                    except ValueError: qty = 0.0
+                    try: qty = float(quantities[i])
+                    except: qty = 0.0
 
-                    try:
-                        line_total = float(line_totals[i])
-                    except ValueError: line_total = 0.0
+                    try: unit_cost = float(prices[i])
+                    except: unit_cost = 0.0
 
-                    # AUTO CALCULATE TRUE UNIT PRICE (Cost per item)
-                    if qty > 0:
-                        true_unit_price = line_total / qty
-                    else:
-                        true_unit_price = 0.0
+                    try: line_total = float(line_totals[i])
+                    except: line_total = 0.0
 
                     total_amount += line_total
-                    valid_items.append({'p_id': product_ids[i], 'qty': qty, 'price': true_unit_price})
+                    valid_items.append({'p_id': product_ids[i], 'qty': qty, 'price': unit_cost})
             
             # 3. Insert Master Purchase Record
             cursor.execute("""
@@ -2958,13 +2954,13 @@ def new_purchase():
             
             purchase_id = cursor.lastrowid
             
-            # 4. Insert Items & Update Stock (Warehouse Stock Increase)
+            # 4. Insert Items & Update Stock
             stock_col = 'stock' 
 
             for item in valid_items:
                 p_id = item['p_id']
                 new_qty = item['qty']
-                true_unit_price = item['price'] # Use calculated true cost
+                true_unit_price = item['price'] 
 
                 # Insert Item
                 cursor.execute("""
@@ -2999,11 +2995,11 @@ def new_purchase():
     products = cursor.fetchall()
     
     cursor.close()
-    return render_template('purchases/new_purchase.html', suppliers=suppliers, products=products)
+    return render_template('purchases/new_purchase.html', suppliers=suppliers, products=products, today_date=date.today().strftime('%Y-%m-%d'))
 
 
 # =====================================================================================
-# EDIT PURCHASE ROUTE (Landed Cost / Auto Unit Price Logic)
+# EDIT PURCHASE ROUTE (Bi-Directional Landed Cost Logic)
 # =====================================================================================
 @app.route('/purchases/edit/<int:purchase_id>', methods=['GET', 'POST'])
 def edit_purchase(purchase_id):
@@ -3011,7 +3007,6 @@ def edit_purchase(purchase_id):
     
     cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
     
-    # --- POST: HANDLE UPDATE LOGIC ---
     if request.method == 'POST':
         try:
             # 1. Fetch OLD Purchase Data
@@ -3044,7 +3039,8 @@ def edit_purchase(purchase_id):
             
             product_ids = request.form.getlist('product_id[]')
             quantities = request.form.getlist('quantity[]')
-            line_totals = request.form.getlist('line_total[]') # MODIFIED FOR LANDED COST
+            prices = request.form.getlist('price[]')
+            line_totals = request.form.getlist('line_total[]') 
             
             # 4. Delete Old Items
             cursor.execute("DELETE FROM purchase_items WHERE purchase_id = %s", (purchase_id,))
@@ -3058,15 +3054,12 @@ def edit_purchase(purchase_id):
                     try: new_qty = float(quantities[i])
                     except: new_qty = 0.0
                     
+                    try: true_unit_price = float(prices[i])
+                    except: true_unit_price = 0.0
+                    
                     try: line_total = float(line_totals[i])
                     except: line_total = 0.0
 
-                    # AUTO CALCULATE TRUE UNIT PRICE
-                    if new_qty > 0:
-                        true_unit_price = line_total / new_qty
-                    else:
-                        true_unit_price = 0.0
-                        
                     new_total += line_total
                     
                     cursor.execute("""
@@ -3074,7 +3067,7 @@ def edit_purchase(purchase_id):
                         VALUES (%s, %s, %s, %s)
                     """, (purchase_id, p_id, new_qty, true_unit_price))
                     
-                    # Update Stock & Purchase Price (Last Price Logic)
+                    # Update Stock & Purchase Price 
                     cursor.execute(f"UPDATE products SET {stock_col} = {stock_col} + %s, purchase_price = %s WHERE id = %s", 
                                    (new_qty, true_unit_price, p_id))
 
