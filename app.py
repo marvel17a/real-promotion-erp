@@ -2880,7 +2880,7 @@ def purchases():
 
 
 # =====================================================================
-# NEW PURCHASE ROUTE (Bi-Directional Landed Cost Logic)
+# NEW PURCHASE ROUTE (Whole Numbers & dd-mm-yyyy Date)
 # =====================================================================
 @app.route('/new_purchase', methods=['GET', 'POST'])
 def new_purchase():
@@ -2892,7 +2892,13 @@ def new_purchase():
         try:
             # 1. Master Data
             supplier_id = request.form['supplier_id']
-            purchase_date_str = request.form['purchase_date']
+            b_date_str = request.form['purchase_date']
+            
+            # Format dd-mm-yyyy to yyyy-mm-dd for MySQL
+            try:
+                purchase_date_str = datetime.strptime(b_date_str, '%d-%m-%Y').strftime('%Y-%m-%d')
+            except ValueError:
+                purchase_date_str = b_date_str # Fallback in case format is already correct
             
             bill_number = request.form.get('bill_number', '').strip()
             notes = request.form.get('notes', '')
@@ -2929,22 +2935,26 @@ def new_purchase():
             prices = request.form.getlist('price[]') # Unit Cost
             line_totals = request.form.getlist('line_total[]') # Total Amount
             
-            total_amount = 0.0
+            total_amount = 0
             valid_items = []
             
             for i in range(len(product_ids)):
                 if product_ids[i]: 
-                    try: qty = float(quantities[i])
-                    except: qty = 0.0
+                    # Strictly parse as integer (Whole numbers)
+                    try: qty = int(float(quantities[i]))
+                    except: qty = 0
 
-                    try: unit_cost = float(prices[i])
-                    except: unit_cost = 0.0
+                    try: line_total = int(float(line_totals[i]))
+                    except: line_total = 0
 
-                    try: line_total = float(line_totals[i])
-                    except: line_total = 0.0
+                    # Auto calculate true unit price rounding to nearest whole number
+                    if qty > 0:
+                        true_unit_price = int(round(line_total / qty))
+                    else:
+                        true_unit_price = 0
 
                     total_amount += line_total
-                    valid_items.append({'p_id': product_ids[i], 'qty': qty, 'price': unit_cost})
+                    valid_items.append({'p_id': product_ids[i], 'qty': qty, 'price': true_unit_price})
             
             # 3. Insert Master Purchase Record
             cursor.execute("""
@@ -2968,7 +2978,7 @@ def new_purchase():
                     VALUES (%s, %s, %s, %s)
                 """, (purchase_id, p_id, new_qty, true_unit_price))
                 
-                # Update Stock & Purchase Price (Last Price Logic)
+                # Update Stock & Purchase Price
                 update_query = f"UPDATE products SET {stock_col} = {stock_col} + %s, purchase_price = %s WHERE id = %s"
                 cursor.execute(update_query, (new_qty, true_unit_price, p_id))
             
@@ -2995,11 +3005,13 @@ def new_purchase():
     products = cursor.fetchall()
     
     cursor.close()
-    return render_template('purchases/new_purchase.html', suppliers=suppliers, products=products, today_date=date.today().strftime('%Y-%m-%d'))
+    
+    # Pass today's date in Indian format
+    return render_template('purchases/new_purchase.html', suppliers=suppliers, products=products, today_date=date.today().strftime('%d-%m-%Y'))
 
 
 # =====================================================================================
-# EDIT PURCHASE ROUTE (Bi-Directional Landed Cost Logic)
+# EDIT PURCHASE ROUTE (Whole Numbers & dd-mm-yyyy Date)
 # =====================================================================================
 @app.route('/purchases/edit/<int:purchase_id>', methods=['GET', 'POST'])
 def edit_purchase(purchase_id):
@@ -3017,7 +3029,7 @@ def edit_purchase(purchase_id):
                 flash("Purchase not found.", "danger")
                 return redirect(url_for('purchases'))
                 
-            old_total = float(old_purchase['total_amount'])
+            old_total = int(old_purchase['total_amount'])
             old_supplier_id = old_purchase['supplier_id']
             
             # 2. Fetch OLD Items
@@ -3033,7 +3045,14 @@ def edit_purchase(purchase_id):
                 
             # 3. Get NEW Form Data
             new_supplier_id = request.form['supplier_id']
-            new_date = request.form['purchase_date']
+            b_date_str = request.form['purchase_date']
+            
+            # Format dd-mm-yyyy to yyyy-mm-dd for MySQL
+            try:
+                new_date = datetime.strptime(b_date_str, '%d-%m-%Y').strftime('%Y-%m-%d')
+            except ValueError:
+                new_date = b_date_str
+            
             new_bill = request.form.get('bill_number', '')
             notes = request.form.get('notes', '')
             
@@ -3046,20 +3065,23 @@ def edit_purchase(purchase_id):
             cursor.execute("DELETE FROM purchase_items WHERE purchase_id = %s", (purchase_id,))
             
             # 5. Insert NEW Items & Update Stock
-            new_total = 0.0
+            new_total = 0
             
             for i in range(len(product_ids)):
                 if product_ids[i]:
                     p_id = product_ids[i]
-                    try: new_qty = float(quantities[i])
-                    except: new_qty = 0.0
+                    # Strictly parse as integer (Whole numbers)
+                    try: new_qty = int(float(quantities[i]))
+                    except: new_qty = 0
                     
-                    try: true_unit_price = float(prices[i])
-                    except: true_unit_price = 0.0
-                    
-                    try: line_total = float(line_totals[i])
-                    except: line_total = 0.0
+                    try: line_total = int(float(line_totals[i]))
+                    except: line_total = 0
 
+                    if new_qty > 0:
+                        true_unit_price = int(round(line_total / new_qty))
+                    else:
+                        true_unit_price = 0
+                        
                     new_total += line_total
                     
                     cursor.execute("""
@@ -3067,7 +3089,6 @@ def edit_purchase(purchase_id):
                         VALUES (%s, %s, %s, %s)
                     """, (purchase_id, p_id, new_qty, true_unit_price))
                     
-                    # Update Stock & Purchase Price 
                     cursor.execute(f"UPDATE products SET {stock_col} = {stock_col} + %s, purchase_price = %s WHERE id = %s", 
                                    (new_qty, true_unit_price, p_id))
 
@@ -3100,6 +3121,13 @@ def edit_purchase(purchase_id):
     cursor.execute("SELECT * FROM purchases WHERE id = %s", (purchase_id,))
     purchase = cursor.fetchone()
     
+    # Format date for the Flatpickr input
+    if purchase and purchase['purchase_date']:
+        if isinstance(purchase['purchase_date'], date):
+            purchase['formatted_date'] = purchase['purchase_date'].strftime('%d-%m-%Y')
+        else:
+            purchase['formatted_date'] = purchase['purchase_date']
+    
     cursor.execute("SELECT id, name FROM suppliers ORDER BY name")
     suppliers = cursor.fetchall()
     
@@ -3115,7 +3143,6 @@ def edit_purchase(purchase_id):
                            suppliers=suppliers, 
                            products=products, 
                            items=items)
-
 
 
 
