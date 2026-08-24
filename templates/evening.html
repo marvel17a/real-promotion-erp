@@ -255,17 +255,32 @@
                         <div class="finance-header"><i class="fa-solid fa-cash-register me-2 text-primary"></i>Cash Settlement</div>
                         <div class="finance-body">
                             
-                            <div class="settle-row">
-                                <span class="settle-label">Total Sales Value</span>
-                                <div class="input-group" style="width: 160px;">
-                                    <span class="input-group-text bg-white border-0 fw-bold">₹</span>
-                                    <input type="number" name="totalAmount" id="totalAmount" class="form-control border-0 bg-white fw-800 text-end text-dark fs-5" readonly value="{{ draft_data.total_amount if draft_data else '0.00' }}">
+                            <!-- Row 1: Total Sales & Discount Inline -->
+                            <div class="settle-row d-flex flex-wrap gap-2 justify-content-between align-items-center">
+                                <span class="settle-label mb-0" style="white-space: nowrap;">Total Sales Value</span>
+                                
+                                <div class="d-flex align-items-center justify-content-end gap-2 flex-grow-1">
+                                    <!-- Total Amount (Moved to Middle) -->
+                                    <div class="input-group shadow-sm rounded-2" style="width: 120px; background: #f8f9fa;">
+                                        <span class="input-group-text bg-transparent border-0 fw-bold text-muted px-2 py-1">₹</span>
+                                        <input type="number" name="totalAmount" id="totalAmount" class="form-control bg-transparent border-0 fw-800 text-center text-dark px-1 py-1" readonly value="{{ draft_data.total_amount if draft_data else '0.00' }}">
+                                    </div>
+
+                                    <!-- Discount (Moved next to Total) -->
+                                    <div class="input-group border border-warning rounded-2 shadow-sm" style="width: 110px; background: #fff;">
+                                        <span class="input-group-text bg-transparent border-0 text-warning px-2 py-1"><i class="fa-solid fa-percent"></i></span>
+                                        <input type="number" step="0.01" name="discount" id="discount" class="form-control border-0 bg-transparent fw-bold text-end px-2 py-1" placeholder="0.00" value="{{ draft_data.discount if draft_data else '' }}" {% if last_settle_id %}readonly{% endif %}>
+                                    </div>
                                 </div>
                             </div>
 
+                            <!-- Row 2: Net Payable (Replaces old discount row) -->
                             <div class="settle-row">
-                                <span class="settle-label text-warning"><i class="fa-solid fa-percent"></i> Discount</span>
-                                <input type="number" step="0.01" name="discount" id="discount" class="settle-input" placeholder="0.00" value="{{ draft_data.discount if draft_data else '' }}" {% if last_settle_id %}readonly{% endif %}>
+                                <span class="settle-label text-primary"><i class="fa-solid fa-scale-balanced"></i> Net Sales</span>
+                                <div class="input-group" style="width: 160px;">
+                                    <span class="input-group-text bg-white border-0 fw-bold text-primary">₹</span>
+                                    <input type="text" id="netPayable" class="form-control border-0 bg-white fw-800 text-end text-primary fs-5" readonly value="0.00">
+                                </div>
                             </div>
 
                             <div class="settle-row">
