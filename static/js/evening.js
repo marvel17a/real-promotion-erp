@@ -166,11 +166,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 <td class="align-middle text-end">
                     <div class="input-group input-group-sm justify-content-end">
                         <span class="input-group-text border-0 bg-transparent pe-1 text-muted">₹</span>
-                        <input type="text" name="price[]" class="form-control-plaintext price-val text-end p-0" value="${p.unit_price.toFixed(2)}" readonly style="width: 50px;">
+                        <input type="text" name="price[]" class="form-control-plaintext price-val text-end p-0" value="${Math.round(p.unit_price)}" readonly style="width: 50px;">
                     </div>
                 </td>
                 <td class="align-middle text-end pe-3">
-                    <span class="fw-bold text-primary row-amt">0.00</span>
+                    <span class="fw-bold text-primary row-amt">0</span>
                 </td>
                 <td class="align-middle">
                     <input type="number" name="return[]" class="form-control form-control-sm text-center return-input shadow-sm border-danger" placeholder="0" min="0" value="${retVal}">
@@ -219,8 +219,8 @@ document.addEventListener("DOMContentLoaded", () => {
             const left = total - sold - ret;
             if(leftEl) leftEl.textContent = left;
             
-            const rowAmt = sold * price;
-            amtEl.textContent = rowAmt.toFixed(2);
+            const rowAmt = Math.round(sold * price);
+            amtEl.textContent = rowAmt;
 
             grandTotal += rowAmt;
             sumTotal += total;
@@ -234,13 +234,13 @@ document.addEventListener("DOMContentLoaded", () => {
         if(ui.footer.returnQty) ui.footer.returnQty.textContent = sumReturn;
         if(ui.footer.remainQty) ui.footer.remainQty.textContent = sumLeft;
         
-        if(ui.payment.totalAmt) ui.payment.totalAmt.value = grandTotal.toFixed(2);
-        if(ui.payment.dispTotal) ui.payment.dispTotal.textContent = grandTotal.toFixed(2);
+        if(ui.payment.totalAmt) ui.payment.totalAmt.value = grandTotal;
+        if(ui.payment.dispTotal) ui.payment.dispTotal.textContent = grandTotal;
 
-        // --- PAYMENT LOGIC START ---
-        const disc = parseFloat(ui.payment.discount.value) || 0;
-        const online = parseFloat(ui.payment.online.value) || 0;
-        const cash = parseFloat(ui.payment.cash.value) || 0;
+        // --- PAYMENT LOGIC START (STRICT INTEGERS) ---
+        const disc = parseInt(ui.payment.discount.value) || 0;
+        const online = parseInt(ui.payment.online.value) || 0;
+        const cash = parseInt(ui.payment.cash.value) || 0;
 
         const totalPay = cash + online;
         const netPayable = grandTotal - disc;
@@ -248,7 +248,7 @@ document.addEventListener("DOMContentLoaded", () => {
         
         // Output Net Payable to UI
         const netPayableEl = document.getElementById('netPayable');
-        if(netPayableEl) netPayableEl.value = netPayable.toFixed(2);
+        if(netPayableEl) netPayableEl.value = netPayable;
         
         const container = ui.payment.dueContainer;
         const label = ui.payment.dueLabel;
@@ -260,7 +260,7 @@ document.addEventListener("DOMContentLoaded", () => {
             container.classList.remove('status-cleared', 'status-due', 'status-profit');
             
             // State 1: CLEARED (Green)
-            if (Math.abs(due) < 1) {
+            if (Math.abs(due) === 0) {
                 container.classList.add('status-cleared');
                 label.innerText = "STATUS";
                 valueDisplay.innerText = "CLEARED";
@@ -269,12 +269,12 @@ document.addEventListener("DOMContentLoaded", () => {
             else if (due > 0) {
                 container.classList.add('status-due');
                 label.innerText = "BALANCE DUE";
-                valueDisplay.innerText = "- ₹ " + due.toFixed(2);
+                valueDisplay.innerText = "- ₹ " + due;
             } 
             // State 3: PROFIT/REFUND (Yellow)
             else {
                 // due is negative here
-                const profit = Math.abs(due).toFixed(2);
+                const profit = Math.abs(due);
                 container.classList.add('status-profit');
                 label.innerText = "PAID CASH";
                 valueDisplay.innerText = "+ ₹ " + profit;
