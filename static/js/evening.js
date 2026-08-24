@@ -246,6 +246,10 @@ document.addEventListener("DOMContentLoaded", () => {
         const netPayable = grandTotal - disc;
         const due = netPayable - totalPay;
         
+        // Output Net Payable to UI
+        const netPayableEl = document.getElementById('netPayable');
+        if(netPayableEl) netPayableEl.value = netPayable.toFixed(2);
+        
         const container = ui.payment.dueContainer;
         const label = ui.payment.dueLabel;
         const valueDisplay = ui.payment.dueValueDisplay;
