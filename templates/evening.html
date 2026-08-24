@@ -30,6 +30,16 @@
         color: #000 !important; /* Black Text for contrast */
         box-shadow: 0 4px 15px rgba(255, 193, 7, 0.4);
     }
+    
+    /* Remove number arrows for cleaner look */
+    input[type=number]::-webkit-inner-spin-button, 
+    input[type=number]::-webkit-outer-spin-button { 
+        -webkit-appearance: none; 
+        margin: 0; 
+    }
+    input[type=number] {
+        -moz-appearance: textfield;
+    }
 </style>
 
 <div class="glass-container fade-in-up mb-5">
@@ -151,10 +161,10 @@
                                     <input type="number" name="sold[]" class="table-input input-sold sold" value="{{ item.sold_qty }}" min="0" {% if last_settle_id %}readonly{% endif %}>
                                 </td>
                                 <td>
-                                    <input type="number" name="price[]" class="table-input text-end unit-price" value="{{ item.unit_price }}" readonly>
+                                    <input type="number" name="price[]" class="table-input text-end unit-price" value="{{ Math.round(item.unit_price) }}" readonly>
                                 </td>
                                 <td class="text-end fw-bold text-primary row-amount">
-                                    {{ "%.2f"|format(item.sold_qty * item.unit_price) }}
+                                    {{ (item.sold_qty * item.unit_price)|int }}
                                 </td>
                                 <td>
                                     <input type="number" name="return[]" class="table-input input-return return" value="{{ item.return_qty }}" min="0" {% if last_settle_id %}readonly{% endif %}>
@@ -174,7 +184,7 @@
                             <td class="text-center"><span class="total-box bg-total-dark" id="totTotal">0</span></td>
                             <td class="text-center"><span class="total-box bg-total-green" id="totSold">0</span></td>
                             <td></td>
-                            <td class="text-end"><span class="total-box bg-total-blue fs-5">₹ <span id="totAmount">0.00</span></span></td>
+                            <td class="text-end"><span class="total-box bg-total-blue fs-5">₹ <span id="totAmount">0</span></span></td>
                             <td class="text-center"><span class="total-box bg-total-red" id="totReturn">0</span></td>
                             <td class="text-center"><span class="total-box bg-total-warning" id="totRemain">0</span></td>
                         </tr>
@@ -199,7 +209,8 @@
                                         <label class="small text-muted fw-bold mb-1">Amount</label>
                                         <div class="input-group input-group-sm">
                                             <span class="input-group-text bg-white border-success">₹</span>
-                                            <input type="number" step="0.01" name="emp_credit_amount" class="form-control border-success fw-bold text-success fs-5" placeholder="0.00">
+                                            <!-- Restricted to integers -->
+                                            <input type="number" name="emp_credit_amount" class="form-control border-success fw-bold text-success fs-5" placeholder="0" onkeypress="return event.charCode >= 48 && event.charCode <= 57">
                                         </div>
                                     </div>
                                     <div>
@@ -224,7 +235,8 @@
                                         <label class="small text-muted fw-bold mb-1">Amount</label>
                                         <div class="input-group input-group-sm">
                                             <span class="input-group-text bg-white border-danger">₹</span>
-                                            <input type="number" step="0.01" name="emp_debit_amount" class="form-control border-danger fw-bold text-danger fs-5" placeholder="0.00">
+                                            <!-- Restricted to integers -->
+                                            <input type="number" name="emp_debit_amount" class="form-control border-danger fw-bold text-danger fs-5" placeholder="0" onkeypress="return event.charCode >= 48 && event.charCode <= 57">
                                         </div>
                                     </div>
                                     <div>
@@ -259,17 +271,17 @@
                             <div class="settle-row d-flex flex-wrap gap-2 justify-content-between align-items-center">
                                 <span class="settle-label mb-0" style="white-space: nowrap;">Total Sales Value</span>
                                 
-                                <div class="d-flex align-items-center justify-content-end gap-2 flex-grow-1">
-                                    <!-- Total Amount (Moved to Middle) -->
-                                    <div class="input-group shadow-sm rounded-2" style="width: 120px; background: #f8f9fa;">
-                                        <span class="input-group-text bg-transparent border-0 fw-bold text-muted px-2 py-1">₹</span>
-                                        <input type="number" name="totalAmount" id="totalAmount" class="form-control bg-transparent border-0 fw-800 text-center text-dark px-1 py-1" readonly value="{{ draft_data.total_amount if draft_data else '0.00' }}">
+                                <div class="d-flex align-items-center justify-content-end gap-3 flex-grow-1">
+                                    <!-- Total Amount (Increased Size) -->
+                                    <div class="input-group shadow-sm rounded-2" style="width: 150px; background: #f8f9fa;">
+                                        <span class="input-group-text bg-transparent border-0 fw-bold text-muted px-2 py-2">₹</span>
+                                        <input type="number" name="totalAmount" id="totalAmount" class="form-control bg-transparent border-0 fw-800 text-end text-dark px-2 py-2 fs-5" readonly value="{{ draft_data.total_amount|int if draft_data else '0' }}">
                                     </div>
 
-                                    <!-- Discount (Moved next to Total) -->
-                                    <div class="input-group border border-warning rounded-2 shadow-sm" style="width: 110px; background: #fff;">
-                                        <span class="input-group-text bg-transparent border-0 text-warning px-2 py-1"><i class="fa-solid fa-percent"></i></span>
-                                        <input type="number" step="0.01" name="discount" id="discount" class="form-control border-0 bg-transparent fw-bold text-end px-2 py-1" placeholder="0.00" value="{{ draft_data.discount if draft_data else '' }}" {% if last_settle_id %}readonly{% endif %}>
+                                    <!-- Discount (Increased Size & Restricted Decimals) -->
+                                    <div class="input-group border border-warning rounded-2 shadow-sm" style="width: 140px; background: #fff;">
+                                        <span class="input-group-text bg-transparent border-0 text-warning px-2 py-2"><i class="fa-solid fa-percent"></i></span>
+                                        <input type="number" name="discount" id="discount" class="form-control border-0 bg-transparent fw-bold text-end px-2 py-2 fs-5" placeholder="0" value="{{ draft_data.discount|int if draft_data else '' }}" {% if last_settle_id %}readonly{% endif %} onkeypress="return event.charCode >= 48 && event.charCode <= 57">
                                     </div>
                                 </div>
                             </div>
@@ -277,27 +289,28 @@
                             <!-- Row 2: Net Payable (Replaces old discount row) -->
                             <div class="settle-row">
                                 <span class="settle-label text-primary"><i class="fa-solid fa-scale-balanced"></i> Net Sales</span>
-                                <div class="input-group" style="width: 160px;">
+                                <div class="input-group" style="width: 180px;">
                                     <span class="input-group-text bg-white border-0 fw-bold text-primary">₹</span>
-                                    <input type="text" id="netPayable" class="form-control border-0 bg-white fw-800 text-end text-primary fs-5" readonly value="0.00">
+                                    <input type="text" id="netPayable" class="form-control border-0 bg-white fw-800 text-end text-primary fs-4" readonly value="0">
                                 </div>
                             </div>
 
                             <div class="settle-row">
                                 <span class="settle-label text-info"><i class="fa-solid fa-qrcode"></i> Online Received</span>
-                                <input type="number" step="0.01" name="online" id="online" class="settle-input" placeholder="0.00" value="{{ draft_data.online_money if draft_data else '' }}" {% if last_settle_id %}readonly{% endif %}>
+                                <!-- Increased Size & Restricted Decimals -->
+                                <input type="number" name="online" id="online" class="settle-input fs-5" style="width: 180px;" placeholder="0" value="{{ draft_data.online_money|int if draft_data else '' }}" {% if last_settle_id %}readonly{% endif %} onkeypress="return event.charCode >= 48 && event.charCode <= 57">
                             </div>
 
                             <div class="settle-row">
                                 <span class="settle-label text-success"><i class="fa-solid fa-money-bill-wave"></i> Cash Collected</span>
-                                <input type="number" step="0.01" name="cash" id="cash" class="settle-input fs-5" placeholder="0.00" value="{{ draft_data.cash_money if draft_data else '' }}" {% if last_settle_id %}readonly{% endif %}>
+                                <!-- Increased Size & Restricted Decimals -->
+                                <input type="number" name="cash" id="cash" class="settle-input fs-5" style="width: 180px;" placeholder="0" value="{{ draft_data.cash_money|int if draft_data else '' }}" {% if last_settle_id %}readonly{% endif %} onkeypress="return event.charCode >= 48 && event.charCode <= 57">
                             </div>
 
-                            <!-- Balance Due Box (Modified Structure) -->
-                            <!-- Replaced .balance-box with custom flexible container -->
+                            <!-- Balance Due Box -->
                             <div id="dueContainer" class="p-4 rounded-3 d-flex justify-content-between align-items-center mt-4 status-box-transition">
                                 <span id="dueLabel" class="fw-800 fs-5">BALANCE DUE</span>
-                                <span class="fs-4 fw-800" id="dueValueDisplay">₹ 0.00</span>
+                                <span class="fs-4 fw-800" id="dueValueDisplay">₹ 0</span>
                                 <!-- Hidden input for form submission -->
                                 <input type="hidden" name="due_amount_display" id="dueAmount"> 
                             </div>
