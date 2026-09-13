@@ -235,8 +235,8 @@
                             <div class="d-flex align-items-center justify-content-between">
                                 <div>
                                     <h6 class="fw-bold m-0 text-dark">
-                                        {% if f.action_type == 'deposit_to_bank' %}<i class="fas fa-arrow-right text-primary me-1"></i> Cash → Bank
-                                        {% elif f.action_type == 'withdraw_to_cash' %}<i class="fas fa-arrow-left text-success me-1"></i> Bank → Cash
+                                        {% if f.action_type == 'Office Cash to Bank' %}<i class="fas fa-arrow-right text-primary me-1"></i> Cash → Bank
+                                        {% elif f.action_type == 'Bank to Office Cash' %}<i class="fas fa-arrow-left text-success me-1"></i> Bank → Cash
                                         {% elif f.action_type == 'add_funds' %}<i class="fas fa-plus-circle text-success me-1"></i> Capital Added
                                         {% else %}<i class="fas fa-minus-circle text-danger me-1"></i> Funds Reduced
                                         {% endif %}
