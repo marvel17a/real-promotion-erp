@@ -103,6 +103,220 @@ def parse_date_input(date_str):
         # Return as-is if it fails (might already be correct or None)
         return date_str
 
+
+# =========================================================
+# HELPER: GLOBAL FINANCIAL BALANCE CALCULATOR
+# =========================================================
+def get_company_balances(cur):
+    """
+    Centralized function to calculate accurate Cash and Bank balances,
+    including all operational flows AND manual fund adjustments.
+    """
+    # 1. INCOME (Operational)
+    cur.execute("SELECT SUM(cash_money) as c, SUM(online_money) as b FROM evening_settle WHERE status='final'")
+    eve = cur.fetchone()
+    cur.execute("SELECT SUM(cash_amount) as c, SUM(online_amount) as b FROM office_sales")
+    off = cur.fetchone()
+    cur.execute("SELECT SUM(CASE WHEN payment_mode='Cash' THEN amount ELSE 0 END) as c, SUM(CASE WHEN payment_mode!='Cash' THEN amount ELSE 0 END) as b FROM employee_transactions WHERE type='credit'")
+    emp_in = cur.fetchone()
+    
+    op_cash_in = float(eve['c'] or 0) + float(off['c'] or 0) + float(emp_in['c'] or 0)
+    op_bank_in = float(eve['b'] or 0) + float(off['b'] or 0) + float(emp_in['b'] or 0)
+
+    # 2. EXPENSES (Operational)
+    cur.execute("SELECT SUM(CASE WHEN payment_method='Cash' THEN amount ELSE 0 END) as c, SUM(CASE WHEN payment_method!='Cash' THEN amount ELSE 0 END) as b FROM expense_items")
+    exp_out = cur.fetchone()
+    cur.execute("SELECT SUM(CASE WHEN payment_mode='Cash' THEN amount ELSE 0 END) as c, SUM(CASE WHEN payment_mode!='Cash' THEN amount ELSE 0 END) as b FROM employee_transactions WHERE type='debit'")
+    emp_out = cur.fetchone()
+    cur.execute("SELECT SUM(CASE WHEN payment_mode='Cash' THEN amount_paid ELSE 0 END) as c, SUM(CASE WHEN payment_mode!='Cash' THEN amount_paid ELSE 0 END) as b FROM supplier_payments")
+    supp_out = cur.fetchone()
+    
+    # Employee Refunds (Cash Outflow)
+    cur.execute("SELECT SUM(ABS(due_amount)) as total_refunds FROM evening_settle WHERE status='final' AND due_amount < -0.01")
+    refunds = float(cur.fetchone()['total_refunds'] or 0)
+
+    op_cash_out = float(exp_out['c'] or 0) + float(emp_out['c'] or 0) + float(supp_out['c'] or 0) + refunds
+    op_bank_out = float(exp_out['b'] or 0) + float(emp_out['b'] or 0) + float(supp_out['b'] or 0)
+
+    # 3. MANUAL FUND ADJUSTMENTS (Contra & Capital)
+    # Wrap in try-except in case the table hasn't been created yet
+    adj_cash_in = 0.0; adj_cash_out = 0.0
+    adj_bank_in = 0.0; adj_bank_out = 0.0
+    try:
+        cur.execute("SELECT action_type, fund_mode, SUM(amount) as val FROM fund_adjustments GROUP BY action_type, fund_mode")
+        adjs = cur.fetchall()
+        for a in adjs:
+            typ = a['action_type']
+            mode = a['fund_mode']
+            val = float(a['val'] or 0)
+            
+            if typ == 'deposit_to_bank':
+                adj_cash_out += val
+                adj_bank_in += val
+            elif typ == 'withdraw_to_cash':
+                adj_bank_out += val
+                adj_cash_in += val
+            elif typ == 'add_funds':
+                if mode == 'Cash': adj_cash_in += val
+                else: adj_bank_in += val
+            elif typ == 'reduce_funds':
+                if mode == 'Cash': adj_cash_out += val
+                else: adj_bank_out += val
+    except Exception as e:
+        app.logger.error(f"Fund Adjustments table check skipped: {e}")
+
+    # 4. FINAL MATH
+    final_cash = (op_cash_in + adj_cash_in) - (op_cash_out + adj_cash_out)
+    final_bank = (op_bank_in + adj_bank_in) - (op_bank_out + adj_bank_out)
+
+    return {
+        'cash_balance': final_cash,
+        'bank_balance': final_bank,
+        'total_balance': final_cash + final_bank
+    }
+
+
+# =========================================================
+# UPDATED ROUTE: EXPENSE DASHBOARD
+# =========================================================
+@app.route('/expense_dash')
+def expense_dash():
+    if 'loggedin' not in session: return redirect(url_for('login'))
+    
+    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    
+    # 1. Use the new master function to get 100% accurate balances!
+    fin_health = get_company_balances(cur)
+
+    # 2. CASHFLOW CHART (Monthly Income vs Expense)
+    months = []
+    income_data = []
+    expense_data = []
+    
+    for i in range(5, -1, -1):
+        d = date.today() - timedelta(days=i*30)
+        m_start = d.replace(day=1)
+        next_m = (m_start.replace(day=28) + timedelta(days=4)).replace(day=1)
+        m_end = next_m - timedelta(days=1)
+        m_label = m_start.strftime('%b')
+        months.append(m_label)
+        
+        cur.execute("""
+            SELECT (
+                COALESCE((SELECT SUM(total_amount - discount) FROM evening_settle WHERE date BETWEEN %s AND %s AND status='final'), 0) +
+                COALESCE((SELECT SUM(final_amount) FROM office_sales WHERE sale_date BETWEEN %s AND %s), 0) +
+                COALESCE((SELECT SUM(amount) FROM employee_transactions WHERE transaction_date BETWEEN %s AND %s AND type='credit'), 0)
+            ) as total
+        """, (m_start, m_end, m_start, m_end, m_start, m_end))
+        income_data.append(float(cur.fetchone()['total'] or 0))
+        
+        cur.execute("""
+            SELECT (
+                COALESCE((SELECT SUM(total_amount) FROM expenses WHERE expense_date BETWEEN %s AND %s), 0) +
+                COALESCE((SELECT SUM(amount) FROM employee_transactions WHERE transaction_date BETWEEN %s AND %s AND type='debit'), 0)
+            ) as total
+        """, (m_start, m_end, m_start, m_end))
+        expense_data.append(float(cur.fetchone()['total'] or 0))
+
+    chart_cashflow = { 'labels': months, 'income': income_data, 'expense': expense_data }
+
+    # 3. CATEGORY PIE CHART
+    cur.execute("""
+        SELECT c.category_name, SUM(ei.amount) as total
+        FROM expense_items ei
+        JOIN expensecategories c ON ei.category_id = c.category_id
+        GROUP BY c.category_name
+        ORDER BY total DESC
+    """)
+    cat_data = cur.fetchall()
+    chart_pie = {
+        'labels': [r['category_name'] for r in cat_data],
+        'data': [float(r['total']) for r in cat_data]
+    }
+
+    # 4. RECENT EXPENSES
+    cur.execute("""
+        SELECT e.expense_id, e.expense_date, e.total_amount, e.payment_method, e.description,
+               COUNT(ei.id) as item_count
+        FROM expenses e
+        LEFT JOIN expense_items ei ON e.expense_id = ei.expense_id
+        GROUP BY e.expense_id
+        ORDER BY e.expense_date DESC, e.expense_time DESC LIMIT 5
+    """)
+    recent = cur.fetchall()
+    
+    # 5. RECENT FUND ADJUSTMENTS (NEW)
+    fund_history = []
+    try:
+        cur.execute("""
+            SELECT id, action_type, fund_mode, amount, reason, adjustment_date, created_at 
+            FROM fund_adjustments 
+            ORDER BY created_at DESC LIMIT 5
+        """)
+        fund_history = cur.fetchall()
+    except:
+        pass # Table might not exist yet
+
+    cur.close()
+    
+    return render_template('expenses/expense_dash.html', 
+                         fin=fin_health, 
+                         cashflow=chart_cashflow, 
+                         pie=chart_pie, 
+                         recent=recent,
+                         fund_history=fund_history)
+
+
+# =========================================================
+# NEW ROUTE: HANDLE FUND MANAGEMENT POST REQUEST
+# =========================================================
+@app.route('/manage_funds', methods=['POST'])
+def manage_funds():
+    if 'loggedin' not in session: return redirect(url_for('login'))
+    
+    try:
+        action_type = request.form.get('action_type')
+        fund_mode = request.form.get('fund_mode', 'Cash') # Default to Cash if not provided
+        amount = float(request.form.get('amount') or 0)
+        date_raw = request.form.get('adjustment_date')
+        reason = request.form.get('reason', '')
+        
+        # Parse Date
+        try: adj_date = datetime.strptime(date_raw, '%d-%m-%Y').strftime('%Y-%m-%d')
+        except: adj_date = date.today().strftime('%Y-%m-%d')
+        
+        time_str = get_ist_now().strftime('%Y-%m-%d %H:%M:%S')
+        
+        # Validations
+        if amount <= 0:
+            flash("Amount must be greater than zero.", "warning")
+            return redirect(url_for('expense_dash'))
+
+        cur = mysql.connection.cursor()
+        
+        cur.execute("""
+            INSERT INTO fund_adjustments (action_type, fund_mode, amount, reason, adjustment_date, created_at)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """, (action_type, fund_mode, amount, reason, adj_date, time_str))
+        
+        mysql.connection.commit()
+        cur.close()
+        
+        # Friendly success messages
+        if action_type == 'deposit_to_bank': msg = f"Deposited ₹{amount} to Bank."
+        elif action_type == 'withdraw_to_cash': msg = f"Withdrew ₹{amount} to Cash."
+        elif action_type == 'add_funds': msg = f"Added ₹{amount} Capital to {fund_mode}."
+        else: msg = f"Reduced ₹{amount} from {fund_mode}."
+        
+        flash(msg, "success")
+        
+    except Exception as e:
+        mysql.connection.rollback()
+        flash(f"Error processing transaction: {str(e)}", "danger")
+
+    return redirect(url_for('expense_dash'))
+    
+
 # =========================================================
 # MONTHLY SALES DASHBOARD (Updated for Net Revenue)
 # =========================================================
