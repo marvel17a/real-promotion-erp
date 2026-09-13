@@ -315,6 +315,143 @@ def manage_funds():
         flash(f"Error processing transaction: {str(e)}", "danger")
 
     return redirect(url_for('expense_dash'))
+
+
+# =========================================================
+#  FUND MANAGEMENT MASTER DASHBOARD (View, Filter)
+# =========================================================
+@app.route('/fund_master')
+def fund_master():
+    if 'loggedin' not in session: return redirect(url_for('login'))
+    
+    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    
+    # 1. Filters
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    action_filter = request.args.get('action_type', 'all')
+    
+    query = "SELECT * FROM fund_adjustments WHERE 1=1"
+    params = []
+    
+    if start_date:
+        try:
+            d = datetime.strptime(start_date, '%d-%m-%Y').strftime('%Y-%m-%d')
+            query += " AND adjustment_date >= %s"
+            params.append(d)
+        except: pass
+        
+    if end_date:
+        try:
+            d = datetime.strptime(end_date, '%d-%m-%Y').strftime('%Y-%m-%d')
+            query += " AND adjustment_date <= %s"
+            params.append(d)
+        except: pass
+        
+    if action_filter != 'all':
+        query += " AND action_type = %s"
+        params.append(action_filter)
+        
+    query += " ORDER BY adjustment_date DESC, created_at DESC"
+    
+    cur.execute(query, tuple(params))
+    funds = cur.fetchall()
+    
+    # 2. Process Data & Calculate Stats
+    stats = {'to_bank': 0, 'to_cash': 0, 'added': 0, 'reduced': 0}
+    
+    for f in funds:
+        # Calculate Stats
+        amt = float(f['amount'] or 0)
+        if f['action_type'] == 'deposit_to_bank': stats['to_bank'] += amt
+        elif f['action_type'] == 'withdraw_to_cash': stats['to_cash'] += amt
+        elif f['action_type'] == 'add_funds': stats['added'] += amt
+        elif f['action_type'] == 'reduce_funds': stats['reduced'] += amt
+        
+        # Format Date & Time
+        if f['adjustment_date']:
+            f['formatted_date'] = f['adjustment_date'].strftime('%d-%m-%Y')
+        else: f['formatted_date'] = "-"
+            
+        if f['created_at']:
+            f['formatted_time'] = f['created_at'].strftime('%I:%M %p')
+        else: f['formatted_time'] = "-"
+
+    cur.close()
+    
+    return render_template('expenses/fund_master.html', 
+                           funds=funds, 
+                           stats=stats, 
+                           filters={'start': start_date, 'end': end_date, 'action': action_filter})
+
+# =========================================================
+#  EDIT FUND TRANSACTION
+# =========================================================
+@app.route('/edit_fund/<int:id>', methods=['GET', 'POST'])
+def edit_fund(id):
+    if 'loggedin' not in session: return redirect(url_for('login'))
+    
+    cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    
+    if request.method == 'POST':
+        action_type = request.form.get('action_type')
+        fund_mode = request.form.get('fund_mode', 'Cash')
+        amount = float(request.form.get('amount') or 0)
+        date_raw = request.form.get('adjustment_date')
+        reason = request.form.get('reason', '')
+        
+        try: adj_date = datetime.strptime(date_raw, '%d-%m-%Y').strftime('%Y-%m-%d')
+        except: adj_date = date.today().strftime('%Y-%m-%d')
+        
+        try:
+            cur.execute("""
+                UPDATE fund_adjustments 
+                SET action_type=%s, fund_mode=%s, amount=%s, reason=%s, adjustment_date=%s
+                WHERE id=%s
+            """, (action_type, fund_mode, amount, reason, adj_date, id))
+            
+            mysql.connection.commit()
+            flash("Transaction updated successfully.", "success")
+            return redirect(url_for('fund_master'))
+        except Exception as e:
+            mysql.connection.rollback()
+            flash(f"Error updating transaction: {e}", "danger")
+            
+    # GET Request
+    cur.execute("SELECT * FROM fund_adjustments WHERE id=%s", (id,))
+    fund = cur.fetchone()
+    
+    if fund and fund['adjustment_date']:
+        fund['formatted_date'] = fund['adjustment_date'].strftime('%d-%m-%Y')
+        
+    cur.close()
+    
+    if not fund:
+        flash("Record not found.", "danger")
+        return redirect(url_for('fund_master'))
+        
+    return render_template('expenses/edit_fund.html', fund=fund)
+
+# =========================================================
+#  DELETE FUND TRANSACTION
+# =========================================================
+@app.route('/delete_fund/<int:id>', methods=['POST'])
+def delete_fund(id):
+    if 'loggedin' not in session: return redirect(url_for('login'))
+    
+    cur = mysql.connection.cursor()
+    try:
+        cur.execute("DELETE FROM fund_adjustments WHERE id=%s", (id,))
+        mysql.connection.commit()
+        flash("Transaction deleted successfully. Balances have been restored.", "success")
+    except Exception as e:
+        mysql.connection.rollback()
+        flash(f"Error deleting transaction: {e}", "danger")
+    finally:
+        cur.close()
+        
+    return redirect(url_for('fund_master'))
+
     
 
 # =========================================================
