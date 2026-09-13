@@ -1,6 +1,5 @@
 {% extends 'admin_master.html' %}
 {% block page_content %}
-<!-- Dependencies -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
@@ -84,7 +83,11 @@
             <a href="{{ url_for('expenses_list') }}" class="btn btn-light border btn-action shadow-sm">
                 <i class="fas fa-list-ul me-2"></i> Ledger
             </a>
-            <!-- NEW: Manage Funds Button triggers Modal -->
+            <!-- NEW: Button linking to the Fund Master Page -->
+            <a href="{{ url_for('fund_master') }}" class="btn btn-light border btn-action shadow-sm">
+                <i class="fas fa-history me-2 text-info"></i> Fund History
+            </a>
+            <!-- Manage Funds Button triggers Modal -->
             <button type="button" class="btn btn-warning-glow btn-action" data-bs-toggle="modal" data-bs-target="#fundModal">
                 <i class="fas fa-exchange-alt me-2"></i> Manage Funds
             </button>
@@ -222,11 +225,14 @@
             </div>
         </div>
         
-        <!-- NEW: Fund Transfers -->
+        <!-- Fund Transfers -->
         <div class="col-lg-5">
             <div class="card border-0 shadow-sm rounded-4 overflow-hidden h-100 bg-light">
                 <div class="card-header bg-transparent p-4 border-0">
-                    <h5 class="fw-bold m-0 text-dark">Recent Fund Transfers</h5>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="fw-bold m-0 text-dark">Recent Fund Transfers</h5>
+                        <a href="{{ url_for('fund_master') }}" class="btn btn-sm btn-outline-dark rounded-pill px-3">View All</a>
+                    </div>
                 </div>
                 <div class="card-body p-0">
                     <div class="list-group list-group-flush bg-transparent">
@@ -235,10 +241,10 @@
                             <div class="d-flex align-items-center justify-content-between">
                                 <div>
                                     <h6 class="fw-bold m-0 text-dark">
-                                        {% if f.action_type == 'Office Cash to Bank' %}<i class="fas fa-arrow-right text-primary me-1"></i> Cash → Bank
-                                        {% elif f.action_type == 'Bank to Office Cash' %}<i class="fas fa-arrow-left text-success me-1"></i> Bank → Cash
-                                        {% elif f.action_type == 'add_funds' %}<i class="fas fa-plus-circle text-success me-1"></i> Capital Added
-                                        {% else %}<i class="fas fa-minus-circle text-danger me-1"></i> Funds Reduced
+                                        {% if f.action_type == 'deposit_to_bank' %}<i class="fas fa-arrow-right text-primary me-1"></i> Cash → Bank
+                                        {% elif f.action_type == 'withdraw_to_cash' %}<i class="fas fa-arrow-left text-success me-1"></i> Bank → Cash
+                                        {% elif f.action_type == 'add_funds' %}<i class="fas fa-plus-circle text-success me-1"></i> Added
+                                        {% else %}<i class="fas fa-minus-circle text-danger me-1"></i> Reduced
                                         {% endif %}
                                     </h6>
                                     <small class="text-muted">{{ f.adjustment_date.strftime('%d %b, %Y') }}</small>
@@ -275,12 +281,13 @@
                 <div class="modal-body p-4">
                     
                     <div class="mb-3">
-                        <label class="form-label fw-bold text-muted small">Action</label>
+                        <label class="form-label fw-bold text-muted small">Action Type</label>
+                        <!-- MODIFIED: Updated Option Texts based on request -->
                         <select class="form-select fw-bold border-2" name="action_type" id="action_type" required onchange="toggleMode()">
-                            <option value="deposit_to_bank">💰 Deposit Cash to Bank</option>
-                            <option value="withdraw_to_cash">🏧 Withdraw Bank to Cash</option>
-                            <option value="add_funds">➕ Add Capital / Extra Funds</option>
-                            <option value="reduce_funds">➖ Reduce / Draw Funds</option>
+                            <option value="deposit_to_bank">💰 Office Cash to Bank</option>
+                            <option value="withdraw_to_cash">🏧 Bank to Office Cash</option>
+                            <option value="add_funds">➕ Add Cash/Capital</option>
+                            <option value="reduce_funds">➖ Reduce Cash</option>
                         </select>
                     </div>
 
@@ -305,7 +312,7 @@
 
                     <div class="mb-2">
                         <label class="form-label fw-bold text-muted small">Reason / Remarks</label>
-                        <textarea class="form-control border-2" name="reason" rows="2" placeholder="e.g. Deposited cash to HDFC..."></textarea>
+                        <textarea class="form-control border-2" name="reason" rows="2" placeholder="e.g. Owner added funds..."></textarea>
                     </div>
 
                 </div>
