@@ -1,0 +1,81 @@
+{% extends 'admin_master.html' %}
+
+{% block page_content %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
+<div class="container py-5 fade-in-up" style="max-width: 600px;">
+    
+    <div class="d-flex align-items-center mb-4">
+        <a href="{{ url_for('fund_master') }}" class="btn btn-light shadow-sm rounded-circle border me-3" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+            <i class="fa-solid fa-arrow-left text-dark"></i>
+        </a>
+        <div>
+            <h3 class="fw-bold text-dark mb-0">Edit Transaction #{{ fund.id }}</h3>
+            <p class="text-muted small mb-0">Modify record details</p>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-lg" style="border-radius: 20px;">
+        <form method="POST">
+            <div class="card-body p-4 p-md-5">
+                
+                <div class="mb-4">
+                    <label class="form-label fw-bold text-muted small text-uppercase">Action Type</label>
+                    <select class="form-select fw-bold border-2 p-3" name="action_type" id="action_type" required onchange="toggleMode()">
+                        <option value="deposit_to_bank" {% if fund.action_type == 'deposit_to_bank' %}selected{% endif %}>💰 Deposit Cash to Bank</option>
+                        <option value="withdraw_to_cash" {% if fund.action_type == 'withdraw_to_cash' %}selected{% endif %}>🏧 Withdraw Bank to Cash</option>
+                        <option value="add_funds" {% if fund.action_type == 'add_funds' %}selected{% endif %}>➕ Add Capital / Extra Funds</option>
+                        <option value="reduce_funds" {% if fund.action_type == 'reduce_funds' %}selected{% endif %}>➖ Reduce / Draw Funds</option>
+                    </select>
+                </div>
+
+                <div class="mb-4" id="modeContainer" style="display: none;">
+                    <label class="form-label fw-bold text-muted small text-uppercase">Select Account</label>
+                    <select class="form-select fw-bold border-2 p-3" name="fund_mode" id="fund_mode">
+                        <option value="Cash" {% if fund.fund_mode == 'Cash' %}selected{% endif %}>Office Cash</option>
+                        <option value="Online" {% if fund.fund_mode == 'Online' %}selected{% endif %}>Bank / Online</option>
+                    </select>
+                </div>
+
+                <div class="row g-4 mb-4">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold text-muted small text-uppercase">Amount (₹)</label>
+                        <input type="number" step="0.01" min="1" name="amount" class="form-control fw-bold border-2 text-primary p-3 fs-5" value="{{ fund.amount }}" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold text-muted small text-uppercase">Date</label>
+                        <input type="text" name="adjustment_date" class="form-control fw-bold border-2 date-picker p-3" value="{{ fund.formatted_date }}" required>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label fw-bold text-muted small text-uppercase">Reason / Remarks</label>
+                    <textarea class="form-control border-2 p-3" name="reason" rows="3">{{ fund.reason }}</textarea>
+                </div>
+                
+                <button type="submit" class="btn btn-dark w-100 rounded-pill p-3 fw-bold shadow">
+                    <i class="fa-solid fa-save me-2"></i> Update Transaction
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        flatpickr(".date-picker", { dateFormat: "d-m-Y", allowInput: true });
+        toggleMode(); // Initialize on load
+    });
+
+    function toggleMode() {
+        const action = document.getElementById('action_type').value;
+        const modeContainer = document.getElementById('modeContainer');
+        if (action === 'add_funds' || action === 'reduce_funds') {
+            modeContainer.style.display = 'block';
+        } else {
+            modeContainer.style.display = 'none';
+        }
+    }
+</script>
+{% endblock %}
