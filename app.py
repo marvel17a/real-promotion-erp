@@ -1080,7 +1080,6 @@ def add_expense():
         cur.execute("SELECT SUM(cash_amount) as cash, SUM(online_amount) as bank FROM office_sales")
         off = cur.fetchone()
         
-        # New: Add Employee Credit (Money In)
         cur.execute("""
             SELECT 
                 SUM(CASE WHEN payment_mode = 'Cash' THEN amount ELSE 0 END) as cash_in,
@@ -1089,9 +1088,6 @@ def add_expense():
             WHERE type = 'credit'
         """)
         emp_in = cur.fetchone()
-        
-        total_cash_in = float(eve['cash'] or 0) + float(off['cash'] or 0) + float(emp_in['cash_in'] or 0)
-        total_bank_in = float(eve['bank'] or 0) + float(off['bank'] or 0) + float(emp_in['bank_in'] or 0)
 
         # 2. Total Expenses (Vouchers + Employee Debit + Supplier Payments)
         cur.execute("""
@@ -1102,7 +1098,6 @@ def add_expense():
         """)
         exp_totals = cur.fetchone()
         
-        # New: Add Employee Debit (Money Out)
         cur.execute("""
             SELECT 
                 SUM(CASE WHEN payment_mode = 'Cash' THEN amount ELSE 0 END) as cash_out,
@@ -1112,7 +1107,6 @@ def add_expense():
         """)
         emp_out = cur.fetchone()
 
-        # Add Supplier Payments (Money Out) - ADDED AS PER PREVIOUS INSTRUCTION FOR EXPENSE DASH
         cur.execute("""
             SELECT 
                 SUM(CASE WHEN payment_mode = 'Cash' THEN amount_paid ELSE 0 END) as cash_out,
@@ -1121,15 +1115,43 @@ def add_expense():
         """)
         supp_out = cur.fetchone()
         
-        # --- NEW: CALCULATE REFUNDS (PROFIT PAID TO EMPLOYEE) ---
-        # Logic: Sum of negative 'due_amount' where status is final. 
-        # Negative due means company owes employee, usually paid immediately in cash.
+        # Refunds (Profit paid to employee)
         cur.execute("SELECT SUM(ABS(due_amount)) as total_refunds FROM evening_settle WHERE status='final' AND due_amount < -0.01")
         refund_res = cur.fetchone()
         total_refunds = float(refund_res['total_refunds'] or 0)
 
-        total_cash_out = float(exp_totals['cash_total'] or 0) + float(emp_out['cash_out'] or 0) + float(supp_out['cash_out'] or 0) + total_refunds
-        total_bank_out = float(exp_totals['bank_total'] or 0) + float(emp_out['bank_out'] or 0) + float(supp_out['bank_out'] or 0)
+        # --- NEW: CALCULATE FUND ADJUSTMENTS (Contra & Capital) ---
+        adj_cash_in = 0.0; adj_cash_out = 0.0
+        adj_bank_in = 0.0; adj_bank_out = 0.0
+        
+        try:
+            cur.execute("SELECT action_type, fund_mode, SUM(amount) as val FROM fund_adjustments GROUP BY action_type, fund_mode")
+            for a in cur.fetchall():
+                typ = a['action_type']
+                mode = a['fund_mode']
+                val = float(a['val'] or 0)
+                
+                if typ == 'deposit_to_bank':
+                    adj_cash_out += val
+                    adj_bank_in += val
+                elif typ == 'withdraw_to_cash':
+                    adj_bank_out += val
+                    adj_cash_in += val
+                elif typ == 'add_funds':
+                    if mode == 'Cash': adj_cash_in += val
+                    else: adj_bank_in += val
+                elif typ == 'reduce_funds':
+                    if mode == 'Cash': adj_cash_out += val
+                    else: adj_bank_out += val
+        except Exception:
+            pass # Failsafe if the fund_adjustments table doesn't exist yet
+
+        # --- FINAL MATH ---
+        total_cash_in = float(eve['cash'] or 0) + float(off['cash'] or 0) + float(emp_in['cash_in'] or 0) + adj_cash_in
+        total_bank_in = float(eve['bank'] or 0) + float(off['bank'] or 0) + float(emp_in['bank_in'] or 0) + adj_bank_in
+
+        total_cash_out = float(exp_totals['cash_total'] or 0) + float(emp_out['cash_out'] or 0) + float(supp_out['cash_out'] or 0) + total_refunds + adj_cash_out
+        total_bank_out = float(exp_totals['bank_total'] or 0) + float(emp_out['bank_out'] or 0) + float(supp_out['bank_out'] or 0) + adj_bank_out
 
         cash_balance = total_cash_in - total_cash_out
         bank_balance = total_bank_in - total_bank_out
@@ -1153,7 +1175,7 @@ def add_expense():
         if cur: cur.close()
         flash("System error while loading the expense form.", "danger")
         return redirect(url_for('expense_dash'))
-
+        
 # 1. Expense List (With Advanced Filters & Date Range Support)
 @app.route('/expenses_list')
 def expenses_list():
@@ -2889,42 +2911,6 @@ def record_payment(supplier_id):
     
     current_due = (float(supplier['opening_balance']) + t_purch + t_adj) - t_paid
 
-    # 2. Fetch Global Company Balance (For UI Display)
-    # Income
-    cur.execute("SELECT SUM(cash_money) as c, SUM(online_money) as b FROM evening_settle WHERE status='final'")
-    eve = cur.fetchone()
-    cur.execute("SELECT SUM(cash_amount) as c, SUM(online_amount) as b FROM office_sales")
-    off = cur.fetchone()
-    cur.execute("SELECT SUM(CASE WHEN payment_mode='Cash' THEN amount ELSE 0 END) as c, SUM(CASE WHEN payment_mode!='Cash' THEN amount ELSE 0 END) as b FROM employee_transactions WHERE type='credit'")
-    emp_in = cur.fetchone()
-    
-    total_cash_in = float((eve['c'] or 0) + (off['c'] or 0) + (emp_in['c'] or 0))
-    total_bank_in = float((eve['b'] or 0) + (off['b'] or 0) + (emp_in['b'] or 0))
-
-    # Expenses (Vouchers + Emp Debits + Supplier Payments)
-    cur.execute("SELECT SUM(CASE WHEN payment_method='Cash' THEN amount ELSE 0 END) as c, SUM(CASE WHEN payment_method!='Cash' THEN amount ELSE 0 END) as b FROM expense_items")
-    exp_out = cur.fetchone()
-    
-    cur.execute("SELECT SUM(CASE WHEN payment_mode='Cash' THEN amount ELSE 0 END) as c, SUM(CASE WHEN payment_mode!='Cash' THEN amount ELSE 0 END) as b FROM employee_transactions WHERE type='debit'")
-    emp_out = cur.fetchone()
-    
-    cur.execute("SELECT SUM(CASE WHEN payment_mode='Cash' THEN amount_paid ELSE 0 END) as c, SUM(CASE WHEN payment_mode!='Cash' THEN amount_paid ELSE 0 END) as b FROM supplier_payments")
-    supp_out = cur.fetchone()
-
-    # --- NEW: CALCULATE REFUNDS (PROFIT PAID TO EMPLOYEE) ---
-    # Logic: Sum of negative 'due_amount' where status is final. 
-    # Negative due means company owes employee, usually paid immediately in cash.
-    cur.execute("SELECT SUM(ABS(due_amount)) as total_refunds FROM evening_settle WHERE status='final' AND due_amount < -0.01")
-    refund_res = cur.fetchone()
-    total_refunds = float(refund_res['total_refunds'] or 0)
-
-    # Total Cash Out includes Refunds now
-    total_cash_out = float(exp_out['c'] or 0) + float(emp_out['c'] or 0) + float(supp_out['c'] or 0) + total_refunds
-    total_bank_out = float(exp_out['b'] or 0) + float(emp_out['b'] or 0) + float(supp_out['b'] or 0)
-    
-    cash_bal = total_cash_in - total_cash_out
-    bank_bal = total_bank_in - total_bank_out
-
     if request.method == 'POST':
         try:
             amt = float(request.form.get('amount_paid'))
@@ -2936,7 +2922,7 @@ def record_payment(supplier_id):
             try: payment_date = datetime.strptime(date_raw, '%d-%m-%Y').strftime('%Y-%m-%d')
             except: payment_date = date_raw
 
-            # 1. Record Supplier Payment Only (No Employee Transaction Insert)
+            # 1. Record Supplier Payment Only
             cur.execute("""
                 INSERT INTO supplier_payments (supplier_id, amount_paid, payment_date, payment_mode, notes, created_at)
                 VALUES (%s, %s, %s, %s, %s, NOW())
@@ -2953,7 +2939,89 @@ def record_payment(supplier_id):
             mysql.connection.rollback()
             flash(f"Error: {e}", "danger")
 
+    # -------------------------------------------------------------
+    # 2. FETCH GLOBAL COMPANY BALANCE (FOR UI DISPLAY)
+    # -------------------------------------------------------------
+    
+    # Income
+    cur.execute("SELECT SUM(cash_money) as cash, SUM(online_money) as bank FROM evening_settle WHERE status='final'")
+    eve = cur.fetchone()
+    cur.execute("SELECT SUM(cash_amount) as cash, SUM(online_amount) as bank FROM office_sales")
+    off = cur.fetchone()
+    cur.execute("""
+        SELECT 
+            SUM(CASE WHEN payment_mode = 'Cash' THEN amount ELSE 0 END) as cash_in,
+            SUM(CASE WHEN payment_mode != 'Cash' THEN amount ELSE 0 END) as bank_in
+        FROM employee_transactions WHERE type = 'credit'
+    """)
+    emp_in = cur.fetchone()
+
+    # Expenses (Vouchers + Emp Debits + Supplier Payments)
+    cur.execute("""
+        SELECT 
+            SUM(CASE WHEN payment_method = 'Cash' THEN amount ELSE 0 END) as cash_total,
+            SUM(CASE WHEN payment_method = 'Online' THEN amount ELSE 0 END) as bank_total
+        FROM expense_items
+    """)
+    exp_totals = cur.fetchone()
+    
+    cur.execute("""
+        SELECT 
+            SUM(CASE WHEN payment_mode = 'Cash' THEN amount ELSE 0 END) as cash_out,
+            SUM(CASE WHEN payment_mode != 'Cash' THEN amount ELSE 0 END) as bank_out
+        FROM employee_transactions WHERE type = 'debit'
+    """)
+    emp_out = cur.fetchone()
+    
+    cur.execute("""
+        SELECT 
+            SUM(CASE WHEN payment_mode = 'Cash' THEN amount_paid ELSE 0 END) as cash_out,
+            SUM(CASE WHEN payment_mode != 'Cash' THEN amount_paid ELSE 0 END) as bank_out
+        FROM supplier_payments
+    """)
+    supp_out = cur.fetchone()
+
+    # Refunds (Profit paid to employee)
+    cur.execute("SELECT SUM(ABS(due_amount)) as total_refunds FROM evening_settle WHERE status='final' AND due_amount < -0.01")
+    refund_res = cur.fetchone()
+    total_refunds = float(refund_res['total_refunds'] or 0)
+
+    # NEW: Fund Adjustments (Contra & Capital)
+    adj_cash_in = 0.0; adj_cash_out = 0.0
+    adj_bank_in = 0.0; adj_bank_out = 0.0
+    
+    try:
+        cur.execute("SELECT action_type, fund_mode, SUM(amount) as val FROM fund_adjustments GROUP BY action_type, fund_mode")
+        for a in cur.fetchall():
+            typ = a['action_type']
+            mode = a['fund_mode']
+            val = float(a['val'] or 0)
+            
+            if typ == 'deposit_to_bank':
+                adj_cash_out += val; adj_bank_in += val
+            elif typ == 'withdraw_to_cash':
+                adj_bank_out += val; adj_cash_in += val
+            elif typ == 'add_funds':
+                if mode == 'Cash': adj_cash_in += val
+                else: adj_bank_in += val
+            elif typ == 'reduce_funds':
+                if mode == 'Cash': adj_cash_out += val
+                else: adj_bank_out += val
+    except Exception:
+        pass # Failsafe if the table doesn't exist yet
+
+    # FINAL MATH
+    total_cash_in = float(eve['cash'] or 0) + float(off['cash'] or 0) + float(emp_in['cash_in'] or 0) + adj_cash_in
+    total_bank_in = float(eve['bank'] or 0) + float(off['bank'] or 0) + float(emp_in['bank_in'] or 0) + adj_bank_in
+
+    total_cash_out = float(exp_totals['cash_total'] or 0) + float(emp_out['cash_out'] or 0) + float(supp_out['cash_out'] or 0) + total_refunds + adj_cash_out
+    total_bank_out = float(exp_totals['bank_total'] or 0) + float(emp_out['bank_out'] or 0) + float(supp_out['bank_out'] or 0) + adj_bank_out
+
+    cash_bal = total_cash_in - total_cash_out
+    bank_bal = total_bank_in - total_bank_out
+    
     cur.close()
+
     return render_template('suppliers/new_payment.html', 
                          supplier=supplier, 
                          current_due=current_due, 
